@@ -637,10 +637,13 @@ prompt as the model reads it, to review a change as a diff.
   reads the request and the calls (tool, input, size, age; never a result's content) and answers two yes/no
   questions per call, 8 calls per request and 24 per pressure, oldest first: is the result still needed, and is it
   needed whole. Under 0.5 on the first the result is removed, under 0.5 on the second it is cut to its first 300
-  characters, else it stays; the runtime leaves a line that says what was cut and to run the call again. A verdict
-  settles a call for the rest of the loop, and a call without one is offered again. It fails open: the setting off
-  or unreadable, no decision model (a warning) or a model that does not answer (a warning, and no more question in
-  that act) prune nothing. A log line says what each pressure judged, removed and cut.
+  characters, else it stays; the runtime leaves a line that says what was cut and to run the call again. The
+  requests of one pressure are sent together. A verdict answered to the runtime settles a call for the rest of the
+  loop, `keep` included, and a call without one is offered again: a small result is answered `keep`, a result
+  judged needed is left unanswered and judged again once 8 more model turns have passed. Each act has its own
+  binding, the act a stop check asks for included. It fails open: the setting off or unreadable, no decision model
+  (a warning) or a model that does not answer (a warning, and no more question in that act) prune nothing. A log
+  line says what each pressure judged, removed and cut.
 - **Summary** (`shared/domain/compaction.ts`, `buildSummaryPrompt`): the summary replaces the history, so it is
   written for a reader who resumes cold: the request and how success is judged; the user's constraints and preferences
   still in force, close to their own words (above all an instruction to work differently), and what the user allowed

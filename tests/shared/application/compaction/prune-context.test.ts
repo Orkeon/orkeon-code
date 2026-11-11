@@ -8,7 +8,7 @@ import {
   PRUNE_DECISION_FAILED, PRUNE_WITHOUT_DECISION_MODEL,
 } from "../../../../src/shared/application/compaction/messages.ts";
 import {
-  PRUNED_TWO, REQUEST, THIRTY_LARGE, TWO_LARGE_ONE_SMALL, noneNeeded, pruneSetup,
+  PRUNED_TWO, REJUDGE_CASES, REQUEST, THIRTY_LARGE, TWO_LARGE_ONE_SMALL, allNeededWhole, noneNeeded, pruneSetup, twoLargeLater,
 } from "./prune-context.fixtures.ts";
 
 describe("contextPruning", () => {
@@ -130,4 +130,46 @@ describe("the callback of contextPruning", () => {
     // Assert
     strictEqual(decision.asked.length, 1);
   });
+
+  it("keeps the verdicts of the requests answered when another one fails", async () => {
+    // Arrange
+    const { deps, decision } = pruneSetup();
+    decision.replies = [noneNeeded(8), null, noneNeeded(8)];
+    const pruning = await contextPruning(deps, REQUEST);
+
+    // Act
+    const verdicts = await pruning.onContextPressure?.(THIRTY_LARGE);
+
+    // Assert
+    strictEqual(Object.values(verdicts ?? {}).filter((verdict) => verdict === "drop").length, 16);
+  });
+
+  it("answers nothing for a result judged needed whole, so the runtime offers it again", async () => {
+    // Arrange
+    const { deps, decision } = pruneSetup();
+    decision.answers = allNeededWhole(2);
+    const pruning = await contextPruning(deps, REQUEST);
+
+    // Act
+    const verdicts = await pruning.onContextPressure?.(TWO_LARGE_ONE_SMALL);
+
+    // Assert
+    deepStrictEqual(verdicts, { "call-3": "keep" });
+  });
+
+  for (const c of REJUDGE_CASES) {
+    it(c.name, async () => {
+      // Arrange
+      const { deps, decision } = pruneSetup();
+      decision.answers = allNeededWhole(2);
+      const pruning = await contextPruning(deps, REQUEST);
+      await pruning.onContextPressure?.(TWO_LARGE_ONE_SMALL);
+
+      // Act
+      await pruning.onContextPressure?.(twoLargeLater(c.later));
+
+      // Assert
+      strictEqual(decision.asked.length, c.requests);
+    });
+  }
 });

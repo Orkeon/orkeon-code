@@ -20,10 +20,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - The pin moves to Orkeon `main` `206b562` (Orkeon #329, which closes #327, opened from this project): the tool loop
   of `act` takes `onContextPressure`, a callback that runs once the loop's messages pass a threshold and answers
-  `keep`, `head` or `drop` for each older result of a read tool. Nothing uses it yet. The same range holds Orkeon
-  #325 (the host's cost budget is enforced: `BudgetExhaustedError` gains the `cost` dimension, which a host sets
-  with `Orkeon:CostTracking:DefaultCrewBudget`, absent from the example settings), the new default models of seven
-  providers (a profile that names its model is untouched) and Orkeon Studio leaving for its own repository.
+  `keep`, `head` or `drop` for each older result of a read tool; `compact.prune`, above, is what uses it
+  ([ADR 0027](docs/adr/0027-decision-model-optimisations.md)). The same range holds Orkeon #325 (the host's cost
+  budget is enforced: `BudgetExhaustedError` gains the `cost` dimension, which a host sets with
+  `Orkeon:CostTracking:DefaultCrewBudget`, absent from the example settings; a dev step now reads a spent cost
+  budget as a spent budget, not as an ordinary failure), #328 (a 429 for an exhausted balance fails at once
+  instead of being retried), the new default models of seven providers (a profile that names its model is
+  untouched), #324 (the sources now build as `1.0.0`; no `v1.0.0` tag is published yet, so the tool and docker
+  modes still run `1.0.0-rc.6` and `1.0.0-rc.5`), #323 and #326 (Orkeon Studio and two submodules leave the
+  repository).
 
 ### Changed — the pin moves to Orkeon `f5813a1`
 

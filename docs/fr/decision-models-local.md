@@ -576,6 +576,14 @@ ORKEON_CODE_SETTINGS=config/appsettings.local.json ORKEON_CODE_WORKSPACE=/tmp/ke
              "permissionMode": "plan", "llmProfile": "guarded"}' 2>&1 | grep -E "Decision|decision\.|finalOutput"
 ```
 
+## Élaguer un long tour avec lui
+
+Un profil de décision, c'est le host qui interroge le modèle de décision. Orkeon Code l'interroge aussi, pour une
+chose à ce jour : `/config set compact.prune on` lui fait juger les résultats d'outils périmés d'un tour en cours,
+quel que soit le fournisseur qui le sert ([architecture](architecture.md#compaction-et-mémoire)). Il ne faut rien
+de plus que le fournisseur configuré plus haut, et aucun profil ; c'est éteint par défaut, et pas encore mesuré
+avec les petits modèles.
+
 ## Quand ça ne marche pas
 
 | Ce que vous voyez | Pourquoi | Que faire |

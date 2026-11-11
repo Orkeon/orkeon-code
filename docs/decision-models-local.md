@@ -562,6 +562,13 @@ ORKEON_CODE_SETTINGS=config/appsettings.local.json ORKEON_CODE_WORKSPACE=/tmp/ke
              "permissionMode": "plan", "llmProfile": "guarded"}' 2>&1 | grep -E "Decision|decision\.|finalOutput"
 ```
 
+## Pruning a long turn with it
+
+A decision profile is the host asking the decision model. Orkeon Code asks it too, for one thing so far:
+`/config set compact.prune on` has it judge the stale tool results of a turn in progress, whichever provider
+serves it ([architecture](architecture.md#compaction-and-memory)). It needs nothing more than the provider
+configured above, and no profile; it is off by default, and has not been measured against the small models yet.
+
 ## When it does not work
 
 | What you see | Why | What to do |

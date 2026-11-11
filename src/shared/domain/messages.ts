@@ -105,9 +105,9 @@ export const ANSWER_LANGUAGE_DOC: ConfigKeyDoc = {
 export const PRUNE_DOC: ConfigKeyDoc = {
   description:
     "'on' lets the host's decision model prune the tool loop of a turn: past 40 % of the context window, an older " +
-    "result of a read tool that is no longer needed is removed or cut to its first lines, with a note that says how " +
+    "result of a read tool that is no longer needed is removed or cut to its first 300 characters, with a note that says how " +
     "to get it back. Needs a decision provider on the host; without one nothing is pruned. Omitted = 'off'.",
-  consumedBy: "/assistant (the tool results of a turn in progress)",
+  consumedBy: "/assistant, /summary, /transcribe --then, /voice send and /voice --go (the tool results of a turn in progress)",
 };
 
 export const COMPACTION_TRIGGER_DOC: ConfigKeyDoc = {

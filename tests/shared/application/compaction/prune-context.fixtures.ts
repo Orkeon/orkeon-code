@@ -19,9 +19,9 @@ export function pruneSetup(setting: string | null = "on") {
   return { config, decision, session, log, deps: { config, decision, session, log } };
 }
 
-function calls(count: number, resultChars: number, from = 1): PressureCall[] {
+function calls(count: number, resultChars: number, from = 1, older = 0): PressureCall[] {
   return Array.from({ length: count }, (_, i) => ({
-    id: `call-${from + i}`, name: "file_read", input: { path: `/workspace/f${from + i}.ts` }, resultChars, age: count - i,
+    id: `call-${from + i}`, name: "file_read", input: { path: `/workspace/f${from + i}.ts` }, resultChars, age: count - i + older,
   }));
 }
 
@@ -48,3 +48,23 @@ export function noneNeeded(count: number): DecisionAnswers {
 }
 
 export const PRUNED_TWO = "context pruning: 2 tool result(s) judged, 2 removed, 0 cut, about 5850 tokens freed";
+
+/** The two large results of TWO_LARGE_ONE_SMALL, `older` model turns later, the small one settled. */
+export function twoLargeLater(older: number): ContextPressure {
+  return pressure(calls(2, 12_000, 1, older));
+}
+
+/** Every call of a batch of `count` is needed whole. */
+export function allNeededWhole(count: number): DecisionAnswers {
+  const answers: DecisionAnswers = {};
+  for (let n = 1; n <= count; n += 1) {
+    answers[`needed_${n}`] = noul(0.9);
+    answers[`whole_${n}`] = noul(0.9);
+  }
+  return answers;
+}
+
+export const REJUDGE_CASES: readonly { readonly name: string; readonly later: number; readonly requests: number }[] = [
+  { name: "does not ask again about a result judged needed 7 turns earlier", later: 7, requests: 1 },
+  { name: "asks again about a result judged needed 8 turns earlier", later: 8, requests: 2 },
+];

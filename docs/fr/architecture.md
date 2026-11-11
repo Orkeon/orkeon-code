@@ -688,8 +688,10 @@ un changement comme un diff.
   répond à deux questions oui/non par appel, 8 appels par requête et 24 par pression, les plus anciens d'abord : le
   résultat sert-il encore, et sert-il en entier. Sous 0,5 à la première le résultat est retiré, sous 0,5 à la
   seconde il est coupé à ses 300 premiers caractères, sinon il reste ; le runtime laisse une ligne qui dit ce qui a
-  été coupé et de relancer l'appel. Un verdict règle un appel pour le reste de la boucle, et un appel sans verdict
-  est proposé de nouveau. L'élagage échoue ouvert : le réglage éteint ou illisible, pas de modèle de décision (un
+  été coupé et de relancer l'appel. Les requêtes d'une pression partent ensemble. Un verdict rendu au runtime règle
+  un appel pour le reste de la boucle, `keep` compris, et un appel sans verdict est proposé de nouveau : un petit
+  résultat reçoit `keep`, un résultat jugé utile reste sans verdict et est rejugé une fois 8 tours de modèle de
+  plus passés. Chaque act a sa propre liaison, celui que demande un contrôle de fin compris. L'élagage échoue ouvert : le réglage éteint ou illisible, pas de modèle de décision (un
   avertissement) ou un modèle qui ne répond pas (un avertissement, et plus aucune question dans cet act) n'élaguent
   rien. Une ligne du journal dit ce que chaque pression a jugé, retiré et coupé.
 - **Résumé** (`shared/domain/compaction.ts`, `buildSummaryPrompt`) : le résumé remplace l'historique, il est donc

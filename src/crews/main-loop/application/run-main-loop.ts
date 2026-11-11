@@ -234,11 +234,11 @@ interface TurnAnswer { answer: string; cut: boolean }
  *  through no stop check: a second act would meet the same spent budget. */
 async function stopChecked(
   deps: Pick<MainLoopDeps, "llm" | "log" | "chains">, turn: TurnPrompt, mode: string, flags: BehaviorFlags,
-  request: string, closingLine: string | null, pruning: ContextPruning,
+  request: string, closingLine: string | null, pruningOf: () => Promise<ContextPruning>,
 ): Promise<TurnAnswer> {
   let answer: string;
   try {
-    answer = await runAct(deps, turn, mode, flags, pruning);
+    answer = await runAct(deps, turn, mode, flags, await pruningOf());
   } catch (error) {
     const exhausted = budgetExhaustedAnswerOf(error);
     if (exhausted === null) throw error;
@@ -249,7 +249,7 @@ async function stopChecked(
   if (stop.refusedBy === undefined) return { answer, cut: false };
   deps.log.info(stopCheckSendsBack(stop.refusedBy, String(stop.reason)));
   try {
-    return { answer: await runAct(deps, { ...turn, request: buildStopRetryPrompt(turn.request, answer, stop.reason ?? "") }, mode, flags, pruning), cut: false };
+    return { answer: await runAct(deps, { ...turn, request: buildStopRetryPrompt(turn.request, answer, stop.reason ?? "") }, mode, flags, await pruningOf()), cut: false };
   } catch (error) {
     // A retry that fails (a provider error) never costs the turn an answer it had: the first one stands, said.
     if (answer.trim().length === 0) throw error;
@@ -340,10 +340,11 @@ export async function runMainLoop(input: MainLoopInputs, loaded: LoadedCatalogue
   // ran before it (an edit made on disk stays on record), the run not failed.
   // The calls of a head-of-turn compaction are not the answer's: the trace starts with the act.
   deps.trace?.take();
-  const pruning = deps.prune === undefined ? {} : await deps.prune(prompt);
+  // One binding per act: the runtime numbers the calls of each act from 1, and the binding remembers them.
+  const pruningOf = async (): Promise<ContextPruning> => deps.prune === undefined ? {} : await deps.prune(prompt);
   let checked: { answer: string; cut: boolean };
   try {
-    checked = await stopChecked(deps, assembled, mode, flags, prompt, readClosingLine(input.closingLine), pruning);
+    checked = await stopChecked(deps, assembled, mode, flags, prompt, readClosingLine(input.closingLine), pruningOf);
   } catch (error) {
     const block = decisionBlockOf(error);
     if (block === null) throw error;

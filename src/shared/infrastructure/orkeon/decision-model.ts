@@ -1,7 +1,8 @@
 // DecisionModel adapter over the host's `system_one_decide` tool, which the host registers when its settings
 // configure a decision provider (`Orkeon:Decision:Provider`, or a provider section alone), whichever it is. The
 // tool is in no built-in list, so its member of the `tools` namespace is looked up by name: absent, there is no
-// decision model. It answers `{ success, answers, model, error }`; a refusal of the model is `success: false`.
+// decision model. It answers `{ success, answers, model, error }`; a refusal of the model makes the call throw (the
+// `tools` namespace throws on a failed tool), and both that and a `success: false` read as no answer.
 
 import type { DecisionModel } from "../../application/ports.ts";
 import { parseDecisionAnswers } from "../../domain/decision/questions.ts";

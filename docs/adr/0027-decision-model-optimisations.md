@@ -37,17 +37,20 @@ names. A script reaches it as a member of the `tools` namespace.
   left out, a choice outside the options asked, a probability outside [0, 1]) are all `null`, and never an exception.
   A use case that gets `null` does exactly what it did before this ADR.
 - **Three uses, each off until its session key turns it on**, each delivered on its own:
-  - *pruning the context* (`compact.prune`): inside a turn's tool loop, past a share of the window, each older
-    result of a read tool is judged, kept, cut down to its head or removed. The results live in the runtime's loop
-    and never in the session buffer, so this rides the runtime's `onContextPressure` (Orkeon #327, asked for by
-    this ADR's first draft); the summary of the buffer is untouched;
+  - *pruning the context* (`compact.prune`): inside a turn's tool loop, past a share of the window, the older
+    results of the read tools are judged, the large ones and a bounded number at a time, and kept, cut down to
+    their head or removed. The results live in the runtime's loop and never in the session buffer, so this rides
+    the runtime's `onContextPressure` (Orkeon #327, asked for by this ADR's first draft); the summary of the
+    buffer is untouched. A verdict answered to the runtime is final for the loop, so a result judged needed is
+    left unanswered and judged again later;
   - *routing the agents* (`route.agents`, `route.ladder`): a crew or a sub-agent gets the cheapest profile of the
     ladder that fits its task, never one above the session's;
   - *suggesting skills* (`skills.suggest`): the few skills that fit the request join the turn's attached skills, for
     that turn.
 - **Names say the feature, never the provider.** No command, key, file, message nor identifier carries the name of a
   decision model: `prune`, `route` and `suggest` are what a user turns on, whatever answers behind. A provider's name
-  appears in the pages that configure the providers and in the link above.
+  appears in the pages that configure the providers, in this ADR's context and where a message names the host
+  setting to fill (`Orkeon:Decision:Provider`, `Orkeon:TypeSafe`).
 
 ## Consequences
 
@@ -55,8 +58,18 @@ names. A script reaches it as a member of the `tools` namespace.
   becomes a default.
 - The quality of a prune, a route or a suggestion is the decision model's: the small open-weights models answer
   some questions poorly ([decision models, locally](../decision-models-local.md)). Each use reads a probability
-  against a threshold of its own, and falls back to the old path below it.
+  against a threshold of its own. Routing and suggesting fall back to the old path below it; pruning has no such
+  side: under its threshold a result is cut or removed, and what bounds a wrong answer is that only the result of a
+  read tool is ever offered, with a line that says to run the call again.
 - `system_one_decide` stays out of every built-in tool list: the model is not offered it by this ADR. Handing it to
   the assistant remains `/config set tools.extra system_one_decide`.
 - Left aside: the refusal of a write by model and by path, and the move to a stronger model after refused writes.
   Routing chooses a profile, it forbids nothing; the permission rules stay the one place that refuses a call.
+- The pruning as first planned is not what was built. Planned: judge the old tool calls of the session buffer
+  before the summary, skip the summary when enough was freed (40 % of the window, or 8 000 tokens), a `pruned`
+  outcome, `/compact --prune` and `/compact --stats`. The buffer holds no tool result (one line per call), so
+  none of that exists: the pruning runs in the loop, and a log line says what each pressure judged, removed and
+  cut. Only the main loop's act carries it; the sub-agents of the dev crews do not.
+- Not yet checked against a live decision model: that `system_one_decide` answers under each provider as its
+  sources say, and how well a small model answers 16 questions in one request (the host's validator caps the
+  state's size, not the number of questions).

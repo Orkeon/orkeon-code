@@ -57,3 +57,9 @@ export const LONG_REQUEST = `Rename the port. ${"x".repeat(3_000)}`;
 export const STATE_OF_ONE = "Request the assistant is working on:\nRename the port\n\nEarlier tool calls of this work, oldest first. " +
   "Each result can be had again by running the call again:\n" +
   '1. file_read {"path":"/workspace/src/f1.ts"}, a result of 12000 characters, 9 model turn(s) ago';
+
+export const DUE_CASES: readonly { readonly name: string; readonly age: number; readonly keptAtAge: number | undefined; readonly due: boolean }[] = [
+  { name: "judges a result never judged", age: 3, keptAtAge: undefined, due: true },
+  { name: "does not judge again a result judged needed 7 turns ago", age: 10, keptAtAge: 3, due: false },
+  { name: "judges again a result judged needed 8 turns ago", age: 11, keptAtAge: 3, due: true },
+];

@@ -4,11 +4,13 @@ import { describe, it } from "node:test";
 import { deepStrictEqual, strictEqual } from "node:assert";
 
 import {
-  PRUNE_REQUEST_CHARS, pressureSettings, pruneOn, pruneQuestions, pruneState, pruneTally, pruneVerdicts, worthJudging,
+  PRUNE_REQUEST_CHARS, dueForJudging, pressureSettings, pruneOn, pruneQuestions, pruneState, pruneTally, pruneVerdicts, worthJudging,
 } from "../../../src/shared/domain/context-prune.ts";
 import {
   LONG_REQUEST, MIXED_TALLY, MIXED_VERDICTS, ON_CASES, STATE_OF_ONE, THREE_CALLS, VERDICT_CASES, call,
+  DUE_CASES,
 } from "./context-prune.fixtures.ts";
+import { assertStateHolds } from "./context-prune.assertions.ts";
 
 describe("pruneOn", () => {
   for (const c of ON_CASES) {
@@ -62,6 +64,21 @@ describe("worthJudging", () => {
   });
 });
 
+describe("dueForJudging", () => {
+  for (const c of DUE_CASES) {
+    it(c.name, () => {
+      // Arrange
+      const offered = call(1, 12_000, { age: c.age });
+
+      // Act
+      const due = dueForJudging(offered, c.keptAtAge);
+
+      // Assert
+      strictEqual(due, c.due);
+    });
+  }
+});
+
 describe("pruneState", () => {
   it("gives the request, then each call with its number, tool, input, size and age", () => {
     // Arrange
@@ -82,7 +99,7 @@ describe("pruneState", () => {
     const state = pruneState(request, []);
 
     // Assert
-    strictEqual(state.includes(`${LONG_REQUEST.slice(0, PRUNE_REQUEST_CHARS)}...\n`), true);
+    assertStateHolds(state, `${LONG_REQUEST.slice(0, PRUNE_REQUEST_CHARS)}...\n`);
   });
 
   it("cuts a call's input at 200 characters", () => {
@@ -93,7 +110,7 @@ describe("pruneState", () => {
     const state = pruneState("r", calls);
 
     // Assert
-    strictEqual(state.includes(`file_read {"pattern":"${"p".repeat(188)}..., a result`), true);
+    assertStateHolds(state, `file_read {"pattern":"${"p".repeat(188)}..., a result`);
   });
 });
 
