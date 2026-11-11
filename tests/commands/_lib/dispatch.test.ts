@@ -169,6 +169,30 @@ describe("withRoutedProfile", () => {
     strictEqual(profiled.llmProfile, "small");
   });
 
+  it("hands a routed launch the session's profile to fall back on", async () => {
+    // Arrange
+    const { deps, config, routing } = routedCrewDeps({ "llm.profile": "large", "route.agents": "on" });
+    const profiled = await withRoutedProfile(deps, config, routing, { crew: "dev-plan", brief: "/dev-plan invoice-export" });
+
+    // Act
+    launchCrew(profiled, "dev-plan", { code: "invoice-export" });
+
+    // Assert
+    deepStrictEqual(deps.crews.launches[0].input, { code: "invoice-export", llmProfile: "small", llmProfileFallback: "large" });
+  });
+
+  it("hands a launch the routing left alone nothing to fall back on", async () => {
+    // Arrange
+    const { deps, config, routing } = routedCrewDeps({ "llm.profile": "large" });
+    const profiled = await withRoutedProfile(deps, config, routing, { crew: "dev-plan", brief: "/dev-plan invoice-export" });
+
+    // Act
+    launchCrew(profiled, "dev-plan", { code: "invoice-export" });
+
+    // Assert
+    deepStrictEqual(deps.crews.launches[0].input, { code: "invoice-export", llmProfile: "large" });
+  });
+
   it("hands the launch the session's profile when the routing is off", async () => {
     // Arrange
     const { deps, config, routing } = routedCrewDeps({ "llm.profile": "large" });

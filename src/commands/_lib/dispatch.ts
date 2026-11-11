@@ -20,7 +20,7 @@ import type { HostSource } from "../../shared/application/host-context.ts";
 import { formatRule } from "../../shared/domain/agent-policy/permission.ts";
 import { chainDepthLine, chainDepthRefusal } from "../../shared/domain/agents/chain.ts";
 import { exclusiveLine, exclusiveRefusal } from "../../shared/domain/agents/exclusive.ts";
-import { LLM_PROFILE_INPUT_KEY } from "../../shared/domain/llm-profile.ts";
+import { LLM_PROFILE_FALLBACK_INPUT_KEY, LLM_PROFILE_INPUT_KEY } from "../../shared/domain/llm-profile.ts";
 import { errorText } from "../../shared/domain/prelude.ts";
 import type { EpilogueCall, PreludeCall } from "../../shared/domain/prelude.ts";
 import type { StartOutput } from "../../shared/domain/session-start.ts";
@@ -45,6 +45,9 @@ export interface LaunchDeps {
   crews: Pick<CrewHost, "launch">;
   log: Pick<CommandLog, "info">;
   llmProfile?: string | null;
+  /** Set when the routing picked `llmProfile`: the session's own profile ("" for the host's default model), which the
+   *  crew falls back on when the host declares no profile of the routed name. */
+  llmProfileFallback?: string;
 }
 
 /** `deps` with the session's `llm.profile` read: what every command hands launchCrew. A setting that cannot be
@@ -63,7 +66,8 @@ export async function withRoutedProfile<D extends LaunchDeps & { log: Pick<Comma
   deps: D, config: Pick<ConfigStore, "readValue" | "readFile">, routing: Omit<RouteDeps, "config" | "log">, task: RouteTask,
 ): Promise<D & { llmProfile: string | null }> {
   const profiled = await withLlmProfile(deps, config);
-  return { ...profiled, llmProfile: await routeAgent({ ...routing, config, log: deps.log }, task, profiled.llmProfile) };
+  const routed = await routeAgent({ ...routing, config, log: deps.log }, task, profiled.llmProfile);
+  return routed === profiled.llmProfile ? profiled : { ...profiled, llmProfile: routed, llmProfileFallback: profiled.llmProfile ?? "" };
 }
 
 /** A crew's completion, as an async command's `completed` receives it; `intent` names the crew that answered,
@@ -98,6 +102,7 @@ export function launchCrew(
   const profile = deps.llmProfile ?? null;
   if (profile !== null) {
     input = { ...input, [LLM_PROFILE_INPUT_KEY]: profile };
+    if (deps.llmProfileFallback !== undefined) input = { ...input, [LLM_PROFILE_FALLBACK_INPUT_KEY]: deps.llmProfileFallback };
     details = { ...details, llmProfile: profile };
   }
   let ticket: string;

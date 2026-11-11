@@ -1,12 +1,15 @@
 // The profile a crew is launched on (ADR 0027): with `route.agents` on and a decision model on the host, the model
 // reads the command and picks a rung of `route.ladder`; the project's rules raise a floor and the session's profile
 // is the ceiling (shared/domain/agents/model-route.ts). It fails open at every step: the setting off or unreadable,
-// no decision model, a session on a profile outside the ladder, a model that does not answer or is not sure leave
-// the session's profile as it is. Each routed launch is logged and kept for `/route why`.
+// no decision model, a session on a profile outside the ladder, a model that does not answer, throws or is not sure
+// leave the session's profile as it is. A routed launch also carries the session's profile, which the crew falls
+// back on when the host declares no profile of the rung's name (orkeon/llm-profile.ts). Each routed launch is logged
+// and kept for `/route why`.
 import type { DecisionModel, Files, Logger, SessionStore } from "../ports.ts";
 import type { ConfigStore } from "../config-store.ts";
 import { WORKSPACE } from "../../domain/vfs.ts";
 import { ROUTE_RECENT_STATE_KEY } from "../../domain/session-keys.ts";
+import type { DecisionAnswers } from "../../domain/decision/questions.ts";
 import type { RouteChoice, RouteRules } from "../../domain/agents/model-route.ts";
 import {
   NO_ROUTE_RULES, ROUTE_AGENTS_CONFIG_KEY, ROUTE_LADDER_CONFIG_KEY, ROUTE_RULES_FILE, ladderOf, parseRecords, parseRouteRules,
@@ -73,7 +76,10 @@ export async function routeAgent(deps: RouteDeps, task: RouteTask, sessionProfil
     return sessionProfile;
   }
   const floor = routeFloor(await rulesOf(deps.files), task.crew, task.brief, ladder);
-  const answers = await deps.decision.ask(routeState(task.crew, task.brief), routeQuestions(ladder));
+  let answers: DecisionAnswers | null = null;
+  try {
+    answers = await deps.decision.ask(routeState(task.crew, task.brief), routeQuestions(ladder));
+  } catch { /* a decision model that throws is one that did not answer */ }
   const choice = routeOf(answers, ladder, sessionProfile, floor);
   deps.log.info(routedLine(task.crew, choice.profile ?? HOST_DEFAULT_MODEL, routeWhy(choice)));
   await remember(deps.session, task.crew, choice);
