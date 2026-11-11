@@ -7,6 +7,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added — the decision model routes a crew to the cheapest profile that fits
+
+- `/route on` (the setting `route.agents`) lets the host's decision model pick, at each launch of `/dev-spec`,
+  `/dev-change`, `/dev-plan`, `/dev-learn`, `/review`, `/analyze`, `/commit`, `/init` and `/init-verifiers`, the
+  profile of `route.ladder` (`small,large` by default, cheapest first) the crew runs on: never above the session's
+  `llm.profile`, and at least the profile a rule of `.orkeon/route-rules.json` sets for the crew or for a path the
+  command names. `/route` says where the routing stands, `/route why` shows the last five choices. Off by default;
+  without a decision model, when it does not answer or is not sure, the session's profile stands
+  ([architecture](docs/architecture.md#routing-a-crew-to-a-profile),
+  [ADR 0027](docs/adr/0027-decision-model-optimisations.md)).
+
 ### Added — the decision model prunes a turn's stale tool results
 
 - `/config set compaction.prune on` lets the host's decision model, whichever provider serves it, prune the tool loop

@@ -8,7 +8,7 @@ import { describe, it } from "node:test";
 import { deepStrictEqual, strictEqual, throws } from "node:assert";
 
 import { parseAssistantInput } from "../../../src/commands/_lib/args.ts";
-import { launchCrew, launchMainLoop, withLlmProfile, writeCompleted, writePlainCompleted } from "../../../src/commands/_lib/dispatch.ts";
+import { launchCrew, launchMainLoop, withLlmProfile, withRoutedProfile, writeCompleted, writePlainCompleted } from "../../../src/commands/_lib/dispatch.ts";
 import { BREAKER_RUN_FIELD } from "../../../src/crews/main-loop/application/auto-compact.ts";
 import { loadCatalogue, runMainLoop } from "../../../src/crews/main-loop/application/run-main-loop.ts";
 import type { MainLoopInputs } from "../../../src/crews/main-loop/application/run-main-loop.ts";
@@ -52,6 +52,7 @@ import {
   unreadableFileConfig,
   unreadableVoiceDeps,
   voiceDeps,
+  routedCrewDeps,
 } from "./dispatch.fixtures.ts";
 import { assertMemoryGuarded } from "./dispatch.assertions.ts";
 import { WORKSPACE } from "../../../src/shared/domain/vfs.ts";
@@ -153,6 +154,30 @@ describe("launchCrew", () => {
 
     // Assert
     throws(act, /crew not found/);
+  });
+});
+
+describe("withRoutedProfile", () => {
+  it("hands the launch the rung the decision model picks under the session's profile", async () => {
+    // Arrange
+    const { deps, config, routing } = routedCrewDeps({ "llm.profile": "large", "route.agents": "on" });
+
+    // Act
+    const profiled = await withRoutedProfile(deps, config, routing, { crew: "dev-plan", brief: "/dev-plan invoice-export" });
+
+    // Assert
+    strictEqual(profiled.llmProfile, "small");
+  });
+
+  it("hands the launch the session's profile when the routing is off", async () => {
+    // Arrange
+    const { deps, config, routing } = routedCrewDeps({ "llm.profile": "large" });
+
+    // Act
+    const profiled = await withRoutedProfile(deps, config, routing, { crew: "dev-plan", brief: "/dev-plan invoice-export" });
+
+    // Assert
+    strictEqual(profiled.llmProfile, "large");
   });
 });
 

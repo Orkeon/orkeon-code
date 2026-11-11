@@ -6,6 +6,8 @@
 // (createCrewHost(ctx.services), createPermissionRules(ctx.services)) and hands
 // them over with the command's log.
 
+import { routeAgent } from "../../shared/application/agents/route-agent.ts";
+import type { RouteDeps, RouteTask } from "../../shared/application/agents/route-agent.ts";
 import type { CrewHost, CrewLaunchOptions, PermissionRules, ToolCatalogue } from "../../shared/application/ports.ts";
 import type { ConfigStore } from "../../shared/application/config-store.ts";
 import type { SessionIo } from "../../shared/application/session-io.ts";
@@ -53,6 +55,15 @@ export async function withLlmProfile<D extends LaunchDeps & { log: Pick<CommandL
   const read = await readLlmProfile(config);
   if (read.warning !== undefined) deps.log.warn(read.warning);
   return { ...deps, llmProfile: read.profile };
+}
+
+/** `deps` with the profile the launch of `task.crew` runs on: the session's `llm.profile`, then, with `route.agents`
+ *  on, the rung of the ladder the host's decision model picks for the command (shared/application/agents/route-agent). */
+export async function withRoutedProfile<D extends LaunchDeps & { log: Pick<CommandLog, "warn" | "info"> }>(
+  deps: D, config: Pick<ConfigStore, "readValue" | "readFile">, routing: Omit<RouteDeps, "config" | "log">, task: RouteTask,
+): Promise<D & { llmProfile: string | null }> {
+  const profiled = await withLlmProfile(deps, config);
+  return { ...profiled, llmProfile: await routeAgent({ ...routing, config, log: deps.log }, task, profiled.llmProfile) };
 }
 
 /** A crew's completion, as an async command's `completed` receives it; `intent` names the crew that answered,

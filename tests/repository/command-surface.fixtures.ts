@@ -29,7 +29,8 @@ export const COMMAND_GROUPS: readonly string[] = ["session", "settings", "status
 // deliberately: the count is the guard against a command silently failing to load,
 // so it must move only with a commit that adds or removes one.
 // 49: /theme added, the console's palette for the session.
-export const EXPECTED_COMMAND_COUNT = 49;
+// 50: /route added, the routing of crews to the cheapest profile that fits (ADR 0027).
+export const EXPECTED_COMMAND_COUNT = 50;
 
 /** Orkeon's default cap on the command files the loader keeps (Orkeon:Cli:ScriptCommands:MaxScripts). */
 export const LOADER_DEFAULT_CAP = 200;

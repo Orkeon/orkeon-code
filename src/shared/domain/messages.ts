@@ -110,6 +110,21 @@ export const PRUNE_DOC: ConfigKeyDoc = {
   consumedBy: "/assistant, /summary, /transcribe --then, /voice send and /voice --go (the tool results of a turn in progress)",
 };
 
+export const ROUTE_AGENTS_DOC: ConfigKeyDoc = {
+  description:
+    "'on' lets the host's decision model pick, at each launch of a crew, the cheapest profile of route.ladder that " +
+    "fits the command; never one above the session's llm.profile, and the floors of .orkeon/route-rules.json apply. " +
+    "Needs a decision provider on the host; without one the session's profile stands. Omitted = 'off'.",
+  consumedBy: "/route, and the commands that launch a crew routed by it (/dev-spec, /dev-change, /dev-plan, /dev-learn, /review, /analyze, /commit, /init, /init-verifiers)",
+};
+
+export const ROUTE_LADDER_DOC: ConfigKeyDoc = {
+  description:
+    "The host's LLM profiles the routing picks among, cheapest first, separated by commas. Omitted = 'small,large', " +
+    "the two profiles of the example settings.",
+  consumedBy: "/route, and the commands route.agents routes",
+};
+
 export const COMPACTION_TRIGGER_DOC: ConfigKeyDoc = {
   description:
     "The token count at which the automatic compaction runs, e.g. '90000' or '90k'. Omitted = the " +

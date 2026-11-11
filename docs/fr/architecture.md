@@ -226,7 +226,7 @@ de couche, ou bien c'est un point d'entrée, un cas d'usage de commande de `comm
 
 ```text
 src/
-├── commands/          49 *.cmd.ts (parse, wire, render) in eight functional folders: session, settings, status,
+├── commands/          50 *.cmd.ts (parse, wire, render) in eight functional folders: session, settings, status,
 │   │                  project, git, dev, memory, speech
 │   ├── _lib/          the use cases, in the folder of their commands: run<Name>(tokens, deps) → CommandView,
 │   │                  or dispatch<Name>(tokens, deps) → a ticket or a message when the command launches a
@@ -661,6 +661,37 @@ un changement comme un diff.
   permission du mode (lecture seule : livrer une
   évaluation ou un plan ; sinon l'hôte peut demander avant un appel), puis la clause proactive quand `/proactive` est
   activé.
+
+### Router un crew vers un profil
+
+`shared/domain/agents/model-route.ts`, `shared/application/agents/route-agent.ts`
+([ADR 0027](../adr/0027-decision-model-optimisations.md)). Les agents d'un crew tournent tous sur un profil du
+host, le `llm.profile` de la session, choisi à la construction du crew. Avec `route.agents` à `on` et un modèle de
+décision sur le host, ce profil est choisi à chaque lancement de `/dev-spec`, `/dev-change`, `/dev-plan`,
+`/dev-learn`, `/review`, `/analyze`, `/commit`, `/init` et `/init-verifiers` :
+
+- **L'échelle** : `route.ladder` ordonne les profils LLM du host, du moins cher au plus cher (`small,large` si
+  omis). Un profil que le host ne déclare pas fait échouer le crew à son chargement, comme `llm.profile` : l'échelle
+  nomme des profils de `Llm:Profiles`.
+- **La question** : le modèle de décision lit le nom du crew et la commande telle que tapée (coupée en son milieu
+  au-delà de 4 000 caractères) et fait un choix parmi les barreaux, le premier décrit comme suffisant pour une
+  recherche ou une tâche entièrement spécifiée, le dernier comme nécessaire pour une conception ou un changement
+  sur plusieurs modules. Sous une confiance de 0,6, ou sans réponse, le profil de la session reste.
+- **Le plancher** : `.orkeon/route-rules.json`, `{ "paths": { "<préfixe>": "<profil>" }, "crews": { "<crew>":
+  "<profil>" } }`. La règle du crew, et pour chaque chemin que la commande nomme la règle de son ancêtre le plus
+  proche, relèvent le choix à ce barreau au moins. Un fichier absent, illisible ou mal formé, et une règle nommant
+  un profil hors de l'échelle, ne relèvent rien.
+- **Le plafond** : jamais au-dessus du barreau de la session ; il l'emporte sur un plancher. Une session sans
+  `llm.profile` dispose de toute l'échelle. Une session sur un profil hors de l'échelle (un profil de décision qui
+  garde ses requêtes) n'est pas routée : elle garde ce profil.
+- **Ce qui n'est pas routé** : la boucle principale (`/assistant` : son cache de prompt suit un modèle),
+  `/compact`, `/memory admit`, les crews de parole, `/advisor` (il a son propre modèle), `/dev-batches` et
+  `/tasks` ; et, dans un crew, les acts de ses sous-agents, car le `act` du runtime prend un modèle du fournisseur
+  de l'agent, pas un profil. L'effort de raisonnement reste celui de `/effort`.
+- **Le routage échoue ouvert** : le réglage éteint ou illisible, pas de modèle de décision (un avertissement) et un
+  modèle qui ne répond pas laissent le profil de la session. Chaque lancement routé écrit une ligne de journal avec
+  le profil et la raison, et les 5 derniers sont gardés dans la session pour `/route why`. `/route on|off` règle
+  `route.agents` pour la session ; nu, il dit où en est le routage.
 
 ### Compaction et mémoire
 

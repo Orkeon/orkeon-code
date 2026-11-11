@@ -358,3 +358,14 @@ export const themeSet = (theme: string): string =>
 export const fastNote = (blocks: readonly string[]): string =>
   `while on, /assistant turns omit the ${blocks.join(" and ")} blocks`;
 export const PROACTIVE_NOTE = "while on, /assistant answers end with up to three suggested next steps";
+
+// /route
+export const ROUTE_USAGE = "usage: /route [on|off|why]";
+export const NOTHING_ROUTED_YET = "nothing routed yet in this session.";
+export const routeStatus = (on: boolean, ladder: string, model: boolean): string =>
+  `route.agents: ${on ? "on" : "off"}; ladder: ${ladder} (cheapest first); decision model: ${model ? "present" : "absent, nothing is routed"}.`;
+export const routeSet = (on: boolean, model: boolean): string =>
+  on
+    ? `route.agents: on for this session${model ? "" : " (the host has no decision model: nothing is routed until it has one)"}; /clear clears it.`
+    : "route.agents: off for this session; /clear clears it.";
+export const routedRecord = (crew: string, profile: string, why: string): string => `${crew} on '${profile}': ${why}`;

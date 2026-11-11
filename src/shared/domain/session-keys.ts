@@ -68,6 +68,9 @@ export const TASKS_STATE_KEY = "task_list";
 /** The main-loop auto-compaction circuit breaker: consecutive failures (F3 v2). */
 export const AUTOCOMPACT_BREAKER_STATE_KEY = "autocompact_consecutive_failures";
 
+/** The last routed launches, a JSON array (shared/domain/agents/model-route.ts): `/route why` shows them. */
+export const ROUTE_RECENT_STATE_KEY = "route_recent";
+
 /** The dev batch in progress, `{"code": …, "phase": "F<n>"}`: written by the shape of /dev-batches
  *  that starts on a batch (`F<n>`, its audit), read by the state file written before a compaction. */
 export const WORKFLOW_ACTIVE_STATE_KEY = "workflow_active";

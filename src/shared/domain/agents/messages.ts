@@ -34,3 +34,6 @@ export const RUNNING_STOP_ASKED = "running (stop asked)";
 export const RUNNING_NOT_ANSWERING = "running, not answering";
 export const RUNNING_NO_LONGER_ANSWERING = "running, no longer answering";
 export const runOfStarted = (crew: string, startedAt: string, state: string): string => `run of ${crew} started ${startedAt}: ${state}`;
+export const ladderNeedsTwo = (value: string): string =>
+  `'${value}' is no ladder: name at least two profiles of the host, cheapest first, separated by commas (small,large)`;
+export const ladderRepeats = (value: string): string => `'${value}' names a profile twice`;

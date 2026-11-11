@@ -10,10 +10,10 @@
 // the session has no index yet, or with --rebuild (default: one per processor). `--rebuild` indexes
 // again from scratch, ignoring the index of the session and the one saved on disk.
 // The synthesis is written in the session's `answer.language` when one is set (_lib/project/analyze.ts).
-import { launchCrew, withLlmProfile, writeCompleted } from "../_lib/dispatch.ts";
+import { launchCrew, withRoutedProfile, writeCompleted } from "../_lib/dispatch.ts";
 import { analyzeInput } from "../_lib/project/analyze.ts";
 import { createCrewHost } from "../../shared/infrastructure/orkeon/crew-host.ts";
-import { orkeonConfigStore } from "../../shared/infrastructure/orkeon/wiring.ts";
+import { orkeonConfigStore, orkeonRouting } from "../../shared/infrastructure/orkeon/wiring.ts";
 
 defineAsyncCommand({
   name: "analyze",
@@ -26,7 +26,7 @@ defineAsyncCommand({
   },
   dispatch: async (args, ctx) => {
     const config = orkeonConfigStore();
-    return launchCrew(await withLlmProfile({ crews: createCrewHost(ctx.services), log: ctx.log }, config), "analyze", await analyzeInput(args, config));
+    return launchCrew(await withRoutedProfile({ crews: createCrewHost(ctx.services), log: ctx.log }, config, orkeonRouting(), { crew: "analyze", brief: String(ctx.command?.rawInput ?? "") }), "analyze", await analyzeInput(args, config));
   },
   completed: (result, ctx) => writeCompleted(ctx, result, "analyze", "✓ analyze →\n"),
 });

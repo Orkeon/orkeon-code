@@ -578,10 +578,12 @@ ORKEON_CODE_SETTINGS=config/appsettings.local.json ORKEON_CODE_WORKSPACE=/tmp/ke
 
 ## Élaguer un long tour avec lui
 
-Un profil de décision, c'est le host qui interroge le modèle de décision. Orkeon Code l'interroge aussi, pour une
-chose à ce jour : `/config set compaction.prune on` lui fait juger les résultats d'outils périmés d'un tour en cours,
+Un profil de décision, c'est le host qui interroge le modèle de décision. Orkeon Code l'interroge aussi, pour deux
+choses à ce jour. La première : `/config set compaction.prune on` lui fait juger les résultats d'outils périmés d'un tour en cours,
 quel que soit le fournisseur qui le sert ([architecture](architecture.md#compaction-et-mémoire)). Il ne faut rien
-de plus que le fournisseur configuré plus haut, et aucun profil ; c'est éteint par défaut.
+de plus que le fournisseur configuré plus haut, et aucun profil ; c'est éteint par défaut. `/route on` est la
+seconde : au lancement d'un crew, il choisit le profil LLM le moins cher qui convient à la commande
+([architecture](architecture.md#router-un-crew-vers-un-profil)).
 
 ### Une mesure : un tour, avec et sans
 

@@ -16,3 +16,17 @@ export const waitReturnedAtOnce = (agent: string, early: number): string =>
 // run-sub-agent.ts
 export const answerDidNotParse = (reason: string): string => `the answer did not parse: ${reason}`;
 export const briefTooLong = (length: number, max: number): string => `the brief is ${length} characters, over ${max}`;
+export const ROUTE_WITHOUT_DECISION_MODEL =
+  "route.agents is on and the host has no decision model: the session's profile stands (set Orkeon:Decision:Provider, or Orkeon:TypeSafe)";
+export const routeKeepsProfile = (profile: string, ladder: string): string =>
+  `route.agents is on and the session's llm.profile '${profile}' is not on the ladder (${ladder}): it stands`;
+export const routedLine = (crew: string, profile: string, why: string): string => `route: ${crew} on '${profile}' (${why})`;
+export const ROUTE_WHY = {
+  model: "the decision model's pick",
+  floor: "raised by a rule of .orkeon/route-rules.json",
+  ceiling: "held at the session's profile",
+  "low-confidence": "the pick was not sure enough, the session's profile stands",
+  "no-answer": "the decision model did not answer, the session's profile stands",
+} as const;
+export const pickedWith = (picked: string, confidence: number): string => `picked '${picked}' at ${confidence.toFixed(2)}`;
+export const HOST_DEFAULT_MODEL = "the host's default model";
