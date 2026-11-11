@@ -265,7 +265,7 @@ src/
 │   │                  git/ (branch, commit, diff, review), memory/ (memory, memory-admit), session/ (export,
 │   │                  resume, tasks), settings/ (advisor, agents, config, hooks, mode, model, permissions,
 │   │                  session-config: the toggle commands, skills), speech/ (say, transcribe, voice),
-│   │                  status/ (cache, doctor, meta: version ; messages: release notes, status). At the root, what
+│   │                  status/ (cache, doctor, meta: version; messages: release notes, status). At the root, what
 │   │                  several families share: args.ts (arguments), dispatch.ts (crew launch, completion
 │   │                  line, main-loop launch), dev-step.ts, effort.ts, pr-context.ts, view.ts (CommandView,
 │   │                  showView)
@@ -286,7 +286,7 @@ src/
                        runtime-tools.ts (the tool inputs), wiring.ts
 tests/
 ├── crews/             the tests of src/, mirroring it: src/<path>/<m>.ts is tested by tests/<path>/<m>.test.ts,
-├── shared/            its <m>.fixtures.ts and <m>.assertions.ts beside it ; src/ holds runtime code only
+├── shared/            its <m>.fixtures.ts and <m>.assertions.ts beside it; src/ holds runtime code only
 ├── commands/
 ├── support/           what several test files share, never imported by runtime code:
 │   ├── doubles/       the test doubles (Fake*), one per port
@@ -466,13 +466,13 @@ publishCrew(CrewBuilder().name("analyze").process("sequential").withAgent(analys
 
 ```text
 /assistant fix the parser
-  └─ assistant.cmd.ts         defineAsyncCommand: parses the "mode:" prefix ; launchMainLoop resolves the
+  └─ assistant.cmd.ts         defineAsyncCommand: parses the "mode:" prefix; launchMainLoop resolves the
        │                      session's mode, checks tools.extra, hands the rules to the gate
        └─ script-host.runCrewAsync("main-loop", { prompt, permissionMode, permissionModeVia,
                                                   permissionRules, extraTools, prelude?, epilogue? })
             └─ /crews/main-loop/crew.ork.ts   (the first --crews-dir holding <name>/crew.ork.ts)
                  └─ agent .body(): one turn of the loop (below)
-       ◀─ ticket ; the REPL prints the result when the crew completes
+       ◀─ ticket; the REPL prints the result when the crew completes
 ```
 
 - Une **commande synchrone** (`defineCommand`) répond aussitôt : settings, état de session, vues git.
