@@ -72,7 +72,7 @@ names. A script reaches it as a member of the `tools` namespace.
   cut. Only the main loop's act carries it; the sub-agents of the dev crews do not.
 - Checked live on 2026-11-11 with the hosted Jev and with `kev-0.8b`: `system_one_decide` answers under both
   providers and its probabilities reach the script as numbers. One measured turn saved 73.5 % of its input tokens
-  ([decision models, locally](../decision-models-local.md#a-measure-one-turn-with-and-without)). Not established:
+  ([decision models](../decision-models.md#measured-one-turn-with-and-without)). Not established:
   the judgement of the small open-weights models (the probe of `kev-0.8b` answered every question close to 0.5),
   and Liquid, which was not tried.
 - The routing as first planned is narrower than what was built. Planned: a profile and an effort for each crew and

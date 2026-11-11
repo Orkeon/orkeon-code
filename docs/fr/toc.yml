@@ -7,6 +7,8 @@
   href: wsl-tutorial.md
 - name: Configuration
   href: configuration.md
+- name: Modèles de décision
+  href: decision-models.md
 - name: Modèles de décision en local
   href: decision-models-local.md
 - name: Permissions

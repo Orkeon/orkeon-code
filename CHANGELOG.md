@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added — a documentation page on what Orkeon Code asks a decision model
+
+- [Decision models](docs/decision-models.md) gathers the three uses (pruning a long turn, routing a crew, suggesting
+  skills), how to turn each on, and what was measured with the hosted Jev and with a small local Kev: 73.5 % of a
+  turn's input tokens saved by the pruning, 11 routes of 12 and 12 suggestions of 12 as expected, 157 ms a request.
+  The pruning measure moves there from [Decision models locally](docs/decision-models-local.md), which keeps to the
+  local providers.
+
 ### Added — the decision model suggests the skills that fit a turn
 
 - `/skills suggest on` (the setting `skills.suggest`) lets the host's decision model add to each turn of the main
