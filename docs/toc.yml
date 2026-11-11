@@ -62,3 +62,25 @@
       href: adr/0015-orkeon-after-276.md
     - name: "ADR 0016: Orkeon main after #280, the edge list, bounded analysis results and a persisted memory"
       href: adr/0016-orkeon-after-280.md
+    - name: "ADR 0017: Orkeon main after #290, a styled split-pane console"
+      href: adr/0017-orkeon-after-290.md
+    - name: "ADR 0018: Orkeon main after #291, the main loop on the main screen"
+      href: adr/0018-orkeon-after-291.md
+    - name: "ADR 0019: Orkeon main after #293, the `firefox` tool"
+      href: adr/0019-orkeon-after-293.md
+    - name: "ADR 0020: Orkeon main after #295, the rc shims removed"
+      href: adr/0020-orkeon-after-295.md
+    - name: "ADR 0021: Orkeon main after #298, the `firefox` browser that outlives the run"
+      href: adr/0021-orkeon-after-298.md
+    - name: "ADR 0022: One canonical spelling for the host's paths, and the path lists"
+      href: adr/0022-host-path-spellings.md
+    - name: "ADR 0023: Orkeon main after #306, `onToolCall` before the gate and the FWK lots"
+      href: adr/0023-orkeon-after-306.md
+    - name: "ADR 0024: What Orkeon #299 adds, adopted or set aside"
+      href: adr/0024-orkeon-after-299.md
+    - name: "ADR 0025: Orkeon main after #317, `orkeon run --validate` on every crew"
+      href: adr/0025-orkeon-after-317.md
+    - name: "ADR 0026: Text apart from logic, by kind and by layer"
+      href: adr/0026-text-isolation.md
+    - name: "ADR 0027: The decision model asked by Orkeon Code: prune, route, suggest"
+      href: adr/0027-decision-model-optimisations.md

@@ -63,3 +63,25 @@
       href: ../adr/0015-orkeon-after-276.md
     - name: "ADR 0016 : Orkeon main après #280, la liste d'arêtes, des résultats d'analyse bornés et une mémoire persistée (en anglais)"
       href: ../adr/0016-orkeon-after-280.md
+    - name: "ADR 0017 : Orkeon main après #290, une console à volets stylée (en anglais)"
+      href: ../adr/0017-orkeon-after-290.md
+    - name: "ADR 0018 : Orkeon main après #291, la boucle principale sur l'écran principal (en anglais)"
+      href: ../adr/0018-orkeon-after-291.md
+    - name: "ADR 0019 : Orkeon main après #293, l'outil `firefox` (en anglais)"
+      href: ../adr/0019-orkeon-after-293.md
+    - name: "ADR 0020 : Orkeon main après #295, les shims rc retirés (en anglais)"
+      href: ../adr/0020-orkeon-after-295.md
+    - name: "ADR 0021 : Orkeon main après #298, le navigateur `firefox` qui survit au tour (en anglais)"
+      href: ../adr/0021-orkeon-after-298.md
+    - name: "ADR 0022 : Une écriture canonique pour les chemins de l'hôte, et les listes de chemins (en anglais)"
+      href: ../adr/0022-host-path-spellings.md
+    - name: "ADR 0023 : Orkeon main après #306, `onToolCall` avant la garde et les lots FWK (en anglais)"
+      href: ../adr/0023-orkeon-after-306.md
+    - name: "ADR 0024 : Ce qu'Orkeon #299 ajoute, adopté ou écarté (en anglais)"
+      href: ../adr/0024-orkeon-after-299.md
+    - name: "ADR 0025 : Orkeon main après #317, `orkeon run --validate` sur chaque crew (en anglais)"
+      href: ../adr/0025-orkeon-after-317.md
+    - name: "ADR 0026 : Le texte à part de la logique, par nature et par couche (en anglais)"
+      href: ../adr/0026-text-isolation.md
+    - name: "ADR 0027 : Le modèle de décision interrogé par Orkeon Code : élaguer, router, suggérer (en anglais)"
+      href: ../adr/0027-decision-model-optimisations.md
