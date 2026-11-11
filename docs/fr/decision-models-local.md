@@ -1,10 +1,10 @@
 # Essayer les modèles de décision en local : Kev et Liquid
 
-Un modèle de décision répond à des questions typées (oui ou non, un choix, un score) par des probabilités et n'écrit
-aucun texte. Orkeon en place un devant un LLM au moyen d'un *profil de décision* : il garde la requête, la route vers
-le profil qui lui convient ou vérifie la réponse et remonte vers un profil plus fort ([Configuration](configuration.md#le-llm)).
-Depuis Orkeon #266, l'hôte sert trois fournisseurs de décision sur le même fil « System One » ; cette page en installe
-deux sur votre machine, pas à pas, et les montre à l'œuvre dans Orkeon Code.
+Orkeon place un modèle de décision ([ce que c'est, et ce qu'Orkeon Code lui demande](decision-models.md)) devant un
+LLM au moyen d'un *profil de décision* : celui-ci garde la requête, la route vers le profil qui lui convient, ou
+vérifie la réponse et passe à un profil plus fort ([Configuration](configuration.md#le-llm)). Le runtime sert trois
+fournisseurs de décision sur le même fil « System One » ; cette page en installe deux sur votre machine, pas à pas,
+et les montre à l'œuvre dans Orkeon Code.
 
 | Fournisseur | Où il tourne | Clé | Modèle par défaut | Settings d'exemple |
 |---|---|---|---|---|

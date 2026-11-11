@@ -667,7 +667,7 @@ un changement comme un diff.
 `shared/domain/agents/model-route.ts`, `shared/application/agents/route-agent.ts`
 ([ADR 0027](../adr/0027-decision-model-optimisations.md)). Les agents d'un crew tournent tous sur un profil du
 host, le `llm.profile` de la session, choisi à la construction du crew. Avec `route.agents` à `on` et un modèle de
-décision sur le host, ce profil est choisi à chaque lancement de `/dev-spec`, `/dev-change`, `/dev-plan`,
+décision sur le host, ce profil est choisi à chaque lancement de `/dev-spec` (et son alias `/dev-change`), `/dev-plan`,
 `/dev-learn`, `/review`, `/analyze`, `/commit`, `/init` et `/init-verifiers` :
 
 - **L'échelle** : `route.ladder` ordonne les profils LLM du host, du moins cher au plus cher (`small,large` si

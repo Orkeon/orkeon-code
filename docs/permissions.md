@@ -65,7 +65,7 @@ keeps its worktree, its code, sheet and verdict there alone, and the run's last 
 relaunches it there (`/dev-batches <code> --concurrency <n>`, a GAPS verdict's correction first), for a human to
 decide. `/dev-spec`, `/dev-plan` and `/dev-batches`
 refuse to start in a read-only mode (`plan`, `dontAsk`), in a mode Orkeon Code does not know, and when the session's
-mode cannot be read. All six first put the [rule sets of the dev steps](#rule-sets-of-the-dev-steps)
+mode cannot be read. All three first put the [rule sets of the dev steps](#rule-sets-of-the-dev-steps)
 in the gate, and refuse to start while the gate is off; their crew's callback checks the same sets again, the only check
 of them under `orkeon run`.
 

@@ -1,10 +1,10 @@
 # Trying the decision models locally: Kev and Liquid
 
-A decision model answers typed questions (yes or no, a choice, a score) with probabilities and writes no text. Orkeon
-puts one in front of an LLM through a *decision profile*: it guards the request, routes it to the profile that fits
-or checks the answer and escalates to a stronger profile ([Configuration](configuration.md#the-llm)). Since Orkeon
-#266 the host serves three decision providers on the same "System One" wire; this page sets up two of them on your
-machine, step by step, and shows them at work in Orkeon Code.
+Orkeon puts a decision model ([what it is, and what Orkeon Code asks it](decision-models.md)) in front of an LLM
+through a *decision profile*: it guards the request, routes it to the profile that fits or checks the answer and
+escalates to a stronger profile ([Configuration](configuration.md#the-llm)). The host serves three decision providers
+on the same "System One" wire; this page sets up two of them on your machine, step by step, and shows them at work
+in Orkeon Code.
 
 | Provider | Where it runs | Key | Default model | Example settings |
 |---|---|---|---|---|

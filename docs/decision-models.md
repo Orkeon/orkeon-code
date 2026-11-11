@@ -49,13 +49,13 @@ together, and 15 were removed, 4 cut to their first 300 characters and 1 kept, a
 answers quote the same two titles: the first file's result came through whole. Net of the decision model's 0.2 s,
 the turn spent 7.3 s less in the model.
 
-The same turn asked about its last file only had all 20 results removed (about 115,000 tokens) and answered
-rightly, in 57,515 input tokens; its twin without pruning was not run.
+A second run, on the turn's last file alone, has no twin to compare it with: it is under
+[What these measures do not show](#what-these-measures-do-not-show).
 
 ## Routing a crew
 
 A crew's agents all run on one LLM profile of the host, the session's. With `route.agents` on, at the launch of
-`/dev-spec`, `/dev-change`, `/dev-plan`, `/dev-learn`, `/review`, `/analyze`, `/commit`, `/init` and
+`/dev-spec` (and its alias `/dev-change`), `/dev-plan`, `/dev-learn`, `/review`, `/analyze`, `/commit`, `/init` and
 `/init-verifiers`, the decision model reads the command and picks a profile of `route.ladder` (`small,large` when
 omitted, cheapest first). The pick is followed when its probability reaches 0.6, is raised to the floor
 `.orkeon/route-rules.json` sets for the crew or for a path the command names, and never goes above the session's

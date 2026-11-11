@@ -120,7 +120,7 @@ Le REPL est une façon de lancer les crews, pas la seule.
   `/mode` pour la session ; en mode `default`, le runtime vous demande avant une modification, une commande ou un
   appel réseau.
 - **Autonome** : en `bypassPermissions`, la boucle mène une tâche jusqu'au bout sans poser de question, sous un budget
-  (200 appels d'outils, 30 minutes, 400k tokens) et la garde de l'hôte. `scripts/run-crew.sh` lance le même crew en un
+  (200 appels d'outils, 30 minutes, 700k tokens de contexte) et la garde de l'hôte. `scripts/run-crew.sh` lance le même crew en un
   coup depuis un shell, une ligne de cron ou un job de CI, et imprime son résultat en JSON.
 - **Embarqué** : une application lance l'outil `orkeon` (nuget.org) ou l'image `orkeon-runners` sur un crew et lit le
   JSON ; le démon `orkeon-host` d'Orkeon peut héberger les crews derrière un canal de chat ou un point d'accès A2A.
@@ -148,6 +148,8 @@ La documentation est publiée en français et en anglais, en site consultable, a
 | [Premiers pas](docs/fr/getting-started.md) | Modes docker, tool et source, première session |
 | [Tutoriel WSL](docs/fr/wsl-tutorial.md) | La voix et un modèle local sous WSL2, sur le GPU, pas à pas |
 | [Configuration](docs/fr/configuration.md) | Fournisseurs LLM, fichier de settings, variables d'environnement |
+| [Modèles de décision](docs/fr/decision-models.md) | Ce qu'Orkeon Code demande à un modèle de décision : élaguer un long tour, router un crew, suggérer des skills, avec ce qui a été mesuré |
+| [Modèles de décision en local](docs/fr/decision-models-local.md) | Kev sur cette machine et Liquid, pas à pas, avec des profils de décision à essayer |
 | [Permissions](docs/fr/permissions.md) | Modes, règles, ce que l'agent peut toucher |
 | [Hooks](docs/fr/hooks.md) | Vos commandes autour des appels d'outils du modèle dans les étapes dev |
 | [Mémoire partagée](docs/fr/shared-memory.md) | Décisions, structures, méthodes et erreurs admises que les agents rappellent |

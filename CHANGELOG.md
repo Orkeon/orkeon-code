@@ -7,6 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed — figures and lists of the documentation that contradicted each other
+
+- The README gave the main loop a budget of 400k tokens; it is 700k context tokens, as the other pages say.
+- The README's documentation table lists [Decision models](docs/decision-models.md) and
+  [Decision models locally](docs/decision-models-local.md), as the documentation's own index does.
+- `/dev-change` is named for what it is, an alias of `/dev-spec` with a kind, where the routing lists its commands.
+- [Permissions](docs/permissions.md) said "all six" of the three commands it had just named.
+- [Decision models](docs/decision-models.md) told one measure twice; [Decision models locally](docs/decision-models-local.md)
+  links to the definition of a decision model instead of repeating it.
+
 ### Added — a documentation page on what Orkeon Code asks a decision model
 
 - [Decision models](docs/decision-models.md) gathers the three uses (pruning a long turn, routing a crew, suggesting

@@ -114,7 +114,7 @@ The REPL is one way to run the crews, not the only one.
 - **Interactive**: `./orkeon-code` on your project. `plan:` to ask, `acceptEdits:` to let it edit, `/mode` for the
   session; in `default` mode the runtime asks you before an edit, a command or a network call.
 - **Autonomous**: in `bypassPermissions` the loop runs a task to the end without a question, under a budget (200 tool
-  calls, 30 minutes, 400k tokens) and the host gate. `scripts/run-crew.sh` runs the same crew in one shot from a shell, a
+  calls, 30 minutes, 700k context tokens) and the host gate. `scripts/run-crew.sh` runs the same crew in one shot from a shell, a
   cron line or a CI job, and prints its result as JSON.
 - **Embedded**: an application starts the `orkeon` tool (nuget.org) or the `orkeon-runners` image on a crew and reads
   the JSON; Orkeon's `orkeon-host` daemon can host the crews behind a chat channel or an A2A endpoint. In-process
@@ -142,6 +142,8 @@ are written in English only.
 | [Getting started](docs/getting-started.md) | Docker, tool and source modes, first session |
 | [WSL tutorial](docs/wsl-tutorial.md) | Speech and a local model on WSL2, on the GPU, step by step |
 | [Configuration](docs/configuration.md) | LLM providers, settings file, environment variables |
+| [Decision models](docs/decision-models.md) | What Orkeon Code asks a decision model: pruning a long turn, routing a crew, suggesting skills, with what was measured |
+| [Decision models locally](docs/decision-models-local.md) | Kev on this machine and Liquid, step by step, with decision profiles to try |
 | [Permissions](docs/permissions.md) | Modes, rules, what the agent can touch |
 | [Hooks](docs/hooks.md) | Your commands around the model's tool calls in the dev steps |
 | [Shared memory](docs/shared-memory.md) | Admitted decisions, structures, methods and mistakes the agents recall |

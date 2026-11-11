@@ -51,13 +51,13 @@ fenêtre : 20 résultats ont été proposés (les 6 derniers messages sont épar
 107 000 tokens libérés. Les deux réponses citent les deux mêmes titres : le résultat du premier fichier est passé
 entier. Net des 0,2 s du modèle de décision, le tour a passé 7,3 s de moins dans le modèle.
 
-Le même tour interrogé sur son seul dernier fichier a vu ses 20 résultats retirés (environ 115 000 tokens) et a
-répondu juste, en 57 515 tokens d'entrée ; son jumeau sans élagage n'a pas été lancé.
+Un second essai, sur le seul dernier fichier du tour, n'a pas de jumeau auquel le comparer : il figure sous
+[Ce que ces mesures ne montrent pas](#ce-que-ces-mesures-ne-montrent-pas).
 
 ## Router un crew
 
 Les agents d'un crew tournent tous sur un profil LLM du host, celui de la session. Avec `route.agents` à `on`, au
-lancement de `/dev-spec`, `/dev-change`, `/dev-plan`, `/dev-learn`, `/review`, `/analyze`, `/commit`, `/init` et
+lancement de `/dev-spec` (et son alias `/dev-change`), `/dev-plan`, `/dev-learn`, `/review`, `/analyze`, `/commit`, `/init` et
 `/init-verifiers`, le modèle de décision lit la commande et choisit un profil de `route.ladder` (`small,large` si
 omis, du moins cher au plus cher). Le choix est suivi quand sa probabilité atteint 0,6, il est relevé au plancher
 que `.orkeon/route-rules.json` fixe pour le crew ou pour un chemin que la commande nomme, et ne dépasse jamais le

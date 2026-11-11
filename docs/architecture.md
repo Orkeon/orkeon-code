@@ -620,7 +620,7 @@ prompt as the model reads it, to review a change as a diff.
 `shared/domain/agents/model-route.ts`, `shared/application/agents/route-agent.ts`
 ([ADR 0027](adr/0027-decision-model-optimisations.md)). A crew's agents all run on one host profile, the session's
 `llm.profile`, chosen when the crew is built. With `route.agents` on and a decision model on the host, that profile
-is picked at each launch of `/dev-spec`, `/dev-change`, `/dev-plan`, `/dev-learn`, `/review`, `/analyze`, `/commit`,
+is picked at each launch of `/dev-spec` (and its alias `/dev-change`), `/dev-plan`, `/dev-learn`, `/review`, `/analyze`, `/commit`,
 `/init` and `/init-verifiers`:
 
 - **The ladder**: `route.ladder` orders the host's LLM profiles, cheapest first (`small,large` when omitted): names

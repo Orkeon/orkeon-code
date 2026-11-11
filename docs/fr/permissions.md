@@ -73,7 +73,7 @@ sa fiche et son verdict n'étant que là, et les dernières lignes de l'exécuti
 relance (`/dev-batches <code> --concurrency <n>`, la correction d'un verdict GAPS d'abord), pour qu'un humain
 décide. `/dev-spec`, `/dev-plan` et
 `/dev-batches` refusent de démarrer dans un mode en lecture seule (`plan`, `dontAsk`), dans un mode
-qu'Orkeon Code ne connaît pas, et quand le mode de la session ne peut pas être lu. Les six placent d'abord dans la garde les
+qu'Orkeon Code ne connaît pas, et quand le mode de la session ne peut pas être lu. Toutes trois placent d'abord dans la garde les
 [jeux de règles des étapes dev](#jeux-de-règles-des-étapes-dev), et refusent de démarrer tant que la garde est inactive
 ; le callback de leur crew contrôle à nouveau les mêmes jeux, seul contrôle de ceux-ci sous `orkeon run`.
 
