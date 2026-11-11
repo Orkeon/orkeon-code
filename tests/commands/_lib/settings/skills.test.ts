@@ -5,7 +5,9 @@ import { describe, it } from "node:test";
 import { strictEqual, deepStrictEqual } from "node:assert";
 
 import { runSkills } from "../../../../src/commands/_lib/settings/skills.ts";
-import { attached, OTHER_SKILL, OUT_OF_RANGE, SKILL, skillsDeps } from "./skills.fixtures.ts";
+import {
+  attached, LAST_SUGGESTION, OTHER_SKILL, OUT_OF_RANGE, SKILL, skillsDeps, SUGGEST_ON, SUGGEST_ON_NO_MODEL, SUGGEST_STATUS_OFF, suggestDeps,
+} from "./skills.fixtures.ts";
 import { WORKSPACE } from "../../../../src/shared/domain/vfs.ts";
 
 describe("/skills list", () => {
@@ -122,6 +124,101 @@ describe("/skills — anything else", () => {
     const view = await runSkills(["load"], deps);
 
     // Assert
-    deepStrictEqual(view, { text: "usage: /skills [list|attach <path>|detach <n>]" });
+    deepStrictEqual(view, { text: "usage: /skills [list|attach <path>|detach <n>|suggest [on|off|why]]" });
   });
 });
+
+describe("/skills suggest", () => {
+  it("says where the suggestion stands when bare", async () => {
+    // Arrange
+    const deps = suggestDeps();
+
+    // Act
+    const view = await runSkills(["suggest"], deps);
+
+    // Assert
+    strictEqual(view.text, SUGGEST_STATUS_OFF);
+  });
+
+  it("turns the suggestion on for the session", async () => {
+    // Arrange
+    const deps = suggestDeps();
+
+    // Act
+    const view = await runSkills(["suggest", "on"], deps);
+
+    // Assert
+    deepStrictEqual([view.text, deps.config.session], [SUGGEST_ON, { "skills.suggest": "on" }]);
+  });
+
+  it("warns when turned on without a decision model", async () => {
+    // Arrange
+    const deps = suggestDeps();
+    deps.decision.present = false;
+
+    // Act
+    const view = await runSkills(["suggest", "on"], deps);
+
+    // Assert
+    strictEqual(view.text, SUGGEST_ON_NO_MODEL);
+  });
+
+  it("turns the suggestion off for the session", async () => {
+    // Arrange
+    const deps = suggestDeps();
+    deps.config.session = { "skills.suggest": "on" };
+
+    // Act
+    await runSkills(["suggest", "off"], deps);
+
+    // Assert
+    deepStrictEqual(deps.config.session, { "skills.suggest": "off" });
+  });
+
+  it("shows what the last turn was suggested, with each share", async () => {
+    // Arrange
+    const deps = suggestDeps();
+    deps.session.state.set("skills_suggested", LAST_SUGGESTION);
+
+    // Act
+    const view = await runSkills(["suggest", "why"], deps);
+
+    // Assert
+    deepStrictEqual(view, { lines: [`${SKILL} (0.80)`], text: "suggested to the last turn, among 3 skill(s)." });
+  });
+
+  it("says no skill fit the last turn", async () => {
+    // Arrange
+    const deps = suggestDeps();
+    deps.session.state.set("skills_suggested", '{"offered":3,"picks":[]}');
+
+    // Act
+    const view = await runSkills(["suggest", "why"], deps);
+
+    // Assert
+    strictEqual(view.text, "the last turn was offered 3 skill(s): none fit its request.");
+  });
+
+  it("says nothing was suggested yet", async () => {
+    // Arrange
+    const deps = suggestDeps();
+
+    // Act
+    const view = await runSkills(["suggest", "why"], deps);
+
+    // Assert
+    strictEqual(view.text, "no skill was suggested yet in this session.");
+  });
+
+  it("answers its usage for another word", async () => {
+    // Arrange
+    const deps = suggestDeps();
+
+    // Act
+    const view = await runSkills(["suggest", "maybe"], deps);
+
+    // Assert
+    strictEqual(view.text, "usage: /skills suggest [on|off|why]");
+  });
+});
+

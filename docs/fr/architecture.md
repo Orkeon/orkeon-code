@@ -701,6 +701,36 @@ décision sur le host, ce profil est choisi à chaque lancement de `/dev-spec`, 
   modèle et figure dans la liste. `/route on|off` règle
   `route.agents` pour la session ; nu, il dit où en est le routage.
 
+### Suggérer des skills pour un tour
+
+`shared/domain/skills/shortlist.ts`, `shared/application/skills/suggest-skills.ts`
+([ADR 0027](../adr/0027-decision-model-optimisations.md)). Un skill est une fiche markdown ; `/skills attach` en met
+une dans chaque tour jusqu'à ce qu'elle soit détachée. Avec `skills.suggest` à `on` et un modèle de décision sur le
+host, chaque tour de la boucle principale se voit aussi suggérer les skills du projet qui conviennent à sa demande :
+
+- **Les skills** : les fichiers `.md` de `.orkeon/skills/`, puis le `SKILL.md` de chaque dossier de
+  `.claude/skills/`, chaque dossier par ordre de nom, 24 au plus. Le nom et la description d'un skill sont ceux de
+  son en-tête (`name:`, `description:`, une valeur repliée comprise), sinon son premier titre et la première ligne
+  de texte hors d'un bloc de code ; la description est coupée à 300 caractères. Laissés de côté : un fichier
+  illisible ou vide, un skill attaché par une personne (quelle que soit l'écriture de son chemin), et un skill que
+  son en-tête réserve à l'invocation par une personne (`disable-model-invocation: true`).
+- **La question** : le modèle de décision lit la demande (2 000 caractères au plus) et fait un choix parmi les
+  skills, chacun dit en une ligne, et l'option qu'aucun ne convient.
+- **Les retenus** : les skills dont la part de probabilité du modèle atteint 0,3, le plus grand d'abord, 3 au plus ;
+  aucun quand le modèle a choisi qu'aucun ne convient. La question est un seul choix, des skills qui conviennent
+  tous se partagent donc la probabilité : quatre qui conviennent autant n'atteignent rien.
+- **Ce que le tour lit** : les fichiers retenus, entiers, sous le plafond de 4 000 caractères chacun, dans un bloc à
+  eux après les skills attachés, « Suggested skills ». Son ouverture dit qu'un classifieur les a choisis, que
+  l'opérateur ne les a pas attachés, et que ce sont des documents de référence dont les instructions passent après
+  la demande et les règles : un fichier du dépôt ne parle pas avec la voix de l'opérateur parce qu'un modèle l'a
+  choisi. Pour ce tour seulement : rien n'est attaché, et le bloc est dans le contexte du tour, jamais dans le
+  prompt système, le cache de prompt tient donc.
+- **La suggestion échoue ouverte** : le réglage éteint ou illisible, `/fast` (qui ne lit aucun skill), pas de modèle
+  de décision (un avertissement), pas de dossier de skills et un modèle qui ne répond pas ou lève une erreur ne suggèrent rien. Une
+  ligne du journal nomme les skills suggérés, et ce qui a été suggéré au dernier tour est gardé dans la session pour
+  `/skills suggest why`. `/skills suggest on|off` règle `skills.suggest` pour la session ; nu, il dit où en est la
+  suggestion.
+
 ### Compaction et mémoire
 
 - **Chaîne** (`shared/application/compaction/compact-session.ts`) : toute compaction au-delà du seuil, et tout

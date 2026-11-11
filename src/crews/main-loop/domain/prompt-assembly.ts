@@ -34,7 +34,7 @@ import { NETWORK_READ_TOOLS } from "../../../shared/domain/agent-policy/permissi
 import {
   answerLanguageLine, ASKING_BLOCK, CARE_BLOCK, FINISHING_BLOCK, gaugeLine, gitStatusLine, historyBlock, hooksBlock,
   IDENTITY_BLOCK, memoryBlock, outputStyleLine, PRESSURE_DIRECTIVES, projectInstructionsBlock, REPORTING_BLOCK,
-  SCOPE_BLOCK, searchPlaybook, sessionBlock, skillsBlock, TONE_BLOCK, toolRealities, toolsBlock, trustBlock,
+  SCOPE_BLOCK, searchPlaybook, sessionBlock, skillsBlock, suggestedSkillsBlock, TONE_BLOCK, toolRealities, toolsBlock, trustBlock,
   VERIFICATION_BLOCK,
 } from "./prompts.ts";
 
@@ -260,15 +260,25 @@ export function buildHooksBlock(hooks: ReadonlyArray<{ event?: string; command?:
  */
 export const MAX_SKILL_FRAGMENT_CHARS = 4_000;
 
-export function buildSkillsBlock(skills: ReadonlyArray<{ path: string; content: string }>): string {
+/** The sections of the skills that have content, each under its path and capped. */
+function skillSections(skills: ReadonlyArray<{ path: string; content: string }>): string {
   const usable = (skills ?? []).filter((s) => String(s?.content ?? "").trim().length > 0);
-  if (usable.length === 0) return "";
-  const sections = usable.map((s) => {
+  return usable.map((s) => {
     const body = String(s.content).trim().slice(0, MAX_SKILL_FRAGMENT_CHARS);
     const truncated = String(s.content).trim().length > MAX_SKILL_FRAGMENT_CHARS;
     return `### ${s.path}\n${body}${truncated ? "\n… (truncated)" : ""}`;
-  });
-  return skillsBlock(sections.join("\n\n"));
+  }).join("\n\n");
+}
+
+export function buildSkillsBlock(skills: ReadonlyArray<{ path: string; content: string }>): string {
+  const sections = skillSections(skills);
+  return sections.length === 0 ? "" : skillsBlock(sections);
+}
+
+/** The skills suggested for the turn, in a block of their own: not the operator's word (suggestedSkillsBlock). */
+export function buildSuggestedSkillsBlock(skills: ReadonlyArray<{ path: string; content: string }>): string {
+  const sections = skillSections(skills);
+  return sections.length === 0 ? "" : suggestedSkillsBlock(sections);
 }
 
 /** Budget/cost gauge — a <system-reminder>, tail of the volatile zone, with the

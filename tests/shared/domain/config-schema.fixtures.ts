@@ -19,6 +19,7 @@ export const CONSUMERS: Record<string, string> = {
   "compaction.prune": "/assistant, /summary, /transcribe --then, /voice send and /voice --go (the tool results of a turn in progress)",
   "route.agents": "/route, and the commands that launch a crew routed by it (/dev-spec, /dev-change, /dev-plan, /dev-learn, /review, /analyze, /commit, /init, /init-verifiers)",
   "route.ladder": "/route, and the commands route.agents routes",
+  "skills.suggest": "/skills suggest, /assistant, /summary, /transcribe --then, /voice send and /voice --go (the turn's attached skills)",
   "dev.workDir": "/dev-status (the work folder it reads), /commit (the work folder it leaves out)",
   "dev.prAuto": "/commit (the pull request of the branch)",
   "memory.dir": "/memory-admit, /assistant (the memory_recall and memory_push tools)",

@@ -180,7 +180,9 @@ décision du host élague les résultats d'outils périmés d'un tour en cours, 
 lancement d'un crew le modèle de décision du host choisit le profil le moins cher de `route.ladder` qui convient à la
 commande, `/route on` ; voir [l'architecture](architecture.md#router-un-crew-vers-un-profil)), `route.ladder` (les
 profils LLM du host parmi lesquels le routage choisit, du moins cher au plus cher, `/config set route.ladder small,large` ;
-omis, `small,large`), `dev.workDir` (le
+omis, `small,large`), `skills.suggest` (`on` ou `off`, omis = `off` : le modèle de décision du host ajoute à un tour
+les skills du projet qui conviennent à sa demande, `/skills suggest on` ; voir
+[l'architecture](architecture.md#suggérer-des-skills-pour-un-tour)), `dev.workDir` (le
 dossier de travail que lisent et écrivent les étapes dev, `/dev-status` et `/dev-learn` compris, relatif au checkout, `/config set dev.workDir backstage/tasks` ; omis, le
 `layout.work` du pack du dépôt, sinon `workbench` ; `/commit` le lit aussi, et laisse le dossier de travail hors d'un
 commit sauf si un chemin qu'il contient est nommé), `dev.prAuto` (`true` ou `false`, omis = `false` : `/commit` et
