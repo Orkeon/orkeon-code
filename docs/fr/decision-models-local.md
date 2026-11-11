@@ -21,7 +21,7 @@ réponse.
 
 ## Le runtime : le mode source
 
-L'épingle (`206b562`) sert Liquid et Kev, et aucune release ne les livre encore : le mode
+L'épingle (`8edfa46`) sert Liquid et Kev, et aucune release ne les livre encore : le mode
 tool fait tourner la dernière release et le mode docker la dernière image, et aucun des deux ne connaît
 `Orkeon:Liquid`, `Orkeon:Kev` ni `Orkeon:Decision:Provider`. Lancez Orkeon Code en mode source, sur un checkout
 d'Orkeon à l'épingle ou après ([Premiers pas](getting-started.md#mode-source--un-checkout-dorkeon)) :
