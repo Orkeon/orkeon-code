@@ -79,47 +79,58 @@ règle de session qui refuse `memory_recall` coupe aussi ces rappels.
 /memory admit --refuse shop-method-20261024-contract-tests-first too local to this project
 ```
 
-`/memory admit` montre chaque candidat en attente (ou ceux que vous nommez) et demande une fois pour chacun : tout
-autre chose que oui le laisse candidat. Une session qui ne peut pas demander n'admet aucun de ceux sur lesquels elle
-demanderait ; une question restée sans réponse garde les admissions déjà confirmées et dit quels candidats restent. Le candidat admis est le texte qu'on vous a montré : un fichier modifié depuis n'est pas admis, ni un
-candidat dont `refused.md` contient le sujet. Les admis sont écrits dans
-`entries/<type>/`, les entrées qu'ils remplacent sont marquées `superseded`, les deux listes sont reconstruites et
-`entries/` est réindexé, une fois. Quand l'index ne peut pas être reconstruit, les entrées restent admises, et la
-prochaine admission les indexe. Le verrou sur la collection `memory-<project>` ne vaut qu'au sein d'un processus : un
-REPL n'exécute qu'un `/memory admit` à la fois, mais rien ne l'ordonne face à un second REPL ou à une exécution
-autonome sur le même projet, donc tenez-vous-en à un à la fois. Dans un même REPL, une admission confirmée pendant
-que le crew `shared-memory-admit` écrit encore la précédente est refusée par le runtime, avec le ticket de ce
-crew : attendez son résultat, puis retapez la ligne. `/memory list|add|get|delete`, `/feedback` et les autres verbes
-d'admission n'en sont jamais retenus. `--refuse` écrit le sujet du candidat dans `refused.md` avec votre motif : le sujet
-n'est plus jamais proposé. `/dev-learn` et son `--refuse` lisent et écrivent le même `refused.md`, sous `memory.dir` (une valeur enregistrée
-écartée est signalée), le fichier que lit aussi `memory_push`.
+- `/memory admit` montre chaque candidat en attente (ou ceux que vous nommez) et demande une fois pour chacun : tout
+  autre chose que oui le laisse candidat.
+- Une session qui ne peut pas demander n'admet aucun de ceux sur lesquels elle demanderait.
+- Une question restée sans réponse garde les admissions déjà confirmées et dit quels candidats restent.
+- Le candidat admis est le texte qu'on vous a montré : un fichier modifié depuis n'est pas admis, ni un candidat
+  dont `refused.md` contient le sujet.
+- Les admis sont écrits dans `entries/<type>/`, les entrées qu'ils remplacent sont marquées `superseded`, les deux
+  listes sont reconstruites et `entries/` est réindexé, une fois.
+- Quand l'index ne peut pas être reconstruit, les entrées restent admises, et la prochaine admission les indexe.
+- Le verrou sur la collection `memory-<project>` ne vaut qu'au sein d'un processus : un REPL n'exécute qu'un
+  `/memory admit` à la fois, mais rien ne l'ordonne face à un second REPL ou à une exécution autonome sur le même
+  projet, donc tenez-vous-en à un à la fois.
+- Dans un même REPL, une admission confirmée pendant que le crew `shared-memory-admit` écrit encore la précédente
+  est refusée par le runtime, avec le ticket de ce crew : attendez son résultat, puis retapez la ligne.
+- `/memory list|add|get|delete`, `/feedback` et les autres verbes d'admission n'en sont jamais retenus.
+- `--refuse` écrit le sujet du candidat dans `refused.md` avec votre motif : le sujet n'est plus jamais proposé.
+- `/dev-learn` et son `--refuse` lisent et écrivent le même `refused.md`, sous `memory.dir` (une valeur enregistrée
+  écartée est signalée), le fichier que lit aussi `memory_push`.
 
-`--import` reprend la mémoire d'agents du harness en candidats, une fois, pendant que vous la quittez : chaque élément
-de premier niveau d'un `.claude/agent-memory/<agent>/MEMORY.md` (et la note qu'il lie, dans le même dossier) devient
-un candidat `method` dont la source est l'import, donc `/memory admit` demande pour chacun (son type fait partie de
-son id : une leçon d'une autre sorte est refusée avec `--refuse` et proposée à nouveau avec `memory_push` sous un autre
-titre : un sujet refusé n'est plus jamais proposé, push compris). Un élément dont un candidat en attente, une entrée ou
-un élément précédent porte déjà le sujet (son titre en slug) est sauté comme doublon ; un élément dont le sujet a été
-refusé est signalé refusé et n'écrit rien, tout comme un élément dont la note ou la ligne contient un secret, où que ce
-soit, avant que la note ne soit coupée : relancer l'import n'écrit rien de nouveau tant que ses candidats sont là.
-Rien n'est écrit sous `.claude/`.
+- `--import` reprend la mémoire d'agents du harness en candidats, une fois, pendant que vous la quittez : chaque
+  élément de premier niveau d'un `.claude/agent-memory/<agent>/MEMORY.md` (et la note qu'il lie, dans le même
+  dossier) devient un candidat `method` dont la source est l'import, donc `/memory admit` demande pour chacun (son
+  type fait partie de son id : une leçon d'une autre sorte est refusée avec `--refuse` et proposée à nouveau avec
+  `memory_push` sous un autre titre : un sujet refusé n'est plus jamais proposé, push compris).
+- Un élément dont un candidat en attente, une entrée ou un élément précédent porte déjà le sujet (son titre en slug)
+  est sauté comme doublon.
+- Un élément dont le sujet a été refusé est signalé refusé et n'écrit rien, tout comme un élément dont la note ou la
+  ligne contient un secret, où que ce soit, avant que la note ne soit coupée : relancer l'import n'écrit rien de
+  nouveau tant que ses candidats sont là.
+- Rien n'est écrit sous `.claude/`.
 
 ## Les outils
 
-`memory_recall` renvoie au plus cinq entrées admises pour une requête, la meilleure d'abord, avec ce à quoi elles
-s'appliquent et leur fichier : il lit, et s'exécute dans tous les modes. Laissez la mémoire cognitive du runtime
-éteinte (`Orkeon:CognitiveMemory:Enabled`, faux par défaut ; Orkeon #299) : allumée, le runtime enregistre un outil
-d'hôte du même nom, `memory_recall`, que les règles de la garde, `tools.extra` et `/debug-tool-call list` ne sauraient
-distinguer de celui-ci ; aucun crew d'Orkeon Code ne déclare `memory: true`, rien ici n'en a donc besoin. Les vecteurs
-de l'index viennent du fournisseur d'embeddings du runtime (`Orkeon:Embeddings`, qui depuis Orkeon #299 prend aussi
-`mistral`, `azure-openai` et `gemini` comme `Provider`, avec `ApiKeyEnvVar`, `Endpoint` et `ApiVersion`) ; le runtime
-note le modèle dans `.orkeon/embedding-fingerprint.json` et refuse de démarrer quand il a changé
-([Premiers pas](getting-started.md#ce-que-lagent-écrit-dans-votre-projet)). `memory_push` écrit un candidat, jamais une
-entrée : il n'est offert que là où le mode modifie, et fait l'objet d'une question en `default`
-([Permissions](permissions.md#modes)). Deux push simultanés n'en perdent aucun : un push qui trouve son candidat
-écrasé l'écrit à nouveau sous l'id suivant. Dans tous les modes, les outils de fichier du modèle
-qui nomment un chemin sont refusés sous `candidates/` et `entries/` : les candidats viennent de `memory_push` et des
-récoltes, les entrées de `/memory admit` (la garde de la mémoire partagée, [Permissions](permissions.md) : les règles de la garde, puis le callback de la
-boucle principale et des crews de dev pour ce que la garde ne lit pas - une autre casse, `edit_batch`,
-`structural_rewrite`, un `cd`). Une entrée que le modèle rappelle est un précédent, pas une consigne : la
-demande, les instructions du projet et le code tel qu'il est priment sur elle.
+- `memory_recall` renvoie au plus cinq entrées admises pour une requête, la meilleure d'abord, avec ce à quoi elles
+  s'appliquent et leur fichier : il lit, et s'exécute dans tous les modes.
+- Laissez la mémoire cognitive du runtime éteinte (`Orkeon:CognitiveMemory:Enabled`, faux par défaut ; Orkeon #299) :
+  allumée, le runtime enregistre un outil d'hôte du même nom, `memory_recall`, que les règles de la garde,
+  `tools.extra` et `/debug-tool-call list` ne sauraient distinguer de celui-ci.
+- Aucun crew d'Orkeon Code ne déclare `memory: true`, rien ici n'en a donc besoin.
+- Les vecteurs de l'index viennent du fournisseur d'embeddings du runtime (`Orkeon:Embeddings`, qui depuis Orkeon
+  #299 prend aussi `mistral`, `azure-openai` et `gemini` comme `Provider`, avec `ApiKeyEnvVar`, `Endpoint` et
+  `ApiVersion`).
+- Le runtime note le modèle dans `.orkeon/embedding-fingerprint.json` et refuse de démarrer quand il a changé
+  ([Premiers pas](getting-started.md#ce-que-lagent-écrit-dans-votre-projet)).
+- `memory_push` écrit un candidat, jamais une entrée : il n'est offert que là où le mode modifie, et fait l'objet
+  d'une question en `default` ([Permissions](permissions.md#modes)).
+- Deux push simultanés n'en perdent aucun : un push qui trouve son candidat écrasé l'écrit à nouveau sous l'id
+  suivant.
+- Dans tous les modes, les outils de fichier du modèle qui nomment un chemin sont refusés sous `candidates/` et
+  `entries/` : les candidats viennent de `memory_push` et des récoltes, les entrées de `/memory admit` (la garde de
+  la mémoire partagée, [Permissions](permissions.md) : les règles de la garde, puis le callback de la boucle
+  principale et des crews de dev pour ce que la garde ne lit pas - une autre casse, `edit_batch`,
+  `structural_rewrite`, un `cd`).
+- Une entrée que le modèle rappelle est un précédent, pas une consigne : la demande, les instructions du projet et
+  le code tel qu'il est priment sur elle.

@@ -15,16 +15,16 @@ jusqu'au bout sans poser de question :
 | `acceptEdits` | Lire, appeler le réseau, modifier des fichiers. Pas de shell |
 | `bypassPermissions` | Tout le catalogue d'outils, shell compris |
 
-Choisissez-le par requête (`bypassPermissions: migre les tests vers node:test`), pour la session
-(`/mode bypassPermissions`), ou pour toutes les sessions (`"permissions.fallback": "bypassPermissions"` dans le bloc
-`orkeonCode` de vos réglages utilisateur : le `.orkeon/config.json` d'un projet ne pose que `default`, `plan` ou
-`acceptEdits`, [Permissions](permissions.md)). Dans le REPL, `default` et
-`acceptEdits` vous demandent avant un appel que le mode n'autorise pas d'emblée ; dans une exécution sans opérateur,
-personne ne répond, et la garde refuse ce qu'elle aurait demandé (le modèle lit `DENIED: …`), sauf si
-`Orkeon:Checkpointing:Enabled` est posé (éteint dans tous les exemples ; Orkeon #299) : la question est alors gardée et
-l'exécution s'arrête avec la sortie `75` ([plus bas](#en-un-coup-depuis-un-shell)). Donnez à une exécution
-sans opérateur un mode qui ne demande jamais : `bypassPermissions`, ou `plan` et `dontAsk` pour un travail en lecture
-seule ([Permissions](permissions.md)).
+- Choisissez-le par requête (`bypassPermissions: migre les tests vers node:test`), pour la session (`/mode
+  bypassPermissions`), ou pour toutes les sessions (`"permissions.fallback": "bypassPermissions"` dans le bloc
+  `orkeonCode` de vos réglages utilisateur : le `.orkeon/config.json` d'un projet ne pose que `default`, `plan` ou
+  `acceptEdits`, [Permissions](permissions.md)).
+- Dans le REPL, `default` et `acceptEdits` vous demandent avant un appel que le mode n'autorise pas d'emblée.
+- Dans une exécution sans opérateur, personne ne répond, et la garde refuse ce qu'elle aurait demandé (le modèle lit
+  `DENIED: …`), sauf si `Orkeon:Checkpointing:Enabled` est posé (éteint dans tous les exemples ; Orkeon #299) : la
+  question est alors gardée et l'exécution s'arrête avec la sortie `75` ([plus bas](#en-un-coup-depuis-un-shell)).
+- Donnez à une exécution sans opérateur un mode qui ne demande jamais : `bypassPermissions`, ou `plan` et `dontAsk`
+  pour un travail en lecture seule ([Permissions](permissions.md)).
 
 Sous `orkeon run` (`scripts/run-crew.sh`), la garde n'a personne à qui demander, et décide chaque appel par le seul
 mode :
@@ -56,25 +56,29 @@ le projet est le seul dossier de votre machine qu'il peut écrire ([SECURITY.md]
 
 ## En un coup depuis un shell
 
-`scripts/run-crew.sh` lance un crew hors du REPL : avec l'outil `orkeon` (`Orkeon.Scripting.Cli` de nuget.org, nommé
-par `.config/dotnet-tools.json`, qui demande le SDK .NET 10) ou, sans SDK, avec l'image `orkeon-runners`. Les deux
-exécutent la dernière release, `1.0.0-rc.6` pour l'outil, jamais l'épingle ;
-`ORKEON_CODE_MODE=source ORKEON_SOURCE=<checkout à l'épingle>` le lance à la place depuis un checkout d'Orkeon
-([Développement](development.md)). Il lit le fichier de settings que nomme `ORKEON_CODE_SETTINGS`, sinon
-`config/appsettings.local.json`, et ne monte pas `/user-config` : ni `~/.orkeon-code/appsettings.json` ni le bloc
-`orkeonCode` de vos réglages d'utilisateur ne s'appliquent à un crew lancé ainsi. Le crew lit son entrée dans le JSON de `--inputs`. Pour `main-loop`, c'est
-ce que `/assistant` lui passe : la requête et le mode. `permissionRules` (les règles de la session, telles que
-`/permissions` les liste : `deny http_api`, `allow shell_command command=npm test*`) et `extraTools` (les outils des
-serveurs MCP et des plugins, tels que `tools.extra` les nomme) sont ce que la commande de lancement résout dans le
-REPL ; une exécution indépendante n'a pas de session où les prendre : ne les passez que si vous savez ce que le
-catalogue doit contenir. Aucune règle de session n'existe hors du REPL : `permissionRules` ne fait que façonner le
-catalogue (une règle deny sur un outil entier le retire), et une règle allow n'épargne aucune question. Aucune option
-d'`orkeon run` ne fixe le mode ; il appartient aux entrées du crew
-(`--inputs '{"prompt":"…","permissionMode":"acceptEdits"}'`), et la garde demande
-`Orkeon:Security:PermissionGate:Enabled: true` dans le fichier de settings. `orkeon run` n'enregistre les outils
-d'analyse (`node_*`, `edit_batch`, `structural_rewrite`, `batch_anchors`, `structural_search`…) que tant que
-`RaggableTree:Enabled` n'est pas `false` ; s'il vaut `false`, un act qui reçoit le catalogue de `main-loop` échoue avec
-`UnknownToolError`.
+- `scripts/run-crew.sh` lance un crew hors du REPL : avec l'outil `orkeon` (`Orkeon.Scripting.Cli` de nuget.org,
+  nommé par `.config/dotnet-tools.json`, qui demande le SDK .NET 10) ou, sans SDK, avec l'image `orkeon-runners`.
+- Les deux exécutent la dernière release, `1.0.0-rc.6` pour l'outil, jamais l'épingle.
+- `ORKEON_CODE_MODE=source ORKEON_SOURCE=<checkout à l'épingle>` le lance à la place depuis un checkout d'Orkeon
+  ([Développement](development.md)).
+- Il lit le fichier de settings que nomme `ORKEON_CODE_SETTINGS`, sinon `config/appsettings.local.json`, et ne monte
+  pas `/user-config` : ni `~/.orkeon-code/appsettings.json` ni le bloc `orkeonCode` de vos réglages d'utilisateur ne
+  s'appliquent à un crew lancé ainsi.
+- Le crew lit son entrée dans le JSON de `--inputs`.
+- Pour `main-loop`, c'est ce que `/assistant` lui passe : la requête et le mode.
+- `permissionRules` (les règles de la session, telles que `/permissions` les liste : `deny http_api`, `allow
+  shell_command command=npm test*`) et `extraTools` (les outils des serveurs MCP et des plugins, tels que
+  `tools.extra` les nomme) sont ce que la commande de lancement résout dans le REPL.
+- Une exécution indépendante n'a pas de session où les prendre : ne les passez que si vous savez ce que le catalogue
+  doit contenir.
+- Aucune règle de session n'existe hors du REPL : `permissionRules` ne fait que façonner le catalogue (une règle
+  deny sur un outil entier le retire), et une règle allow n'épargne aucune question.
+- Aucune option d'`orkeon run` ne fixe le mode.
+- Il appartient aux entrées du crew (`--inputs '{"prompt":"…","permissionMode":"acceptEdits"}'`), et la garde
+  demande `Orkeon:Security:PermissionGate:Enabled: true` dans le fichier de settings.
+- `orkeon run` n'enregistre les outils d'analyse (`node_*`, `edit_batch`, `structural_rewrite`, `batch_anchors`,
+  `structural_search`…) que tant que `RaggableTree:Enabled` n'est pas `false`.
+- S'il vaut `false`, un act qui reçoit le catalogue de `main-loop` échoue avec `UnknownToolError`.
 
 ```bash
 export DEEPSEEK_API_KEY=...                       # the variable named by Llm:ApiKeyEnvVar
@@ -83,19 +87,22 @@ ORKEON_CODE_WORKSPACE=~/src/app bash scripts/run-crew.sh src/crews/main-loop/cre
              "permissionMode": "bypassPermissions"}'
 ```
 
-Le script monte le projet en lecture-écriture sur `/workspace` et un dossier de travail sur `/output`, comme le REPL.
-Le runner imprime le résultat du crew en JSON sur stdout et sort avec `0` quand le script s'est terminé, `1` sur une
-erreur de script, `2` sur une erreur du runtime, `130` quand il est annulé, `75` quand `Orkeon:Checkpointing:Enabled`
-est posé et que l'exécution s'est arrêtée sur une question (`run.finished` dit `waiting_for_input` avec un
-`requestId` ; `orkeon run --resume <id d'exécution> --input '<réponse>'` la poursuit, et `/state` et `/runs` sont les
-montages propres du runtime, jamais les vôtres). Sans points de reprise, un `human_input` sans opérateur reçoit la
-valeur par défaut qu'aucune option ne porte, que les crews lisent comme personne n'a répondu. Un appel que la garde
-refuse n'est pas une erreur : le modèle lit le refus comme résultat de l'outil et l'exécution sort quand même avec
-`0` ; lisez le JSON pour savoir ce qui a été fait. Un chemin du projet qui sort de `/workspace` par un lien (un cache de
-dépendances lié à un autre checkout) est refusé par les outils de fichiers (Orkeon #299) : montez ce dossier pour
-lui-même. Les primitives de session existent aussi
-dans une exécution indépendante, mais le tampon de conversation, le sac d'état et la mémoire typée démarrent vides et
-finissent avec le processus : une exécution est un tour.
+- Le script monte le projet en lecture-écriture sur `/workspace` et un dossier de travail sur `/output`, comme le
+  REPL.
+- Le runner imprime le résultat du crew en JSON sur stdout et sort avec `0` quand le script s'est terminé, `1` sur
+  une erreur de script, `2` sur une erreur du runtime, `130` quand il est annulé, `75` quand
+  `Orkeon:Checkpointing:Enabled` est posé et que l'exécution s'est arrêtée sur une question (`run.finished` dit
+  `waiting_for_input` avec un `requestId` ; `orkeon run --resume <id d'exécution> --input '<réponse>'` la poursuit,
+  et `/state` et `/runs` sont les montages propres du runtime, jamais les vôtres).
+- Sans points de reprise, un `human_input` sans opérateur reçoit la valeur par défaut qu'aucune option ne porte, que
+  les crews lisent comme personne n'a répondu.
+- Un appel que la garde refuse n'est pas une erreur : le modèle lit le refus comme résultat de l'outil et
+  l'exécution sort quand même avec `0`.
+- Lisez le JSON pour savoir ce qui a été fait.
+- Un chemin du projet qui sort de `/workspace` par un lien (un cache de dépendances lié à un autre checkout) est
+  refusé par les outils de fichiers (Orkeon #299) : montez ce dossier pour lui-même.
+- Les primitives de session existent aussi dans une exécution indépendante, mais le tampon de conversation, le sac
+  d'état et la mémoire typée démarrent vides et finissent avec le processus : une exécution est un tour.
 
 Chaque crew se lance ainsi ; son `crew.ork.ts` dit dans son en-tête quels `inputs` il lit (`code-review` :
 `{ files?, commit? }` ; `advisor` : aucun). La CI vérifie que chaque commande et chaque crew se charge
@@ -104,21 +111,26 @@ tour sans opérateur de `main-loop` face à un modèle s'éprouve à la main, pa
 
 ## Un crew de dev, étape après étape
 
-`scripts/dev-run.sh` enchaîne les étapes d'un crew de dev sans personne au clavier : un `orkeon run` neuf par étape, via
-`scripts/run-crew.sh`, qui passe les réglages, le modèle et les montages (`ORKEON_CODE_SETTINGS`, `ORKEON_CODE_MODEL` ;
-avec `ORKEON_CODE_MODE=source` et `ORKEON_SOURCE`, l'outil construit depuis ce checkout d'Orkeon au lieu de celui que
-sert nuget.org). La variable `DEV_RUN_RUNNER` nomme une autre commande, qui ne reçoit que le crew et `--inputs` : elle passe ses
-propres `-s` et `-m`, sinon le crew tourne sans réglages ni montage. La sortie de chaque étape va dans
-`.orkeon/dev/<code>/runs/<crew>-<n>.log` dans le projet, jamais en entier au terminal, qui en montre la dernière ligne.
-Après chaque étape, le script lit la dernière ligne du journal d'événements du code de travail :
-`.orkeon/dev/<code>/batches-state.md`, ou le fichier du projet que nomme `--log`. `/dev-batches` écrit le journal propre
-à Code, dans le REPL, où son `completed` lance chaque lot ; les crews que ce script lance un à un ne l'écrivent pas :
-nommez donc un journal qu'ils font bouger (le `<CODE>-BATCHES-STATE.md` du code de travail), sans quoi chaque chaîne
-s'arrête après sa première étape (rien n'a bougé). Le crew dev-batches ne ferait que nommer le lot suivant et le noter
-lancé, donc le script le refuse (sortie `64`) : un plan entier sans personne au clavier reste l'affaire du
-`/dev-batches` du REPL. Sans `DEV_RUN_RUNNER`, la confiance du projet est vérifiée une fois, avant la première étape,
-là où le terminal peut répondre ; chaque étape s'exécute ensuite avec son entrée standard sur `/dev/null`, donc rien de ce qu'elle demande ne peut
-bloquer la chaîne.
+- `scripts/dev-run.sh` enchaîne les étapes d'un crew de dev sans personne au clavier : un `orkeon run` neuf par
+  étape, via `scripts/run-crew.sh`, qui passe les réglages, le modèle et les montages (`ORKEON_CODE_SETTINGS`,
+  `ORKEON_CODE_MODEL` ; avec `ORKEON_CODE_MODE=source` et `ORKEON_SOURCE`, l'outil construit depuis ce checkout
+  d'Orkeon au lieu de celui que sert nuget.org).
+- La variable `DEV_RUN_RUNNER` nomme une autre commande, qui ne reçoit que le crew et `--inputs` : elle passe ses
+  propres `-s` et `-m`, sinon le crew tourne sans réglages ni montage.
+- La sortie de chaque étape va dans `.orkeon/dev/<code>/runs/<crew>-<n>.log` dans le projet, jamais en entier au
+  terminal, qui en montre la dernière ligne.
+- Après chaque étape, le script lit la dernière ligne du journal d'événements du code de travail :
+  `.orkeon/dev/<code>/batches-state.md`, ou le fichier du projet que nomme `--log`.
+- `/dev-batches` écrit le journal propre à Code, dans le REPL, où son `completed` lance chaque lot.
+- Les crews que ce script lance un à un ne l'écrivent pas : nommez donc un journal qu'ils font bouger (le
+  `<CODE>-BATCHES-STATE.md` du code de travail), sans quoi chaque chaîne s'arrête après sa première étape (rien n'a
+  bougé).
+- Le crew dev-batches ne ferait que nommer le lot suivant et le noter lancé, donc le script le refuse (sortie `64`)
+  : un plan entier sans personne au clavier reste l'affaire du `/dev-batches` du REPL.
+- Sans `DEV_RUN_RUNNER`, la confiance du projet est vérifiée une fois, avant la première étape, là où le terminal
+  peut répondre.
+- Chaque étape s'exécute ensuite avec son entrée standard sur `/dev/null`, donc rien de ce qu'elle demande ne peut
+  bloquer la chaîne.
 
 ```bash
 ORKEON_CODE_WORKSPACE=~/src/app bash scripts/dev-run.sh dev-verify demo \

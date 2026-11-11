@@ -40,14 +40,17 @@ régénère [docs/fr/commands.md](commands.md). La recette : [Ajouter une comman
 
 ## Un crew
 
-Un dossier `src/crews/<name>/` avec un `crew.ork.ts` dans la forme procédurale : les agents avec les noms d'outils
-dont ils ont besoin, un agent dont le `.body()` appelle le cas d'usage, `publishCrew(...)` à la fin. Le cas d'usage
-est `application/run-<name>.ts` (`run<Name>(input, deps)`), ses règles pures dans `domain/`, chacune avec son
-`*.test.ts` sous `tests/crews/<name>/` ; le test du cas d'usage tourne sur les fakes. La commande qui le lance le nomme,
-`launchCrew({ crews: createCrewHost(ctx.services), log: ctx.log }, "<name>", input)`, et `input` arrive au crew comme
-`inputs()`. ; un crew qui ne doit pas tourner deux fois à la fois est lancé avec `{ exclusive: true }` en cinquième
-argument, et l'hôte refuse le second lancement avec le ticket en cours (`/review`, `/memory admit`). Les imports sont relatifs et portent leur extension `.ts`, parce que le runtime bundle chaque point
-d'entrée à partir des fichiers tels qu'ils sont écrits.
+- Un dossier `src/crews/<name>/` avec un `crew.ork.ts` dans la forme procédurale : les agents avec les noms d'outils
+  dont ils ont besoin, un agent dont le `.body()` appelle le cas d'usage, `publishCrew(...)` à la fin.
+- Le cas d'usage est `application/run-<name>.ts` (`run<Name>(input, deps)`), ses règles pures dans `domain/`,
+  chacune avec son `*.test.ts` sous `tests/crews/<name>/`.
+- Le test du cas d'usage tourne sur les fakes.
+- La commande qui le lance le nomme, `launchCrew({ crews: createCrewHost(ctx.services), log: ctx.log }, "<name>",
+  input)`, et `input` arrive au crew comme `inputs()`.
+- Un crew qui ne doit pas tourner deux fois à la fois est lancé avec `{ exclusive: true }` en cinquième argument, et
+  l'hôte refuse le second lancement avec le ticket en cours (`/review`, `/memory admit`).
+- Les imports sont relatifs et portent leur extension `.ts`, parce que le runtime bundle chaque point d'entrée à
+  partir des fichiers tels qu'ils sont écrits.
 
 - `advisor` est le modèle le plus petit : un agent, un `ctx.llm.complete`, pas d'outil.
 - `code-review` est le modèle d'un crew séquentiel qui lit `inputs()` et lance des outils.
@@ -77,10 +80,12 @@ les fichiers vont donc dans le checkout.
 
 ## Un outil
 
-**En TypeScript, dans un crew.** `toolBuilder()` déclare un nom, une description, un schéma JSON et un `execute` qui
-s'exécute dans le script ; `.withAutonomousTool(tool)` sur l'agent le confie au modèle, et `ctx.llm.act` le propose
-comme un outil intégré. Le catalogue de permissions de `main-loop` liste les outils de l'hôte par leur nom et ignore
-tout d'un outil construit : décidez dans le crew, d'après le mode, de l'attacher ou non.
+### En TypeScript, dans un crew
+
+ `toolBuilder()` déclare un nom, une description, un schéma JSON et un `execute` qui s'exécute dans le script ;
+`.withAutonomousTool(tool)` sur l'agent le confie au modèle, et `ctx.llm.act` le propose comme un outil intégré. Le
+catalogue de permissions de `main-loop` liste les outils de l'hôte par leur nom et ignore tout d'un outil construit
+: décidez dans le crew, d'après le mode, de l'attacher ou non.
 
 ```ts
 const wordCount = toolBuilder<{ text: string }, { words: number }>()
@@ -91,20 +96,23 @@ const wordCount = toolBuilder<{ text: string }, { words: number }>()
   .build();
 ```
 
-**Un outil du runtime.** Vérifiez le nom que l'hôte enregistre (`/debug-tool-call list`), puis ajoutez-le à sa classe
-dans `src/shared/domain/agent-policy/permission.ts` (`READ_TOOLS`, `NETWORK_READ_TOOLS`, ou les classes d'édition et
-de shell) : la table des politiques de mode décide quels modes le confient au modèle. Quand du code applicatif
-l'appelle, l'appel passe par un port et un adaptateur de `src/shared/infrastructure/orkeon/`. La recette :
-[Ajouter un outil](recipes.md#ajouter-un-outil).
+### Un outil du runtime
 
-**Sur l'hôte.** L'outil shell exécute les commandes de sa liste blanche : `Orkeon:Tools:Shell:ExtraAllowedCommands`
-ajoute les outils de build de vos projets, `AllowInterpreters` ouvre `node`, `dotnet`, `npm`...
+ Vérifiez le nom que l'hôte enregistre (`/debug-tool-call list`), puis ajoutez-le à sa classe dans
+`src/shared/domain/agent-policy/permission.ts` (`READ_TOOLS`, `NETWORK_READ_TOOLS`, ou les classes d'édition et de
+shell) : la table des politiques de mode décide quels modes le confient au modèle. Quand du code applicatif
+l'appelle, l'appel passe par un port et un adaptateur de `src/shared/infrastructure/orkeon/`. La recette : [Ajouter
+un outil](recipes.md#ajouter-un-outil).
+
+### Sur l'hôte
+
+ L'outil shell exécute les commandes de sa liste blanche : `Orkeon:Tools:Shell:ExtraAllowedCommands` ajoute les
+outils de build de vos projets, `AllowInterpreters` ouvre `node`, `dotnet`, `npm`...
 ([Configuration](configuration.md)). Un outil écrit en C# est un plugin Orkeon (un dossier qui tient `plugin.json`
-et un assembly qui implémente `IOrkeonPlugin` ; `dotnet new orkeon-plugin` le crée) ; un outil servi par un serveur MCP
-ne demande aucun code. Le REPL connecte les serveurs de
-`MCP:Servers` et charge les plugins de `Plugins`, et leurs outils rejoignent le catalogue de l'assistant dès que la clé
-de session `tools.extra` les nomme avec leur classe (`<name>:read|write`)
-([Configuration](configuration.md#outils-supplémentaires--serveurs-mcp-et-plugins)).
+et un assembly qui implémente `IOrkeonPlugin` ; `dotnet new orkeon-plugin` le crée) ; un outil servi par un serveur
+MCP ne demande aucun code. Le REPL connecte les serveurs de `MCP:Servers` et charge les plugins de `Plugins`, et
+leurs outils rejoignent le catalogue de l'assistant dès que la clé de session `tools.extra` les nomme avec leur
+classe (`<name>:read|write`) ([Configuration](configuration.md#outils-supplémentaires--serveurs-mcp-et-plugins)).
 
 ## Prompts et comportement
 
@@ -131,15 +139,18 @@ vérifie chaque prompt rendu. La recette : [Ajouter un bloc de prompt](recipes.m
 
 ## Modes de permission
 
-Un mode s'énonce une fois : une entrée de `PERMISSION_MODES` (`src/shared/domain/permission-modes.ts`) et une ligne de
-`MODE_POLICIES` (`src/shared/domain/agent-policy/mode-policy.ts`) : lecture seule ou non, et les classes d'outils
-qu'il propose, les classes étant les listes d'`agent-policy/permission.ts`. Déplacez un outil d'une classe à une autre
-et chaque mode suit ; le contrôle de types refuse un mode sans sa ligne ; les tests épinglent la promesse de
-lecture seule de `plan` et de `dontAsk`. Les cinq noms de modes sont aussi connus de la garde de l'hôte, qui traite un
-nom inconnu comme `default` (fail-closed) : changer ce qu'un mode propose est un changement TypeScript, ajouter un
-sixième mode est aussi un changement du runtime. Les règles de la session, sur un outil ou sur ses arguments
-(`/permissions add allow shell_command command=npm test*`), sont celles de la garde de l'hôte et ne demandent aucun
-code. La recette : [Ajouter un mode de permission](recipes.md#ajouter-un-mode-de-permission).
+- Un mode s'énonce une fois : une entrée de `PERMISSION_MODES` (`src/shared/domain/permission-modes.ts`) et une
+  ligne de `MODE_POLICIES` (`src/shared/domain/agent-policy/mode-policy.ts`) : lecture seule ou non, et les classes
+  d'outils qu'il propose, les classes étant les listes d'`agent-policy/permission.ts`.
+- Déplacez un outil d'une classe à une autre et chaque mode suit.
+- Le contrôle de types refuse un mode sans sa ligne.
+- Les tests épinglent la promesse de lecture seule de `plan` et de `dontAsk`.
+- Les cinq noms de modes sont aussi connus de la garde de l'hôte, qui traite un nom inconnu comme `default`
+  (fail-closed) : changer ce qu'un mode propose est un changement TypeScript, ajouter un sixième mode est aussi un
+  changement du runtime.
+- Les règles de la session, sur un outil ou sur ses arguments (`/permissions add allow shell_command command=npm
+  test*`), sont celles de la garde de l'hôte et ne demandent aucun code.
+- La recette : [Ajouter un mode de permission](recipes.md#ajouter-un-mode-de-permission).
 
 ## Modèles et settings
 

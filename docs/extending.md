@@ -40,14 +40,17 @@ Logic worth testing goes to `src/commands/_lib/<group>/<name>.ts`, the folder of
 
 ## A crew
 
-A folder `src/crews/<name>/` with a `crew.ork.ts` in the procedural shape: the agents with the tool names they need,
-an agent whose `.body()` calls the use case, `publishCrew(...)` at the end. The use case is
-`application/run-<name>.ts` (`run<Name>(input, deps)`), its pure rules in `domain/`, each with its `*.test.ts` under
-`tests/crews/<name>/`; the use case test runs over the fakes. The command that launches it names it,
-`launchCrew({ crews: createCrewHost(ctx.services), log: ctx.log }, "<name>", input)`, and `input` reaches the crew as
-`inputs()`; a crew that must not run twice at a time is launched with `{ exclusive: true }` as the fifth argument, and
-the host refuses the second launch with the running ticket (`/review`, `/memory admit`). Imports are relative and carry their `.ts` extension, because the runtime bundles each entry point from
-the files as written.
+- A folder `src/crews/<name>/` with a `crew.ork.ts` in the procedural shape: the agents with the tool names they
+  need, an agent whose `.body()` calls the use case, `publishCrew(...)` at the end.
+- The use case is `application/run-<name>.ts` (`run<Name>(input, deps)`), its pure rules in `domain/`, each with its
+  `*.test.ts` under `tests/crews/<name>/`.
+- The use case test runs over the fakes.
+- The command that launches it names it, `launchCrew({ crews: createCrewHost(ctx.services), log: ctx.log },
+  "<name>", input)`, and `input` reaches the crew as `inputs()`.
+- A crew that must not run twice at a time is launched with `{ exclusive: true }` as the fifth argument, and the
+  host refuses the second launch with the running ticket (`/review`, `/memory admit`).
+- Imports are relative and carry their `.ts` extension, because the runtime bundles each entry point from the files
+  as written.
 
 - `advisor` is the smallest model: one agent, one `ctx.llm.complete`, no tools.
 - `code-review` is the model for a sequential crew that reads `inputs()` and runs tools.
@@ -75,10 +78,12 @@ in docker mode the container sees the checkout's `src` and the project only, so 
 
 ## A tool
 
-**In TypeScript, in a crew.** `toolBuilder()` declares a name, a description, a JSON schema and an `execute` that runs
-in the script; `.withAutonomousTool(tool)` on the agent hands it to the model, and `ctx.llm.act` offers it like a
-built-in one. The permission catalogue of `main-loop` lists host tools by name and knows nothing of a built tool:
-decide in the crew, from the mode, whether to attach it.
+### In TypeScript, in a crew
+
+ `toolBuilder()` declares a name, a description, a JSON schema and an `execute` that runs in the script;
+`.withAutonomousTool(tool)` on the agent hands it to the model, and `ctx.llm.act` offers it like a built-in one. The
+permission catalogue of `main-loop` lists host tools by name and knows nothing of a built tool: decide in the crew,
+from the mode, whether to attach it.
 
 ```ts
 const wordCount = toolBuilder<{ text: string }, { words: number }>()
@@ -89,17 +94,23 @@ const wordCount = toolBuilder<{ text: string }, { words: number }>()
   .build();
 ```
 
-**A tool of the runtime.** Check the name the host registers (`/debug-tool-call list`), then add it to its class in
-`src/shared/domain/agent-policy/permission.ts` (`READ_TOOLS`, `NETWORK_READ_TOOLS`, or the edit and shell classes):
-the mode-policy table decides which modes hand it to the model. When application code calls it, the call goes through
-a port and an adapter of `src/shared/infrastructure/orkeon/`. The recipe: [Add a tool](recipes.md#add-a-tool).
+### A tool of the runtime
 
-**On the host.** The shell tool runs the commands of its allow-list: `Orkeon:Tools:Shell:ExtraAllowedCommands` adds
-the build tools of your projects, `AllowInterpreters` opens `node`, `dotnet`, `npm`... ([Configuration](configuration.md)).
-A tool written in C# is an Orkeon plugin (a folder holding `plugin.json` and an assembly implementing `IOrkeonPlugin`;
-`dotnet new orkeon-plugin` scaffolds it); a tool served by an MCP server needs no code at all. The REPL connects the servers of `MCP:Servers` and loads the plugins of `Plugins`, and their
-tools join the assistant's catalogue once the session key `tools.extra` names them with their class
-(`<name>:read|write`) ([Configuration](configuration.md#extra-tools-mcp-servers-and-plugins)).
+ Check the name the host registers (`/debug-tool-call list`), then add it to its class in
+`src/shared/domain/agent-policy/permission.ts` (`READ_TOOLS`, `NETWORK_READ_TOOLS`, or the edit and shell classes):
+the mode-policy table decides which modes hand it to the model. When application code calls it, the call goes
+through a port and an adapter of `src/shared/infrastructure/orkeon/`. The recipe: [Add a
+tool](recipes.md#add-a-tool).
+
+### On the host
+
+ The shell tool runs the commands of its allow-list: `Orkeon:Tools:Shell:ExtraAllowedCommands` adds the build tools
+of your projects, `AllowInterpreters` opens `node`, `dotnet`, `npm`... ([Configuration](configuration.md)). A tool
+written in C# is an Orkeon plugin (a folder holding `plugin.json` and an assembly implementing `IOrkeonPlugin`;
+`dotnet new orkeon-plugin` scaffolds it); a tool served by an MCP server needs no code at all. The REPL connects the
+servers of `MCP:Servers` and loads the plugins of `Plugins`, and their tools join the assistant's catalogue once the
+session key `tools.extra` names them with their class (`<name>:read|write`)
+([Configuration](configuration.md#extra-tools-mcp-servers-and-plugins)).
 
 ## Prompts and behaviour
 
@@ -124,14 +135,17 @@ checks every rendered prompt. The recipe: [Add a prompt block](recipes.md#add-a-
 
 ## Permission modes
 
-A mode is stated once: an entry of `PERMISSION_MODES` (`src/shared/domain/permission-modes.ts`) and a row of
-`MODE_POLICIES` (`src/shared/domain/agent-policy/mode-policy.ts`): read-only or not, and the classes of tools it
-offers, the classes being the lists of `agent-policy/permission.ts`. Move a tool from one class to another and every
-mode follows; the type check refuses a mode without its row; the tests pin the read-only promise of `plan` and
-`dontAsk`. The five mode names are also known to the host gate, which treats an unknown name as `default`
-(fail-closed): changing what a mode offers is a TypeScript change, adding a sixth mode is a runtime change too. The
-session's rules, on a tool or on its arguments (`/permissions add allow shell_command command=npm test*`), are the
-host gate's and need no code. The recipe: [Add a permission mode](recipes.md#add-a-permission-mode).
+- A mode is stated once: an entry of `PERMISSION_MODES` (`src/shared/domain/permission-modes.ts`) and a row of
+  `MODE_POLICIES` (`src/shared/domain/agent-policy/mode-policy.ts`): read-only or not, and the classes of tools it
+  offers, the classes being the lists of `agent-policy/permission.ts`.
+- Move a tool from one class to another and every mode follows.
+- The type check refuses a mode without its row.
+- The tests pin the read-only promise of `plan` and `dontAsk`.
+- The five mode names are also known to the host gate, which treats an unknown name as `default` (fail-closed):
+  changing what a mode offers is a TypeScript change, adding a sixth mode is a runtime change too.
+- The session's rules, on a tool or on its arguments (`/permissions add allow shell_command command=npm test*`), are
+  the host gate's and need no code.
+- The recipe: [Add a permission mode](recipes.md#add-a-permission-mode).
 
 ## Models and settings
 

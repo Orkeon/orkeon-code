@@ -47,12 +47,15 @@ uv sync --extra serve
 uv run --extra serve python -m kev.serve --run jaredpalmer/kev-0.8b --port 8009
 ```
 
-`kev-0.8b` tourne sur un GPU de 4 Go ou n'importe quel Mac Apple Silicon, et répond en 0,3 s environ sur une RTX 3080.
-`kev-4b` tient dans les 10 Go de cette carte une fois ses graphes CUDA coupés (`KEV_CUDA_GRAPHS=0`) : il prend 9,7 Go
-et répond en 0,12 s environ, la carte ne porte donc aucun autre modèle à côté. Graphes actifs, leur capture épuise la
-mémoire au chargement. `kev-9b` veut un Mac de 32 Go ou un GPU de centre de données, `kev-27b` un GPU de 80 Go. Sans GPU, `--device cpu` fait tourner le petit
-modèle, lentement. Le serveur n'écoute que sur `127.0.0.1` sauf si `--host 0.0.0.0` en décide autrement. Laissez-le
-tourner dans son propre terminal.
+- `kev-0.8b` tourne sur un GPU de 4 Go ou n'importe quel Mac Apple Silicon, et répond en 0,3 s environ sur une RTX
+  3080.
+- `kev-4b` tient dans les 10 Go de cette carte une fois ses graphes CUDA coupés (`KEV_CUDA_GRAPHS=0`) : il prend 9,7
+  Go et répond en 0,12 s environ, la carte ne porte donc aucun autre modèle à côté.
+- Graphes actifs, leur capture épuise la mémoire au chargement.
+- `kev-9b` veut un Mac de 32 Go ou un GPU de centre de données, `kev-27b` un GPU de 80 Go.
+- Sans GPU, `--device cpu` fait tourner le petit modèle, lentement.
+- Le serveur n'écoute que sur `127.0.0.1` sauf si `--host 0.0.0.0` en décide autrement.
+- Laissez-le tourner dans son propre terminal.
 
 Le serveur refuse un état de plus de 65 536 tokens par un 422, et les petits modèles sont validés jusqu'à 8 192. Une
 étape de garde envoie le dernier message de l'utilisateur et une étape de vérification la requête avec la réponse ;

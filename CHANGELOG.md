@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed — a shorter quick start, and the long paragraphs of the guides broken up
+
+- The README's quick start keeps the commands and one paragraph; the runtime's versions and channels are in
+  [Getting started](docs/getting-started.md) alone.
+- [Development](docs/development.md) opens on what it covers. In the autonomous-runs, shared-memory,
+  getting-started, extending, development and WSL pages, a paragraph over 120 words lists its sentences, a bullet
+  over 100 words its clauses, and a table cell keeps one sentence.
+
 ### Changed — the documentation's navigation is grouped by reader
 
 - The navigation and the documentation's index group the pages under Use, Reference, Extend and contribute, and

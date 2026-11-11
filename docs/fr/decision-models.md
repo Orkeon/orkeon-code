@@ -142,13 +142,14 @@ requêtes du tour élagué ont pris 0,54 s cumulées et sont parties ensemble (0
 
 ## Les mêmes questions sur un petit modèle local
 
-`kev-0.8b`, le plus petit Kev à poids ouverts, sur les mêmes douze demandes et douze commandes : neuf skills sur
-douze (trois qui convenaient n'ont pas été suggérés, aucun ne l'a été à tort, celui réservé à une personne n'a
-jamais été proposé), huit routes sur douze (trois choix sous le seuil, le profil de la session est donc resté ;
-une revue de style envoyée vers `large`), 79 ms par requête sur cette machine. Ses probabilités sont proches des
-seuils (0,52 à 0,82 pour les skills, 0,60 à 0,85 pour les routes) là où celles du Jev hébergé sont proches de 1.
-Sur les questions d'élagage, une sonde de quatre appels a répondu entre 0,42 et 0,69, trop près du seuil de 0,5
-pour s'y fier.
+- `kev-0.8b`, le plus petit Kev à poids ouverts, sur les mêmes douze demandes et douze commandes : neuf skills sur
+  douze (trois qui convenaient n'ont pas été suggérés, aucun ne l'a été à tort, celui réservé à une personne n'a
+  jamais été proposé), huit routes sur douze (trois choix sous le seuil, le profil de la session est donc resté ; une
+  revue de style envoyée vers `large`), 79 ms par requête sur cette machine.
+- Ses probabilités sont proches des seuils (0,52 à 0,82 pour les skills, 0,60 à 0,85 pour les routes) là où celles
+  du Jev hébergé sont proches de 1.
+- Sur les questions d'élagage, une sonde de quatre appels a répondu entre 0,42 et 0,69, trop près du seuil de 0,5
+  pour s'y fier.
 
 ## Ce que ces mesures ne montrent pas
 

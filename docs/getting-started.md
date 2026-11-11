@@ -79,22 +79,23 @@ with the bash launcher ([WSL tutorial](wsl-tutorial.md)). On both, a path spelle
 model's calls and in what a command prints ([architecture](architecture.md#the-vfs-and-the-host-platform));
 under WSL a Windows program is reachable without confinement only, and still receives `/mnt/c/…` paths.
 
-Orkeon Code is checked against Orkeon's sources at the commit in `.orkeon-version` (`206b562`, `main` after
-Orkeon/orkeon#329, 2026-11-11): the [source mode](#source-mode-an-orkeon-checkout) runs that commit, the reference
-runtime; the [tool mode](#tool-mode-orkeon-repl-installed) (the Debian package on the apt `rc` channel, the release
-archives) runs the last release, `1.0.0-rc.6`, and the [docker mode](#docker-mode-nothing-to-install-but-docker)
-the last `orkeon-runners` image published, `1.0.0-rc.5` at this writing (no `1.0.0-rc.6` image is published), both
-behind the pin, and `/status` says so ([ADR 0013](adr/0013-pin-on-orkeon-commit.md)).
-The release carries what the ADRs 0004 to 0009 adopted from Orkeon's `main`: the host gate's state
-(`/permissions`), the typed built-in tools and the per-tool result limits ([ADR 0004](adr/0004-orkeon-after-180.md)),
-the file tools resolving a relative path under `/workspace` or the agent's root, and the pending approvals a command
-reads (`/tasks`) ([ADR 0005](adr/0005-orkeon-after-206.md)), the REPL starting on a terminal, the structural tools
-with their parameter schema and the streamed answers of concurrent acts kept line by line
-([ADR 0006](adr/0006-orkeon-after-213.md)), the thread screens, the budget wrap-up and the per-call access
-([ADR 0007](adr/0007-orkeon-after-217.md)), the access classes of the tools ([ADR 0008](adr/0008-orkeon-after-223.md)),
-the context counted once, the runtime, usage and session services and the streamed flag
-([ADR 0009](adr/0009-orkeon-after-230.md)). The typings are those of the pin
-([Development](development.md#typings)).
+- Orkeon Code is checked against Orkeon's sources at the commit in `.orkeon-version` (`206b562`, `main` after
+  Orkeon/orkeon#329, 2026-11-11): the [source mode](#source-mode-an-orkeon-checkout) runs that commit, the reference
+  runtime.
+- The [tool mode](#tool-mode-orkeon-repl-installed) (the Debian package on the apt `rc` channel, the release
+  archives) runs the last release, `1.0.0-rc.6`, and the [docker mode](#docker-mode-nothing-to-install-but-docker)
+  the last `orkeon-runners` image published, `1.0.0-rc.5` at this writing (no `1.0.0-rc.6` image is published), both
+  behind the pin, and `/status` says so ([ADR 0013](adr/0013-pin-on-orkeon-commit.md)).
+- The release carries what the ADRs 0004 to 0009 adopted from Orkeon's `main`: the host gate's state
+  (`/permissions`), the typed built-in tools and the per-tool result limits ([ADR
+  0004](adr/0004-orkeon-after-180.md)), the file tools resolving a relative path under `/workspace` or the agent's
+  root, and the pending approvals a command reads (`/tasks`) ([ADR 0005](adr/0005-orkeon-after-206.md)), the REPL
+  starting on a terminal, the structural tools with their parameter schema and the streamed answers of concurrent
+  acts kept line by line ([ADR 0006](adr/0006-orkeon-after-213.md)), the thread screens, the budget wrap-up and the
+  per-call access ([ADR 0007](adr/0007-orkeon-after-217.md)), the access classes of the tools ([ADR
+  0008](adr/0008-orkeon-after-223.md)), the context counted once, the runtime, usage and session services and the
+  streamed flag ([ADR 0009](adr/0009-orkeon-after-230.md)).
+- The typings are those of the pin ([Development](development.md#typings)).
 
 The launcher picks the first available mode, in this order, unless `--mode` says otherwise.
 
@@ -186,14 +187,16 @@ The banner prints the project, the settings and the mode. In the REPL:
 
 Text typed without a leading `/` is sent to `/assistant`. The full list: [Slash commands](commands.md).
 
-On a terminal the REPL is a split-pane TUI: the transcript, the prompt, and below it the tasks list (`↓` or `F4`)
-that names the background commands (`/dev-batches`, `/analyze`). A prompt is the conversation: its text, tool calls,
-diffs and approvals land on the `main` screen, and the list stays empty until a command runs beside it. Each task has
-its own screen: selecting a task row displays that task's lines, selecting `main` the prompt's own, where the launched
-and finished lines of every task stay; the selected task is also the recipient of the next message. A task that ends
-leaves the list with its screen, unless you are reading that screen: it then stays, with `✔ finished`, `✗ failed` or
-`⊘ cancelled` and its duration, until you leave it. `orkeon-code -- --ui plain` writes one stream instead, a task's
-lines prefixed by its ticket (`[t1] `).
+- On a terminal the REPL is a split-pane TUI: the transcript, the prompt, and below it the tasks list (`↓` or `F4`)
+  that names the background commands (`/dev-batches`, `/analyze`).
+- A prompt is the conversation: its text, tool calls, diffs and approvals land on the `main` screen, and the list
+  stays empty until a command runs beside it.
+- Each task has its own screen: selecting a task row displays that task's lines, selecting `main` the prompt's own,
+  where the launched and finished lines of every task stay.
+- The selected task is also the recipient of the next message.
+- A task that ends leaves the list with its screen, unless you are reading that screen: it then stays, with `✔
+  finished`, `✗ failed` or `⊘ cancelled` and its duration, until you leave it.
+- `orkeon-code -- --ui plain` writes one stream instead, a task's lines prefixed by its ticket (`[t1] `).
 
 ## 5. Optional: speech-to-text
 
@@ -214,22 +217,27 @@ models, backends and how the model calls the tools itself: [Configuration](speec
 
 ## What the agent writes in your project
 
-Besides the changes you ask for: `AGENTS.md` (`/init`), `.orkeon/config.json` (`/config`), `.orkeon/agents.json`
-(`/agents`) and `.git/ORKEON_COMMITMSG` (`/commit` writes the message there for `git commit -F`; git does not track
-it; in a linked worktree, whose `.git` is a file, the message goes to `.orkeon/ORKEON_COMMITMSG`, removed after the
-commit). The dev workflow adds `.orkeon/dev/` (each work's state files and logs), the work folder (`workbench/` by
-default, `dev.workDir`: specs, plans, batch sheets, verdicts), `.orkeon/worktrees/` (the worktrees of the batches),
-`.orkeon/dev-learn-state.json` (`/dev-learn`) and the [shared memory](shared-memory.md)'s folder (`.orkeon/memory/`
-unless `memory.dir` names another); the runtime itself writes `.orkeon/embedding-fingerprint.json` (the embedding
-model the RAG's vectors came from: it refuses to start when the model changes, until the file is deleted or
-`Orkeon:Embeddings:FingerprintPath` names another), and `.orkeon/state` (the checkpoints and kept questions of a run,
-only with `Orkeon:Checkpointing:Enabled`, off in every example; Orkeon #299); the hook scripts you write (`.orkeon/hooks/` in the [examples](hooks.md)) are
-yours. Add `.orkeon/` and `workbench/` to the project's `.gitignore` if you do not want to share them: `/dev-status`
-warns while they are not ignored. A shared memory meant for the team goes in a tracked folder (`memory.dir`,
-`docs/memory` for instance). Transcriptions go to the state
-directory (`.crew-output/transcripts` in a clone, `~/.orkeon-code/projects/<project>/transcripts` once installed), never to the project. The conversation is saved
-there too after each turn and when the REPL ends ([Sessions](configuration.md#sessions): `--continue` brings it back); the session mode
-(`/mode`) and the permission rules are kept in memory and end with the REPL.
+- Besides the changes you ask for: `AGENTS.md` (`/init`), `.orkeon/config.json` (`/config`), `.orkeon/agents.json`
+  (`/agents`) and `.git/ORKEON_COMMITMSG` (`/commit` writes the message there for `git commit -F`; git does not
+  track it; in a linked worktree, whose `.git` is a file, the message goes to `.orkeon/ORKEON_COMMITMSG`, removed
+  after the commit).
+- The dev workflow adds `.orkeon/dev/` (each work's state files and logs), the work folder (`workbench/` by default,
+  `dev.workDir`: specs, plans, batch sheets, verdicts), `.orkeon/worktrees/` (the worktrees of the batches),
+  `.orkeon/dev-learn-state.json` (`/dev-learn`) and the [shared memory](shared-memory.md)'s folder
+  (`.orkeon/memory/` unless `memory.dir` names another).
+- The runtime itself writes `.orkeon/embedding-fingerprint.json` (the embedding model the RAG's vectors came from:
+  it refuses to start when the model changes, until the file is deleted or `Orkeon:Embeddings:FingerprintPath` names
+  another), and `.orkeon/state` (the checkpoints and kept questions of a run, only with
+  `Orkeon:Checkpointing:Enabled`, off in every example; Orkeon #299).
+- The hook scripts you write (`.orkeon/hooks/` in the [examples](hooks.md)) are yours.
+- Add `.orkeon/` and `workbench/` to the project's `.gitignore` if you do not want to share them: `/dev-status`
+  warns while they are not ignored.
+- A shared memory meant for the team goes in a tracked folder (`memory.dir`, `docs/memory` for instance).
+- Transcriptions go to the state directory (`.crew-output/transcripts` in a clone,
+  `~/.orkeon-code/projects/<project>/transcripts` once installed), never to the project.
+- The conversation is saved there too after each turn and when the REPL ends ([Sessions](configuration.md#sessions):
+  `--continue` brings it back).
+- The session mode (`/mode`) and the permission rules are kept in memory and end with the REPL.
 
 ## Troubleshooting
 
