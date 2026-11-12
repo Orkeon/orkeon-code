@@ -58,5 +58,7 @@ that release.
 - The decision model is asked the launch's question, worded for a command typed by a person, about a brief written
   by a crew. How well it picks there is not measured; nor is the effect on cost.
 - On the `1.0.0-rc.7` image the per-call profile does not exist: what a routed act does there was not tried.
-- Checks at `41f5079`: `npm run check` green. The routed act was not run against a live host: the tests cover the
+- Checks at `41f5079`: `npm run check` green; in source mode, `bash scripts/smoke-runtime.sh`: 50 commands loaded,
+  0 skipped, 0 conflicts; `bash scripts/smoke-crew.sh` commits the mock's subject; `bash scripts/smoke-validate.sh`:
+  18 crews, 0 failed. The routed act was not run against a live host: the tests cover the
   port, the adapter's `llm` patch and each caller over fakes.
