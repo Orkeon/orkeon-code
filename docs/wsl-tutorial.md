@@ -98,17 +98,17 @@ mkdir -p ~/audio && timeout 20 parecord --channels=1 --rate=16000 --file-format=
 
 ## 3. Orkeon from its apt package
 
-The `rc` channel carries the last release of Orkeon, `1.0.0-rc.6`, a release candidate: Orkeon Code is checked
-against a commit of Orkeon's `main` (`.orkeon-version`), and the tool mode runs that release behind the pin
-([Getting started](getting-started.md)). The `dev` channel publishes one package per commit of `main` the CI
-validated, versioned `1.0.0~rc.6.dev.<n>` (`n` is the number of the CI run), the last three builds only: it is for
-following `main` ahead of the pin, not for this tutorial. The package installs `/usr/bin/orkeon-repl` (the REPL, with its
+The `stable` channel carries the last release of Orkeon, `1.0.0`: it is the commit of Orkeon's `main` Orkeon Code
+is checked against (`.orkeon-version`), so the tool mode runs the pin ([Getting started](getting-started.md)). The
+`dev` channel publishes one package per commit of `main` the CI validated, versioned `1.0.1~dev.<n>` (`n` is the
+number of the CI run), the last three builds only: it is for following `main` ahead of the pin, not for this
+tutorial. The package installs `/usr/bin/orkeon-repl` (the REPL, with its
 `esbuild`: no .NET and no npm to install) and `orkeon` (the CLI). Supported systems: Debian 12 and 13, Ubuntu 22.04,
 24.04 and 26.04 (`cat /etc/os-release` says which you have).
 
 The block is the one of Orkeon's guide
-([Install with apt](https://github.com/Orkeon/orkeon/blob/main/docs/guides/install-with-apt.md)), with the one
-difference its channel table prescribes for a release candidate: `Suites: raw/apt/rc/` instead of `stable`. The key is
+([Install with apt](https://github.com/Orkeon/orkeon/blob/main/docs/guides/install-with-apt.md)), on its `stable`
+channel. The key is
 checked by its SHA-256 before apt is trusted with it, for this source only (`Signed-By`).
 
 ```bash
@@ -133,7 +133,7 @@ sudo install -m 0644 /tmp/orkeon-archive-keyring.gpg /usr/share/keyrings/orkeon-
 sudo tee /etc/apt/sources.list.d/orkeon.sources > /dev/null <<'EOF'
 Types: deb
 URIs: https://github.com/Orkeon/orkeon/
-Suites: raw/apt/rc/
+Suites: raw/apt/stable/
 Include: orkeon orkeon-archive-keyring
 Signed-By: /usr/share/keyrings/orkeon-archive-keyring.gpg
 EOF
@@ -147,8 +147,8 @@ sudo apt-get update && sudo apt-get install -y orkeon orkeon-archive-keyring
 orkeon --version && command -v orkeon-repl
 ```
 
-Expected: `1.0.0-rc.6` (or the form `orkeon` prints for `1.0.0~rc.6`) and `/usr/bin/orkeon-repl`. Later, the next
-release candidate comes with `sudo apt update && sudo apt upgrade`; `apt list -a orkeon` lists the channel's, and
+Expected: `1.0.0` and `/usr/bin/orkeon-repl`. Later, the next
+release comes with `sudo apt update && sudo apt upgrade`; `apt list -a orkeon` lists the channel's, and
 `/status` says whether the one running is the commit of `.orkeon-version`.
 
 ## 4. Orkeon Code in the WSL home
@@ -190,11 +190,11 @@ A first REPL, without speech, on the throwaway sample repository (`--demo`), in 
 ```
 
 The banner shows `orkeon-code <version> on Orkeon (tool: a release, the pin is 41f5079)`: the tool mode runs the
-package's release, not `41f5079`, the pin of `.orkeon-version`. Then come the project and the settings file. In the REPL:
+package's release, `1.0.0`, which is `41f5079`, the pin of `.orkeon-version`, until the pin moves on. Then come the project and the settings file. In the REPL:
 
 | Command | Expected |
 |---|---|
-| `/doctor` | The LLM configuration, the tools and the mounts green; `toolchain: node` and `toolchain: dotnet` may stay red (section 9), without effect in `tool` mode; `version` warns: the package is the last release, not the pin |
+| `/doctor` | The LLM configuration, the tools and the mounts green; `toolchain: node` and `toolchain: dotnet` may stay red (section 9), without effect in `tool` mode; `version` warns once the pin has moved past the package's release |
 | `/permissions` | The gate's state: `on` (a recent `main` of Orkeon; `unknown` would mean a build too old) |
 | `plan: what does this project do?` | An answer from the model (otherwise: the key does not arrive, the launcher said so at start) |
 | `/exit` | Exit |
@@ -477,7 +477,7 @@ cuts it, at the price of less sure tool calls. Back to DeepSeek: start again wit
 | The microphone records silence | Windows' privacy (step 2); `pactl list short sources` must show `RDPSource` |
 | `apt-get update`: `NO_PUBKEY` | The key is missing or not in the right format: redo the three lines of the key (step 3) |
 | `apt-get update`: `Conflicting distribution` | The `Suites:` line was changed beyond the channel's name |
-| `apt-get install orkeon`: `Unable to locate package orkeon` | The source is not on `raw/apt/rc/` (`stable` carries finals only, and there is none yet) |
+| `apt-get install orkeon`: `Unable to locate package orkeon` | The `Suites:` line does not name `raw/apt/stable/` |
 | `/doctor`: `toolchain: node ❌`, or `toolchain: dotnet ❌ 10.0.2xx [/usr/share/dotnet/sdk]` | `tool` mode needs neither: the package ships its own esbuild, and nothing calls `dotnet` |
 | No `audio` line in the banner | The launcher said why: `uv` missing from the `PATH`, a `whisper` server already declared in the settings or the environment, docker mode |
 | `whisper-mcp-smoke: uv not found. Install it: …` | Step 4 was not done, or section 10 went through, or the terminal predates the install: `source ~/.local/bin/env`; otherwise `curl -LsSf https://astral.sh/uv/install.sh \| sh && source ~/.local/bin/env` |

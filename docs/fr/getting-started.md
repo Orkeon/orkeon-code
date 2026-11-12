@@ -82,33 +82,25 @@ sous WSL un programme Windows n'est joignable que sans confinement, et reçoit e
 - Orkeon Code est vérifié contre les sources d'Orkeon au commit de `.orkeon-version` (`41f5079`, le `main` après
   Orkeon/orkeon#347, 2026-11-12) : le [mode source](#mode-source--un-checkout-dorkeon) exécute ce commit, le runtime
   de référence.
-- Le [mode tool](#mode-tool--orkeon-repl-installé) (le paquet Debian sur le canal apt `rc`, les archives de release)
-  exécute la dernière release, `1.0.0-rc.6`, et le [mode docker](#mode-docker--rien-à-installer-sauf-docker) la
-  dernière image `orkeon-runners` publiée, `1.0.0-rc.5` à ce jour (aucune image `1.0.0-rc.6` n'est publiée), tous
-  deux en retard sur l'épingle, et `/status` le dit ([ADR 0013](../adr/0013-pin-on-orkeon-commit.md)).
-- La release porte ce que les ADR 0004 à 0009 ont repris du `main` d'Orkeon : l'état de la garde du runtime
-  (`/permissions`), les outils intégrés typés et les limites de résultat par outil ([ADR
-  0004](../adr/0004-orkeon-after-180.md)), les outils de fichiers qui résolvent un chemin relatif sous `/workspace`
-  ou la racine de l'agent, et les approbations en attente qu'une commande lit (`/tasks`) ([ADR
-  0005](../adr/0005-orkeon-after-206.md)), le REPL qui démarre sur un terminal, les outils structurels avec leur
-  schéma de paramètres et les réponses diffusées d'acts concurrents gardées ligne par ligne ([ADR
-  0006](../adr/0006-orkeon-after-213.md)), les écrans de fil, la clôture du budget et l'accès par appel ([ADR
-  0007](../adr/0007-orkeon-after-217.md)), les classes d'accès des outils ([ADR
-  0008](../adr/0008-orkeon-after-223.md)), le contexte compté une fois, les services runtime, usage et session et le
-  drapeau streamed ([ADR 0009](../adr/0009-orkeon-after-230.md)).
+- Ce commit est celui qu'Orkeon a publié en `1.0.0` : le [mode tool](#mode-tool--orkeon-repl-installé) (le paquet
+  Debian sur le canal apt `stable`, les archives de release) exécute l'épingle.
+- Le [mode docker](#mode-docker--rien-à-installer-sauf-docker) exécute la dernière image `orkeon-runners` publiée,
+  `1.0.0-rc.7` à ce jour (aucune image `1.0.0` n'est publiée) : elle est en retard sur l'épingle, et `/status` le dit
+  ([ADR 0013](../adr/0013-pin-on-orkeon-commit.md)).
+- Quand l'épingle avance, le mode tool est lui aussi en retard jusqu'à la prochaine release d'Orkeon.
 - Les typings sont ceux de l'épingle ([Développement](development.md#typings)).
 
 Le lanceur prend le premier mode disponible, dans cet ordre, sauf si `--mode` en décide autrement.
 
 ### Mode tool : `orkeon-repl` installé
 
-Le REPL est `orkeon-repl` (`Orkeon.ConsoleApp`) de la dernière release, jamais l'épingle. Le paquet Debian et les
+Le REPL est `orkeon-repl` (`Orkeon.ConsoleApp`) de la dernière release, `1.0.0`, qui est l'épingle à ce jour. Le paquet Debian et les
 archives de release le livrent autonome, avec son propre esbuild : aucun .NET à installer.
 
 **Debian et Ubuntu** (amd64, arm64) : le paquet `orkeon` installe `/usr/bin/orkeon-repl`. Ajoutez la source apt
 d'Orkeon une fois, comme le décrit [Install with apt](https://github.com/Orkeon/orkeon/blob/main/docs/guides/install-with-apt.md),
-puis `sudo apt install orkeon`. Une version candidate telle que `1.0.0-rc.6` est publiée sur le canal `rc`
-(`Suites: raw/apt/rc/`), pas sur `stable`.
+puis `sudo apt install orkeon`. `1.0.0` est sur le canal `stable` ; une version candidate est publiée sur le canal
+`rc` (`Suites: raw/apt/rc/`).
 
 **Autres systèmes** : l'**archive complète** de la [release d'Orkeon](https://github.com/Orkeon/orkeon/releases) pour
 votre plateforme : `orkeon-<version>-linux-x64.tar.gz`, `-linux-arm64`, `-osx-x64`, `-osx-arm64`, ou, sous Windows,
@@ -118,12 +110,8 @@ lancez `./install.sh` : il installe dans `~/.local/lib/orkeon` et lie `orkeon-re
 `~/.local/bin`, sans `sudo`. Sous Windows, `install.ps1` installe dans `%LOCALAPPDATA%\Programs\Orkeon` et ajoute son
 dossier `bin` à votre `PATH` utilisateur.
 
-Une release a du retard sur l'épingle : pas de panneaux, `/theme` répond que la console n'a pas de palettes, et `/diff` et
-les résultats restent en texte brut. Pour avoir les fonctions de l'épingle sous Windows, avec le SDK .NET installé, lancez
-`.\scripts\install-from-source.ps1 -AppSet full` depuis un clone d'Orkeon à l'épingle ou plus récent.
-
 ```bash
-v=1.0.0-rc.6; rid=linux-x64       # the last release; or linux-arm64, osx-x64, osx-arm64
+v=1.0.0; rid=linux-x64       # the last release; or linux-arm64, osx-x64, osx-arm64
 curl -fLO "https://github.com/Orkeon/orkeon/releases/download/v$v/orkeon-$v-$rid.tar.gz"
 curl -fLO "https://github.com/Orkeon/orkeon/releases/download/v$v/SHA256SUMS"
 sha256sum --check --ignore-missing SHA256SUMS
@@ -140,8 +128,8 @@ celui que npm a installé (`ORKEON_ESBUILD_PATH` le remplace).
 
 ### Mode docker : rien à installer sauf Docker
 
-Le lanceur exécute `ghcr.io/orkeon/orkeon-runners:latest`, la dernière image publiée (`1.0.0-rc.5` à ce jour :
-l'image `1.0.0-rc.6` n'est pas publiée), jamais l'épingle (`ORKEON_CODE_IMAGE` nomme une autre image), qui porte le
+Le lanceur exécute `ghcr.io/orkeon/orkeon-runners:latest`, la dernière image publiée (`1.0.0-rc.7` à ce jour :
+l'image `1.0.0` n'est pas publiée), jamais l'épingle (`ORKEON_CODE_IMAGE` nomme une autre image), qui porte le
 REPL et esbuild ; l'image est construite pour `linux/amd64` et `linux/arm64`, et Docker tire celle de votre machine. Le projet est monté dans le
 conteneur ; sous Linux, le conteneur tourne avec votre uid, si bien que les fichiers que l'agent écrit vous
 appartiennent. L'outil shell tourne dans le conteneur.

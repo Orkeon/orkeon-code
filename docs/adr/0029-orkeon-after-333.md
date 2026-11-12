@@ -13,14 +13,16 @@ runtime's `act` took a model of the agent's provider, not a profile. This projec
 Orkeon #333 (`8edfa46`), merged on `main` on 2026-11-11, closes it. The options of an LLM call (`LlmCallOptions`, `ActOptions`) take
 `llm: { profile?, model? }`: `profile` runs the call on the host profile of that name, by the rule of
 `llm.profile(name)`, so a name the host does not declare throws; `model` then chooses the model within that profile.
-Orkeon `main` then released 1.0.0 (#341, `8ce371d`) and realigned its README (#347, `41f5079`); before the release
+Orkeon `main` then prepared 1.0.0 (#341, `8ce371d`) and realigned its README (#347, `41f5079`), the commit tagged
+`v1.0.0` on 2026-11-12; before it
 came its 1.0.0-rc.7 (#332), CI fixes (#334), the stop of the Windows service after a refused configuration (#337)
-and account statuses that keep their problems as a list (#340). The pin follows `main`, not the release (ADR 0013).
+and account statuses that keep their problems as a list (#340). The pin follows `main` (ADR 0013), whose head is
+that release.
 
 ## Decision
 
 - **The pin moves to `41f5079`** (the full hash in `.orkeon-version`), the newest merge commit of Orkeon `main`,
-  which holds #333 and the 1.0.0 release; the status meta, the issue template, the guides. The typings from
+  which holds #333 and is the 1.0.0 release; the status meta, the issue template, the guides. The typings from
   `scripts/sync-typings.sh` gain the per-call `llm` patch at `8edfa46`; from there to `41f5079` one comment changes.
 - **`ModelOverride` gains `profile`**: the `Llm` port's `act` and `complete` pass it as the runtime's `llm` patch,
   beside `model`. An empty or absent profile sends nothing, as before.
@@ -41,6 +43,10 @@ and account statuses that keep their problems as a list (#340). The pin follows 
 - **Not routed**: the main loop and what ADR 0027 already leaves out; the roles of `/dev-implement`, left for a
   later change; the agents a crew starts in the background; `/advisor`.
 
+- **The guides name the release**: for the first time since ADR 0013 the tool mode runs the pin, from the apt
+  `stable` channel, the release archives and the `orkeon.scripting.cli` tool, which `.config/dotnet-tools.json` now
+  names at `1.0.0`. The docker mode stays behind: the last image published is `1.0.0-rc.7`, cut before #333.
+
 ## Consequences
 
 - An act can run on a dearer model than its crew: a crew launched on `small` has its review on `large` when the
@@ -51,5 +57,6 @@ and account statuses that keep their problems as a list (#340). The pin follows 
   (`dev-reviewer`, `dev-auditor`): a crew with a routed act pushes older launches out sooner.
 - The decision model is asked the launch's question, worded for a command typed by a person, about a brief written
   by a crew. How well it picks there is not measured; nor is the effect on cost.
+- On the `1.0.0-rc.7` image the per-call profile does not exist: what a routed act does there was not tried.
 - Checks at `41f5079`: `npm run check` green. The routed act was not run against a live host: the tests cover the
   port, the adapter's `llm` patch and each caller over fakes.
