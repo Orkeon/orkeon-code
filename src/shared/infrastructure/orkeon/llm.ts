@@ -33,17 +33,25 @@ import { orkeonHostContext } from "./host-context.ts";
  *  five modes ActOptions names. */
 type ModeActRequest = Omit<ActRequest, "permissionMode"> & { permissionMode?: PermissionMode };
 
-/** The runtime's per-call options for a model override; none without one. */
-function callOptions(override: ModelOverride | undefined): LlmCallOptions | undefined {
-  return override?.model ? { llm: { model: override.model } } : undefined;
+/** The runtime's `llm` patch of one call: its profile and its model, each when set; none when neither is. */
+function llmPatch(profile: string | undefined, model: string | undefined): { profile?: string; model?: string } | undefined {
+  if (!profile && !model) return undefined;
+  return { ...(profile ? { profile } : {}), ...(model ? { model } : {}) };
 }
 
-/** The runtime's act() options: the request as given (its `tools` subset copied), its model as the `llm` patch, and the
- *  act's callbacks, when it has any. */
+/** The runtime's per-call options for a model override; none without one. */
+function callOptions(override: ModelOverride | undefined): LlmCallOptions | undefined {
+  const llm = llmPatch(override?.profile, override?.model);
+  return llm === undefined ? undefined : { llm };
+}
+
+/** The runtime's act() options: the request as given (its `tools` subset copied), its profile and model as the `llm`
+ *  patch, and the act's callbacks, when it has any. */
 function actOptions(request: ActRequest, callbacks: ActCallbacks | undefined): ActOptions {
-  const { model, tools, ...given } = request as ModeActRequest;
+  const { model, profile, tools, ...given } = request as ModeActRequest;
   const rest = tools === undefined ? given : { ...given, tools: [...tools] };
-  const options: ActOptions = model ? { ...rest, llm: { model } } : rest;
+  const llm = llmPatch(profile, model);
+  const options: ActOptions = llm === undefined ? rest : { ...rest, llm };
   return callbacks === undefined ? options : { ...options, ...callbacks };
 }
 

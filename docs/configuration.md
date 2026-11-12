@@ -284,7 +284,7 @@ Inside the REPL, `/config` lists, reads and writes the session keys, stored in t
 | `answer.language` | | the language the assistant answers in, unless a request is written in another one |
 | `compaction.trigger` | the window minus the room one turn needs | the token count at which the automatic compaction runs |
 | `compaction.prune` | `off` | the host's decision model prunes the stale tool results of a turn in progress |
-| `route.agents` | `off` | at each launch of a crew, the host's decision model picks the cheapest profile of `route.ladder` that fits the command |
+| `route.agents` | `off` | at each launch of a crew, the host's decision model picks the cheapest profile of `route.ladder` that fits the command; inside a crew, the same for the act of a reviewer or of the auditor |
 | `route.ladder` | `small,large` | the host's LLM profiles the routing picks among, cheapest first |
 | `skills.suggest` | `off` | the host's decision model adds to a turn the project's skills that fit its request |
 | `dev.workDir` | the repository pack's `layout.work`, else `workbench` | the work folder the dev steps read and write, relative to the checkout |

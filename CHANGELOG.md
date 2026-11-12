@@ -7,6 +7,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added — the act of a reviewer or of the auditor routed to a profile
+
+- With `route.agents` on, the decision model also routes, inside a crew, the act of the reviewer of `/dev-spec`,
+  `/dev-change` and `/dev-plan`, of the reviewer of the next batch of `/dev-batches` and of the auditor of
+  `/dev-verify`: that one call runs on the rung picked, the crew stays on its profile
+  ([ADR 0029](docs/adr/0029-orkeon-after-333.md)).
+- The act moves only on a decision; no answer, an unsure pick or a rung the host does not declare leave it where
+  the crew runs. Each choice is logged and listed by `/route why`.
+
+### Changed — the pin moves to Orkeon main after #333
+
+- `.orkeon-version` names `8edfa46`: an LLM call takes a profile of the host (`llm: { profile }`), where it took
+  a model of the agent's provider only.
+
 ### Added — the launcher downloads the runtime when the machine has none
 
 - With neither `orkeon-repl`, Docker nor `ORKEON_SOURCE`, the bash launcher offers to download the Orkeon runtime

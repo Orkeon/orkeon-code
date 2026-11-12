@@ -264,8 +264,16 @@ is picked at each launch of `/dev-spec` (and its alias `/dev-change`), `/dev-pla
   routed: it keeps that profile.
 - **What is not routed**: the main loop (`/assistant`: its prompt cache follows one model), `/compact`, `/memory
   admit`, the speech crews, `/advisor` (it has its own model), `/dev-batches` and `/tasks`; and, inside a crew, the
-  acts of its sub-agents, since the runtime's `act` takes a model of the agent's provider, not a profile. The
-  reasoning effort stays `/effort`'s.
+  roles of `/dev-implement`, the agents a crew starts in the background and the extraction of a sub-agent's answer.
+  The reasoning effort stays `/effort`'s.
+- **A sub-agent's act inside a crew** ([ADR 0029](adr/0029-orkeon-after-333.md)): the reviewer of `/dev-spec`,
+  `/dev-change` and `/dev-plan`, the reviewer of the next batch of `/dev-batches` and the auditor of `/dev-verify`
+  each make one act the same decision routes, asked under the sub-agent's name with its brief, the same floors and
+  the session's profile as the ceiling. The act alone moves, for that call; the crew stays on its profile. It moves
+  only on a decision: a model that does not answer or is not sure, a pick that is the crew's own profile and a
+  rung the host does not declare leave the act where the crew runs. An act may move up as well as down: a crew
+  launched on `small` has its review on `large` when the model says so. Each of these choices is logged and listed
+  by `/route why` like a launch.
 - **It fails open**: the setting off or unreadable, no decision model (a warning) and a model that does not answer
   leave the session's profile. Each routed launch writes a log line with the profile and why, and the last 5 are
   kept in the session for `/route why`; the choice is made before the launch, so a launch the host then refuses (a

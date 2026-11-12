@@ -36,6 +36,20 @@ describe("runAudit", () => {
     deepStrictEqual(f.shell.commands, []);
   });
 
+  it("runs each act of the auditor on the profile its route answers", async () => {
+    // Arrange
+    const f = fakes();
+    f.llm.answers = ["I doubt LineTests", "now I am sure"];
+    f.llm.extractions = [answer([VALIDATION]), answer()];
+    f.shell.results[VALIDATION] = PASSED_12;
+
+    // Act
+    await runAudit({ ...f.deps, route: async () => "small" }, brief, FOLDER, SHOWN);
+
+    // Assert
+    deepStrictEqual(f.llm.acts.map((a) => a.request.profile), ["small", "small"]);
+  });
+
   it("runs an accepted validation with 300 s, then asks once more with its output", async () => {
     // Arrange
     const f = fakes();

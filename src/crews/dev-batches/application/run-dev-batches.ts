@@ -12,6 +12,7 @@
 // dev-implement's: this crew writes only the log, the run record and the pull request's body - and, in a parallel
 // run, the files it seeds and harvests and the merges of the VALID batches.
 import type { Files, Llm, Logger, Shell } from "../../../shared/application/ports.ts";
+import type { ActRoute } from "../../../shared/application/agents/route-agent.ts";
 import type { ConfigStore } from "../../../shared/application/config-store.ts";
 import type { PullRequestOpener } from "../../../shared/application/git/commit-files.ts";
 import { defaultBranch, runGit } from "../../../shared/application/git/commit-files.ts";
@@ -84,6 +85,9 @@ export interface DevBatchesDeps {
   clock: () => Date;
   /** The reviewer of the next batch (read tools only), under the run's hooks and effort; none: not run, and said. */
   reviewerFor?(context: BatchesContext): Pick<Llm, "act" | "extract">;
+  /** The route of the next batch's reviewer's act to a cheaper or stronger profile (shared/application/agents/route-agent.ts actRoute);
+   *  absent, the act runs on the crew's profile. */
+  route?: ActRoute;
   /** The pull-request opener for the context read at the dispatch; none: the command is handed over. */
   openerFor?(context: BatchesContext): PullRequestOpener | undefined;
   /** A parallel run's batch, run by a batch agent under its worktree; none: a parallel run is refused. */
@@ -604,7 +608,7 @@ export async function runDevBatches(input: DevBatchesInputs, deps: DevBatchesDep
       schema: REVIEW_ANSWER_SCHEMA,
       answerPrompt: (reply, problems) => buildReviewAnswerPrompt(reply, problems, [id]),
       check: (v) => checkReviewAnswer(v, { targets: [id] }),
-    });
+    }, deps.route);
     if (!outcome.ok) return notRun(`${outcome.reason}: ${outcome.problems[0] ?? "no detail"}`);
     const rows = outcome.value.rows;
     const blocking = rows.filter((r) => r.severity === "Blocking");

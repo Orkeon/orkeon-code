@@ -45,3 +45,11 @@ export const FINAL_EXTRACTION_FAILURES: readonly ErrorCase[] = [
   { name: "a budget spent", error: new Error("token budget exhausted: 700000 tokens"), reason: "model-failed" },
   { name: "a cancel", error: new Error("The operation was cancelled."), reason: "cancelled" },
 ];
+
+/** Where the act goes, by what its route answers. */
+export const ROUTES: readonly { name: string; route?: () => Promise<string | null>; profile: string | undefined }[] = [
+  { name: "runs the act on the profile its route answers", route: async () => "small", profile: "small" },
+  { name: "leaves the act on the agent's profile when its route answers none", route: async () => null, profile: undefined },
+  { name: "leaves the act on the agent's profile when its route throws", route: async () => { throw new Error("no decision model"); }, profile: undefined },
+  { name: "leaves the act on the agent's profile without a route", profile: undefined },
+];

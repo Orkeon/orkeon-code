@@ -21,6 +21,13 @@ export function llmProfileFallbackOf(input: Readonly<Record<string, unknown>>): 
   return value.trim() === "" || llmProfileProblem(value) !== undefined ? null : value.trim();
 }
 
+/** The session's own profile a crew input carries: its `llmProfileFallback` when the launch was routed, else its
+ *  `llmProfile`; null for the host's default model. */
+export function llmSessionProfileOf(input: Readonly<Record<string, unknown>>): string | null {
+  const fallback = llmProfileFallbackOf(input);
+  return fallback === undefined ? llmProfileOf(input) : fallback;
+}
+
 /** Why a value is refused for `llm.profile`; undefined when it is a profile name. */
 export function llmProfileProblem(value: string): string | undefined {
   const name = value.trim();

@@ -291,8 +291,19 @@ décision sur le runtime, ce profil est choisi à chaque lancement de `/dev-spec
   garde ses requêtes) n'est pas routée : elle garde ce profil.
 - **Ce qui n'est pas routé** : la boucle principale (`/assistant` : son cache de prompt suit un modèle),
   `/compact`, `/memory admit`, les crews de parole, `/advisor` (il a son propre modèle), `/dev-batches` et
-  `/tasks` ; et, dans un crew, les acts de ses sous-agents, car le `act` du runtime prend un modèle du fournisseur
-  de l'agent, pas un profil. L'effort de raisonnement reste celui de `/effort`.
+  `/tasks` ; et, dans un crew, les rôles de `/dev-implement`, les agents qu'un crew démarre en arrière-plan et
+  l'extraction de la réponse d'un sous-agent. L'effort de raisonnement reste celui de `/effort`.
+- **L'act d'un sous-agent dans un crew** ([ADR 0029](../adr/0029-orkeon-after-333.md)) :
+  - Le relecteur de `/dev-spec`, `/dev-change` et `/dev-plan`, le relecteur du lot suivant de `/dev-batches` et
+    l'auditeur de `/dev-verify` font chacun un act que la même décision route.
+  - La question est posée sous le nom du sous-agent, avec son brief, les mêmes planchers et le profil de la
+    session comme plafond.
+  - Seul l'act change de profil, pour cet appel ; le crew reste sur le sien.
+  - Il ne bouge que sur une décision : un modèle qui ne répond pas ou n'est pas sûr, un choix qui est le profil du
+    crew et un barreau que le runtime ne déclare pas laissent l'act là où tourne le crew.
+  - Un act peut monter comme descendre : un crew lancé sur `small` a sa relecture sur `large` quand le modèle le
+    dit.
+  - Chacun de ces choix est journalisé et listé par `/route why` comme un lancement.
 - **Le routage échoue ouvert** :
   - Le réglage éteint ou illisible, pas de modèle de décision (un avertissement) et un modèle qui ne répond pas
     laissent le profil de la session.

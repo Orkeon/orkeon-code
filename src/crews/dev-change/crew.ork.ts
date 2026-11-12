@@ -26,6 +26,7 @@
 
 import { CrewBuilder, publishCrew, inputs, ToolBuilder } from "../../shared/infrastructure/globals.ts";
 import {
+  orkeonActRoute,
   orkeonAgent,
   orkeonClock,
   orkeonCodeIndex,
@@ -93,7 +94,7 @@ const builder = orkeonAgent()
     try {
       // T1: the shared memory's precedents in the draft's prompt, unless memory_recall is denied.
       const precedents = stepPrecedents({ ...ports, memory: orkeonSharedMemory(), log: ctx.log }, { on: memoryOn });
-      return await runDevChange(inputs(), { ...ports, llm: child.llm, log: ctx.log, clock, precedents });
+      return await runDevChange(inputs(), { ...ports, llm: child.llm, log: ctx.log, clock, precedents, route: orkeonActRoute(ctx.log) });
     } finally {
       await child.close();
     }

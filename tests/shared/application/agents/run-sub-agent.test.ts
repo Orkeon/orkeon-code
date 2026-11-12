@@ -6,7 +6,7 @@ import { deepStrictEqual, ok, strictEqual } from "node:assert";
 import { runSubAgent } from "../../../../src/shared/application/agents/run-sub-agent.ts";
 import { FakeLlm } from "../../../support/doubles/fake-llm.ts";
 import { budgetExhaustedAnswer } from "../../../../src/shared/domain/llm-failure.ts";
-import { CANCELLED_ACTS, CHARTER, FINAL_EXTRACTION_FAILURES, call } from "./run-sub-agent.fixtures.ts";
+import { CANCELLED_ACTS, CHARTER, FINAL_EXTRACTION_FAILURES, ROUTES, call } from "./run-sub-agent.fixtures.ts";
 
 describe("runSubAgent", () => {
   it("acts with the system, the charter's mode and iterations, then extracts", async () => {
@@ -59,6 +59,33 @@ describe("runSubAgent", () => {
 
     // Assert
     strictEqual(llm.acts[0].request.model, "small-model");
+  });
+
+  for (const c of ROUTES) {
+    it(c.name, async () => {
+      // Arrange
+      const llm = new FakeLlm();
+      llm.extractions = [{ count: 1 }];
+
+      // Act
+      await runSubAgent(llm, call(), c.route);
+
+      // Assert
+      strictEqual(llm.acts[0].request.profile, c.profile);
+    });
+  }
+
+  it("asks the route once, about the charter's name and the brief", async () => {
+    // Arrange
+    const llm = new FakeLlm();
+    llm.extractions = [new Error("not JSON"), { count: 1 }];
+    const asked: unknown[] = [];
+
+    // Act
+    await runSubAgent(llm, call(), async (task) => { asked.push(task); return null; });
+
+    // Assert
+    deepStrictEqual(asked, [{ crew: "code-reader", brief: "BRIEF TEXT" }]);
   });
 
   it("makes no call for an invalid charter", async () => {

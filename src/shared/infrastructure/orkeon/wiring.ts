@@ -29,7 +29,10 @@ import { createSessionIo } from "../../application/session-io.ts";
 import type { SessionIo } from "../../application/session-io.ts";
 import type { ServiceLocator } from "../../../commands/.orkeon/orkeon-cli.d.ts";
 import { AgentBuilder, Llm as HostLlm, Rag, Tools, inputs } from "../globals.ts";
-import { profiledAgent } from "./llm-profile.ts";
+import { declaredRoute, profiledAgent } from "./llm-profile.ts";
+import { actRoute } from "../../application/agents/route-agent.ts";
+import type { ActRoute } from "../../application/agents/route-agent.ts";
+import { llmProfileOf, llmSessionProfileOf } from "../../domain/llm-profile.ts";
 import type { AgentFactories } from "./llm-profile.ts";
 import { createAnchorIndex, createCodeIndex, createCostIndex } from "./code-index.ts";
 import { createFiles } from "./files.ts";
@@ -136,3 +139,16 @@ export const orkeonAgentFactories = (): AgentFactories => {
 /** An agent builder on the profile the crew input names (`llmProfile`, the session's `llm.profile`), else the plain
  *  one: where every composition root starts an agent (orkeon/llm-profile.ts). */
 export const orkeonAgent = (input: Readonly<Record<string, unknown>> = inputs()): any => profiledAgent(input, orkeonAgentFactories());
+
+/** The route of a crew's sub-agent acts (a reviewer's, the auditor's): the launch's decision under the session's
+ *  profile, an act moved only off the crew's own profile and only to a profile the host declares. `log` is the body's;
+ *  `tools` and `root` the body's too when it runs under a working root of its own. */
+export const orkeonActRoute = (
+  log: Pick<Logger, "info" | "warn">, tools: OrkeonTools = Tools, root?: string, input: Readonly<Record<string, unknown>> = inputs(),
+): ActRoute => declaredRoute(
+  actRoute(
+    { decision: orkeonDecisionModel(tools), files: orkeonFiles(tools, root), session: orkeonSessionStore(tools), config: orkeonConfigStore(tools, root), log },
+    { session: llmSessionProfileOf(input), crew: llmProfileOf(input) },
+  ),
+  orkeonAgentFactories().profile,
+);

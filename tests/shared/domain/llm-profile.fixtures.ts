@@ -19,3 +19,11 @@ export const INPUT_PROFILES: readonly { readonly name: string; readonly input: R
   { name: "names none on a field that is not a string", input: { llmProfile: 3 }, profile: null },
   { name: "names none on a field that is not a profile name", input: { llmProfile: "a b" }, profile: null },
 ];
+
+/** The session's own profile, as a crew input carries it: beside a routed profile, or as the profile itself. */
+export const SESSION_PROFILES: readonly { readonly name: string; readonly input: Record<string, unknown>; readonly profile: string | null }[] = [
+  { name: "names the fallback of a routed launch", input: { llmProfile: "small", llmProfileFallback: "large" }, profile: "large" },
+  { name: "names the host's default model for a routed launch of a session without a profile", input: { llmProfile: "small", llmProfileFallback: "" }, profile: null },
+  { name: "names the input's profile when the launch was not routed", input: { llmProfile: "large" }, profile: "large" },
+  { name: "names the host's default model on an input without a profile", input: { prompt: "hi" }, profile: null },
+];

@@ -169,6 +169,11 @@ export function routeOf(
   return { profile: ladder[rung], reason, ...told };
 }
 
+/** Whether a choice is a decision (the model's pick, held or raised), not the session's profile left to stand. */
+export function routeDecided(reason: RouteReason): boolean {
+  return reason !== "no-answer" && reason !== "low-confidence";
+}
+
 /** One line of `/route why`, kept in the session. */
 export interface RouteRecord {
   crew: string;

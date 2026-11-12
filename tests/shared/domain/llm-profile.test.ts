@@ -2,8 +2,8 @@
 //   node --test tests/shared/domain/llm-profile.test.ts
 import { describe, it } from "node:test";
 import { strictEqual } from "node:assert";
-import { LLM_PROFILE_CONFIG_KEY, LLM_PROFILE_INPUT_KEY, llmProfileOf, llmProfileProblem } from "../../../src/shared/domain/llm-profile.ts";
-import { INPUT_PROFILES, PROFILE_NAMES } from "./llm-profile.fixtures.ts";
+import { LLM_PROFILE_CONFIG_KEY, LLM_PROFILE_INPUT_KEY, llmProfileOf, llmProfileProblem, llmSessionProfileOf } from "../../../src/shared/domain/llm-profile.ts";
+import { INPUT_PROFILES, PROFILE_NAMES, SESSION_PROFILES } from "./llm-profile.fixtures.ts";
 
 describe("llmProfileProblem", () => {
   for (const c of PROFILE_NAMES) {
@@ -44,4 +44,19 @@ describe("llmProfileOf", () => {
     // Assert
     strictEqual(pair, "llm.profile -> llmProfile");
   });
+});
+
+describe("llmSessionProfileOf", () => {
+  for (const c of SESSION_PROFILES) {
+    it(c.name, () => {
+      // Arrange
+      const input = c.input;
+
+      // Act
+      const profile = llmSessionProfileOf(input);
+
+      // Assert
+      strictEqual(profile, c.profile);
+    });
+  }
 });

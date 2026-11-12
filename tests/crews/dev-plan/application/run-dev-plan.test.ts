@@ -116,6 +116,17 @@ describe("runDevPlan — a plan written and reviewed", () => {
     ok(!text.includes("permission gate"));
   });
 
+  it("runs the reviewer's act on the profile its route answers", async () => {
+    // Arrange
+    const f = setup();
+
+    // Act
+    await runDevPlan({ source: "prune" }, { ...f.deps, route: async () => "small" });
+
+    // Assert
+    strictEqual(f.llm.acts[0].request.profile, "small");
+  });
+
   it("offers the reviewer the plan files, the source, the inventory and the targets", async () => {
     // Arrange
     const f = setup();

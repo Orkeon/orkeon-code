@@ -24,6 +24,7 @@
 
 import { CrewBuilder, publishCrew, inputs, ToolBuilder } from "../../shared/infrastructure/globals.ts";
 import {
+  orkeonActRoute,
   orkeonAgent,
   orkeonClock,
   orkeonConfigStore,
@@ -82,7 +83,7 @@ function batchAgent(run: BatchRun, context: BatchesContext) {
       // GAPS is the driver's, on the main checkout.
       const outcome = await runBatchChain(run, launch, {
         implement: (input) => runDevImplement(implementInputs(input), implementDeps(ctx, { ...options, toolSlot })),
-        verify: (input) => runDevVerify(input, verifyDeps(ctx, { ...options, validationSlot })),
+        verify: (input) => runDevVerify(input, { ...verifyDeps(ctx, { ...options, validationSlot }), route: orkeonActRoute(ctx.log, ctx.tools, run.root) }),
         spend,
       });
       return JSON.stringify(outcome);
@@ -103,7 +104,7 @@ const builder = orkeonAgent()
     const ports = { shell: orkeonShell(ctx.tools), files: orkeonFiles(ctx.tools), config: orkeonConfigStore(ctx.tools) };
     const clock = orkeonClock();
     return await runDevBatches(inputs(), {
-      ...ports, log: ctx.log, clock,
+      ...ports, log: ctx.log, clock, route: orkeonActRoute(ctx.log, ctx.tools),
       // These callbacks, then the host's gate on the input they return: the dev rule sets again and the run's /hooks (a chained run
       // reads them from its record, as it does the /effort). The reviewer only reads: the plan step's guard fits it.
       reviewerFor: (c) => createLlm(ctx.llm, devToolCallbacks({ step: "dev-plan", hooks: c.hooks }, { shell: ports.shell, log: ctx.log, memoryDir: memoryDirOf(ports.config) }),

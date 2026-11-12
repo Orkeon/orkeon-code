@@ -23,6 +23,18 @@ import { assertMentions } from "../../../support/assertions/text.ts";
 import { WORKSPACE } from "../../../../src/shared/domain/vfs.ts";
 
 describe("runDevChange — a bug", () => {
+  it("runs the reviewer's act on the profile its route answers", async () => {
+    // Arrange
+    const f = devChangeSetup(["Yes"]);
+    f.llm.extractions = [answer(), answer({ questions: [] }), CLEAR];
+
+    // Act
+    await runDevChange(bug, { ...f.deps, route: async () => "small" });
+
+    // Assert
+    strictEqual(f.llm.acts[0].request.profile, "small");
+  });
+
   it("runs the reproduction first, writes its output and facts, asks and records the answer, ends on /dev-plan", async () => {
     // Arrange
     const f = devChangeSetup(["Yes"]);

@@ -24,7 +24,7 @@ import { CrewBuilder, publishCrew, inputs, ToolBuilder } from "../../shared/infr
 import { runValidationTool, scriptToolSlot } from "../../shared/infrastructure/orkeon/script-tools.ts";
 import type { ValidationCalls } from "../../shared/infrastructure/orkeon/script-tools.ts";
 import { STEP_BUDGETS } from "../../shared/domain/dev/step-budget.ts";
-import { orkeonAgent, orkeonClock, orkeonSessionIo } from "../../shared/infrastructure/orkeon/wiring.ts";
+import { orkeonActRoute, orkeonAgent, orkeonClock, orkeonSessionIo } from "../../shared/infrastructure/orkeon/wiring.ts";
 import { memoryRecallOn, memoryRecallTools } from "../../shared/infrastructure/orkeon/memory-tools.ts";
 import { agentTools, verifyCallbacks, verifyDeps } from "../../shared/infrastructure/orkeon/dev-deps.ts";
 import { childAgentBody, withChildAct } from "../../shared/infrastructure/orkeon/child-agents.ts";
@@ -84,7 +84,7 @@ const verifier = orkeonAgent()
         wrapLlm: (llm) => withChildAct(llm, ctx, crew, { board, clock, log: ctx.log, effort },
           { agent: AUDITOR_CHARTER.name, charter: AUDITOR_CHARTER.name, task: `audit of ${String(inputs().batch ?? "the batch")}`, builder: auditorChild }),
       });
-      return await runDevVerify(inputs(), deps);
+      return await runDevVerify(inputs(), { ...deps, route: orkeonActRoute(ctx.log, ctx.tools) });
     } finally {
       await board.close();
     }

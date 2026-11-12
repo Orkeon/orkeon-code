@@ -67,6 +67,21 @@ export const REQUESTS: readonly RequestCase[] = [
     request: { maxIterations: 80, permissionMode: "plan", system: "SYS", model: "gpt-x" },
     options: { maxIterations: 80, permissionMode: "plan", system: "SYS", llm: { model: "gpt-x" } },
   },
+  {
+    name: "passes the request's profile as the llm patch",
+    request: { system: "SYS", maxIterations: 12, profile: "small" },
+    options: { system: "SYS", maxIterations: 12, llm: { profile: "small" } },
+  },
+  {
+    name: "passes a profile and a model together, the model chosen within the profile",
+    request: { system: "SYS", maxIterations: 12, profile: "small", model: "gpt-x" },
+    options: { system: "SYS", maxIterations: 12, llm: { profile: "small", model: "gpt-x" } },
+  },
+  {
+    name: "passes no llm patch for an empty profile",
+    request: { system: "SYS", maxIterations: 12, profile: "" },
+    options: { system: "SYS", maxIterations: 12 },
+  },
   { name: "passes a request without a model as it is", request: { system: "SYS", maxIterations: 1 }, options: { system: "SYS", maxIterations: 1 } },
   {
     name: "passes no llm patch for an empty model",
@@ -98,7 +113,7 @@ export const ACT_FAILURE_MARKERS: readonly MarkerCase[] = [
 export interface CompleteCase {
   name: string;
   prompt: string;
-  options?: { model?: string };
+  options?: { model?: string; profile?: string };
   /** The arguments the facade's complete receives. */
   args: unknown[];
 }
@@ -106,6 +121,7 @@ export interface CompleteCase {
 /** Completions, the model override as the llm patch, or no options. */
 export const COMPLETIONS: readonly CompleteCase[] = [
   { name: "completes with the model override as the llm patch", prompt: "a", options: { model: "gpt-big" }, args: ["a", { llm: { model: "gpt-big" } }] },
+  { name: "completes on the profile the override names", prompt: "d", options: { profile: "small" }, args: ["d", { llm: { profile: "small" } }] },
   { name: "completes with no options when none is given", prompt: "b", args: ["b", undefined] },
   { name: "completes with no options for an empty model", prompt: "c", options: { model: "" }, args: ["c", undefined] },
 ];

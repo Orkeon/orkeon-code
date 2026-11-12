@@ -7,6 +7,7 @@
 // files. The model writes no file; nothing is written outside the code's folder, and
 // nothing under .claude/.
 import type { AnchorIndex, CodeIndex, Files, Llm, Logger, Shell } from "../../../shared/application/ports.ts";
+import type { ActRoute } from "../../../shared/application/agents/route-agent.ts";
 import type { ConfigStore } from "../../../shared/application/config-store.ts";
 import { loadDevContext } from "../../../shared/application/dev/load-dev-context.ts";
 import { GIT_TOPLEVEL } from "../../../shared/application/dev/resolve-work-folder.ts";
@@ -48,6 +49,9 @@ export interface DevPlanDeps {
   log: Logger; clock: () => Date;
   /** The shared memory's code-triggered recall (T2); absent, nothing is recalled. */
   precedents?: StepPrecedents;
+  /** The route of the plan reviewer's act to a cheaper or stronger profile (shared/application/agents/route-agent.ts actRoute);
+   *  absent, the act runs on the crew's profile. */
+  route?: ActRoute;
 }
 export const PLAN_JSON = "plan.json";
 
@@ -391,7 +395,7 @@ export async function runDevPlan(input: DevPlanInputs, deps: DevPlanDeps): Promi
     schema: REVIEW_ANSWER_SCHEMA,
     answerPrompt: (reply, problems) => buildReviewAnswerPrompt(reply, problems, targets),
     check: (v) => checkReviewAnswer(v, { targets }),
-  });
+  }, deps.route);
 
   // 13. Review rows into the files; the review is never run again.
   let review: ReviewAnswer | null = null;
