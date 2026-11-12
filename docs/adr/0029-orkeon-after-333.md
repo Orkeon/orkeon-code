@@ -13,12 +13,15 @@ runtime's `act` took a model of the agent's provider, not a profile. This projec
 Orkeon #333 (`8edfa46`), merged on `main` on 2026-11-11, closes it. The options of an LLM call (`LlmCallOptions`, `ActOptions`) take
 `llm: { profile?, model? }`: `profile` runs the call on the host profile of that name, by the rule of
 `llm.profile(name)`, so a name the host does not declare throws; `model` then chooses the model within that profile.
-Between the two pins Orkeon `main` also cut its 1.0.0-rc.7 (#332), which this project does not follow (ADR 0013).
+Orkeon `main` then released 1.0.0 (#341, `8ce371d`) and realigned its README (#347, `41f5079`); before the release
+came its 1.0.0-rc.7 (#332), CI fixes (#334), the stop of the Windows service after a refused configuration (#337)
+and account statuses that keep their problems as a list (#340). The pin follows `main`, not the release (ADR 0013).
 
 ## Decision
 
-- **The pin moves to `8edfa46`** (`8edfa4663`, the full hash in `.orkeon-version`), a merge commit of Orkeon `main`;
-  the status meta, the issue template, the guides, the typings from `scripts/sync-typings.sh`.
+- **The pin moves to `41f5079`** (the full hash in `.orkeon-version`), the newest merge commit of Orkeon `main`,
+  which holds #333 and the 1.0.0 release; the status meta, the issue template, the guides. The typings from
+  `scripts/sync-typings.sh` gain the per-call `llm` patch at `8edfa46`; from there to `41f5079` one comment changes.
 - **`ModelOverride` gains `profile`**: the `Llm` port's `act` and `complete` pass it as the runtime's `llm` patch,
   beside `model`. An empty or absent profile sends nothing, as before.
 - **`runSubAgent` takes a route**, asked once before the act with the charter's name and the brief. Its answer is
@@ -48,5 +51,5 @@ Between the two pins Orkeon `main` also cut its 1.0.0-rc.7 (#332), which this pr
   (`dev-reviewer`, `dev-auditor`): a crew with a routed act pushes older launches out sooner.
 - The decision model is asked the launch's question, worded for a command typed by a person, about a brief written
   by a crew. How well it picks there is not measured; nor is the effect on cost.
-- Checks at `8edfa46`: `npm run check` green. The routed act was not run against a live host: the tests cover the
+- Checks at `41f5079`: `npm run check` green. The routed act was not run against a live host: the tests cover the
   port, the adapter's `llm` patch and each caller over fakes.

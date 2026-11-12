@@ -46,4 +46,4 @@ changes for Orkeon Code: what is adopted, what is set aside, what is removed.
 | [0023](0023-orkeon-after-306.md) | Orkeon main after #306, `onToolCall` before the gate and the FWK lots |
 | [0024](0024-orkeon-after-299.md) | What Orkeon #299 adds, adopted or set aside |
 | [0025](0025-orkeon-after-317.md) | Orkeon main after #317, `orkeon run --validate` on every crew |
-| [0029](0029-orkeon-after-333.md) | Orkeon main after #333, a sub-agent's act routed to a profile |
+| [0029](0029-orkeon-after-333.md) | Orkeon main after #333 and the 1.0.0 release, a sub-agent's act routed to a profile |
