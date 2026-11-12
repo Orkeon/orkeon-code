@@ -7,6 +7,7 @@
 // budget stopped also returns the validations made before, for the verdict the caller writes.
 import type { Files, Llm, Shell } from "../../../shared/application/ports.ts";
 import { runSubAgent } from "../../../shared/application/agents/run-sub-agent.ts";
+import type { ActRoute } from "../../../shared/application/agents/route-agent.ts";
 import type { SubAgentOutcome } from "../../../shared/application/agents/run-sub-agent.ts";
 import type { RepoPackCommands } from "../../../shared/domain/dev/repo-pack.ts";
 import type { AuditAnswer, AuditRow } from "../domain/audit-answer.ts";
@@ -146,13 +147,14 @@ export function redRunRows(runs: readonly ValidationRun[]): AuditRow[] {
   return rows;
 }
 
-type Deps = { llm: Pick<Llm, "act" | "extract">; files: Pick<Files, "write">; runner: ValidationRunner };
+/** The audit's ports; `route`, when given, routes each act of the auditor (route-agent.ts actRoute). */
+type Deps = { llm: Pick<Llm, "act" | "extract">; files: Pick<Files, "write">; runner: ValidationRunner; route?: ActRoute };
 
-function ask(llm: Pick<Llm, "act" | "extract">, brief: string): Promise<SubAgentOutcome<AuditAnswer>> {
+function ask(llm: Pick<Llm, "act" | "extract">, brief: string, route: ActRoute | undefined): Promise<SubAgentOutcome<AuditAnswer>> {
   return runSubAgent(llm, {
     charter: AUDITOR_CHARTER, system: AUDITOR_SYSTEM, brief,
     schema: AUDIT_ANSWER_SCHEMA, answerPrompt: buildAnswerPrompt, check: checkAuditAnswer,
-  });
+  }, route);
 }
 
 async function blocked(
@@ -220,7 +222,7 @@ export async function runAudit(
   const ranAlready = (command: string) => runner.runs().some((r) => sameCommand(r.report.command, command));
 
   const text = buildAuditBrief(brief);
-  const first = await ask(deps.llm, text);
+  const first = await ask(deps.llm, text, deps.route);
   if (!first.ok) return blocked(deps.files, first, captureFolder, captureShown, runner.runs());
   // The validations the answer names that the auditor did not run itself through run_validation.
   const pending = first.value.validations.slice(0, MAX_VALIDATIONS).filter((c) => !ranAlready(c));
@@ -242,7 +244,7 @@ export async function runAudit(
   const failed = await writeValidations(deps.files, runner.runs(), captureFolder, captureShown);
   if (failed !== null) return { ok: false, text: failed };
 
-  const second = await ask(deps.llm, buildValidationFollowUp(brief, first.value, reports));
+  const second = await ask(deps.llm, buildValidationFollowUp(brief, first.value, reports), deps.route);
   if (!second.ok) return blocked(deps.files, second, captureFolder, captureShown, runner.runs());
   const answer = second.value;
   const runs = runner.runs();

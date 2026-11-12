@@ -94,3 +94,12 @@ export function record(n: number): RouteRecord {
 }
 
 export const LONG_BRIEF = `/dev-change ${"a".repeat(3_000)}${"z".repeat(3_000)}`;
+
+/** Which reasons of a choice are a decision, and which leave the session's profile to stand. */
+export const DECIDED_REASONS: readonly { readonly name: string; readonly reason: "model" | "floor" | "ceiling" | "low-confidence" | "no-answer"; readonly decided: boolean }[] = [
+  { name: "reads the model's pick as a decision", reason: "model", decided: true },
+  { name: "reads a pick raised by a rule as a decision", reason: "floor", decided: true },
+  { name: "reads a pick held at the ceiling as a decision", reason: "ceiling", decided: true },
+  { name: "reads an unsure pick as no decision", reason: "low-confidence", decided: false },
+  { name: "reads a missing answer as no decision", reason: "no-answer", decided: false },
+];

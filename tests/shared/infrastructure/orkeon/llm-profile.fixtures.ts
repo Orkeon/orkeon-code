@@ -45,3 +45,13 @@ export const CACHE_CASES: { name: string; input: Record<string, unknown> }[] = [
   { name: "requests the prompt cache of the system prompt and the tools on a profile", input: { llmProfile: "guarded" } },
   { name: "requests the prompt cache of the system prompt and the tools on the host's default model", input: {} },
 ];
+
+export const TASK = { crew: "dev-reviewer", brief: "Review the plan" };
+
+/** What a route answers once checked against the host, which declares no profile `small`. */
+export const DECLARED_ROUTES: { name: string; withProfile: boolean; answer: string | null; profile: string | null }[] = [
+  { name: "keeps a route to a profile the host declares", withProfile: true, answer: "large", profile: "large" },
+  { name: "drops a route to a profile the host does not declare", withProfile: true, answer: "small", profile: null },
+  { name: "keeps a route that moves nothing as it is", withProfile: true, answer: null, profile: null },
+  { name: "drops every route on a host without llm", withProfile: false, answer: "large", profile: null },
+];

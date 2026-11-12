@@ -7,6 +7,7 @@
 // written before the next question - folds them in, and has the read-only reviewer question the brief once. With
 // nobody to answer, the questions stay in the file and the run ends BLOCKED. An existing brief is revised.
 import type { CodeIndex, Files, HumanInput, Llm, Logger, Shell } from "../../../shared/application/ports.ts";
+import type { ActRoute } from "../../../shared/application/agents/route-agent.ts";
 import { stepRules } from "../../../shared/domain/dev/step-rules.ts";
 import { shellRuleGuard } from "../../../shared/domain/dev/tool-guards.ts";
 import type { ConfigStore } from "../../../shared/application/config-store.ts";
@@ -49,6 +50,9 @@ export interface DevChangeDeps {
   llm: Pick<Llm, "extract" | "act" | "permissionGateEnabled">; human: HumanInput; log: Logger; clock: () => Date;
   /** The shared memory's code-triggered recall (T1); absent, nothing is recalled. */
   precedents?: StepPrecedents;
+  /** The route of the brief reviewer's act to a cheaper or stronger profile (shared/application/agents/route-agent.ts actRoute);
+   *  absent, the act runs on the crew's profile. */
+  route?: ActRoute;
 }
 
 const STEP = "dev-change";
@@ -272,7 +276,7 @@ export async function runDevChange(input: DevChangeInputs, deps: DevChangeDeps):
       review = await reviewSource(deps.llm, state, {
         mode: "change", whole: "brief", folder: folder.shown, fileShown: brief.shown, origin: originFrom,
         inventory: inventoryText, ids, headings: HEADINGS,
-      }, write);
+      }, write, deps.route);
       if (deps.llm.permissionGateEnabled() === false) warnings.push(PERMISSION_GATE_OFF);
       if (review.ran && review.added.length > 0) {
         state = review.state;

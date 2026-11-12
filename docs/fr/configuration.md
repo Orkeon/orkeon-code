@@ -303,7 +303,7 @@ Dans le REPL, `/config` liste, lit et écrit les clés de session, rangées dans
 | `answer.language` | | la langue dans laquelle l'assistant répond, sauf si une requête est écrite dans une autre |
 | `compaction.trigger` | la fenêtre moins la place dont un tour a besoin | le nombre de tokens auquel la compaction automatique se déclenche |
 | `compaction.prune` | `off` | le modèle de décision du runtime élague les résultats d'outils périmés d'un tour en cours |
-| `route.agents` | `off` | à chaque lancement d'un crew, le modèle de décision du runtime choisit le profil le moins cher de `route.ladder` qui convient à la commande |
+| `route.agents` | `off` | à chaque lancement d'un crew, le modèle de décision du runtime choisit le profil le moins cher de `route.ladder` qui convient à la commande ; dans un crew, de même pour l'act d'un relecteur ou de l'auditeur |
 | `route.ladder` | `small,large` | les profils LLM du runtime parmi lesquels le routage choisit, le moins cher d'abord |
 | `skills.suggest` | `off` | le modèle de décision du runtime ajoute à un tour les skills du projet qui conviennent à sa requête |
 | `dev.workDir` | le `layout.work` du pack du dépôt, sinon `workbench` | le dossier de travail que les étapes dev lisent et écrivent, relatif au checkout |

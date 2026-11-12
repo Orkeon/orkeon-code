@@ -355,6 +355,22 @@ describe("runDevBatches — back from a batch", () => {
     strictEqual(request.permissionMode, "plan");
   });
 
+  it("runs the next batch's review on the profile its route answers", async () => {
+    // Arrange
+    const { files, shell, deps } = setup();
+    reopenF1(files);
+    const llm = clearReviewer();
+    shell.results["git show --format= '1111111'"] = F1_SHOW;
+    await run({ code: "demo" }, { ...deps, reviewerFor: () => llm });
+    markDone(files, "F1");
+
+    // Act
+    await run({ after: ["✓ committed 1111111 on feat/demo: 2 file(s)"] }, { ...deps, reviewerFor: () => llm, route: async () => "small" });
+
+    // Assert
+    strictEqual(llm.acts[0].request.profile, "small");
+  });
+
   it("does not launch a batch whose review raises a Blocking question", async () => {
     // Arrange
     const { files, deps } = setup();

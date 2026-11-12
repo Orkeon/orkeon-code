@@ -6,10 +6,12 @@
 // the crew's load, as `llm.profile` does, listing the profiles the host knows. Every agent asks the provider to cache
 // its system prompt and its tool definitions (Orkeon #254): the prompts are assembled so that this prefix stays
 // byte-identical turn after turn. Only a provider whose cache is explicit (Anthropic) needs the request; the others
-// cache by their own rules.
+// cache by their own rules. A sub-agent's act routed to a rung the host does not declare stays on the crew's profile
+// (declaredRoute), as a crew launched on one does: the runtime throws on an unknown profile name.
 
 import { llmProfileFallbackOf, llmProfileOf } from "../../domain/llm-profile.ts";
 import { noLlmNamespace } from "./messages.ts";
+import type { ActRoute } from "../../application/agents/route-agent.ts";
 
 /** What building a profiled agent needs of the runtime: the agent builder and `llm.profile`, absent where the host declares no `llm`. */
 export interface AgentFactories {
@@ -33,4 +35,18 @@ export function profiledAgent(input: Readonly<Record<string, unknown>>, factorie
   } catch {
     return fallback === null ? builder : builder.llm(factories.profile(fallback));
   }
+}
+
+/** `route`, answering null for a profile the host does not declare (or on a host without `llm`). */
+export function declaredRoute(route: ActRoute, profile: AgentFactories["profile"]): ActRoute {
+  return async (task) => {
+    const name = await route(task);
+    if (name === null || profile === undefined) return null;
+    try {
+      profile(name);
+      return name;
+    } catch {
+      return null;
+    }
+  };
 }

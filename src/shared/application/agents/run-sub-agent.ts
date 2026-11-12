@@ -4,9 +4,12 @@
 // over the same reply, with the problems found; no second act is made. A call
 // that throws a cancellation (the host cancelled the run, /tasks stop stopped the
 // child) is `cancelled`; a step budget spent during the extraction is the model's
-// failure, not an answer that did not parse.
+// failure, not an answer that did not parse. A route, when given, is asked once before the act for the profile it
+// runs on (route-agent.ts actRoute): null, or a route that throws, leaves the act on the agent's own profile; the
+// extractions are never routed.
 
 import type { Llm } from "../ports.ts";
+import type { ActRoute } from "./route-agent.ts";
 import { MAX_BRIEF_CHARS, charterProblems } from "../../domain/agents/charter.ts";
 import type { Charter, Checked } from "../../domain/agents/charter.ts";
 import { readBudgetExhausted } from "../../domain/dev/step-budget.ts";
@@ -65,7 +68,19 @@ async function tryAnswer<T>(
   return call.check(value);
 }
 
-export async function runSubAgent<T>(llm: Pick<Llm, "act" | "extract">, call: SubAgentCall<T>): Promise<SubAgentOutcome<T>> {
+/** The profile the act of `call` is moved to: none without a route, when it answers null, or when it throws. */
+async function routedProfile(route: ActRoute | undefined, crew: string, brief: string): Promise<string | null> {
+  if (route === undefined) return null;
+  try {
+    return await route({ crew, brief });
+  } catch {
+    return null;
+  }
+}
+
+export async function runSubAgent<T>(
+  llm: Pick<Llm, "act" | "extract">, call: SubAgentCall<T>, route?: ActRoute,
+): Promise<SubAgentOutcome<T>> {
   const { charter, brief } = call;
   const invalid = charterProblems(charter);
   if (invalid.length > 0) return { ok: false, reason: "invalid-charter", problems: invalid, reply: "" };
@@ -75,6 +90,7 @@ export async function runSubAgent<T>(llm: Pick<Llm, "act" | "extract">, call: Su
       problems: [briefTooLong(brief.length, MAX_BRIEF_CHARS)],
     };
   }
+  const profile = await routedProfile(route, charter.name, brief);
   let reply: string;
   try {
     reply = await llm.act(brief, {
@@ -82,6 +98,7 @@ export async function runSubAgent<T>(llm: Pick<Llm, "act" | "extract">, call: Su
       permissionMode: charter.mode,
       maxIterations: charter.maxIterations,
       ...(charter.model === undefined ? {} : { model: charter.model }),
+      ...(profile === null ? {} : { profile }),
       ...(call.tools === undefined ? {} : { tools: [...call.tools] }),
     });
   } catch (error) {

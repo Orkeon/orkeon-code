@@ -21,10 +21,10 @@ réponse.
 
 ## Le runtime : le mode source
 
-L'épingle (`206b562`) sert Liquid et Kev, et aucune release ne les livre encore : le mode
-tool fait tourner la dernière release et le mode docker la dernière image, et aucun des deux ne connaît
-`Orkeon:Liquid`, `Orkeon:Kev` ni `Orkeon:Decision:Provider`. Lancez Orkeon Code en mode source, sur un checkout
-d'Orkeon à l'épingle ou après ([Premiers pas](getting-started.md#mode-source--un-checkout-dorkeon)) :
+L'épingle (`41f5079`) sert Liquid et Kev, et la release `1.0.0`, qui est ce commit, aussi : le mode tool sur
+`1.0.0` connaît `Orkeon:Liquid`, `Orkeon:Kev` et `Orkeon:Decision:Provider`. Le mode docker exécute la dernière
+image publiée, `1.0.0-rc.7` à ce jour, qui n'a pas été essayée avec eux. Cette page a été écrite en mode source, sur
+un checkout d'Orkeon à l'épingle ou après ([Premiers pas](getting-started.md#mode-source--un-checkout-dorkeon)) :
 
 ```bash
 export ORKEON_SOURCE=~/src/orkeon

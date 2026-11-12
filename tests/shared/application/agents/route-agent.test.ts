@@ -3,10 +3,10 @@
 import { describe, it } from "node:test";
 import { deepStrictEqual, strictEqual } from "node:assert";
 
-import { routeAgent } from "../../../../src/shared/application/agents/route-agent.ts";
+import { actRoute, routeAgent } from "../../../../src/shared/application/agents/route-agent.ts";
 import {
   BILLING_RULES, BILLING_TASK, NO_ANSWER_LINE, NO_MODEL_WARNING, OUTSIDE_LADDER_LINE, ROUTED_SMALL_LINE, RULES_PATH, SMALL_RECORD,
-  TASK, pick, routeSetup,
+  ACT_ROUTES, REVIEW_TASK, REVIEWER_LINE, TASK, actRouteSetup, pick, routeSetup,
 } from "./route-agent.fixtures.ts";
 
 describe("routeAgent", () => {
@@ -142,5 +142,31 @@ describe("routeAgent", () => {
 
     // Assert
     strictEqual(profile, "large");
+  });
+});
+
+describe("actRoute", () => {
+  for (const c of ACT_ROUTES) {
+    it(c.name, async () => {
+      // Arrange
+      const { deps } = actRouteSetup(c);
+
+      // Act
+      const profile = await actRoute(deps, c.profiles)(REVIEW_TASK);
+
+      // Assert
+      strictEqual(profile, c.profile);
+    });
+  }
+
+  it("asks under the sub-agent's name and says where its act runs", async () => {
+    // Arrange
+    const { deps, log } = routeSetup();
+
+    // Act
+    await actRoute(deps, { session: "large", crew: "large" })(REVIEW_TASK);
+
+    // Assert
+    deepStrictEqual(log.lines, [REVIEWER_LINE]);
   });
 });

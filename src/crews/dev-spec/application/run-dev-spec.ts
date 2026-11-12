@@ -6,6 +6,7 @@
 // asked too. With nobody to answer (an unattended run), the questions stay in the file and the run ends BLOCKED:
 // nothing is decided on anyone's behalf. On an existing spec it revises: the person's edits and decisions are kept.
 import type { CodeIndex, Files, HumanInput, Llm, Logger, Shell } from "../../../shared/application/ports.ts";
+import type { ActRoute } from "../../../shared/application/agents/route-agent.ts";
 import type { ConfigStore } from "../../../shared/application/config-store.ts";
 import { loadDevContext } from "../../../shared/application/dev/load-dev-context.ts";
 import { briefInventory, briefInventoryLine, briefPhrases, renderBriefInventory } from "../../../shared/application/dev/brief-inventory.ts";
@@ -38,6 +39,9 @@ export interface DevSpecDeps {
   llm: Pick<Llm, "extract" | "act" | "permissionGateEnabled">; human: HumanInput; log: Logger; clock: () => Date;
   /** The shared memory's code-triggered recall (T1); absent, nothing is recalled. */
   precedents?: StepPrecedents;
+  /** The route of the spec reviewer's act to a cheaper or stronger profile (shared/application/agents/route-agent.ts actRoute);
+   *  absent, the act runs on the crew's profile. */
+  route?: ActRoute;
 }
 
 const STEP = "dev-spec";
@@ -165,7 +169,7 @@ export async function runDevSpec(input: DevSpecInputs, deps: DevSpecDeps): Promi
       review = await reviewSource(deps.llm, state, {
         mode: "spec", whole: "spec", folder: folder.shown, fileShown: spec.shown, origin: request.from,
         inventory: inventoryText, ids, headings: HEADINGS,
-      }, write);
+      }, write, deps.route);
       if (deps.llm.permissionGateEnabled() === false) warnings.push(PERMISSION_GATE_OFF);
       if (review.ran && review.added.length > 0) {
         state = review.state;

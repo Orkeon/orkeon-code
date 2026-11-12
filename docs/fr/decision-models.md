@@ -63,6 +63,10 @@ omis, du moins cher au plus cher). Le choix est suivi quand sa probabilité atte
 que `.orkeon/route-rules.json` fixe pour le crew ou pour un chemin que la commande nomme, et ne dépasse jamais le
 profil de la session. `/route why` montre les cinq derniers choix.
 
+Dans un crew, l'act d'un relecteur (`/dev-spec`, `/dev-change`, `/dev-plan`, le lot suivant de `/dev-batches`) et
+celui de l'auditeur de `/dev-verify` sont routés de la même façon, pour ce seul appel : voir
+[Router un crew vers un profil](turn.md#router-un-crew-vers-un-profil). Ce routage des acts n'est pas mesuré.
+
 ### Mesuré : douze commandes
 
 Une exécution, la session sur le modèle par défaut du runtime, l'échelle `small,large`. « Attendu » est le jugement

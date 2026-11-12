@@ -58,7 +58,8 @@ le projet est le seul dossier de votre machine qu'il peut écrire ([SECURITY.md]
 
 - `scripts/run-crew.sh` lance un crew hors du REPL : avec l'outil `orkeon` (`Orkeon.Scripting.Cli` de nuget.org,
   nommé par `.config/dotnet-tools.json`, qui demande le SDK .NET 10) ou, sans SDK, avec l'image `orkeon-runners`.
-- Les deux exécutent la dernière release, `1.0.0-rc.6` pour l'outil, jamais l'épingle.
+- Les deux exécutent la dernière release publiée : `1.0.0` pour l'outil, qui est l'épingle à ce jour, et la dernière
+  image pour Docker.
 - `ORKEON_CODE_MODE=source ORKEON_SOURCE=<checkout à l'épingle>` le lance à la place depuis un checkout d'Orkeon
   ([Développement](development.md)).
 - Il lit le fichier de settings que nomme `ORKEON_CODE_SETTINGS`, sinon `config/appsettings.local.json`, et ne monte

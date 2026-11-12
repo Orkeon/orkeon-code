@@ -19,6 +19,18 @@ import { assertAllUnder } from "../../../support/assertions/paths.ts";
 import { WORKSPACE } from "../../../../src/shared/domain/vfs.ts";
 
 describe("runDevSpec — a new spec settled with the person", () => {
+  it("runs the reviewer's act on the profile its route answers", async () => {
+    // Arrange
+    const f = devSpecSetup(["No", "Leave it open"]);
+    f.llm.extractions = [ANSWER, folded(), CLEAR];
+
+    // Act
+    await runDevSpec({ code: "prune", request: REQUEST }, { ...f.deps, route: async () => "small" });
+
+    // Assert
+    strictEqual(f.llm.acts[0].request.profile, "small");
+  });
+
   it("asks Blocking first, writes each answer before the next question, folds, reviews, ends on /dev-plan", async () => {
     // Arrange
     const f = devSpecSetup(["No", "Leave it open"]);

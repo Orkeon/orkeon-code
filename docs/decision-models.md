@@ -61,6 +61,10 @@ omitted, cheapest first). The pick is followed when its probability reaches 0.6,
 `.orkeon/route-rules.json` sets for the crew or for a path the command names, and never goes above the session's
 own profile. `/route why` shows the last five choices.
 
+Inside a crew, the act of a reviewer (`/dev-spec`, `/dev-change`, `/dev-plan`, the next batch of `/dev-batches`)
+and of the auditor of `/dev-verify` is routed the same way, for that one call: see
+[Routing a crew to a profile](turn.md#routing-a-crew-to-a-profile). This routing of acts is not measured.
+
 ### Measured: twelve commands
 
 One run, the session on the host's default model, the ladder `small,large`. "Expected" is the author's own

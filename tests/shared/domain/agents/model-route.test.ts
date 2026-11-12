@@ -4,11 +4,11 @@ import { describe, it } from "node:test";
 import { deepStrictEqual, strictEqual } from "node:assert";
 
 import {
-  ROUTE_BRIEF_CHARS, ladderOf, ladderProblem, parseRecords, parseRouteRules, routable, routeFloor, routeOf, routeOn, routeQuestions,
+  ROUTE_BRIEF_CHARS, ladderOf, ladderProblem, parseRecords, parseRouteRules, routable, routeDecided, routeFloor, routeOf, routeOn, routeQuestions,
   routeState, withRecord,
 } from "../../../../src/shared/domain/agents/model-route.ts";
 import {
-  FLOOR_CASES, LADDER, LADDER_CASES, LADDER_PROBLEM_CASES, LONG_BRIEF, ROOT_RULES, ROUTABLE_CASES, ROUTE_CASES, RULES, RULES_TEXT_CASES, record,
+  DECIDED_REASONS, FLOOR_CASES, LADDER, LADDER_CASES, LADDER_PROBLEM_CASES, LONG_BRIEF, ROOT_RULES, ROUTABLE_CASES, ROUTE_CASES, RULES, RULES_TEXT_CASES, record,
 } from "./model-route.fixtures.ts";
 
 describe("routeOn", () => {
@@ -168,6 +168,21 @@ describe("routeOf", () => {
 
       // Assert
       deepStrictEqual(choice, c.expected);
+    });
+  }
+});
+
+describe("routeDecided", () => {
+  for (const c of DECIDED_REASONS) {
+    it(c.name, () => {
+      // Arrange
+      const reason = c.reason;
+
+      // Act
+      const decided = routeDecided(reason);
+
+      // Assert
+      strictEqual(decided, c.decided);
     });
   }
 });

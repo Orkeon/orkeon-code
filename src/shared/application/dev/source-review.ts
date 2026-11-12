@@ -3,6 +3,7 @@
 // not added), the file written again. The rows' ids are returned so the caller asks the Blocking ones.
 import type { Llm } from "../ports.ts";
 import { runSubAgent } from "../agents/run-sub-agent.ts";
+import type { ActRoute } from "../agents/route-agent.ts";
 import { REVIEWER_CHARTER } from "../../domain/dev/reviewer-charter.ts";
 import { REVIEW_ANSWER_SCHEMA, checkReviewAnswer } from "../../domain/dev/review-answer.ts";
 import type { ReviewAnswer } from "../../domain/dev/review-answer.ts";
@@ -30,6 +31,7 @@ export type SourceReviewOutcome =
 
 export async function reviewSource(
   llm: Pick<Llm, "act" | "extract">, state: RoundState, request: SourceReviewRequest, write: (text: string) => Promise<void>,
+  route?: ActRoute,
 ): Promise<SourceReviewOutcome> {
   const targets = [request.whole, ...request.ids];
   const outcome = await runSubAgent(llm, {
@@ -42,7 +44,7 @@ export async function reviewSource(
     schema: REVIEW_ANSWER_SCHEMA,
     answerPrompt: (reply, problems) => buildReviewAnswerPrompt(reply, problems, targets),
     check: (v) => checkReviewAnswer(v, { targets }),
-  });
+  }, route);
   if (!outcome.ok) return { ran: false, reason: `${outcome.reason}: ${outcome.problems[0] ?? "no detail"}` };
   const review = outcome.value;
   if (review.rows.length === 0) return { ran: true, review, state, added: [] };

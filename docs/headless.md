@@ -56,7 +56,8 @@ is the only directory of your machine it can write ([SECURITY.md](../SECURITY.md
 - `scripts/run-crew.sh` runs one crew outside the REPL: with the `orkeon` tool (`Orkeon.Scripting.Cli` from
   nuget.org, named by `.config/dotnet-tools.json`, needs the .NET 10 SDK) or, without an SDK, with the
   `orkeon-runners` image.
-- Both run the last release, `1.0.0-rc.6` for the tool, never the pin.
+- Both run the last release published: `1.0.0` for the tool, which is the pin at this writing, and the last image
+  for Docker.
 - `ORKEON_CODE_MODE=source ORKEON_SOURCE=<checkout at the pin>` runs it from an Orkeon checkout instead
   ([Development](development.md)).
 - It reads the settings file `ORKEON_CODE_SETTINGS` names, else `config/appsettings.local.json`, and mounts no

@@ -4,6 +4,7 @@
 // completion text the command prints. --gate-only stops after the gate: no model call,
 // no write.
 import type { CostIndex, Files, Llm, Logger, Shell } from "../../../shared/application/ports.ts";
+import type { ActRoute } from "../../../shared/application/agents/route-agent.ts";
 import type { ConfigStore } from "../../../shared/application/config-store.ts";
 import { loadDevContext } from "../../../shared/application/dev/load-dev-context.ts";
 import type { DevContext } from "../../../shared/application/dev/load-dev-context.ts";
@@ -59,6 +60,9 @@ export interface DevVerifyDeps {
   precedents?: StepPrecedents;
   /** After a GAPS verdict: the mistakes harvested into candidates and the /dev-learn nudge (M-7); absent, none. */
   harvest?: (work: Pick<WorkFolder, "folder" | "vfsPath">) => Promise<string[]>;
+  /** The route of the auditor's act to a cheaper or stronger profile (shared/application/agents/route-agent.ts actRoute);
+   *  absent, the act runs on the crew's profile. */
+  route?: ActRoute;
 }
 const FULL_SUITE_TIMEOUT_SECONDS = 900;
 
@@ -357,7 +361,7 @@ export async function runDevVerify(input: DevVerifyInputs, deps: DevVerifyDeps):
     const release = deps.validationSlot?.bind(runner);
     let audit: Awaited<ReturnType<typeof runAudit>>;
     try {
-      audit = await runAudit({ llm: deps.llm, files, runner }, brief, capture.folder, capture.folderShown);
+      audit = await runAudit({ llm: deps.llm, files, runner, route: deps.route }, brief, capture.folder, capture.folderShown);
     } finally {
       release?.();
     }

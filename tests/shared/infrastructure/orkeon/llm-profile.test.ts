@@ -1,10 +1,10 @@
 // shared/infrastructure/orkeon/llm-profile.ts: an agent builder on the profile the crew input names. Run:
 //   node --test tests/shared/infrastructure/orkeon/llm-profile.test.ts
 import { describe, it } from "node:test";
-import { deepStrictEqual, throws } from "node:assert";
-import { PROMPT_CACHE, profiledAgent } from "../../../../src/shared/infrastructure/orkeon/llm-profile.ts";
+import { deepStrictEqual, strictEqual, throws } from "node:assert";
+import { PROMPT_CACHE, declaredRoute, profiledAgent } from "../../../../src/shared/infrastructure/orkeon/llm-profile.ts";
 import { assertBuiltOn } from "./llm-profile.assertions.ts";
-import { CACHE_CASES, FALLBACK_CASES, factories } from "./llm-profile.fixtures.ts";
+import { CACHE_CASES, DECLARED_ROUTES, FALLBACK_CASES, TASK, factories } from "./llm-profile.fixtures.ts";
 
 describe("profiledAgent", () => {
   it("builds the agent on the profile the input names", () => {
@@ -87,4 +87,19 @@ describe("profiledAgent", () => {
     // Assert
     throws(build, { message: "llm.profile 'guarded': this host declares no llm namespace, no profile can be applied" });
   });
+});
+
+describe("declaredRoute", () => {
+  for (const c of DECLARED_ROUTES) {
+    it(c.name, async () => {
+      // Arrange
+      const host = factories(c.withProfile, ["small"]);
+
+      // Act
+      const profile = await declaredRoute(async () => c.answer, host.profile)(TASK);
+
+      // Assert
+      strictEqual(profile, c.profile);
+    });
+  }
 });

@@ -7,6 +7,9 @@ export interface ModelOverride {
   /** The model to answer with; the host's provider keeps its credentials and
    *  endpoint. Empty or absent: the model the host booted with. */
   model?: string;
+  /** The host profile (`Llm:Profiles:<name>`, or a decision profile) this one call runs on, `model` then choosing
+   *  the model within it. Empty or absent: the agent's own profile. A name the host does not declare throws. */
+  profile?: string;
 }
 
 /** The settings of one completion. */
