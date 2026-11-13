@@ -27,12 +27,14 @@ export const cannotBeAnchored = (at: string, path: string): string => `${at}: ${
 export const anchorPathColon = (at: string, path: string): string => `${at}: anchor path "${path}" holds ":"`;
 export const inInventory = (at: string, path: string): string => `${at}: ${path} is in the inventory: use its ref`;
 export const titleEmpty = (at: string): string => `${at}: the title is empty`;
-export const titleTooLong = (at: string, max: number): string => `${at}: the title is longer than ${max} characters`;
+export const titleTooLong = (at: string, length: number, max: number): string =>
+  `${at}: the title is ${length} characters, longer than ${max}`;
 export const titleIsBuildStep = (at: string, build: string): string => `${at}: the title is ${build}, the step code adds`;
 export const titleRepeats = (at: string, step: number): string => `${at}: the title repeats step ${step}`;
 export const noTest = (at: string): string => `${at}: no test`;
 export const nameEmpty = (at: string): string => `${at}: the name is empty`;
-export const nameTooLong = (at: string, max: number): string => `${at}: the name is longer than ${max} characters`;
+export const nameTooLong = (at: string, length: number, max: number): string =>
+  `${at}: the name is ${length} characters, longer than ${max}`;
 export const projectEmpty = (at: string): string => `${at}: the project is empty`;
 export const notUnpinnedRow = (at: string, row: string): string => `${at}: ${row} is not an unpinned row`;
 export const namesNoId = (at: string): string => `${at}: names no id`;
@@ -50,8 +52,10 @@ export const notEarlierBatch = (at: string, dep: string): string => `${at}: depe
 export const docsAndCode = (at: string): string => `${at}: documentation and code in one batch`;
 export const noCodeElement = (at: string): string =>
   `${at}: no code element; name in elements what this batch adds or changes, or move its tests to the batch whose code they guard`;
-export const elementTooLong = (at: string, k: number, max: number): string => `${at}: element ${k} is longer than ${max} characters`;
-export const elementHoldsBody = (at: string, k: number): string => `${at}: element ${k} holds a body`;
+export const elementTooLong = (at: string, k: number, length: number, max: number): string =>
+  `${at}: element ${k} is ${length} characters, longer than ${max}`;
+export const elementHoldsBody = (at: string, k: number, from: string): string =>
+  `${at}: element ${k} holds a body from${from}; give the signature alone, without the { and what follows it`;
 
 // ── The traceability, the design rules, the shared anchors, a change ───
 
@@ -73,7 +77,7 @@ export const notInFirstStep = (row: string): string => `${row}: its test is not 
 // ── The plan's own fields ───────────────────────────────────────────────
 
 export const FEATURE_EMPTY = "feature is empty";
-export const featureTooLong = (max: number): string => `feature is longer than ${max} characters`;
+export const featureTooLong = (length: number, max: number): string => `feature is ${length} characters, longer than ${max}`;
 export const LAYERS_EMPTY = "layers is empty";
 export const batchCount = (max: number, count: number): string => `between 1 and ${max} batches, not ${count}`;
 export const nameRepeats = (at: string, first: string): string => `${at}: the name repeats ${first}`;

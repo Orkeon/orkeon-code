@@ -110,6 +110,8 @@ A prompt change starts here: the behaviour first, then the text, then its marker
 - A code batch names the types and members it adds or changes. A rule that only keeps a behaviour as it is becomes a
   test of the batch whose code could break it, never a batch of its own; a batch refused for naming no element is
   told to do one or the other.
+- A refusal says what to change: one for a length gives the length found beside the limit, one for a signature that
+  holds a body quotes it from its `{`. A shell expansion `${…}` is not a body.
 - A batch holds two to five steps of behaviour (code adds the build-and-tests step), each step brings at least one
   test named as the repository names its tests, with the ids it proves, and the test of a documentation step is
   named by the repository's documentation command, else its test command, followed by what the step documents, at
