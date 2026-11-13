@@ -43,6 +43,7 @@ import {
 import { cannotBeReadNothingWritten, specNotWrittenAnswersKept, decisionsThisRun } from "../../dev-spec/application/messages.ts";
 import { PERMISSION_GATE_OFF } from "../../../shared/application/dev/messages.ts";
 import { answerDidNotParse } from "../../../shared/application/agents/messages.ts";
+import { errorText } from "../../../shared/domain/error-text.ts";
 
 export interface DevChangeInputs { code?: unknown; kind?: unknown; run?: unknown; text?: unknown }
 export interface DevChangeDeps {
@@ -200,7 +201,7 @@ export async function runDevChange(input: DevChangeInputs, deps: DevChangeDeps):
       try {
         value = await deps.llm.extract(buildChangePrompt(prompt, problems), CHANGE_ANSWER_SCHEMA);
       } catch (e) {
-        problems = [answerDidNotParse(firstLine(e))];
+        problems = [answerDidNotParse(errorText(e))];
         continue;
       }
       const checked = checkChangeAnswer(value, kind);

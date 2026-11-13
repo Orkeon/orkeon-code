@@ -172,7 +172,7 @@ describe("runSubAgent", () => {
     });
   }
 
-  it("re-asks once without a new act when the first extraction throws", async () => {
+  it("re-asks once without a new act when the first extraction throws, its whole error on one line", async () => {
     // Arrange
     const llm = new FakeLlm();
     llm.answers = ["the reply"];
@@ -184,7 +184,7 @@ describe("runSubAgent", () => {
     // Assert
     deepStrictEqual(outcome, { ok: true, value: 7, reply: "the reply", tries: 2 });
     strictEqual(llm.acts.length, 1);
-    strictEqual(llm.extracts[1].prompt, "answer from: the reply | fix: the answer did not parse: Unexpected token");
+    strictEqual(llm.extracts[1].prompt, "answer from: the reply | fix: the answer did not parse: Unexpected token at 3");
   });
 
   it("gives unparsable with the problems of the second try when the check fails twice", async () => {
