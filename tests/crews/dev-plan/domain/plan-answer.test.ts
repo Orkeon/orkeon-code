@@ -7,7 +7,7 @@ import { deepStrictEqual, strictEqual } from "node:assert";
 import { MAX_BATCHES, PLAN_ANSWER_SCHEMA, checkPlanAnswer } from "../../../../src/crews/dev-plan/domain/plan-answer.ts";
 import { DESIGN_RULE_IDS } from "../../../../src/shared/domain/dev/design-rules.ts";
 import {
-  ANCHOR_CASES, ANSWER, B1S1, BATCH_COUNT_CASES, BRIEF_ANSWER, BRIEF_CASES, BRIEF_CTX, CELL_CASES, CTX, DESCRIPTION_CASES, FIX_PASS_CASES,
+  ANCHOR_CASES, ANSWER, F1S1, BATCH_COUNT_CASES, BRIEF_ANSWER, BRIEF_CASES, BRIEF_CTX, CELL_CASES, CTX, DESCRIPTION_CASES, FIX_PASS_CASES,
   LABEL_CASES,
   RULES_18_TO_24_CASES, RULES_2_TO_7_CASES, RULES_8_TO_12_CASES, SHAPE_CASES, SIXTY_ONE_UNKNOWN_IDS, TOP_LEVEL_FIELDS,
   answerWithIdInCovers, answerWithRefPathAndWordyReuse, copy, descriptionAt, edited, paddedAnswer, undescribedProperties, UNDESCRIBED_PROPERTIES,
@@ -305,8 +305,8 @@ describe("rule 25: the problem cap", () => {
     // Assert
     const problems = r.ok ? [] : r.problems;
     strictEqual(problems.length, 61);
-    strictEqual(problems[0], `${B1S1} T1: BR-100 is not an id of the source`);
-    strictEqual(problems[59], `${B1S1} T1: BR-159 is not an id of the source`);
+    strictEqual(problems[0], `${F1S1} T1: BR-100 is not an id of the source`);
+    strictEqual(problems[59], `${F1S1} T1: BR-159 is not an id of the source`);
     strictEqual(problems[60], "… 1 more problems");
   });
 });

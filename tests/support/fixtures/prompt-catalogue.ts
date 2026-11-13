@@ -401,7 +401,7 @@ export async function renderCatalogue(): Promise<RenderedPrompt[]> {
       inputs: "a two-rule spec with one use case, three inventory entries, a pack without build_test",
       sections: [
         { title: "first try", role: "text", text: buildPlanPrompt(planInput, []) },
-        { title: "second try", role: "text", text: buildPlanPrompt(planInput, ['B1 "Prune by age" S1 "An entry older than the cut-off is removed": anchor I9 is not an inventory entry shown']) },
+        { title: "second try", role: "text", text: buildPlanPrompt(planInput, ['F1 "Prune by age" S1 "An entry older than the cut-off is removed": anchor I9 is not an inventory entry shown']) },
         schema("schema", PLAN_ANSWER_SCHEMA),
       ],
     },
