@@ -36,7 +36,7 @@ import {
 import { NEXT_BATCH_REVIEWER_CHARTER } from "../../../shared/domain/dev/reviewer-charter.ts";
 import { charterCatalogue } from "../../../shared/domain/agents/charter.ts";
 import type { CarriedText } from "../../../shared/domain/dev/carried-text.ts";
-import { REVIEW_ANSWER_SCHEMA, checkReviewAnswer } from "../../../shared/domain/dev/review-answer.ts";
+import { REVIEW_ANSWER_SCHEMA, reviewChecks } from "../../../shared/domain/dev/review-answer.ts";
 import { reviewSystem } from "../../../shared/domain/dev/prompts.ts";
 import { buildReviewAnswerPrompt, buildReviewBrief } from "../../../shared/domain/dev/review-brief.ts";
 import { parseSessionRules } from "../../../shared/domain/git/pull-request.ts";
@@ -607,7 +607,7 @@ export async function runDevBatches(input: DevBatchesInputs, deps: DevBatchesDep
       }),
       schema: REVIEW_ANSWER_SCHEMA,
       answerPrompt: (reply, problems) => buildReviewAnswerPrompt(reply, problems, [id]),
-      check: (v) => checkReviewAnswer(v, { targets: [id] }),
+      ...reviewChecks([id]),
     }, deps.route);
     if (!outcome.ok) return notRun(`${outcome.reason}: ${outcome.problems[0] ?? "no detail"}`);
     const rows = outcome.value.rows;

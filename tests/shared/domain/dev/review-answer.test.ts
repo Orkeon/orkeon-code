@@ -3,7 +3,7 @@
 import { describe, it } from "node:test";
 import { deepStrictEqual, ok, strictEqual } from "node:assert";
 
-import { MAX_REVIEW_ROWS, REVIEW_ANSWER_SCHEMA, checkReviewAnswer } from "../../../../src/shared/domain/dev/review-answer.ts";
+import { MAX_REVIEW_ROWS, REVIEW_ANSWER_SCHEMA, checkReviewAnswer, reviewChecks } from "../../../../src/shared/domain/dev/review-answer.ts";
 import {
   answer, BACKSLASHED_ROW, BAD_QUESTIONS, CITING_EVIDENCE, CTX, distinctRows, PIPED_ROW, problemsOf, QUALIFIED_TARGETS,
   REFUSED_QUESTION, REPEATED_ROWS, row,
@@ -238,6 +238,39 @@ describe("checkReviewAnswer", () => {
 
     // Assert
     deepStrictEqual(problems, ["row 1: evidence cites no path:line, § section or heading"]);
+  });
+
+  it("keeps evidence that cites nothing when the context keeps uncited rows, marked (no citation)", () => {
+    // Arrange
+    const value = answer({ rows: [row({ evidence: "the plan, somewhere" })] });
+
+    // Act
+    const checked = checkReviewAnswer(value, { ...CTX, uncitedKept: true });
+
+    // Assert
+    deepStrictEqual(checked.ok ? checked.value.rows.map((r) => r.evidence) : checked.problems, ["the plan, somewhere (no citation)"]);
+  });
+
+  it("reviewChecks: the first check refuses an uncited row", () => {
+    // Arrange
+    const value = answer({ rows: [row({ evidence: "the plan, somewhere" })] });
+
+    // Act
+    const checked = reviewChecks(CTX.targets).check(value);
+
+    // Assert
+    deepStrictEqual(checked.ok ? [] : checked.problems, ["row 1: evidence cites no path:line, § section or heading"]);
+  });
+
+  it("reviewChecks: the last check keeps an uncited row, marked", () => {
+    // Arrange
+    const value = answer({ rows: [row({ evidence: "the plan, somewhere" })] });
+
+    // Act
+    const checked = reviewChecks(CTX.targets).lastCheck(value);
+
+    // Assert
+    deepStrictEqual(checked.ok ? checked.value.rows.map((r) => r.evidence) : checked.problems, ["the plan, somewhere (no citation)"]);
   });
 
   it("target is one the caller names: refuses another", () => {

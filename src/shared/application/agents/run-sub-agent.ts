@@ -29,6 +29,8 @@ export interface SubAgentCall<T> {
   /** The extraction prompt over the act's final reply; `problems` is empty on the first try. */
   answerPrompt: (reply: string, problems: readonly string[]) => string;
   check: (value: unknown) => Checked<T>;
+  /** The check of the second try, when it may accept what the first refused; `check` when absent. */
+  lastCheck?: (value: unknown) => Checked<T>;
 }
 
 export type SubAgentFailure = "invalid-charter" | "brief-too-long" | "model-failed" | "cancelled" | "unparsable";
@@ -57,6 +59,7 @@ type Answer<T> = Checked<T> | { ok: false; reason: "cancelled" | "model-failed";
 
 async function tryAnswer<T>(
   llm: Pick<Llm, "extract">, call: SubAgentCall<T>, reply: string, problems: readonly string[],
+  check: (value: unknown) => Checked<T>,
 ): Promise<Answer<T>> {
   let value: unknown;
   try {
@@ -66,7 +69,7 @@ async function tryAnswer<T>(
     if (reason === "cancelled" || readBudgetExhausted(error) !== null) return { ok: false, reason, problems: [firstLine(error)] };
     return { ok: false, problems: [answerDidNotParse(errorText(error))] };
   }
-  return call.check(value);
+  return check(value);
 }
 
 /** The profile the act of `call` is moved to: none without a route, when it answers null, or when it throws. */
@@ -105,10 +108,10 @@ export async function runSubAgent<T>(
   } catch (error) {
     return { ok: false, reason: failureOf(error), problems: [firstLine(error)], reply: "" };
   }
-  const first = await tryAnswer(llm, call, reply, []);
+  const first = await tryAnswer(llm, call, reply, [], call.check);
   if (first.ok) return { ok: true, value: first.value, reply, tries: 1 };
   if ("reason" in first) return { ok: false, reason: first.reason, problems: first.problems, reply };
-  const second = await tryAnswer(llm, call, reply, first.problems);
+  const second = await tryAnswer(llm, call, reply, first.problems, call.lastCheck ?? call.check);
   if (second.ok) return { ok: true, value: second.value, reply, tries: 2 };
   if ("reason" in second) return { ok: false, reason: second.reason, problems: second.problems, reply };
   return { ok: false, reason: "unparsable", problems: second.problems, reply };

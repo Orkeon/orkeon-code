@@ -13,6 +13,9 @@ export const hasCount = (value: unknown): Checked<number> => {
   return typeof count === "number" ? { ok: true, value: count } : { ok: false, problems: ["count must be a number"] };
 };
 
+/** A check that accepts any answer as 9: the lastCheck of a call. */
+export const acceptsNine = (): Checked<number> => ({ ok: true, value: 9 });
+
 /** A call of CHARTER with a system, a brief and the count check; `over` replacing some fields. */
 export const call = (over: Partial<SubAgentCall<number>> = {}): SubAgentCall<number> => ({
   charter: CHARTER,

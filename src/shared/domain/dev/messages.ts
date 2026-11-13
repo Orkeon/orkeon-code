@@ -113,6 +113,8 @@ export const rowOneClosedQuestion = (k: number, fault: string): string =>
   `row ${k}: the question must be one closed question ending with ? (${fault})`;
 export const rowEvidenceEmpty = (k: number): string => `row ${k}: evidence is empty`;
 export const rowEvidenceCitesNothing = (k: number): string => `row ${k}: evidence cites no path:line, § section or heading`;
+/** What follows the evidence of a row kept although it cites nothing. */
+export const NO_CITATION = "(no citation)";
 export const rowTargetNotOneOf = (k: number, named: string, targets: string): string =>
   `row ${k}: target '${named}' is not one of ${targets}`;
 export const rowTwoTargets = (k: number, named: string): string => `row ${k}: target '${named}' names two targets`;

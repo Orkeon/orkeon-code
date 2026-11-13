@@ -11,7 +11,7 @@ import { runDevPlan } from "../../../../src/crews/dev-plan/application/run-dev-p
 import { FakePrecedents, PRECEDENTS_SAMPLE } from "../../../support/doubles/fake-precedents.ts";
 import {
   ANSWER, B1S1, B2S1, BLOCKED_END, CLEAR, CLEAR_SUMMARY, CODE, F1, F2, FEWER_BATCHES_TEXT, FOURTEEN_UNKNOWN_REUSE, INVENTORY, MAJOR_LINES,
-  NEXT_LINE, PJ, PLAN, REFUSALS, REVIEW_BLOCKING, REVIEW_MAJOR, STARTED_PLAN_TEXT, fixture, setup,
+  NEXT_LINE, PJ, PLAN, REFUSALS, REVIEW_BLOCKING, REVIEW_MAJOR, REVIEW_UNCITED, STARTED_PLAN_TEXT, fixture, setup,
   withGoldenPlan, withThreeBatchPlan, written,
 } from "./run-dev-plan.fixtures.ts";
 import { assertGoldenRenders, assertGuarded, assertListedOnce } from "./run-dev-plan.assertions.ts";
@@ -56,6 +56,19 @@ describe("runDevPlan — a plan written and reviewed", () => {
     assertMentions(text, [MAJOR_LINES]);
     ok(text.endsWith(NEXT_LINE));
     deepStrictEqual(JSON.parse(f.files.files.get(PJ) ?? "{}").review, REVIEW_MAJOR);
+  });
+
+  it("keeps the review when a row of the second try still cites nothing, marked (no citation)", async () => {
+    // Arrange
+    const f = setup();
+    f.llm.extractions = [ANSWER, REVIEW_UNCITED, REVIEW_UNCITED];
+
+    // Act
+    await runDevPlan({ source: "prune" }, f.deps);
+
+    // Assert
+    const review = JSON.parse(f.files.files.get(PJ) ?? "{}").review;
+    deepStrictEqual(review.rows.map((r: { evidence: string }) => r.evidence), ["the spec, on the cut-off (no citation)"]);
   });
 
   it("blocks every batch on a Blocking row and points back to the spec", async () => {
