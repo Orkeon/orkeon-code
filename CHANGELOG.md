@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed — a refused plan says what to change
+
+- `/dev-plan` refused a plan whose code element held a `{`, and the message ("element 2 holds a body") did not say
+  where: the second try could not fix it, so the same plan was refused twice. The message now quotes the element from
+  its `{`, and a shell expansion such as `${QUIET:-0}` is no longer taken for a body. A refusal for a length (the
+  feature, a step title, a test name, an element) now gives the length found beside the limit.
+
 ### Added — what a model that always reasons needs in the settings
 
 - Configuration says that the reasoning of a model that always reasons (GLM-5.3 on Z.AI) counts against

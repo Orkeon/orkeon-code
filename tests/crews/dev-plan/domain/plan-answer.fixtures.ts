@@ -139,10 +139,10 @@ export const RULES_2_TO_7_CASES: readonly RuleCase[] = [
   },
   { name: "5: a step title that repeats another", problems: [`${B1} S2 "An entry older than the cut-off is removed": the title repeats step 1`], edit: (a) => { a.batches[0].steps[1].title = a.batches[0].steps[0].title; } },
   { name: "5: a step title that is Build and tests", problems: [`${B1} S1 "Build and tests": the title is Build and tests, the step code adds`], edit: (a) => { a.batches[0].steps[0].title = "Build and tests"; } },
-  { name: "5: a step title longer than 100 characters", problems: [`${B1} S1 "${"t".repeat(LABEL_QUOTE)}…": the title is longer than 100 characters`], edit: (a) => { a.batches[0].steps[0].title = "t".repeat(101); } },
+  { name: "5: a step title longer than 100 characters", problems: [`${B1} S1 "${"t".repeat(LABEL_QUOTE)}…": the title is 101 characters, longer than 100`], edit: (a) => { a.batches[0].steps[0].title = "t".repeat(101); } },
   { name: "5: an empty step title", problems: [`${B1} S1: the title is empty`], edit: (a) => { a.batches[0].steps[0].title = ""; } },
   { name: "6: a step without a test", problems: [`${B1S2}: no test`, "BR-02: no test carries it"], edit: (a) => { a.batches[0].steps[1].tests = []; } },
-  { name: "6: a test name too long", problems: [`${B1S1} T1: the name is longer than 120 characters`], edit: (a) => { a.batches[0].steps[0].tests[0].name = "n".repeat(121); } },
+  { name: "6: a test name too long", problems: [`${B1S1} T1: the name is 121 characters, longer than 120`], edit: (a) => { a.batches[0].steps[0].tests[0].name = "n".repeat(121); } },
   {
     name: "6: a test name repeated", problems: [`${B1S1} T2: the name repeats ${B1S1} T1`],
     edit: (a) => { a.batches[0].steps[0].tests[1].name = a.batches[0].steps[0].tests[0].name; },
@@ -241,10 +241,12 @@ export const RULES_18_TO_24_CASES: readonly RuleCase[] = [
   { name: "19: a design row names a batch of the plan", problems: [`${DESIGN_ROW_1}: batch 3 is not a batch of the plan`], edit: (a) => { a.design[0].batch = 3; } },
   { name: "19: a design row names ids of the source", problems: [`${DESIGN_ROW_1}: BR-09 is not an id of the source`], edit: (a) => { a.design[0].ids.push("BR-09"); } },
   { name: "20: a code batch has an element", problems: [`${B1}: no code element; name in elements what this batch adds or changes, or move its tests to the batch whose code they guard`], edit: (a) => { a.batches[0].elements = []; } },
-  { name: "20: a signature is at most 200 characters", problems: [`${B1}: element 2 is longer than 200 characters`], edit: (a) => { a.batches[0].elements[1].signature = "S".repeat(201); } },
-  { name: "21: a signature holds no body", problems: [`${B1}: element 2 holds a body`], edit: (a) => { a.batches[0].elements[1].signature = "PruneResult { kept }"; } },
+  { name: "20: a signature is at most 200 characters", problems: [`${B1}: element 2 is 201 characters, longer than 200`], edit: (a) => { a.batches[0].elements[1].signature = "S".repeat(201); } },
+  { name: "21: a signature holds no body, the refusal quoting it from its brace", problems: [`${B1}: element 2 holds a body from "{ kept }"; give the signature alone, without the { and what follows it`], edit: (a) => { a.batches[0].elements[1].signature = "PruneResult { kept }"; } },
+  { name: "21: a shell expansion in a signature is not a body", problems: [], edit: (a) => { a.batches[0].elements[1].signature = "QUIET=${QUIET:-0}"; } },
+  { name: "21: a body after a shell expansion is still refused", problems: [`${B1}: element 2 holds a body from "{ echo $1; }"; give the signature alone, without the { and what follows it`], edit: (a) => { a.batches[0].elements[1].signature = "say() ${QUIET:+:} { echo $1; }"; } },
   { name: "24: the feature is not empty", problems: ["feature is empty"], edit: (a) => { a.feature = " "; } },
-  { name: "24: the feature is at most 80 characters", problems: ["feature is longer than 80 characters"], edit: (a) => { a.feature = "f".repeat(81); } },
+  { name: "24: the feature is at most 80 characters", problems: ["feature is 81 characters, longer than 80"], edit: (a) => { a.feature = "f".repeat(81); } },
   { name: "24: the layers are not empty", problems: ["layers is empty"], edit: (a) => { a.layers = []; } },
 ];
 

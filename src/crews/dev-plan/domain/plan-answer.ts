@@ -438,6 +438,12 @@ const quoted = (text: string): string => {
   const chars = Array.from(one);
   return ` "${chars.length > LABEL_QUOTE ? `${chars.slice(0, LABEL_QUOTE).join("")}…` : one}"`;
 };
+/** Where a signature's body opens: its first "{" that does not open a shell expansion "${…}", else -1. A variable
+ *  of a script (`${QUIET:-0}`) is not a body. */
+const bodyOpening = (signature: string): number => {
+  for (let i = 0; i < signature.length; i++) if (signature[i] === "{" && signature[i - 1] !== "$") return i;
+  return -1;
+};
 /** `B1 "<name>"`, the name left out when empty. */
 const batchLabel = (b: PlanBatch, k: number): string => `B${k + 1}${quoted(b.name)}`;
 /** `B1 "<name>" S2 "<title>"`; the anchor path check labels its problems the same way. */
@@ -548,7 +554,7 @@ function stepProblems(b: PlanBatch, k: number, ctx: PlanCheckContext, inventoryP
     const at = stepLabel(b, k, j);
     // 5: the title.
     if (s.title === "") out.push(titleEmpty(at));
-    else if (s.title.length > MAX_TITLE) out.push(titleTooLong(at, MAX_TITLE));
+    else if (s.title.length > MAX_TITLE) out.push(titleTooLong(at, s.title.length, MAX_TITLE));
     else if (s.title === BUILD_STEP) out.push(titleIsBuildStep(at, BUILD_STEP));
     const first = titles.get(s.title);
     if (s.title !== "" && first !== undefined) out.push(titleRepeats(at, first + 1));
@@ -558,7 +564,7 @@ function stepProblems(b: PlanBatch, k: number, ctx: PlanCheckContext, inventoryP
     s.tests.forEach((t, m) => {
       const here = testLabel(b, k, j, m);
       if (t.name === "") out.push(nameEmpty(here));
-      else if (t.name.length > MAX_TEST_NAME) out.push(nameTooLong(here, MAX_TEST_NAME));
+      else if (t.name.length > MAX_TEST_NAME) out.push(nameTooLong(here, t.name.length, MAX_TEST_NAME));
       if (t.project === "") out.push(projectEmpty(here));
       for (const id of t.ids) if (!ctx.sourceIds.includes(id)) out.push(notSourceId(here, id));
       for (const u of t.covers) if (!ctx.unpinned.includes(u)) out.push(notUnpinnedRow(here, u));
@@ -614,8 +620,9 @@ function batchProblems(b: PlanBatch, k: number, ctx: PlanCheckContext, inventory
   // 20, 21: the code elements.
   if (!b.documentation && b.elements.length === 0) out.push(noCodeElement(at));
   b.elements.forEach((e, i) => {
-    if (e.signature.length > MAX_SIGNATURE) out.push(elementTooLong(at, i + 1, MAX_SIGNATURE));
-    if (e.signature.includes("{")) out.push(elementHoldsBody(at, i + 1));
+    if (e.signature.length > MAX_SIGNATURE) out.push(elementTooLong(at, i + 1, e.signature.length, MAX_SIGNATURE));
+    const body = bodyOpening(e.signature);
+    if (body >= 0) out.push(elementHoldsBody(at, i + 1, quoted(e.signature.slice(body))));
   });
   return out;
 }
@@ -708,7 +715,7 @@ export function checkPlanAnswer(value: unknown, ctx: PlanCheckContext): Checked<
   const problems: string[] = [];
   // 24: the plan's own fields.
   if (a.feature === "") problems.push(FEATURE_EMPTY);
-  else if (a.feature.length > MAX_FEATURE) problems.push(featureTooLong(MAX_FEATURE));
+  else if (a.feature.length > MAX_FEATURE) problems.push(featureTooLong(a.feature.length, MAX_FEATURE));
   if (a.layers.filter((l) => l !== "").length === 0) problems.push(LAYERS_EMPTY);
   problems.push(...cellProblems(cellsOf(a)));
   // 2: the batch count.
