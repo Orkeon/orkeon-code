@@ -12,5 +12,5 @@ defineAsyncCommand({
   maxConcurrent: 1,
   dispatch: async (args, ctx) =>
     launchCrew(await withLlmProfile({ crews: createCrewHost(ctx.services), log: ctx.log }, orkeonConfigStore()), "session-compact", parseCompactArgs(rawTokens(args))),
-  completed: (result, ctx) => writeCompleted(ctx, result, "compact", "✓ "),
+  completed: (result, ctx) => writeCompleted(ctx, result, "compact"),
 });
