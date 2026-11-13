@@ -18,10 +18,10 @@ import { dirname, join } from "node:path";
 import {
   ARCHIVE_VERSION, BASH_GATE, BLOCK, BUILDING_LINE, CODE_VERSION, CORRUPT_STORES, DEB_WRAPPER, DOTNET, CONSOLE_APP_DLL, ESBUILD, EXAMPLE_SETTINGS,
   DOCKER_ENGINE_DOWN, EXAMPLE_SETTINGS_FILES, FOLLOWED_CHECKOUTS, GATE, KEPT_CHECKOUTS, KEEP_OUT_OF_RANGE, LARGE_ENV, NO_FILE_SETTINGS, NOT_AT_THE_PIN, OLLAMA_AND_EXISTING, PERSIST, PINNED_SDK, PROJECT_NAMES, PS1_ARGS_LOOP,
-  PS1_CLONE_OR_INSTALL, PS1_DOCKER_ENGINE, PS1_DOCKER_TTY, PS1_FROM_PROJECT, PS1_GATE, PS1_MODES, PS1_MEMORY_MOUNT, PS1_SESSION_MOUNTS, PS1_SESSIONS, PS1_SET_VARIABLES,
+  PS1_CLONE_OR_INSTALL, PS1_DOCKER_ENGINE, PS1_DOCKER_TTY, PS1_FINGERPRINT, PS1_FROM_PROJECT, PS1_GATE, PS1_MODES, PS1_MEMORY_MOUNT, PS1_SESSION_MOUNTS, PS1_SESSIONS, PS1_SET_VARIABLES,
   PS1_SETTINGS, PS1_SLUG, PS1_SPEECH, PS1_STORE_LAYOUT, PS1_SUBCOMMANDS, PS1_TRUST_CHECK, PS1_TRUST_REFUSAL, PS1_USER_SETTINGS,
   PS1_VERSION_LINES, PTY, PWSH, RESTORED_IN_FINALLY, RESTORED_NAMES, ROOTS, RUNTIME_SETTINGS, RUNTIME_SLUGS, RUNTIME_PIN, RUNTIME_REF,
-  SERVER_CASES, SERVER_LEFT_OUT, MEMORY_DIR, SESSIONS_DIR, SETTINGS_TEXT, SETTINGS_WITH_BLOCK, SLUG_PATHS, SPEECH_TOOL, START_SCRIPT, TOOL_REPL,
+  SERVER_CASES, SERVER_LEFT_OUT, FINGERPRINT, FINGERPRINT_PATH, MEMORY_DIR, SESSIONS_DIR, SETTINGS_TEXT, SETTINGS_WITH_BLOCK, SLUG_PATHS, SPEECH_TOOL, START_SCRIPT, TOOL_REPL,
   TOOL_START, USER_SETTINGS, WHISPER, audioEnv, bashOf, checkoutHead, ciStarts, corruptHome, crewSource, fullHistory, gitAt, launch, launchWithNode, orkeonCheckoutAtAnotherCommit, orkeonCheckoutBehindThePin,
   leftBeside, linkedFolder, modeStart, mostWhisperArgs, mountOf, mountRoots, namedProjectStart, nestedTrust, orkeonCheckout,
   pwshOf, read, recorder, removeScratch, RUN_CREW_ESBUILD, runCrew, runPs1ThenPrint, scratchDir, scratchFolder, serverArgs, serverOf,
@@ -1770,6 +1770,18 @@ describe("scripts/run-crew.sh checks the folder as the launcher does", () => {
     strictEqual(t.esbuild, join(t.root, RUN_CREW_ESBUILD));
   });
 
+  it("points the dotnet tool's embedding fingerprint at /output, outside the project", () => {
+    // Arrange
+    const extra = ["--inputs", "{}"];
+
+    // Act
+    const t = runCrew(extra, { trusted: true });
+
+    // Assert
+    strictEqual(t.status, 0, t.stderr);
+    strictEqual(t.fingerprint, FINGERPRINT_PATH);
+  });
+
   it("stops before the dotnet tool runs when no esbuild is installed", () => {
     // Arrange
     const extra = ["--inputs", "{}"];
@@ -2194,6 +2206,42 @@ describe("the project slug is the runtime's ProjectKey.Slug", () => {
 });
 
 describe("orkeon-code, per-project state (LI-4)", () => {
+  it("points the embedding model's fingerprint at /output, outside the project", () => {
+    // Arrange
+    const s = sessionScene();
+
+    // Act
+    const r = s.run([]);
+
+    // Assert
+    strictEqual(r.status, 0, r.stderr);
+    strictEqual(r.env.get(FINGERPRINT), FINGERPRINT_PATH);
+  });
+
+  it("keeps a fingerprint path the caller set", () => {
+    // Arrange
+    const s = sessionScene();
+
+    // Act
+    const r = s.run([], { [FINGERPRINT]: "/output/mine.json" });
+
+    // Assert
+    strictEqual(r.status, 0, r.stderr);
+    strictEqual(r.env.get(FINGERPRINT), "/output/mine.json");
+  });
+
+  it("passes the fingerprint path to the container in the docker mode", () => {
+    // Arrange
+    const s = sessionScene();
+
+    // Act
+    const r = s.run(["--mode", "docker"], {}, { docker: recorder() });
+
+    // Assert
+    strictEqual(r.status, 0, r.stderr);
+    ok(r.args.includes(`${FINGERPRINT}=${FINGERPRINT_PATH}`), r.args.join(" "));
+  });
+
   it("mounts the project's sessions on /sessions and names it to the runtime, persistence on, nothing in the project", () => {
     // Arrange
     const s = sessionScene();
@@ -2624,6 +2672,17 @@ describe("orkeon-code.ps1 keeps the state and the sessions as ./orkeon-code does
 
     // Assert
     assertMentions(script, PS1_MEMORY_MOUNT);
+  });
+
+  it("points the embedding fingerprint at /output, puts the variable back and passes it to docker (orkeon-code.ps1)", () => {
+    // Arrange
+    const launcher = "orkeon-code.ps1";
+
+    // Act
+    const script = read(launcher);
+
+    // Assert
+    assertMentions(script, PS1_FINGERPRINT);
   });
 
   it("archives unless --continue, resumes by number or id, keeps 50, and steps aside for an open session", () => {

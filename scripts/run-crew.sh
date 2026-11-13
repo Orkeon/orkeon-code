@@ -50,6 +50,8 @@ else
   case "$rc" in 0) ;; 4) exit 0 ;; *) exit "$rc" ;; esac
 fi
 if [ -n "${ORKEON_CODE_MODEL:-}" ]; then export ORKEON_Llm__Model="$ORKEON_CODE_MODEL"; fi
+# The embedding model's fingerprint in /output, not in the project, as ./orkeon-code does.
+export Orkeon__Embeddings__FingerprintPath="${Orkeon__Embeddings__FingerprintPath:-/output/rag/embedding-fingerprint.json}"
 output="${ORKEON_CODE_STATE:-$ROOT/.crew-output}/output"
 mkdir -p "$output"
 
@@ -82,7 +84,7 @@ fi
 # No SDK: the same tool from the orkeon image. The whole checkout is
 # mounted so the crew's relative imports (src/shared, ...) resolve.
 key_var="$(sed -n 's/.*"ApiKeyEnvVar"[[:space:]]*:[[:space:]]*"\([A-Za-z_][A-Za-z0-9_]*\)".*/\1/p' "$settings" | head -n 1)"
-env_args=(-e ORKEON_ENTRYPOINT=orkeon -e HOME=/tmp)
+env_args=(-e ORKEON_ENTRYPOINT=orkeon -e HOME=/tmp -e Orkeon__Embeddings__FingerprintPath)
 for v in ORKEON_Llm__ApiKey ORKEON_Llm__Model "$key_var"; do
   if [ -n "$v" ] && [ -n "${!v:-}" ]; then env_args+=(-e "$v"); fi
 done

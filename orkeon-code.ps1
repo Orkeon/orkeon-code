@@ -375,7 +375,7 @@ function Invoke-Setup([string] $target) {
 $savedEnv = @{}
 foreach ($name in @('ORKEON_Llm__Model', 'Orkeon__Security__PermissionGate__Enabled', 'Orkeon__Cli__Session__StartScript',
                     'Orkeon__Cli__Session__Persist', 'ORKEON_Orkeon__Cli__Session__SessionsDirectory',
-                    'ORKEON_Orkeon__Cli__Memory__RootDirectory',
+                    'ORKEON_Orkeon__Cli__Memory__RootDirectory', 'Orkeon__Embeddings__FingerprintPath',
                     'ORKEON_ESBUILD_PATH',
                     'ORKEON_ALLOW_EXTERNAL_MOUNTS', 'WHISPER_AUDIO_DIR', 'WHISPER_OUT_DIR',
                     'ORKEON_MCP__Servers__whisper__Transport', 'ORKEON_MCP__Servers__whisper__Command',
@@ -647,6 +647,8 @@ try {
   if (-not $env:Orkeon__Cli__Session__Persist) { $env:Orkeon__Cli__Session__Persist = 'true' }
   $env:ORKEON_Orkeon__Cli__Session__SessionsDirectory = '/sessions'
   $env:ORKEON_Orkeon__Cli__Memory__RootDirectory = '/memory'
+  # The embedding model's fingerprint beside the RAG's manifests, in /output, not in the project (see ./orkeon-code).
+  if (-not $env:Orkeon__Embeddings__FingerprintPath) { $env:Orkeon__Embeddings__FingerprintPath = '/output/rag/embedding-fingerprint.json' }
 
   # Speech-to-text (optional): $env:ORKEON_CODE_AUDIO_DIR names the folder of audio and video files. The
   # Whisper MCP server (mcp/whisper), started by the REPL over stdio, reads it and writes into
@@ -864,7 +866,8 @@ try {
                  '-e', "Orkeon__Cli__Session__StartScript=$env:Orkeon__Cli__Session__StartScript",
                  '-e', "Orkeon__Cli__Session__Persist=$env:Orkeon__Cli__Session__Persist",
                  '-e', 'ORKEON_Orkeon__Cli__Session__SessionsDirectory=/sessions',
-                 '-e', 'ORKEON_Orkeon__Cli__Memory__RootDirectory=/memory')
+                 '-e', 'ORKEON_Orkeon__Cli__Memory__RootDirectory=/memory',
+                 '-e', "Orkeon__Embeddings__FingerprintPath=$env:Orkeon__Embeddings__FingerprintPath")
     # The github tool's token (Orkeon #222): GITHUB_TOKEN, GH_TOKEN, or the variable Orkeon__Tools__GitHub__TokenVariable
     # names, each handed over only when set, with the setting itself so the runtime reads the same variable.
     $tokenVar = [Environment]::GetEnvironmentVariable('Orkeon__Tools__GitHub__TokenVariable')
