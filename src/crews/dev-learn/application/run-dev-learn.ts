@@ -39,6 +39,7 @@ import { readBacklog } from "./learn-backlog.ts";
 import type { Backlog } from "./learn-backlog.ts";
 import { AXIS_TABLE_HEADER, BAD_INPUT_AXIS, BAD_INPUT_LIST, NOTHING_TO_DECIDE_UNTIL_NEW_GAPS, NOTHING_UNTREATED, LEARN_NOT_IN_WORK_TREE, REFUSED_IN_HARNESS, REFUSE_EACH, REMOVED_LINE_KEPT, axisUnchanged, decideQuestion, learnHead, motifsProposed, noAxisEligible, noMotifKept, noProposalOnAxis, notAtTop, nothingUntreatedOnAxis, proposalsWritten, underThreeBatches } from "./messages.ts";
 import { answerDidNotParse } from "../../../shared/application/agents/messages.ts";
+import { errorText } from "../../../shared/domain/error-text.ts";
 import {
   learnBlockedNotWritten as blockedCannotWrite, learnNoWorkFolder as noWorkFolder, learnOutsideMounts as workFolderOutsideMounts,
 } from "../../../shared/application/dev/messages.ts";
@@ -264,7 +265,7 @@ async function ask(
       value = await llm.extract(buildLearnPrompt(input, problems, blocks), LEARN_ANSWER_SCHEMA);
     } catch (error) {
       if (first !== null) return { ok: true, answer: first };
-      problems = [answerDidNotParse(reasonOf(error))];
+      problems = [answerDidNotParse(errorText(error))];
       continue;
     }
     const checked = checkLearnAnswer(value, shownIds, blocks.some((b) => b.lines.length > 0));

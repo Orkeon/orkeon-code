@@ -14,6 +14,7 @@ import { MAX_BRIEF_CHARS, charterProblems } from "../../domain/agents/charter.ts
 import type { Charter, Checked } from "../../domain/agents/charter.ts";
 import { readBudgetExhausted } from "../../domain/dev/step-budget.ts";
 import { answerDidNotParse, briefTooLong } from "./messages.ts";
+import { errorText } from "../../domain/error-text.ts";
 
 export interface SubAgentCall<T> {
   charter: Charter;
@@ -63,7 +64,7 @@ async function tryAnswer<T>(
   } catch (error) {
     const reason = failureOf(error);
     if (reason === "cancelled" || readBudgetExhausted(error) !== null) return { ok: false, reason, problems: [firstLine(error)] };
-    return { ok: false, problems: [answerDidNotParse(firstLine(error))] };
+    return { ok: false, problems: [answerDidNotParse(errorText(error))] };
   }
   return call.check(value);
 }

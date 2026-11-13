@@ -247,6 +247,18 @@ describe("runDevPlan — the planner's answer", () => {
     assertListedOnce(listed, [`${WORKSPACE}/src/shared/domain`, `${WORKSPACE}/docs`, `${WORKSPACE}/docs/fr`]);
   });
 
+  it("tells the second attempt the whole parse error, on one line", async () => {
+    // Arrange
+    const f = setup();
+    f.llm.extractions = [new Error('not JSON. Raw: {\n  "batches": ['), FOURTEEN_UNKNOWN_REUSE];
+
+    // Act
+    await runDevPlan({ source: "prune" }, f.deps);
+
+    // Assert
+    assertMentions(f.llm.extracts[1].prompt, ['- the answer did not parse: not JSON. Raw: { "batches": [']);
+  });
+
   it("writes nothing after two refusals, and lists 12 problems then the count", async () => {
     // Arrange
     const f = setup();
