@@ -93,7 +93,7 @@ The launcher picks the first available mode, in this order, unless `--mode` says
 
 ### Tool mode: `orkeon-repl` installed
 
-The REPL is `orkeon-repl` (`Orkeon.ConsoleApp`) of the last release, `1.0.0`, which is the pin at this writing. The
+The REPL is `orkeon-repl` (`Orkeon.ConsoleApp`) of the last release, `1.0.0`, behind the pin at this writing. The
 Debian package and the
 release archives carry it self-contained, with its own esbuild: no .NET to install.
 
@@ -128,7 +128,7 @@ overrides it).
 
 ### Docker mode: nothing to install but Docker
 
-The launcher runs `ghcr.io/orkeon/orkeon:latest`, the image of the last release (`1.0.0` at this writing, which is
+The launcher runs `ghcr.io/orkeon/orkeon:latest`, the image of the last release (`1.0.0` at this writing, behind
 the pin; `ORKEON_CODE_IMAGE` names another image), which carries the
 REPL and esbuild; the image is built for `linux/amd64` and `linux/arm64`, and Docker pulls the one of your machine. The project is mounted in the
 container; on Linux the container runs with your uid, so the files the agent writes belong to you. The shell tool

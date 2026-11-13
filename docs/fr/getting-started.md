@@ -94,7 +94,7 @@ Le lanceur prend le premier mode disponible, dans cet ordre, sauf si `--mode` en
 
 ### Mode tool : `orkeon-repl` installé
 
-Le REPL est `orkeon-repl` (`Orkeon.ConsoleApp`) de la dernière release, `1.0.0`, qui est l'épingle à ce jour. Le paquet Debian et les
+Le REPL est `orkeon-repl` (`Orkeon.ConsoleApp`) de la dernière release, `1.0.0`, en retard sur l'épingle à ce jour. Le paquet Debian et les
 archives de release le livrent autonome, avec son propre esbuild : aucun .NET à installer.
 
 **Debian et Ubuntu** (amd64, arm64) : le paquet `orkeon` installe `/usr/bin/orkeon-repl`. Ajoutez la source apt
@@ -128,8 +128,8 @@ celui que npm a installé (`ORKEON_ESBUILD_PATH` le remplace).
 
 ### Mode docker : rien à installer sauf Docker
 
-Le lanceur exécute `ghcr.io/orkeon/orkeon:latest`, l'image de la dernière release (`1.0.0` à ce jour, qui est
-l'épingle ; `ORKEON_CODE_IMAGE` nomme une autre image), qui porte le
+Le lanceur exécute `ghcr.io/orkeon/orkeon:latest`, l'image de la dernière release (`1.0.0` à ce jour, en retard
+sur l'épingle ; `ORKEON_CODE_IMAGE` nomme une autre image), qui porte le
 REPL et esbuild ; l'image est construite pour `linux/amd64` et `linux/arm64`, et Docker tire celle de votre machine. Le projet est monté dans le
 conteneur ; sous Linux, le conteneur tourne avec votre uid, si bien que les fichiers que l'agent écrit vous
 appartiennent. L'outil shell tourne dans le conteneur.

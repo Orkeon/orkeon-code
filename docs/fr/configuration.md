@@ -44,7 +44,7 @@ Les variables d'environnement préfixées `ORKEON_` l'emportent sur le fichier (
 | `Llm:MaxRateLimitWait` | La plus longue fenêtre de limite de débit qu'un appel attend avant d'échouer, `00:05:00` par défaut |
 | `Llm:Profiles:<name>:MaxRateLimitWait` | La même borne pour un profil nommé du runtime, `00:05:00` par défaut |
 | `Llm:Profiles:<name>:Fallback`, `Llm:Profiles:<name>:FallbackBudgetSeconds` | Les profils vers lesquels un appel de `<name>` se déplace, dans l'ordre, quand il échoue d'une façon qu'une nouvelle tentative ne répare pas |
-| `Llm:ModelCapabilities:<id du modèle>` | Ce qu'un modèle accepte : `Thinking` (`None`, `EffortOnly` pour un modèle qui raisonne toujours, `Toggle`, `Budget`), `ReasoningEfforts`, les efforts qu'il prend (un `effort` qu'un modèle listé ne prend pas est abaissé au plus haut de ceux qu'il prend en dessous, avec un avertissement ; un modèle listé nulle part reçoit tout effort, avec un avertissement), `Vision`, `AudioInput`, `AudioOutput`. `Llm:ModelCapabilities:<fournisseur>/<id du modèle>` les fixe pour un seul fournisseur |
+| `Llm:ModelCapabilities:<id du modèle>` | Ce qu'un modèle accepte : `Thinking` (`None`, `EffortOnly` pour un modèle qui raisonne toujours, `Toggle`, `Budget`), `ReasoningEfforts`, les efforts qu'il prend (un `effort` qu'un modèle listé ne prend pas est envoyé au plus haut niveau en dessous que le modèle et le champ du fournisseur prennent tous deux, ou au plus bas d'entre eux quand aucun n'est en dessous, avec un avertissement ; un modèle listé nulle part reçoit tout effort que le champ du fournisseur prend, avec un avertissement), `Vision`, `AudioInput`, `AudioOutput`. `Llm:ModelCapabilities:<fournisseur>/<id du modèle>` les fixe pour un seul fournisseur |
 | `Llm:Thinking:Enabled`, `Llm:Thinking:Effort` | Mode raisonnement et intensité du raisonnement, pour les fournisseurs qui en ont un |
 
 Ce que le tableau laisse de côté :
@@ -52,7 +52,8 @@ Ce que le tableau laisse de côté :
 - **`Llm:MaxTokens` sur un modèle qui raisonne toujours** (GLM-5.3 chez Z.AI) :
   - Son raisonnement compte dans `MaxTokens`. Une étape qui répond en un long JSON, comme le plan de
     `/dev-plan`, a besoin de place : à 24576 la réponse revenait coupée ou vide, à 65536 elle tient. Quand le budget
-    s'épuise, le refus le dit (`the output budget (MaxTokens = …) ran out, reasoning included`) avec les jetons dépensés.
+    s'épuise, le refus le dit avec les jetons dépensés : `the output budget (MaxTokens = …) ran out, reasoning
+    included` pour une réponse vide, `cut short: the output budget ran out` pour une réponse coupée en cours.
   - GLM-5.3 ne prend que les efforts `low`, `high` et `max`. Le runtime envoie un `medium` en `low`, avec un
     avertissement (Z.AI y refuse `medium`, HTTP 400 code 1210). Omettez `Llm:Thinking:Effort`, ou demandez `high` : à
     `low`, le modèle ne raisonne presque plus, et les plans qu'il écrit sont plus souvent refusés.

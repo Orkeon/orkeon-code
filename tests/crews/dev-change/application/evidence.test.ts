@@ -5,8 +5,10 @@
 import { describe, it } from "node:test";
 import { ok, strictEqual } from "node:assert";
 
-import { commandProblem, runStop } from "../../../../src/crews/dev-change/application/evidence.ts";
+import { commandProblem, pickCommand, runStop } from "../../../../src/crews/dev-change/application/evidence.ts";
+import { FakeLlm } from "../../../support/doubles/fake-llm.ts";
 import { ACCEPTED_COMMANDS, BUG_STOPS, PACK, REFUSED_COMMANDS, ran } from "./evidence.fixtures.ts";
+import { assertSecondPromptMentions } from "./evidence.assertions.ts";
 
 describe("commandProblem", () => {
   for (const command of ACCEPTED_COMMANDS) {
@@ -34,6 +36,20 @@ describe("commandProblem", () => {
       ok(problem !== null, command);
     });
   }
+});
+
+describe("pickCommand", () => {
+  it("tells the second attempt the whole parse error, on one line", async () => {
+    // Arrange
+    const llm = new FakeLlm();
+    llm.extractions = [new Error('not JSON. Raw: {\n  "command":\n    "node'), { command: "node --test tests/a.test.ts" }];
+
+    // Act
+    await pickCommand("dev-change", llm, "bug", "", "the failing case", PACK);
+
+    // Assert
+    assertSecondPromptMentions(llm.extracts, 'the answer did not parse: not JSON. Raw: { "command": "node');
+  });
 });
 
 describe("runStop", () => {

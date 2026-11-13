@@ -20,6 +20,7 @@ import {
 } from "../../../shared/application/dev/source-step.ts";
 import { numberQuestions, parseDecisions, parseOpenQuestions } from "../../../shared/domain/dev/questions.ts";
 import type { Decision, Question } from "../../../shared/domain/dev/questions.ts";
+import { errorText } from "../../../shared/domain/error-text.ts";
 import { parsePlanSource } from "../../../shared/domain/dev/spec-format.ts";
 import { SPEC_ANSWER_SCHEMA, checkSpecAnswer, ruleId, useCaseId } from "../domain/spec-answer.ts";
 import type { SpecAnswer } from "../domain/spec-answer.ts";
@@ -59,7 +60,7 @@ async function askSpec(
     try {
       value = await deps.llm.extract(buildSpecPrompt(prompt, problems), SPEC_ANSWER_SCHEMA);
     } catch (e) {
-      problems = [answerDidNotParse(firstLine(e))];
+      problems = [answerDidNotParse(errorText(e))];
       continue;
     }
     const checked = checkSpecAnswer(value);

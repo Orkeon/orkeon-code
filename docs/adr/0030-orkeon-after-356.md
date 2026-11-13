@@ -26,10 +26,12 @@ thinking and effort depend on the model on every provider, from one capability t
   status meta, the issue template, the guides. The esbuild of the runtime (`0.25.12`) and its .NET SDK (`10.0.300`)
   do not change. The typings from `scripts/sync-typings.sh` change in comments only: the effort levels per provider,
   the `<undefined-llm:…>` marker a failed `chat` gives, `grep` on a file.
-- **`errorText` keeps 800 characters**, where it kept 400. The `extract` error of #353 gives the facts, then the
-  first and the last 200 characters of the reply: at 400 the end of a reply cut short was lost, for the person and
-  for the second try.
-- **Nothing else changes in the code.** The adapter already throws on the `<undefined-llm:…>` marker of a `chat`
+- **`errorText` keeps 1200 characters**, where it kept 400. The `extract` error of #353 gives the JSON error, the
+  finish reason and the tokens, then the first and the last 200 characters of the reply, about 850 characters at
+  most: at 400 the end of a reply cut short was lost, for the person and for the second try. `/dev-spec` and the
+  reproduction command of `/dev-change` quoted the error's first line only (`firstLine`); they now quote it with
+  `errorText`, as `/dev-plan` and the rest of `/dev-change` do.
+- **No other code changes.** The adapter already throws on the `<undefined-llm:…>` marker of a `chat`
   (`llm-failure.ts`); a question asked from the background (#352) and `grep` on a file (#351) need nothing of this
   project.
 - **The configuration guide says what GLM-5.3 takes**: `low`, `high` and `max`; the runtime sends a `medium` as
@@ -42,10 +44,11 @@ thinking and effort depend on the model on every provider, from one capability t
   Orkeon's next release: on them `grep` refuses a file, a background question hides in its task, an `extract` error
   gives no reason, and `medium` on GLM-5.3 fails every call. `/status` says that the runtime is not the pin.
 - Since #356, an effort a model does not take is lowered with a warning, where it used to be left out; thinking
-  asked of a model that does not reason, or turned off on one that always does, is dropped with a warning. A
-  setting of this project that asks for an effort (`/effort`, a crew's `effort`) now reaches the model lowered.
-- A refused answer quoted to the model on the second try of `/dev-plan`, `/dev-change`, `/dev-learn` or a sub-agent
-  can be twice as long.
+  asked of a model that does not reason, or turned off on one that always does, is dropped with a warning. An
+  effort this project asks for (`/effort`, a crew's `effort`) that the model does not take now reaches it lowered.
+- A refused answer quoted to the model on the second try of `/dev-spec`, `/dev-plan`, `/dev-change`, `/dev-learn` or
+  a sub-agent can be three times as long.
 - Checks at `cf56fae`: `npm run check` green; in source mode, `bash scripts/smoke-runtime.sh`: 50 commands loaded,
   0 skipped, 0 conflicts; `bash scripts/smoke-crew.sh` commits the mock's subject; `bash scripts/smoke-validate.sh`:
-  18 crews, 0 failed. The fixes of #351-#356 were not run against a live host yet.
+  18 crews, 0 failed. The fixes of #351-#356 were not run against a live host yet: the live session of
+  [Development](../development.md#upgrading-orkeon) comes before the merge.

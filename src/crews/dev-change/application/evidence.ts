@@ -12,6 +12,7 @@ import { REPRO_SCHEMA } from "./prompts.ts";
 import { buildReproPrompt } from "./change-material.ts";
 import { GLOB_OR_EXPANSION, MEASURES_THE_COST, PATH_OUT_OF_CHECKOUT, REPRODUCES_THE_BUG, SHELL_OPERATOR_AFTER_CLI, evidenceCouldNotRun, couldNotStart, didNotReproduce, issuePrintedNoJson, issueViewFailed, measuredFact, measurementFailed, noCommandPicked, ranOutOfTime, reproductionFact, runMayNotRun, runtimeRefused, wasKilled } from "./messages.ts";
 import { NOT_ONE_LINE } from "../../../shared/domain/dev/messages.ts";
+import { errorText } from "../../../shared/domain/error-text.ts";
 import { answerDidNotParse } from "../../../shared/application/agents/messages.ts";
 
 export const REPRO_TIMEOUT_SECONDS = 600;
@@ -105,7 +106,7 @@ export async function pickCommand(
       const v = await llm.extract(buildReproPrompt(kind, origin, packCommandList(commands), problems), REPRO_SCHEMA) as { command?: unknown };
       command = typeof v?.command === "string" ? v.command.trim() : "";
     } catch (e) {
-      problems = [answerDidNotParse(firstLine(e))];
+      problems = [answerDidNotParse(errorText(e))];
       continue;
     }
     const problem = commandProblem(command, commands);

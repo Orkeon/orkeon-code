@@ -214,6 +214,19 @@ describe("runDevSpec — refusals", () => {
     await rejects(act, /the question was cancelled/);
   });
 
+  it("tells the second attempt the whole parse error, on one line", async () => {
+    // Arrange
+    const f = devSpecSetup();
+    f.llm.extractions = [new Error('not JSON. Raw: {\n  "useCases": [\n    "a"'), ANSWER, folded(), CLEAR];
+
+    // Act
+    await run(f);
+
+    // Assert
+    assertAllMention([f.llm.extracts[1].prompt], 'the answer did not parse: not JSON. Raw: { "useCases": [ "a"', 1,
+      "a second extract");
+  });
+
   it("writes nothing when the spec is refused twice", async () => {
     // Arrange
     const f = devSpecSetup();

@@ -98,8 +98,9 @@ mkdir -p ~/audio && timeout 20 parecord --channels=1 --rate=16000 --file-format=
 
 ## 3. Orkeon from its apt package
 
-The `stable` channel carries the last release of Orkeon, `1.0.0`: it is the commit of Orkeon's `main` Orkeon Code
-is checked against (`.orkeon-version`), so the tool mode runs the pin ([Getting started](getting-started.md)). The
+The `stable` channel carries the last release of Orkeon, `1.0.0`: it is behind the commit of Orkeon's `main` Orkeon
+Code is checked against (`.orkeon-version`), so the tool mode runs an older runtime than the pin until Orkeon's next
+release ([Getting started](getting-started.md)). The
 `dev` channel publishes one package per commit of `main` the CI validated, versioned `1.0.1~dev.<n>` (`n` is the
 number of the CI run), the last three builds only: it is for following `main` ahead of the pin, not for this
 tutorial. The package installs `/usr/bin/orkeon-repl` (the REPL, with its

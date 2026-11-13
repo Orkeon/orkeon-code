@@ -18,8 +18,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   a provider error reaches `extract` as an error with its status and message (Orkeon #354, #356).
 - An `extract` reply that is empty or does not parse says why: the finish reason, the tokens spent, the output
   budget when it ran out, the place of the JSON error, the start and the end of the reply (Orkeon #353). A refused
-  answer of `/dev-plan`, `/dev-change`, `/dev-learn` or a sub-agent now quotes up to 800 characters of it, where it
-  stopped at 400, so the end of the reply is kept.
+  answer of `/dev-plan`, `/dev-change`, `/dev-learn` or a sub-agent now quotes up to 1200 characters of it, where it
+  stopped at 400, so the end of the reply is kept; `/dev-spec` and the reproduction command of `/dev-change`, which
+  quoted its first line only, now quote it whole as well.
 
 ### Fixed — a plan refused for an anchor or a dependency can be mended
 
@@ -92,15 +93,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed — the pin moves to Orkeon 1.0.0
 
 - `.orkeon-version` names `41f5079`, Orkeon `main` after #347: the commit Orkeon released as 1.0.0. The tool mode on
-  that release (the apt `stable` channel, the archives) runs the pin; the guides and `.config/dotnet-tools.json` name
-  `1.0.0`.
+  that release (the apt `stable` channel, the archives) ran the pin until it moved to `cf56fae`; the guides and
+  `.config/dotnet-tools.json` name `1.0.0`.
 - Since #333 an LLM call takes a profile of the host (`llm: { profile }`), where it took a model of the agent's
   provider only.
 
 ### Fixed — the docker mode runs Orkeon's 1.0.0 image
 
-- The launchers, `scripts/run-crew.sh` and `scripts/sync-typings.sh` run `ghcr.io/orkeon/orkeon:latest` (1.0.0, the
-  pin) and choose its entry point with `ORKEON_ENTRYPOINT`: the old `orkeon-runners` image stopped at rc.5 and the new
+- The launchers, `scripts/run-crew.sh` and `scripts/sync-typings.sh` run `ghcr.io/orkeon/orkeon:latest` (1.0.0) and
+  choose its entry point with `ORKEON_ENTRYPOINT`: the old `orkeon-runners` image stopped at rc.5 and the new
   one ignored `ORKEON_RUNNER`, so `--mode docker` printed the help of the `orkeon` tool.
 - `scripts/run-crew.sh` on the `orkeon` dotnet tool takes the esbuild `npm ci` installed, as `./orkeon-code` does:
   the tool carries none, and every crew failed on `Esbuild binary not found`.
