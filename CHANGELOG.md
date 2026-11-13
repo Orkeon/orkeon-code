@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed — `/compact` prints one check mark
+
+- `/compact` printed `✓ ✓ compacted …`: the command added a mark to a line that has its own. A skipped or failed
+  compaction no longer starts with `✓` either.
+
 ### Fixed — nothing of the runtime's left in the project for `/commit` to sweep in
 
 - The launchers and `scripts/run-crew.sh` put the embedding model's fingerprint in
