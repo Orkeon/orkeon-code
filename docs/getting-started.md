@@ -234,9 +234,10 @@ models, backends and how the model calls the tools itself: [Configuration](speec
   `dev.workDir`: specs, plans, batch sheets, verdicts), `.orkeon/worktrees/` (the worktrees of the batches),
   `.orkeon/dev-learn-state.json` (`/dev-learn`) and the [shared memory](shared-memory.md)'s folder
   (`.orkeon/memory/` unless `memory.dir` names another).
-- The runtime itself writes `.orkeon/embedding-fingerprint.json` (the embedding model the RAG's vectors came from:
-  it refuses to start when the model changes, until the file is deleted or `Orkeon:Embeddings:FingerprintPath` names
-  another), and `.orkeon/state` (the checkpoints and kept questions of a run, only with
+- The runtime records the embedding model the RAG's vectors came from, and refuses to start when it changes until
+  the file is deleted. The launchers put that file beside the RAG's manifests, in `/output/rag/embedding-fingerprint.json`
+  of the state directory, not in the project (`Orkeon:Embeddings:FingerprintPath` names another; a
+  `.orkeon/embedding-fingerprint.json` left by an older launcher can be deleted). The runtime also writes `.orkeon/state` (the checkpoints and kept questions of a run, only with
   `Orkeon:Checkpointing:Enabled`, off in every example).
 - The hook scripts you write (`.orkeon/hooks/` in the [examples](hooks.md)) are yours.
 - Add `.orkeon/` and `workbench/` to the project's `.gitignore` if you do not want to share them: `/dev-status`

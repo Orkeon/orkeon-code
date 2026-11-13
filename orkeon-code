@@ -803,6 +803,9 @@ export Orkeon__Cli__Session__StartScript="${Orkeon__Cli__Session__StartScript-/t
 export Orkeon__Cli__Session__Persist="${Orkeon__Cli__Session__Persist:-true}"
 export ORKEON_Orkeon__Cli__Session__SessionsDirectory=/sessions
 export ORKEON_Orkeon__Cli__Memory__RootDirectory=/memory
+# The embedding model's fingerprint goes beside the RAG's manifests, in /output, not in the project: the runtime's
+# default, /workspace/.orkeon/, leaves a file in the project that /commit sweeps in. A settings file may name another.
+export Orkeon__Embeddings__FingerprintPath="${Orkeon__Embeddings__FingerprintPath:-/output/rag/embedding-fingerprint.json}"
 
 # ── Speech-to-text (optional) ──────────────────────────────────────────────
 # ORKEON_CODE_AUDIO_DIR names the folder of audio and video files. The Whisper
@@ -996,7 +999,8 @@ case "$MODE" in
       -e "Orkeon__Cli__Session__StartScript=$Orkeon__Cli__Session__StartScript"
       -e "Orkeon__Cli__Session__Persist=$Orkeon__Cli__Session__Persist"
       -e ORKEON_Orkeon__Cli__Session__SessionsDirectory=/sessions
-      -e ORKEON_Orkeon__Cli__Memory__RootDirectory=/memory)
+      -e ORKEON_Orkeon__Cli__Memory__RootDirectory=/memory
+      -e "Orkeon__Embeddings__FingerprintPath=$Orkeon__Embeddings__FingerprintPath")
     # The github tool's token (Orkeon #222): GITHUB_TOKEN, GH_TOKEN, or the variable Orkeon__Tools__GitHub__TokenVariable
     # names, each handed over only when set, with the setting itself so the runtime reads the same variable.
     for v in ORKEON_Llm__ApiKey ORKEON_Llm__Model "$KEY_VAR" GITHUB_TOKEN GH_TOKEN \
