@@ -164,7 +164,8 @@ A prompt change starts here: the behaviour first, then the text, then its marker
 - The reviewer hunts for the gaps the author left open and only looks: it changes no file and runs no command, and
   code records what it reports.
 - Each finding is one sentence ending in a question that a yes, a no or a choice among listed options settles, and
-  it cites a `path:line` it opened or a section of the files, or it is dropped.
+  it cites a `path:line` it opened or a section of the files. Code asks again once for an uncited finding; one still
+  uncited after that is kept, its evidence marked `(no citation)`, so that one row never drops the whole review.
 - Blocking when any answer would reshape a use case, a rule, the data, a state, the scope or a design choice, Major
   when an assumption on record is enough, and Major when torn between the two.
 - Before asking, it looks for the answer in the rest of the material (the other files the brief names, the code),

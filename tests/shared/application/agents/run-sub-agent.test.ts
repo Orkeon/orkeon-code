@@ -6,7 +6,7 @@ import { deepStrictEqual, ok, strictEqual } from "node:assert";
 import { runSubAgent } from "../../../../src/shared/application/agents/run-sub-agent.ts";
 import { FakeLlm } from "../../../support/doubles/fake-llm.ts";
 import { budgetExhaustedAnswer } from "../../../../src/shared/domain/llm-failure.ts";
-import { CANCELLED_ACTS, CHARTER, FINAL_EXTRACTION_FAILURES, ROUTES, call } from "./run-sub-agent.fixtures.ts";
+import { CANCELLED_ACTS, CHARTER, FINAL_EXTRACTION_FAILURES, ROUTES, acceptsNine, call } from "./run-sub-agent.fixtures.ts";
 
 describe("runSubAgent", () => {
   it("acts with the system, the charter's mode and iterations, then extracts", async () => {
@@ -185,6 +185,19 @@ describe("runSubAgent", () => {
     deepStrictEqual(outcome, { ok: true, value: 7, reply: "the reply", tries: 2 });
     strictEqual(llm.acts.length, 1);
     strictEqual(llm.extracts[1].prompt, "answer from: the reply | fix: the answer did not parse: Unexpected token at 3");
+  });
+
+  it("checks the second try with lastCheck when the call gives one", async () => {
+    // Arrange
+    const llm = new FakeLlm();
+    llm.answers = ["the reply"];
+    llm.extractions = [{ count: "seven" }, { count: "seven" }];
+
+    // Act
+    const outcome = await runSubAgent(llm, call({ lastCheck: acceptsNine }));
+
+    // Assert
+    deepStrictEqual(outcome, { ok: true, value: 9, reply: "the reply", tries: 2 });
   });
 
   it("gives unparsable with the problems of the second try when the check fails twice", async () => {

@@ -38,6 +38,8 @@ export const B2S1 = stepLabel(ANSWER.batches[1], 1, 0);
 export const INVENTORY = json<Inventory>("inventory.json");
 export const REVIEW_MAJOR = json<object>("review.json");
 export const REVIEW_BLOCKING = json<object>("review-blocking.json");
+/** REVIEW_MAJOR with a row whose evidence cites no path:line, section nor heading. */
+export const REVIEW_UNCITED = { verdict: "GAPS", rows: [{ severity: "Major", question: "Does a prune with no cut-off refuse, or use a default age?", evidence: "the spec, on the cut-off", target: "F1" }] };
 export const CLEAR = { verdict: "CLEAR", rows: [] };
 const ABSENT = "warning: commands.build_test, commands.test_project, commands.test_integration not in the pack: fill them " +
   "on the Commands line of PRUNE-PLAN.md § 1, or add them to .orkeon/repo.yaml and run /dev-plan prune --replace";

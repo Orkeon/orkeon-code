@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed — one uncited row no longer drops the whole review
+
+- When a finding of the reviewer cited no `path:line`, `§` section or heading even after the second try, the whole
+  review was set aside ("review: not run (unparsable: …)"), its other rows and any Blocking question with it. The row
+  is now kept, its evidence marked `(no citation)`. This holds for the reviews of `/dev-spec`, `/dev-change`,
+  `/dev-plan` and `/dev-batches`.
+
 ### Fixed — `/dev-plan` keeps a "nothing else changes" rule inside the batch it guards
 
 - The planner could make a batch of a rule that only keeps a behaviour as it is ("quiet changes printing only"). Such

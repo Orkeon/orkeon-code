@@ -179,7 +179,9 @@ ici : le comportement d'abord, puis le texte, puis son marqueur.
 - Le relecteur traque les trous que l'auteur a laissés ouverts et ne fait que regarder : il ne modifie aucun
   fichier, ne lance aucune commande, et le code consigne ce qu'il rapporte.
 - Chaque constat est une phrase qui finit par une question que tranche un oui, un non ou un choix parmi les options
-  listées, et il cite un `path:line` qu'il a ouvert ou une section des fichiers, faute de quoi il est écarté.
+  listées, et il cite un `path:line` qu'il a ouvert ou une section des fichiers. Le code redemande une fois un
+  constat sans citation ; s'il n'en a toujours pas, il est gardé, sa preuve marquée `(no citation)`, pour qu'une
+  seule ligne n'écarte jamais toute la relecture.
 - Blocking quand toute réponse remanierait un cas d'usage, une règle, les données, un état, le périmètre ou un choix
   de conception, Major quand une hypothèse consignée suffit, et Major quand il hésite entre les deux.
 - Avant de demander, il cherche la réponse dans le reste du matériau (les autres fichiers que nomme le brief, le

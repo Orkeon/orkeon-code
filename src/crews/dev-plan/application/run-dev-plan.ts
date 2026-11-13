@@ -20,7 +20,7 @@ import type { PlanSource } from "../../../shared/domain/dev/spec-format.ts";
 import { parseBatchSheet, parseGlobalPlan } from "../../../shared/domain/dev/plan-format.ts";
 import { planSelfCheck } from "../../../shared/domain/dev/plan-checks.ts";
 import { REVIEWER_CHARTER } from "../../../shared/domain/dev/reviewer-charter.ts";
-import { REVIEW_ANSWER_SCHEMA, checkReviewAnswer } from "../../../shared/domain/dev/review-answer.ts";
+import { REVIEW_ANSWER_SCHEMA, reviewChecks } from "../../../shared/domain/dev/review-answer.ts";
 import type { ReviewAnswer } from "../../../shared/domain/dev/review-answer.ts";
 import { reviewSystem } from "../../../shared/domain/dev/prompts.ts";
 import { buildReviewAnswerPrompt, buildReviewBrief } from "../../../shared/domain/dev/review-brief.ts";
@@ -395,7 +395,7 @@ export async function runDevPlan(input: DevPlanInputs, deps: DevPlanDeps): Promi
     }),
     schema: REVIEW_ANSWER_SCHEMA,
     answerPrompt: (reply, problems) => buildReviewAnswerPrompt(reply, problems, targets),
-    check: (v) => checkReviewAnswer(v, { targets }),
+    ...reviewChecks(targets),
   }, deps.route);
 
   // 13. Review rows into the files; the review is never run again.

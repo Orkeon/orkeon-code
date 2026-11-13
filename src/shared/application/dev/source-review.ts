@@ -5,7 +5,7 @@ import type { Llm } from "../ports.ts";
 import { runSubAgent } from "../agents/run-sub-agent.ts";
 import type { ActRoute } from "../agents/route-agent.ts";
 import { REVIEWER_CHARTER } from "../../domain/dev/reviewer-charter.ts";
-import { REVIEW_ANSWER_SCHEMA, checkReviewAnswer } from "../../domain/dev/review-answer.ts";
+import { REVIEW_ANSWER_SCHEMA, reviewChecks } from "../../domain/dev/review-answer.ts";
 import type { ReviewAnswer } from "../../domain/dev/review-answer.ts";
 import { reviewSystem } from "../../domain/dev/prompts.ts";
 import { buildReviewAnswerPrompt, buildReviewBrief } from "../../domain/dev/review-brief.ts";
@@ -43,7 +43,7 @@ export async function reviewSource(
     }),
     schema: REVIEW_ANSWER_SCHEMA,
     answerPrompt: (reply, problems) => buildReviewAnswerPrompt(reply, problems, targets),
-    check: (v) => checkReviewAnswer(v, { targets }),
+    ...reviewChecks(targets),
   }, route);
   if (!outcome.ok) return { ran: false, reason: `${outcome.reason}: ${outcome.problems[0] ?? "no detail"}` };
   const review = outcome.value;

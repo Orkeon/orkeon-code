@@ -2,11 +2,12 @@
 // check that turns the extraction into a ReviewAnswer or the list of what is wrong
 // with it. Pure, no IO. Only two severities exist: wording is never reported, so a
 // review has no Minor row. Each row targets what the caller says it may (in plan
-// mode the global plan or one of its batches) and cites where it comes from.
+// mode the global plan or one of its batches) and cites where it comes from. Once re-asked, a row whose evidence
+// still cites nothing is kept, marked NO_CITATION, rather than one row dropping the whole review (reviewChecks).
 
 import type { Checked } from "../agents/charter.ts";
 import {
-  ANSWER_NOT_AN_OBJECT, atMostRows, QUESTION_EMPTY, QUESTION_NO_MARK, questionLongerThan, ROWS_MUST_BE_A_LIST,
+  ANSWER_NOT_AN_OBJECT, atMostRows, NO_CITATION, QUESTION_EMPTY, QUESTION_NO_MARK, questionLongerThan, ROWS_MUST_BE_A_LIST,
   rowEvidenceCitesNothing, rowEvidenceEmpty, rowOneClosedQuestion, rowRepeats, rowSeverityMustBe, rowTargetNotOneOf,
   rowTwoTargets, VERDICT_CLEAR_OR_GAPS,
 } from "./messages.ts";
@@ -16,7 +17,11 @@ export interface ReviewRow { severity: ReviewSeverity; question: string; evidenc
 export interface ReviewAnswer { verdict: "CLEAR" | "GAPS"; rows: ReviewRow[] }
 /** What a row may target. Plan mode: ["plan", "F1", …, "Fn"]. A target is one of them, alone or followed by a
  *  qualifier (`F2 (step 1)` is F2); one that names two of them is refused. */
-export interface ReviewCheckContext { targets: readonly string[] }
+export interface ReviewCheckContext {
+  targets: readonly string[];
+  /** Keep a row whose evidence cites nothing, marked NO_CITATION, instead of refusing it (the last try). */
+  uncitedKept?: boolean;
+}
 
 export const MAX_REVIEW_ROWS = 12;
 const MAX_QUESTION_CHARS = 300;
@@ -110,9 +115,12 @@ function checkRow(value: unknown, k: number, ctx: ReviewCheckContext, problems: 
   const question = cell(text(item.question));
   const fault = questionFault(question);
   if (fault !== undefined) problems.push(rowOneClosedQuestion(k, fault));
-  const evidence = cell(text(item.evidence));
+  let evidence = cell(text(item.evidence));
   if (evidence === "") problems.push(rowEvidenceEmpty(k));
-  else if (!citesSource(evidence)) problems.push(rowEvidenceCitesNothing(k));
+  else if (!citesSource(evidence)) {
+    if (ctx.uncitedKept === true) evidence = `${evidence} ${NO_CITATION}`;
+    else problems.push(rowEvidenceCitesNothing(k));
+  }
   const named = text(item.target);
   const target = targetId(named, ctx.targets);
   if (target === null) problems.push(rowTargetNotOneOf(k, named, targetList(ctx.targets)));
@@ -152,4 +160,14 @@ export function checkReviewAnswer(value: unknown, ctx: ReviewCheckContext): Chec
 
   if (problems.length > 0) return { ok: false, problems };
   return { ok: true, value: { verdict, rows } };
+}
+
+/** The checks of a review over `targets`: the first try refuses an uncited row, the last one keeps it marked. */
+export function reviewChecks(targets: readonly string[]): {
+  check: (value: unknown) => Checked<ReviewAnswer>; lastCheck: (value: unknown) => Checked<ReviewAnswer>;
+} {
+  return {
+    check: (value) => checkReviewAnswer(value, { targets }),
+    lastCheck: (value) => checkReviewAnswer(value, { targets, uncitedKept: true }),
+  };
 }
