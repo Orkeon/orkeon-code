@@ -1,8 +1,10 @@
 // An error as one line of text: the whole message, its line breaks and runs of blanks made single spaces, cut at
 // ERROR_TEXT_CHARS. A model's reply the runtime could not parse is quoted after a line break ("Raw: {\n  …"), so
-// keeping the first line alone dropped what was wrong with it, for the person and for the re-ask. Pure.
+// keeping the first line alone dropped what was wrong with it, for the person and for the re-ask. Since Orkeon #353
+// that message gives the finish reason, the tokens, then the first and the last 200 characters of the reply: the
+// cut leaves room for all of it, the end of a reply cut short included. Pure.
 
-export const ERROR_TEXT_CHARS = 400;
+export const ERROR_TEXT_CHARS = 800;
 
 /** The message of `error` (an Error's, else its string), on one line, at most ERROR_TEXT_CHARS characters. */
 export function errorText(error: unknown): string {
