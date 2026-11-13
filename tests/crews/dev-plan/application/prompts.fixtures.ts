@@ -7,6 +7,8 @@ export const PLAN_MARKERS: ReadonlyArray<[string, string]> = [
   ["3 behaviour cut", "cut by behaviour, not by layer"],
   ["4 dependencies", "lists every earlier batch it relies on"],
   ["5 documentation apart", "travel in a separate batch"],
+  ["5 a code batch names its elements", "a code batch names in elements each type or member it adds or changes"],
+  ["5 a rule that keeps a behaviour is a test", "becomes a test of the batch whose code could break it, never a batch of its own"],
   ["6 step count", "between two and five steps of behaviour"],
   ["7 tests per step", "each step brings one test or more"],
   ["8 traced ids", "carried by a test and has a code owner"],

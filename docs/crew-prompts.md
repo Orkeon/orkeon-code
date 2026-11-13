@@ -107,6 +107,9 @@ A prompt change starts here: the behaviour first, then the text, then its marker
   table row or a quote.
 - Batches are cut by behaviour rather than by layer, each keeps the build green and names every earlier batch whose
   file, type, fixture or setting it reuses, and documentation goes in a batch of its own.
+- A code batch names the types and members it adds or changes. A rule that only keeps a behaviour as it is becomes a
+  test of the batch whose code could break it, never a batch of its own; a batch refused for naming no element is
+  told to do one or the other.
 - A batch holds two to five steps of behaviour (code adds the build-and-tests step), each step brings at least one
   test named as the repository names its tests, with the ids it proves, and the test of a documentation step is
   named by the repository's documentation command, else its test command, followed by what the step documents, at
