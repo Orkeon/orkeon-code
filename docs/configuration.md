@@ -43,10 +43,16 @@ Environment variables prefixed `ORKEON_` override the file (`__` separates secti
 | `Llm:Profiles:<name>:MaxRateLimitWait` | The same bound for one named profile of the host, `00:05:00` by default |
 | `Llm:Profiles:<name>:Fallback`, `Llm:Profiles:<name>:FallbackBudgetSeconds` | The profiles a call of `<name>` moves to, in order, when it fails in a way a retry cannot cure: a transport error, a 5xx, a 429 once the retries are spent, a timeout |
 | `Llm:ModelCapabilities:<model id>` | What a model takes: `ReasoningEfforts`, the efforts it accepts (an `effort` a listed model does not take is dropped with a warning; a model listed nowhere gets every effort, with a warning), `Vision`, `AudioInput`, `AudioOutput` |
-| `Llm:Thinking:Enabled` | Reasoning mode, for the providers that have one |
+| `Llm:Thinking:Enabled`, `Llm:Thinking:Effort` | Reasoning mode and how hard the model reasons, for the providers that have one |
 
 What the table leaves out:
 
+- **`Llm:MaxTokens` on a model that always reasons** (GLM-5.3 on Z.AI):
+  - Its reasoning counts against `MaxTokens`. A step that answers in one long JSON, such as the plan of
+    `/dev-plan`, needs room: at 24576 the reply came back cut or empty, at 65536 it fits.
+  - Z.AI refuses `reasoning_effort` `medium` on GLM-5.3 (HTTP 400, code 1210). Leave `Llm:Thinking:Effort` out, or
+    list the efforts the model takes in `Llm:ModelCapabilities:<model id>:ReasoningEfforts` (`low`, `high`, `max`).
+    At `low`, the model hardly reasons, and the plans it writes are refused more often.
 - **`Llm:MaxRateLimitWait`**:
   - A 429, or a 529 with a reset header, waits until the window the provider announces (`retry-after-ms` in
     milliseconds as OpenAI and TypeSafe send it, else `Retry-After`, compared with the provider's reset headers; the
