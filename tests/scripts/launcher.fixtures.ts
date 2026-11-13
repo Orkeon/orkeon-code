@@ -14,6 +14,9 @@ export const GATE = "Orkeon__Security__PermissionGate__Enabled";
 export const START_SCRIPT = "Orkeon__Cli__Session__StartScript";
 export const PERSIST = "Orkeon__Cli__Session__Persist";
 export const SESSIONS_DIR = "ORKEON_Orkeon__Cli__Session__SessionsDirectory";
+/** The runtime's setting naming the embedding model's fingerprint, and where the launchers put it. */
+export const FINGERPRINT = "Orkeon__Embeddings__FingerprintPath";
+export const FINGERPRINT_PATH = "/output/rag/embedding-fingerprint.json";
 export const MEMORY_DIR = "ORKEON_Orkeon__Cli__Memory__RootDirectory";
 
 /** A snippet a launcher must hold, and what it is for. */
@@ -62,6 +65,7 @@ export const DEB_WRAPPER = recorder(
 export const DOTNET = recorder(
   'echo "$(pwd) $*" >> "$RECORD/calls"\n' +
     'printf %s "${ORKEON_ESBUILD_PATH:-}" > "$RECORD/esbuild"\n' +
+    'printf %s "${Orkeon__Embeddings__FingerprintPath:-}" > "$RECORD/fingerprint"\n' +
     'if [ "$1" = build ]; then if [ -n "${DOTNET_BUILD_FAILS:-}" ]; then exit 1; fi; exit 0; fi\n',
 );
 
@@ -545,7 +549,9 @@ export function runCrew(extra: string[], opts: { trusted?: boolean; noDotnet?: b
   try { env = readFileSync(join(base, "record/env"), "utf-8"); } catch { /* never called */ }
   let esbuild: string | null = null;
   try { esbuild = readFileSync(join(base, "record/esbuild"), "utf-8"); } catch { /* never called */ }
-  return { ...r, calls, env, esbuild, project: join(base, "project"), base, root };
+  let fingerprint: string | null = null;
+  try { fingerprint = readFileSync(join(base, "record/fingerprint"), "utf-8"); } catch { /* never called */ }
+  return { ...r, calls, env, esbuild, fingerprint, project: join(base, "project"), base, root };
 }
 
 /** An Orkeon checkout holding the scripting CLI's project, as run-crew.sh's source mode reads it. */
@@ -725,7 +731,7 @@ export const PS1_MODES: readonly Mention[] = [
 ];
 
 /** The variables orkeon-code.ps1 sets by name. */
-export const PS1_SET_VARIABLES = ["ORKEON_ALLOW_EXTERNAL_MOUNTS", "ORKEON_ESBUILD_PATH", "ORKEON_Llm__Model", GATE, START_SCRIPT, PERSIST, SESSIONS_DIR, MEMORY_DIR,
+export const PS1_SET_VARIABLES = ["ORKEON_ALLOW_EXTERNAL_MOUNTS", "ORKEON_ESBUILD_PATH", "ORKEON_Llm__Model", GATE, START_SCRIPT, PERSIST, SESSIONS_DIR, MEMORY_DIR, FINGERPRINT,
   "WHISPER_AUDIO_DIR", "WHISPER_OUT_DIR", "WHISPER_MICROPHONE", "WHISPER_SPEAKER", "ORKEON_MCP__Servers__whisper__Transport",
   "ORKEON_MCP__Servers__whisper__Command", "ORKEON_MCP__Servers__whisper__TrustAnnotations",
   "ORKEON_MCP__Servers__whisper__CallTimeout", "UV_PROJECT_ENVIRONMENT"].sort();
@@ -799,6 +805,12 @@ export const PS1_SESSION_MOUNTS: readonly Mention[] = [
   ["if (-not $env:Orkeon__Cli__Session__Persist) { $env:Orkeon__Cli__Session__Persist = 'true' }", "persistence"],
   ["'-e', 'ORKEON_Orkeon__Cli__Session__SessionsDirectory=/sessions'", "docker mode"],
   ["$runtimeSlug = if ($Mode -eq 'docker') { Get-ProjectSlug '/work/project' } else { $slug }", "the runtime's slug"],
+];
+
+export const PS1_FINGERPRINT: readonly Mention[] = [
+  ["if (-not $env:Orkeon__Embeddings__FingerprintPath) { $env:Orkeon__Embeddings__FingerprintPath = '/output/rag/embedding-fingerprint.json' }", "the default"],
+  [`'-e', "Orkeon__Embeddings__FingerprintPath=$env:Orkeon__Embeddings__FingerprintPath"`, "docker mode"],
+  ["'ORKEON_Orkeon__Cli__Memory__RootDirectory', 'Orkeon__Embeddings__FingerprintPath',", "put back at the end"],
 ];
 
 export const PS1_MEMORY_MOUNT: readonly Mention[] = [

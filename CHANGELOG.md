@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed — nothing of the runtime's left in the project for `/commit` to sweep in
+
+- The launchers and `scripts/run-crew.sh` put the embedding model's fingerprint in
+  `/output/rag/embedding-fingerprint.json` of the state directory, beside the RAG's manifests: the runtime's default,
+  `.orkeon/embedding-fingerprint.json`, was an untracked file in the project, and `/commit` committed it.
+  `Orkeon:Embeddings:FingerprintPath` still names another; the old file can be deleted.
+
 ### Changed — the shell takes one command
 
 - The main loop's prompt says a `shell_command` call is one command, with no pipe, redirection nor chain, and that a

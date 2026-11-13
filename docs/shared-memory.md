@@ -118,7 +118,7 @@ rule that denies `memory_recall` turns these recalls off too.
 - No crew of Orkeon Code declares `memory: true`, so nothing here needs it.
 - The vectors of the index come from the runtime's embedding provider (`Orkeon:Embeddings`, which also takes `mistral`, `azure-openai` and `gemini` as `Provider`, with `ApiKeyEnvVar`, `Endpoint` and
   `ApiVersion`).
-- The runtime records the model in `.orkeon/embedding-fingerprint.json` and refuses to start when it changed
+- The runtime records the model in `/output/rag/embedding-fingerprint.json` (the launchers' choice) and refuses to start when it changed
   ([Getting started](getting-started.md#what-the-agent-writes-in-your-project)).
 - `memory_push` writes a candidate, never an entry: it is offered only where the mode edits, and asked about in
   `default` ([Permissions](permissions.md#modes)).
