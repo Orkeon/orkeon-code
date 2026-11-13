@@ -112,6 +112,9 @@ A prompt change starts here: the behaviour first, then the text, then its marker
   told to do one or the other.
 - A refusal says what to change: one for a length gives the length found beside the limit, one for a signature that
   holds a body quotes it from its `{`. A shell expansion `${…}` is not a body.
+- An anchor refused says why: a folder of the tools' own settings (`.claude/`, `.orkeon/`, the change then said in
+  the step's note), the work folder, or a path that is not relative to the repository's root. A dependency written
+  `B<n>`, the way the refusals name a batch, reads as `F<n>`.
 - A batch holds two to five steps of behaviour (code adds the build-and-tests step), each step brings at least one
   test named as the repository names its tests, with the ids it proves, and the test of a documentation step is
   named by the repository's documentation command, else its test command, followed by what the step documents, at

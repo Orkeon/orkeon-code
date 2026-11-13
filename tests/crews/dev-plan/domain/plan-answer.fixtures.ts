@@ -6,6 +6,7 @@ import {
   LABEL_QUOTE, MAX_BATCHES, MAX_FEATURE, MAX_SIGNATURE, MAX_TEST_NAME, MAX_TITLE, MIN_NA_REASON,
 } from "../../../../src/crews/dev-plan/domain/plan-answer.ts";
 import type { AnchorRef, PlanAnswer, PlanCheckContext } from "../../../../src/crews/dev-plan/domain/plan-answer.ts";
+import { NOT_RELATIVE, TOOLS_FOLDER, WORK_FOLDER } from "../../../../src/crews/dev-plan/domain/messages.ts";
 import { WORKSPACE } from "../../../../src/shared/domain/vfs.ts";
 
 const FIXTURES = new URL("../../../fixtures/dev/plan/", import.meta.url);
@@ -170,6 +171,7 @@ export const RULES_8_TO_12_CASES: readonly RuleCase[] = [
     name: "12: a batch depends on batches named F<n> only", problems: [`${B2}: depends on batch 1, which is not an earlier batch`],
     edit: (a) => { a.batches[1].dependsOn = ["batch 1"]; },
   },
+  { name: "12: a dependency written B<n>, as the refusals name a batch, reads as F<n>", problems: [], edit: (a) => { a.batches[1].dependsOn = ["B1"]; } },
 ];
 
 /** Adds a third batch, a copy of the first with its tests renamed, depending on `dependsOn`. */
@@ -189,16 +191,23 @@ const thirdDotted = (a: PlanAnswer): void => {
   a.batches.push(b);
 };
 
-const UNREACHABLE_PATHS = [".claude/x.ts", ".orkeon/x.ts", "workbench/prune/x.ts", `${WORKSPACE}/src/x.ts`, "src/../x.ts"];
-const SPELT_PATHS = [["./.claude/hooks/x.sh", ".claude/hooks/x.sh"], [".//workbench/prune/x.ts", "workbench/prune/x.ts"], ["src/./../x.ts", "src/../x.ts"]];
+/** A path a plan never anchors, and the reason its refusal gives. */
+const UNREACHABLE_PATHS = [
+  [".claude/x.ts", TOOLS_FOLDER], [".orkeon/repo.yaml", TOOLS_FOLDER], ["workbench/prune/x.ts", WORK_FOLDER],
+  [`${WORKSPACE}/src/x.ts`, NOT_RELATIVE], ["src/../x.ts", NOT_RELATIVE],
+];
+const SPELT_PATHS = [
+  ["./.claude/hooks/x.sh", ".claude/hooks/x.sh", TOOLS_FOLDER], [".//workbench/prune/x.ts", "workbench/prune/x.ts", WORK_FOLDER],
+  ["src/./../x.ts", "src/../x.ts", NOT_RELATIVE],
+];
 
 export const ANCHOR_CASES: readonly RuleCase[] = [
   { name: "13: a ref anchor names a shown entry", problems: [`${B1S3}: anchor I9 is not an inventory entry shown`], edit: (a) => { a.batches[0].steps[2].anchors.tests[0].ref = "I9"; } },
   { name: "13: a ref anchor names nothing else", problems: [`${B1S3}: a ref anchor needs a ref only`], edit: (a) => { a.batches[0].steps[2].anchors.tests[0].path = "tests/x.test.ts"; } },
   { name: "13: a create anchor names a path only", problems: [`${B1S1}: a create anchor needs a path only`], edit: (a) => { a.batches[0].steps[0].anchors.tests[0] = { kind: "create", ref: "I1" }; } },
   { name: "13: an existing anchor names a path", problems: [`${B2S1}: an existing anchor needs a path only`], edit: (a) => { delete a.batches[1].steps[0].anchors.production[0].path; } },
-  ...UNREACHABLE_PATHS.map((path): RuleCase => ({
-    name: `14: a path outside the reach of a plan: ${path}`, problems: [`${B1S1}: ${path} cannot be anchored there`],
+  ...UNREACHABLE_PATHS.map(([path, why]): RuleCase => ({
+    name: `14: a path outside the reach of a plan, refused with its reason: ${path}`, problems: [`${B1S1}: ${path} cannot be anchored there (${why})`],
     edit: (a) => { a.batches[0].steps[0].anchors.production[0].path = path; },
   })),
   { name: "15: a test anchor per step", problems: [`${B1S1}: no test anchor`], edit: (a) => { a.batches[0].steps[0].anchors.tests = []; } },
@@ -214,12 +223,13 @@ export const ANCHOR_CASES: readonly RuleCase[] = [
   { name: "17: two batches sharing a path and not ordered", problems: [`${B1} and ${B3} share src/commands/_lib/memory.ts and neither depends on the other`], edit: third([]) },
   { name: "17: two batches sharing a path, ordered directly", problems: [], edit: third(["F1"]) },
   { name: "17: two batches sharing a path, ordered through others", problems: [], edit: third(["F2"]) },
-  ...SPELT_PATHS.map(([path, shown]): RuleCase => ({
-    name: `checks a path spelt with ./, a doubled / or a \\ as the path it names: ${path}`, problems: [`${B1S1}: ${shown} cannot be anchored there`],
+  { name: "17: two batches sharing a path, ordered by a dependency written B<n>", problems: [], edit: third(["B1"]) },
+  ...SPELT_PATHS.map(([path, shown, why]): RuleCase => ({
+    name: `checks a path spelt with ./, a doubled / or a \\ as the path it names: ${path}`, problems: [`${B1S1}: ${shown} cannot be anchored there (${why})`],
     edit: (a) => { a.batches[0].steps[0].anchors.production[0] = { kind: "create", path }; },
   })),
   {
-    name: "checks a path spelt with a \\ as the path it names", problems: [`${B1S1}: src\\x.ts cannot be anchored there`],
+    name: "checks a path spelt with a \\ as the path it names", problems: [`${B1S1}: src\\x.ts cannot be anchored there (${NOT_RELATIVE})`],
     edit: (a) => { a.batches[0].steps[0].anchors.production[0].path = "src\\x.ts"; },
   },
   {

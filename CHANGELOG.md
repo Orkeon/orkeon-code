@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed — a plan refused for an anchor or a dependency can be mended
+
+- A refused anchor did not say why (`.orkeon/repo.yaml cannot be anchored there`), so the second try repeated it. The
+  refusal now gives the reason: a folder of the tools' own settings (`.claude/`, `.orkeon/`: say the change in the
+  step's note), the work folder, or a path not relative to the repository's root.
+- The refusals name a batch `B1`, while `dependsOn` holds `F1`: a model that copied `B1` had its plan refused again.
+  A dependency written `B<n>` now reads as `F<n>`.
+
 ### Fixed — a refused plan says what to change
 
 - `/dev-plan` refused a plan whose code element held a `{`, and the message ("element 2 holds a body") did not say
