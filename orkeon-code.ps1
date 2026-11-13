@@ -16,7 +16,7 @@
 .NOTES
   Modes: tool (orkeon-repl on PATH, from the full Orkeon release .zip (the .msi has no orkeon-repl), the
   Debian package or the dotnet tool, or $env:ORKEON_REPL) and docker
-  (ghcr.io/orkeon/orkeon-runners:latest, the last release, not the pin). The source mode is only in the
+  (ghcr.io/orkeon/orkeon:latest, the last release, not the pin). The source mode is only in the
   bash launcher. Folder trust, per-project state, sessions, settings, API key, model and $env:ORKEON_CODE_AUDIO_DIR (speech-to-text,
   tool mode): see the header of ./orkeon-code.
 #>
@@ -395,7 +395,7 @@ try {
   # The pin is a commit of Orkeon's main (.orkeon-version, ADR 0013): the tool and docker modes run a release.
   $OrkeonRef = (Get-Content (Join-Path $Root '.orkeon-version') -Raw).Trim()
   $OrkeonPin = $OrkeonRef.Substring(0, 7)
-  $Image = if ($env:ORKEON_CODE_IMAGE) { $env:ORKEON_CODE_IMAGE } else { 'ghcr.io/orkeon/orkeon-runners:latest' }
+  $Image = if ($env:ORKEON_CODE_IMAGE) { $env:ORKEON_CODE_IMAGE } else { 'ghcr.io/orkeon/orkeon:latest' }
   $codeVersion = (Get-Content (Join-Path $Root 'package.json') -Raw | ConvertFrom-Json).version
   # A clone (a .git, or the tests of an unpacked source archive) or an install, whose folder is never written to:
   # an install's state goes under ORKEON_CODE_HOME (%USERPROFILE%\.orkeon-code).
@@ -859,7 +859,7 @@ try {
       throw 'The Docker engine does not answer: start Docker Desktop or the Docker service, then run orkeon-code again. Without Docker, install the orkeon-repl tool (docs/getting-started.md).'
     }
     # Everything under the working directory /work. The image is multi-arch (linux/amd64, linux/arm64).
-    $envArgs = @('-e', 'ORKEON_RUNNER=repl', '-e', 'HOME=/tmp', '-e', 'DOTNET_CLI_HOME=/tmp',
+    $envArgs = @('-e', 'ORKEON_ENTRYPOINT=repl', '-e', 'HOME=/tmp', '-e', 'DOTNET_CLI_HOME=/tmp',
                  '-e', "Orkeon__Security__PermissionGate__Enabled=$env:Orkeon__Security__PermissionGate__Enabled",
                  '-e', "Orkeon__Cli__Session__StartScript=$env:Orkeon__Cli__Session__StartScript",
                  '-e', "Orkeon__Cli__Session__Persist=$env:Orkeon__Cli__Session__Persist",

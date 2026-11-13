@@ -50,9 +50,10 @@ ORKEON_CODE_WORKSPACE=~/src/app bash scripts/run-crew.sh src/crews/project-init/
 
 Le script utilise l'outil `orkeon` (`Orkeon.Scripting.Cli`, nuget.org, nommé par `.config/dotnet-tools.json` ; le
 SDK .NET qui le restaure et le lance est épinglé par `global.json`, comme celui d'Orkeon : `10.0.300` avec
-`rollForward: latestFeature`) ou l'image `orkeon-runners`, sur la fixture de démonstration sauf si
+`rollForward: latestFeature`) ou l'image `orkeon`, sur la fixture de démonstration sauf si
 `ORKEON_CODE_WORKSPACE` en décide autrement. Les deux sont une release : l'outil est sur nuget.org en
-`1.0.0`, qui est l'épingle à ce jour, l'image est `orkeon-runners:latest` (la dernière publiée, `1.0.0-rc.7`, en retard sur l'épingle) ; `ORKEON_CODE_MODE=source ORKEON_SOURCE=<checkout à l'épingle>` le
+`1.0.0`, l'image est `ghcr.io/orkeon/orkeon:latest` (`1.0.0`), l'épingle à ce jour ; l'outil ne porte pas
+d'esbuild, le script prend celui que `npm ci` a installé ; `ORKEON_CODE_MODE=source ORKEON_SOURCE=<checkout à l'épingle>` le
 lance depuis un checkout d'Orkeon, construit sur place. Cet outil lit ses limites de script dans `Orkeon:Scripting:Limits`, pas dans
 le `Orkeon:Cli:ScriptCommands:Limits` du REPL
 ([Configuration](configuration.md#les-settings-dont-orkeon-code-dépend)).

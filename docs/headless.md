@@ -55,7 +55,7 @@ is the only directory of your machine it can write ([SECURITY.md](../SECURITY.md
 
 - `scripts/run-crew.sh` runs one crew outside the REPL: with the `orkeon` tool (`Orkeon.Scripting.Cli` from
   nuget.org, named by `.config/dotnet-tools.json`, needs the .NET 10 SDK) or, without an SDK, with the
-  `orkeon-runners` image.
+  `orkeon` image (`ghcr.io/orkeon/orkeon`).
 - Both run the last release published: `1.0.0` for the tool, which is the pin at this writing, and the last image
   for Docker.
 - `ORKEON_CODE_MODE=source ORKEON_SOURCE=<checkout at the pin>` runs it from an Orkeon checkout instead
@@ -158,7 +158,7 @@ reviewer of its own work.
 Three ways, from the simplest:
 
 1. **As a process, from any language.** Start `orkeon run <crew.ork.ts> --inputs <json>` with the `orkeon` tool or
-   the `orkeon-runners` image, with the mounts and the settings `scripts/run-crew.sh` passes, and read the JSON on
+   the `orkeon` image, with the mounts and the settings `scripts/run-crew.sh` passes, and read the JSON on
    stdout. The script is the reference for the command line; the exit code says whether the result is one. With
    `Orkeon:RunHistory:Enabled` (off for `orkeon run` by default) each run's events are kept under `/runs`
    (`Store` jsonl or sqlite, `RetentionDays` 30), which `orkeon runs list`, `show` and `tail` read.

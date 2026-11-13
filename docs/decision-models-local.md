@@ -21,8 +21,8 @@ profile does not see: the escalation judges an answer, the fallback replaces a c
 ## The runtime: source mode
 
 The pin (`41f5079`) serves Liquid and Kev, and so does the release `1.0.0`, which is that commit: the tool mode on
-`1.0.0` knows `Orkeon:Liquid`, `Orkeon:Kev` and `Orkeon:Decision:Provider`. The docker mode runs the last image
-published, `1.0.0-rc.7` at this writing, which was not tried with them. This page was written in source mode, on an
+`1.0.0` knows `Orkeon:Liquid`, `Orkeon:Kev` and `Orkeon:Decision:Provider`. The docker mode runs the image of
+the last release, `1.0.0` at this writing, the same commit. This page was written in source mode, on an
 Orkeon checkout at the pin or after it ([Getting started](getting-started.md#source-mode-an-orkeon-checkout)):
 
 ```bash

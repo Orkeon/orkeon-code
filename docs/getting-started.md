@@ -84,10 +84,10 @@ under WSL a Windows program is reachable without confinement only, and still rec
   runtime.
 - That commit is the one Orkeon released as `1.0.0`: the [tool mode](#tool-mode-orkeon-repl-installed) (the Debian
   package on the apt `stable` channel, the release archives) runs the pin.
-- The [docker mode](#docker-mode-nothing-to-install-but-docker) runs the last `orkeon-runners` image published,
-  `1.0.0-rc.7` at this writing (no `1.0.0` image is published): it is behind the pin, and `/status` says so
+- The [docker mode](#docker-mode-nothing-to-install-but-docker) runs the image of the last release,
+  `ghcr.io/orkeon/orkeon:latest`, `1.0.0` at this writing: the pin too.
+- When the pin moves on, both modes are behind it until Orkeon's next release, and `/status` says so
   ([ADR 0013](adr/0013-pin-on-orkeon-commit.md)).
-- When the pin moves on, the tool mode is behind it too until Orkeon's next release.
 - The typings are those of the pin ([Development](development.md#typings)).
 
 The launcher picks the first available mode, in this order, unless `--mode` says otherwise.
@@ -129,8 +129,8 @@ overrides it).
 
 ### Docker mode: nothing to install but Docker
 
-The launcher runs `ghcr.io/orkeon/orkeon-runners:latest`, the last image published (`1.0.0-rc.7` at this writing:
-the `1.0.0` image is not published), never the pin (`ORKEON_CODE_IMAGE` names another image), which carries the
+The launcher runs `ghcr.io/orkeon/orkeon:latest`, the image of the last release (`1.0.0` at this writing, which is
+the pin; `ORKEON_CODE_IMAGE` names another image), which carries the
 REPL and esbuild; the image is built for `linux/amd64` and `linux/arm64`, and Docker pulls the one of your machine. The project is mounted in the
 container; on Linux the container runs with your uid, so the files the agent writes belong to you. The shell tool
 runs inside the container.

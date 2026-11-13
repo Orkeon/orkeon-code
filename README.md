@@ -103,7 +103,7 @@ The REPL is one way to run the crews, not the only one.
 - **Autonomous**: in `bypassPermissions` the loop runs a task to the end without a question, under a budget (200 tool
   calls, 30 minutes, 700k context tokens) and the host gate. `scripts/run-crew.sh` runs the same crew in one shot from a shell, a
   cron line or a CI job, and prints its result as JSON.
-- **Embedded**: an application starts the `orkeon` tool (nuget.org) or the `orkeon-runners` image on a crew and reads
+- **Embedded**: an application starts the `orkeon` tool (nuget.org) or the `orkeon` image on a crew and reads
   the JSON; Orkeon's `orkeon-host` daemon can host the crews behind a chat channel or an A2A endpoint. In-process
   .NET embedding waits for the scripting layer to ship as a package.
 

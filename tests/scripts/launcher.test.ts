@@ -24,7 +24,7 @@ import {
   SERVER_CASES, SERVER_LEFT_OUT, MEMORY_DIR, SESSIONS_DIR, SETTINGS_TEXT, SETTINGS_WITH_BLOCK, SLUG_PATHS, SPEECH_TOOL, START_SCRIPT, TOOL_REPL,
   TOOL_START, USER_SETTINGS, WHISPER, audioEnv, bashOf, checkoutHead, ciStarts, corruptHome, crewSource, fullHistory, gitAt, launch, launchWithNode, orkeonCheckoutAtAnotherCommit, orkeonCheckoutBehindThePin,
   leftBeside, linkedFolder, modeStart, mostWhisperArgs, mountOf, mountRoots, namedProjectStart, nestedTrust, orkeonCheckout,
-  pwshOf, read, recorder, removeScratch, runCrew, runPs1ThenPrint, scratchDir, scratchFolder, serverArgs, serverOf,
+  pwshOf, read, recorder, removeScratch, RUN_CREW_ESBUILD, runCrew, runPs1ThenPrint, scratchDir, scratchFolder, serverArgs, serverOf,
   sessionScene, slugOf, sourceModeCalls, sourceModeCallsRestoring, staleLock, startAgain, storeOf, storedFolders, tokenVarsForwarded, toolModeArgs, trustCli, trustOf, twoSessions,
   untrustedStart, upTo, userFile, variablesSaved, variablesSet, whisperArgNames, whisperArgs, whisperEnv, writtenSettings, historyIds,
   FAKE_AUTOMOUNT, FAKE_WSLPATH, HOST_WSLPATH, ON_PLAIN_LINUX, POSIX_LAUNCHES, PS1_LAUNCH_FILE, QUOTED_PROJECT, WSL_LAUNCHES,
@@ -340,7 +340,7 @@ describe("orkeon-code, esbuild in tool mode", () => {
 describe("orkeon-code, docker mode", () => {
   it("runs the last release image, never the pin, multi-arch: no platform forced, no MaxScripts", () => {
     // Arrange
-    const image = "ghcr.io/orkeon/orkeon-runners:latest";
+    const image = "ghcr.io/orkeon/orkeon:latest";
 
     // Act
     const r = launch({ args: ["--mode", "docker"], bin: { docker: recorder() } });
@@ -1756,6 +1756,31 @@ describe("scripts/run-crew.sh checks the folder as the launcher does", () => {
     // Assert
     strictEqual(t.status, 0, t.stderr);
     ok(t.calls.some((c) => c.includes("tool run orkeon run") && c.includes(`${t.project}:${WORKSPACE}:rw`)), t.calls.join("\n"));
+  });
+
+  it("gives the dotnet tool the esbuild npm ci installed, since the tool carries none", () => {
+    // Arrange
+    const extra = ["--inputs", "{}"];
+
+    // Act
+    const t = runCrew(extra, { trusted: true });
+
+    // Assert
+    strictEqual(t.status, 0, t.stderr);
+    strictEqual(t.esbuild, join(t.root, RUN_CREW_ESBUILD));
+  });
+
+  it("stops before the dotnet tool runs when no esbuild is installed", () => {
+    // Arrange
+    const extra = ["--inputs", "{}"];
+
+    // Act
+    const t = runCrew(extra, { trusted: true, noEsbuild: true });
+
+    // Assert
+    strictEqual(t.status, 1);
+    ok(t.stderr.includes("esbuild not found: run 'npm ci'"), t.stderr);
+    deepStrictEqual(t.calls, []);
   });
 
   it("runs an untrusted project with --trust for one run, never forwarded to orkeon run", () => {

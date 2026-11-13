@@ -61,6 +61,7 @@ export const DEB_WRAPPER = recorder(
  *  any other call (the REPL's assembly) is recorded like the other stand-ins. */
 export const DOTNET = recorder(
   'echo "$(pwd) $*" >> "$RECORD/calls"\n' +
+    'printf %s "${ORKEON_ESBUILD_PATH:-}" > "$RECORD/esbuild"\n' +
     'if [ "$1" = build ]; then if [ -n "${DOTNET_BUILD_FAILS:-}" ]; then exit 1; fi; exit 0; fi\n',
 );
 
@@ -509,7 +510,10 @@ export const ciStarts = () =>
 // ── scripts/run-crew.sh ─────────────────────────────────────────────────────
 
 /** Runs a copy of scripts/run-crew.sh on a crew, from a scratch clone, dotnet a stand-in unless `noDotnet`. */
-export function runCrew(extra: string[], opts: { trusted?: boolean; noDotnet?: boolean; env?: Record<string, string> } = {}) {
+/** Where `npm ci` leaves esbuild's binary in a checkout, relative to its root. */
+export const RUN_CREW_ESBUILD = "node_modules/@esbuild/linux-x64/bin/esbuild";
+
+export function runCrew(extra: string[], opts: { trusted?: boolean; noDotnet?: boolean; noEsbuild?: boolean; env?: Record<string, string> } = {}) {
   const base = scratchDir("orkeon-code-run-crew-");
   const root = join(base, "checkout");
   for (const dir of ["scripts", "config", ".git", "src", "bin", "record"].map((d) => (d === "bin" || d === "record" ? join(base, d) : join(root, d)))) mkdirSync(dir, { recursive: true });
@@ -519,6 +523,10 @@ export function runCrew(extra: string[], opts: { trusted?: boolean; noDotnet?: b
   }
   writeFileSync(join(root, "config/appsettings.local.json"), SETTINGS_TEXT);
   writeFileSync(join(root, "src/crew.ork.ts"), "");
+  if (!opts.noEsbuild) {
+    mkdirSync(join(root, RUN_CREW_ESBUILD, ".."), { recursive: true });
+    writeFileSync(join(root, RUN_CREW_ESBUILD), "#!/bin/sh\n");
+  }
   if (!opts.noDotnet) {
     writeFileSync(join(base, "bin/dotnet"), DOTNET);
     chmodSync(join(base, "bin/dotnet"), 0o755);
@@ -535,7 +543,9 @@ export function runCrew(extra: string[], opts: { trusted?: boolean; noDotnet?: b
   try { calls = readFileSync(join(base, "record/calls"), "utf-8").split("\n").filter(Boolean); } catch { /* never called */ }
   let env = "";
   try { env = readFileSync(join(base, "record/env"), "utf-8"); } catch { /* never called */ }
-  return { ...r, calls, env, project: join(base, "project"), base, root };
+  let esbuild: string | null = null;
+  try { esbuild = readFileSync(join(base, "record/esbuild"), "utf-8"); } catch { /* never called */ }
+  return { ...r, calls, env, esbuild, project: join(base, "project"), base, root };
 }
 
 /** An Orkeon checkout holding the scripting CLI's project, as run-crew.sh's source mode reads it. */

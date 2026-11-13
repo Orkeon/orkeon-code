@@ -11,7 +11,7 @@ Thanks for your interest. This guide covers the setup, the rules the code follow
 - [uv](https://docs.astral.sh/uv/), to run and test the speech MCP server (`mcp/whisper/`, Python).
 - To run the agent: an Orkeon checkout at the commit of `.orkeon-version` (the source mode, the reference runtime),
   or a release: `orkeon-repl` at `1.0.0` (the `orkeon` Debian package or an Orkeon release archive), which is the pin
-  at this writing, or the last `orkeon-runners` image published, `1.0.0-rc.7`, behind the pin
+  at this writing, or the image of the last release, `ghcr.io/orkeon/orkeon:latest` (`1.0.0`)
   ([Getting started](docs/getting-started.md)).
 
 ```bash

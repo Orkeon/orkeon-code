@@ -84,10 +84,10 @@ sous WSL un programme Windows n'est joignable que sans confinement, et reçoit e
   de référence.
 - Ce commit est celui qu'Orkeon a publié en `1.0.0` : le [mode tool](#mode-tool--orkeon-repl-installé) (le paquet
   Debian sur le canal apt `stable`, les archives de release) exécute l'épingle.
-- Le [mode docker](#mode-docker--rien-à-installer-sauf-docker) exécute la dernière image `orkeon-runners` publiée,
-  `1.0.0-rc.7` à ce jour (aucune image `1.0.0` n'est publiée) : elle est en retard sur l'épingle, et `/status` le dit
-  ([ADR 0013](../adr/0013-pin-on-orkeon-commit.md)).
-- Quand l'épingle avance, le mode tool est lui aussi en retard jusqu'à la prochaine release d'Orkeon.
+- Le [mode docker](#mode-docker--rien-à-installer-sauf-docker) exécute l'image de la dernière release,
+  `ghcr.io/orkeon/orkeon:latest`, `1.0.0` à ce jour : l'épingle aussi.
+- Quand l'épingle avance, les deux modes sont en retard sur elle jusqu'à la prochaine release d'Orkeon, et `/status`
+  le dit ([ADR 0013](../adr/0013-pin-on-orkeon-commit.md)).
 - Les typings sont ceux de l'épingle ([Développement](development.md#typings)).
 
 Le lanceur prend le premier mode disponible, dans cet ordre, sauf si `--mode` en décide autrement.
@@ -128,8 +128,8 @@ celui que npm a installé (`ORKEON_ESBUILD_PATH` le remplace).
 
 ### Mode docker : rien à installer sauf Docker
 
-Le lanceur exécute `ghcr.io/orkeon/orkeon-runners:latest`, la dernière image publiée (`1.0.0-rc.7` à ce jour :
-l'image `1.0.0` n'est pas publiée), jamais l'épingle (`ORKEON_CODE_IMAGE` nomme une autre image), qui porte le
+Le lanceur exécute `ghcr.io/orkeon/orkeon:latest`, l'image de la dernière release (`1.0.0` à ce jour, qui est
+l'épingle ; `ORKEON_CODE_IMAGE` nomme une autre image), qui porte le
 REPL et esbuild ; l'image est construite pour `linux/amd64` et `linux/arm64`, et Docker tire celle de votre machine. Le projet est monté dans le
 conteneur ; sous Linux, le conteneur tourne avec votre uid, si bien que les fichiers que l'agent écrit vous
 appartiennent. L'outil shell tourne dans le conteneur.

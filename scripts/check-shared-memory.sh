@@ -17,7 +17,7 @@
 # for rag_eval. q13 holds only when the settings set a retrieval score floor
 # (Orkeon:Rag:Retrieval:MinScore); without one every query returns passages.
 #
-# Runner: scripts/run-crew.sh (the pinned tool, else the orkeon-runners image). When that runtime
+# Runner: scripts/run-crew.sh (the pinned tool, else the orkeon image). When that runtime
 # version cannot run, ORKEON_SOURCE names an Orkeon checkout and the probe runs from its sources:
 #   dotnet run --project "$ORKEON_SOURCE/src/scripting/Orkeon.Scripting.Cli" -- run <probe> ...
 set -euo pipefail

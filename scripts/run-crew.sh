@@ -13,7 +13,7 @@
 # The tool is Orkeon.Scripting.Cli from nuget.org, pinned by .config/dotnet-tools.json;
 # with ORKEON_CODE_MODE=source, the same tool built from the Orkeon checkout ORKEON_SOURCE
 # names (`dotnet run --project <checkout>/src/scripting/Orkeon.Scripting.Cli`); without
-# a .NET SDK the orkeon-runners image is used instead. Every way gets the same settings and mounts.
+# a .NET SDK the orkeon image is used instead. Every way gets the same settings and mounts.
 #
 # A project named by ORKEON_CODE_WORKSPACE must be a trusted folder, as for ./orkeon-code (which
 # checks it: `orkeon-code trust check`): asked in a terminal, refused without one (exit 3) unless
@@ -23,7 +23,7 @@ set -euo pipefail
 unset CDPATH
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 # The image is the last release, never the pin (a commit of Orkeon's main, .orkeon-version): ORKEON_CODE_IMAGE names another.
-IMAGE="${ORKEON_CODE_IMAGE:-ghcr.io/orkeon/orkeon-runners:latest}"
+IMAGE="${ORKEON_CODE_IMAGE:-ghcr.io/orkeon/orkeon:latest}"
 
 script="${1:?usage: scripts/run-crew.sh <crew.ork.ts> [orkeon run args]}"
 shift
@@ -69,14 +69,20 @@ if [ "${ORKEON_CODE_MODE:-}" = source ]; then
 fi
 if command -v dotnet >/dev/null 2>&1; then
   cd "$ROOT"
+  # The dotnet tool carries no esbuild: take the one npm ci installed, as ./orkeon-code does.
+  if [ -z "${ORKEON_ESBUILD_PATH:-}" ] && ! command -v esbuild >/dev/null 2>&1; then
+    found="$(find "$ROOT/node_modules/@esbuild" -path '*/bin/esbuild' -type f 2>/dev/null | head -n 1 || true)"
+    [ -n "$found" ] || { echo "run-crew: esbuild not found: run 'npm ci' in $ROOT, or set ORKEON_ESBUILD_PATH" >&2; exit 1; }
+    export ORKEON_ESBUILD_PATH="$found"
+  fi
   dotnet tool restore >/dev/null
   exec dotnet tool run orkeon run "$script" -s "$settings" \
     -m "$workspace:/workspace:rw" "$output:/output:rw" --allow-external-mounts -v 2 "$@"
 fi
-# No SDK: the same tool from the orkeon-runners image. The whole checkout is
+# No SDK: the same tool from the orkeon image. The whole checkout is
 # mounted so the crew's relative imports (src/shared, ...) resolve.
 key_var="$(sed -n 's/.*"ApiKeyEnvVar"[[:space:]]*:[[:space:]]*"\([A-Za-z_][A-Za-z0-9_]*\)".*/\1/p' "$settings" | head -n 1)"
-env_args=(-e ORKEON_RUNNER=orkeon -e HOME=/tmp)
+env_args=(-e ORKEON_ENTRYPOINT=orkeon -e HOME=/tmp)
 for v in ORKEON_Llm__ApiKey ORKEON_Llm__Model "$key_var"; do
   if [ -n "$v" ] && [ -n "${!v:-}" ]; then env_args+=(-e "$v"); fi
 done

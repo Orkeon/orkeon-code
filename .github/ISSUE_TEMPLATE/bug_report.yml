@@ -29,7 +29,7 @@ body:
     attributes:
       label: How you launch it
       options:
-        - ./orkeon-code --mode docker (orkeon-runners image)
+        - ./orkeon-code --mode docker (ghcr.io/orkeon/orkeon image)
         - ./orkeon-code --mode tool (orkeon-repl from the orkeon Debian package)
         - ./orkeon-code --mode tool (orkeon-repl from a release archive)
         - ./orkeon-code --mode tool (orkeon-repl dotnet tool)
