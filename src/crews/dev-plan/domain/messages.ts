@@ -23,7 +23,10 @@ export const refAnchorNeedsRef = (at: string): string => `${at}: a ref anchor ne
 export const anchorNotShown = (at: string, ref: string): string => `${at}: anchor ${ref} is not an inventory entry shown`;
 export const anchorNeedsPath = (at: string, kind: string): string =>
   `${at}: ${kind === "existing" ? "an" : "a"} ${kind} anchor needs a path only`;
-export const cannotBeAnchored = (at: string, path: string): string => `${at}: ${path} cannot be anchored there`;
+export const cannotBeAnchored = (at: string, path: string, why: string): string => `${at}: ${path} cannot be anchored there (${why})`;
+export const TOOLS_FOLDER = "a folder of the tools' own settings, never changed by a plan: anchor the code the step changes and say the setting in the step's note";
+export const WORK_FOLDER = "the work folder holds the plan's own files: anchor the path of the repository the change belongs to";
+export const NOT_RELATIVE = "write it from the repository's root, with / between folders, and no drive nor ..";
 export const anchorPathColon = (at: string, path: string): string => `${at}: anchor path "${path}" holds ":"`;
 export const inInventory = (at: string, path: string): string => `${at}: ${path} is in the inventory: use its ref`;
 export const titleEmpty = (at: string): string => `${at}: the title is empty`;

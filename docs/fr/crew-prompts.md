@@ -123,6 +123,10 @@ ici : le comportement d'abord, puis le texte, puis son marqueur.
   refusé faute d'élément se voit dire de faire l'un ou l'autre.
 - Un refus dit quoi changer : pour une longueur, il donne la longueur trouvée à côté de la limite ; pour une
   signature qui contient un corps, il la cite à partir de son `{`. Une expansion shell `${…}` n'est pas un corps.
+- Un ancrage refusé dit pourquoi et quoi ancrer à la place : un dossier des réglages propres aux outils (`.claude/`,
+  `.orkeon/` : le code que l'étape change, le réglage dit dans la note de l'étape), le dossier de travail (le chemin
+  auquel le changement appartient), ou un chemin qui n'est pas écrit depuis la racine du dépôt avec `/`. Un refus
+  nomme un lot `F<n>`, comme `dependsOn` et le plan rendu.
 - Un lot compte deux à cinq étapes de comportement (le code ajoute l'étape build et tests), chaque étape apporte au
   moins un test nommé comme le dépôt nomme ses tests, avec les ids qu'il prouve, et le test d'une étape de
   documentation est nommé par la commande de documentation du dépôt, à défaut sa commande de test, suivie de ce que

@@ -24,7 +24,7 @@ const nameOf = (path: string): string => path.slice(path.lastIndexOf("/") + 1);
 
 /**
  * `<step>: <path> does not exist` / `<step>: <path> exists: …` / `<step>: anchor "<path>" not checked: …`, the step
- * labelled as the answer check labels it (`B1 "<name>" S2 "<title>"`),
+ * labelled as the answer check labels it (`F1 "<name>" S2 "<title>"`),
  * each once, in plan order. `listings` carries the folders already listed in this run, and gains the new ones.
  */
 export async function checkAnchorPaths(

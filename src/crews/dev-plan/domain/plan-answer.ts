@@ -9,7 +9,7 @@ import type { Checked } from "../../../shared/domain/agents/charter.ts";
 import { DESIGN_RULE_IDS } from "../../../shared/domain/dev/design-rules.ts";
 import type { ChangeKind, SourceKind } from "../../../shared/domain/dev/spec-format.ts";
 import { BUILD_STEP } from "../../../shared/domain/dev/markers.ts";
-import { ANCHOR_KINDS, DESIGN_RULE_ID, ELEMENT_LAYERS, FEATURE_EMPTY, LAYERS_EMPTY, TEST_LEVELS, anchorNeedsPath, anchorNotShown, anchorPathColon, appliedAndNa, batchCount, cannotBeAnchored, docsAndCode, elementHoldsBody, elementTooLong, featureTooLong, holdsBreak, holdsCodeBreak, holdsLabel, inInventory, memberIsNot, missingOrNot, moreProblems, naTwice, naWithoutReason, nameEmpty, nameRepeats, nameTooLong, namesNoId, neitherAppliedNorNa, noCharacterisation, noCodeElement, noCodeOwner, noProductionAnchor, noTest, noTestAnchor, noTestCarries, notBatchOfPlan, notDesignRuleId, notEarlierBatch, notInFirstStep, notUnpinnedRow, ownerIsPath, pinnedNotInPlan, projectEmpty, refAnchorNeedsRef, reuseNotShown, shareUnordered, startsWithMarker, stepCount, titleEmpty, titleIsBuildStep, titleRepeats, titleTooLong, traceNotSourceId, traceTwice } from "./messages.ts";
+import { ANCHOR_KINDS, DESIGN_RULE_ID, ELEMENT_LAYERS, FEATURE_EMPTY, LAYERS_EMPTY, NOT_RELATIVE, TEST_LEVELS, TOOLS_FOLDER, WORK_FOLDER, anchorNeedsPath, anchorNotShown, anchorPathColon, appliedAndNa, batchCount, cannotBeAnchored, docsAndCode, elementHoldsBody, elementTooLong, featureTooLong, holdsBreak, holdsCodeBreak, holdsLabel, inInventory, memberIsNot, missingOrNot, moreProblems, naTwice, naWithoutReason, nameEmpty, nameRepeats, nameTooLong, namesNoId, neitherAppliedNorNa, noCharacterisation, noCodeElement, noCodeOwner, noProductionAnchor, noTest, noTestAnchor, noTestCarries, notBatchOfPlan, notDesignRuleId, notEarlierBatch, notInFirstStep, notUnpinnedRow, ownerIsPath, pinnedNotInPlan, projectEmpty, refAnchorNeedsRef, reuseNotShown, shareUnordered, startsWithMarker, stepCount, titleEmpty, titleIsBuildStep, titleRepeats, titleTooLong, traceNotSourceId, traceTwice } from "./messages.ts";
 import {
   ANSWER_NOT_AN_OBJECT as NOT_AN_OBJECT, fieldEmpty, notASourceId as notSourceId,
 } from "../../../shared/domain/dev/messages.ts";
@@ -73,6 +73,10 @@ export const MIN_NA_REASON = 10;
 const LEVELS: readonly TestLevel[] = ["unit", "integration", "pinned"];
 const LAYERS: readonly ElementLayer[] = ["domain", "application", "adapter", "test"];
 const KINDS: readonly AnchorKind[] = ["ref", "create", "existing"];
+/** The folders that hold the tools' own settings: a plan never anchors there. */
+const TOOLS_FOLDERS = [".claude", ".orkeon"];
+/** Whether `path` is `folder` or lies under it. */
+const within = (path: string, folder: string): boolean => path === folder || path.startsWith(`${folder}/`);
 const DOC_PATH = /\.(md|mdx|rst|adoc|txt)$/i;
 const LABELS = /Applied rules|Non-applicable rules/;
 const LINE_BREAK = /\r\n|\r|\n/;
@@ -444,9 +448,9 @@ const bodyOpening = (signature: string): number => {
   for (let i = 0; i < signature.length; i++) if (signature[i] === "{" && signature[i - 1] !== "$") return i;
   return -1;
 };
-/** `B1 "<name>"`, the name left out when empty. */
-const batchLabel = (b: PlanBatch, k: number): string => `B${k + 1}${quoted(b.name)}`;
-/** `B1 "<name>" S2 "<title>"`; the anchor path check labels its problems the same way. */
+/** `F1 "<name>"`, the name left out when empty: a batch is named as dependsOn and the rendered plan name it. */
+const batchLabel = (b: PlanBatch, k: number): string => `F${k + 1}${quoted(b.name)}`;
+/** `F1 "<name>" S2 "<title>"`; the anchor path check labels its problems the same way. */
 export const stepLabel = (b: PlanBatch, k: number, j: number): string => `${batchLabel(b, k)} S${j + 1}${quoted(b.steps[j]?.title ?? "")}`;
 const testLabel = (b: PlanBatch, k: number, j: number, m: number): string => `${stepLabel(b, k, j)} T${m + 1}`;
 /** `design row 2 (<first id>)`, the id left out when the row has none. */
@@ -537,11 +541,11 @@ function anchorProblems(a: AnchorRef, at: string, ctx: PlanCheckContext, invento
   if (a.path === undefined || a.ref !== undefined) return [anchorNeedsPath(at, a.kind)];
   const path = a.path;
   const work = ctx.workFolder?.replace(/^\/+|\/+$/g, "");
-  const banned = [".claude/", ".orkeon/", ...(work ? [`${work}/`] : [])];
-  if (path === "" || path.startsWith("/") || /^[A-Za-z]:/.test(path) || path.includes("\\") || path.split("/").includes("..") ||
-      banned.some((p) => path.startsWith(p))) {
-    return [cannotBeAnchored(at, path)];
+  if (path === "" || path.startsWith("/") || /^[A-Za-z]:/.test(path) || path.includes("\\") || path.split("/").includes("..")) {
+    return [cannotBeAnchored(at, path, NOT_RELATIVE)];
   }
+  if (TOOLS_FOLDERS.some((f) => within(path, f))) return [cannotBeAnchored(at, path, TOOLS_FOLDER)];
+  if (work && within(path, work)) return [cannotBeAnchored(at, path, WORK_FOLDER)];
   if (path.includes(":")) return [anchorPathColon(at, path)];
   if (a.kind === "existing" && inventoryPaths.has(path)) return [inInventory(at, path)];
   return [];
