@@ -14,6 +14,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `.orkeon/embedding-fingerprint.json`, was an untracked file in the project, and `/commit` committed it.
   `Orkeon:Embeddings:FingerprintPath` still names another; the old file can be deleted.
 
+### Changed — the shell takes one command
+
+- The main loop's prompt says a `shell_command` call is one command, with no pipe, redirection nor chain, and that a
+  file is read with `file_read`: on the runtime's allow-list, `tail … | od -c` was refused call after call.
+
 ### Added — the act of a reviewer or of the auditor routed to a profile
 
 - With `route.agents` on, the decision model also routes, inside a crew, the act of the reviewer of `/dev-spec`,

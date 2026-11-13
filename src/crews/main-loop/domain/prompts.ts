@@ -169,8 +169,8 @@ export function toolRealities(f: ToolRealityFlags): string {
   }
   if (f.shell) {
     lines.push(
-      "`shell_command` runs only the commands the host allows, and git may be limited to " +
-        "reading: a refused command is not allowed here, not a typo to retry.",
+      "`shell_command` runs one allowed command, no `|`, `>`, `;`; git may be read-only. " +
+        "Never retry a refusal. Read a file with `file_read`, not `cat`.",
     );
   }
   if (f.web) {

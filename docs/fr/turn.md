@@ -169,6 +169,8 @@ un changement comme un diff.
     les exécute ensemble.
   - Un appel qui a besoin d'un résultat antérieur l'attend.
   - `shell_command` applique une liste blanche, et git peut être en lecture seule.
+  - Un appel au shell est une seule commande : ni tube, ni redirection, ni enchaînement, que le runtime refuse. Un
+    fichier se lit avec `file_read` (une plage pour sa fin), jamais avec `cat`, `tail` ou `wc` par le shell.
   - Là où un outil web est offert (`web_search`, `http_api`, `web_scrape`, `scrape_element`, `firefox`), le projet
     passe avant le web : un port, une commande ou une image que sa documentation et ses réglages d'exemple donnent
     l'emporte sur une valeur trouvée sur le web, et une valeur lue nulle part n'est pas donnée comme un fait.
