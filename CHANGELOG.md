@@ -20,9 +20,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - `.orkeon-version` names `41f5079`, Orkeon `main` after #347: the commit Orkeon released as 1.0.0. The tool mode on
   that release (the apt `stable` channel, the archives) runs the pin; the guides and `.config/dotnet-tools.json` name
-  `1.0.0`. The docker mode runs the last image published, `1.0.0-rc.7`, behind the pin.
+  `1.0.0`.
 - Since #333 an LLM call takes a profile of the host (`llm: { profile }`), where it took a model of the agent's
   provider only.
+
+### Fixed — the docker mode runs Orkeon's 1.0.0 image
+
+- The launchers, `scripts/run-crew.sh` and `scripts/sync-typings.sh` run `ghcr.io/orkeon/orkeon:latest` (1.0.0, the
+  pin) and choose its entry point with `ORKEON_ENTRYPOINT`: the old `orkeon-runners` image stopped at rc.5 and the new
+  one ignored `ORKEON_RUNNER`, so `--mode docker` printed the help of the `orkeon` tool.
+- `scripts/run-crew.sh` on the `orkeon` dotnet tool takes the esbuild `npm ci` installed, as `./orkeon-code` does:
+  the tool carries none, and every crew failed on `Esbuild binary not found`.
 
 ### Added — the launcher downloads the runtime when the machine has none
 

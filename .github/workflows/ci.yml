@@ -10,7 +10,7 @@
 # and pytest only; the model is never loaded).
 #
 # The runtime smoke (the Orkeon host loading the command surface) lives in
-# runtime-smoke.yml: it needs the orkeon-runners image.
+# runtime-smoke.yml: it needs an Orkeon checkout at the pin.
 name: CI
 on:
   push:

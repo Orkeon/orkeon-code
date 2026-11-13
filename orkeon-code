@@ -38,7 +38,7 @@
 # Modes (auto-detected in this order, or forced with --mode / ORKEON_CODE_MODE):
 #   tool    orkeon-repl on PATH (from the orkeon Debian package, an Orkeon release archive, or the
 #           dotnet tool), or ORKEON_REPL="<command line>" (e.g. "dotnet /opt/orkeon/Orkeon.ConsoleApp.dll")
-#   docker  ghcr.io/orkeon/orkeon-runners:latest (the last release, not the pin), nothing else to install
+#   docker  ghcr.io/orkeon/orkeon:latest (the last release, not the pin), nothing else to install
 #   source  an Orkeon checkout named by ORKEON_SOURCE, built there with `dotnet build`, run from the project
 # With none of them, an install downloads the runtime of its pin once, after asking, into ~/.orkeon-code/runtime
 # (tool mode from then on): `orkeon-code runtime install` does it without starting, ORKEON_CODE_RUNTIME_DOWNLOAD=1
@@ -77,7 +77,7 @@ ROOT="$(cd "$(dirname "$SELF")" && pwd -P)"
 ORKEON_REF="$(tr -d '[:space:]' < "$ROOT/.orkeon-version")"
 ORKEON_PIN="${ORKEON_REF:0:7}"
 CODE_VERSION="$(sed -n 's/.*"version": *"\([^"]*\)".*/\1/p' "$ROOT/package.json" | head -n 1)"
-IMAGE="${ORKEON_CODE_IMAGE:-ghcr.io/orkeon/orkeon-runners:latest}"
+IMAGE="${ORKEON_CODE_IMAGE:-ghcr.io/orkeon/orkeon:latest}"
 # A clone (a .git, folder or worktree file, or the tests of an unpacked source archive) or an
 # install, whose folder is never written to.
 if [ -e "$ROOT/.git" ] || [ -d "$ROOT/tests" ]; then KIND=clone; else KIND=install; fi
@@ -991,7 +991,7 @@ case "$MODE" in
       || die "the Docker engine does not answer: start Docker Desktop or the Docker service, then run orkeon-code again. Without Docker, install the orkeon-repl tool (docs/getting-started.md)."
     # Everything the REPL reads sits under its working directory /work. The
     # image is multi-arch (linux/amd64, linux/arm64): docker pulls the host's.
-    env_args=(-e ORKEON_RUNNER=repl -e HOME=/tmp -e DOTNET_CLI_HOME=/tmp
+    env_args=(-e ORKEON_ENTRYPOINT=repl -e HOME=/tmp -e DOTNET_CLI_HOME=/tmp
       -e "Orkeon__Security__PermissionGate__Enabled=$Orkeon__Security__PermissionGate__Enabled"
       -e "Orkeon__Cli__Session__StartScript=$Orkeon__Cli__Session__StartScript"
       -e "Orkeon__Cli__Session__Persist=$Orkeon__Cli__Session__Persist"

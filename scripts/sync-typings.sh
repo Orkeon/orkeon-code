@@ -13,7 +13,7 @@
 #   2. the local tool manifest (.config/dotnet-tools.json, Orkeon.Scripting.Cli on
 #      nuget.org, the last release): typings of that release, not of the pin, with
 #      a warning;
-#   3. the orkeon-runners image of the last release when there is no .NET SDK, the
+#   3. the orkeon image of the last release when there is no .NET SDK, the
 #      same warning.
 #
 #   ORKEON_SOURCE=<path to an Orkeon checkout> bash scripts/sync-typings.sh
@@ -45,8 +45,8 @@ elif command -v dotnet >/dev/null 2>&1; then
   FROM="Orkeon $manifest_version (the tool manifest)"
 elif command -v docker >/dev/null 2>&1; then
   echo "sync-typings: warning: typings of the last release image, not of the pin ${REF:0:7}: set ORKEON_SOURCE to a checkout at the pin." >&2
-  docker run --rm -e ORKEON_RUNNER=orkeon -v "$OUT:/out" \
-    "${ORKEON_CODE_IMAGE:-ghcr.io/orkeon/orkeon-runners:latest}" typings --out /out
+  docker run --rm -e ORKEON_ENTRYPOINT=orkeon -v "$OUT:/out" \
+    "${ORKEON_CODE_IMAGE:-ghcr.io/orkeon/orkeon:latest}" typings --out /out
   FROM="the last Orkeon release image"
 else
   echo "sync-typings: needs the .NET SDK (dotnet tool) or Docker." >&2

@@ -3,7 +3,7 @@
 - **Questions, ideas, show and tell**: [GitHub Discussions](https://github.com/Orkeon/orkeon-code/discussions).
 - **Bugs and feature requests**: [issues](https://github.com/Orkeon/orkeon-code/issues/new/choose), with the
   templates provided.
-- **The runtime** (tools, VFS, LLM providers, the REPL host, the `orkeon-runners` image):
+- **The runtime** (tools, VFS, LLM providers, the REPL host, the `orkeon` image):
   [Orkeon/orkeon](https://github.com/Orkeon/orkeon/issues).
 - **Security**: never in public, see [SECURITY.md](SECURITY.md).
 

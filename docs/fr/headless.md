@@ -57,7 +57,7 @@ le projet est le seul dossier de votre machine qu'il peut écrire ([SECURITY.md]
 ## En un coup depuis un shell
 
 - `scripts/run-crew.sh` lance un crew hors du REPL : avec l'outil `orkeon` (`Orkeon.Scripting.Cli` de nuget.org,
-  nommé par `.config/dotnet-tools.json`, qui demande le SDK .NET 10) ou, sans SDK, avec l'image `orkeon-runners`.
+  nommé par `.config/dotnet-tools.json`, qui demande le SDK .NET 10) ou, sans SDK, avec l'image `orkeon` (`ghcr.io/orkeon/orkeon`).
 - Les deux exécutent la dernière release publiée : `1.0.0` pour l'outil, qui est l'épingle à ce jour, et la dernière
   image pour Docker.
 - `ORKEON_CODE_MODE=source ORKEON_SOURCE=<checkout à l'épingle>` le lance à la place depuis un checkout d'Orkeon
@@ -169,7 +169,7 @@ un opérateur avec les droits de son mode, pas le relecteur de son propre travai
 Trois voies, de la plus simple :
 
 1. **Comme un processus, depuis n'importe quel langage.** Lancez `orkeon run <crew.ork.ts> --inputs <json>` avec
-   l'outil `orkeon` ou l'image `orkeon-runners`, avec les montages et les settings que `scripts/run-crew.sh` passe, et
+   l'outil `orkeon` ou l'image `orkeon`, avec les montages et les settings que `scripts/run-crew.sh` passe, et
    lisez le JSON sur stdout. Le script est la référence pour la ligne de commande ; le code de sortie dit si le
    résultat en est un. Avec `Orkeon:RunHistory:Enabled` (éteint pour `orkeon run` par défaut), les
    événements de chaque exécution sont gardés sous `/runs` (`Store` jsonl ou sqlite, `RetentionDays` 30), que

@@ -22,8 +22,8 @@ réponse.
 ## Le runtime : le mode source
 
 L'épingle (`41f5079`) sert Liquid et Kev, et la release `1.0.0`, qui est ce commit, aussi : le mode tool sur
-`1.0.0` connaît `Orkeon:Liquid`, `Orkeon:Kev` et `Orkeon:Decision:Provider`. Le mode docker exécute la dernière
-image publiée, `1.0.0-rc.7` à ce jour, qui n'a pas été essayée avec eux. Cette page a été écrite en mode source, sur
+`1.0.0` connaît `Orkeon:Liquid`, `Orkeon:Kev` et `Orkeon:Decision:Provider`. Le mode docker exécute l'image
+de la dernière release, `1.0.0` à ce jour, le même commit. Cette page a été écrite en mode source, sur
 un checkout d'Orkeon à l'épingle ou après ([Premiers pas](getting-started.md#mode-source--un-checkout-dorkeon)) :
 
 ```bash

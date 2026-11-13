@@ -4,7 +4,7 @@ Orkeon Code
 Copyright (c) 2026 Orkeon Contributors. Licensed under the MIT License (see [LICENSE.md](LICENSE.md)).
 
 Orkeon Code runs on the [Orkeon](https://github.com/Orkeon/orkeon) runtime (MIT), which is distributed separately
-(the release archives, the `orkeon-runners` container image, the apt package, the .NET tools) with its own
+(the release archives, the `orkeon` container image, the apt package, the .NET tools) with its own
 third-party notices.
 
 This repository ships TypeScript sources, and the Python sources of its speech MCP server (`mcp/whisper/`). Its

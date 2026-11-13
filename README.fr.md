@@ -109,7 +109,7 @@ Le REPL est une façon de lancer les crews, pas la seule.
 - **Autonome** : en `bypassPermissions`, la boucle mène une tâche jusqu'au bout sans poser de question, sous un budget
   (200 appels d'outils, 30 minutes, 700k tokens de contexte) et la garde du runtime. `scripts/run-crew.sh` lance le même crew en un
   coup depuis un shell, une ligne de cron ou un job de CI, et imprime son résultat en JSON.
-- **Embarqué** : une application lance l'outil `orkeon` (nuget.org) ou l'image `orkeon-runners` sur un crew et lit le
+- **Embarqué** : une application lance l'outil `orkeon` (nuget.org) ou l'image `orkeon` sur un crew et lit le
   JSON ; le démon `orkeon-host` d'Orkeon peut héberger les crews derrière un canal de chat ou un point d'accès A2A.
   L'intégration .NET en processus attend que la couche de scripting soit publiée en paquet.
 
