@@ -150,6 +150,8 @@ prompt as the model reads it, to review a change as a diff.
     once.
   - A call that needs an earlier result waits for it.
   - `shell_command` runs an allow-list, and git may be read-only.
+  - A shell call is one command: no pipe, redirection nor chaining, which the runtime refuses. A file is read with
+    `file_read` (a range for its end), never with `cat`, `tail` or `wc` through the shell.
   - Where a web tool is offered (`web_search`, `http_api`, `web_scrape`, `scrape_element`, `firefox`), the project
     comes before the web: a port, a command or an image its documentation and example settings give wins over one
     found on the web, and a value read nowhere is not given as a fact.

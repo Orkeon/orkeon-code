@@ -237,7 +237,19 @@ describe("buildStaticHeader", () => {
     ok(write.includes("A long result is cut before you see it"), write);
     ok(write.includes("replaces the whole file"), "file_write's semantics");
     ok(write.includes("with `offset` and `limit`"), "a later part of a file is read by file_read itself");
-    ok(write.includes("only the commands the host allows"), "the shell's allow-list");
+    ok(write.includes("runs one allowed command"), "the shell's allow-list");
+  });
+
+  it("tells the shell takes one command per call and a file is read with file_read", () => {
+    // Arrange
+    const opts = { toolNames: ["file_read", "shell_command"] };
+
+    // Act
+    const header = buildStaticHeader(opts);
+
+    // Assert
+    ok(header.includes("runs one allowed command, no `|`, `>`, `;`"), header);
+    ok(header.includes("Read a file with `file_read`, not `cat`"), header);
   });
 
   it("tells the model to read a file by range, since every call pays the context again", () => {
@@ -260,7 +272,7 @@ describe("buildStaticHeader", () => {
 
     // Assert
     ok(!read.includes("replaces the whole file"), read);
-    ok(!read.includes("only the commands the host allows"), read);
+    ok(!read.includes("runs one allowed command"), read);
     ok(read.includes("with `offset` and `limit`"), "the read-only modes read a later part the same way");
   });
 
