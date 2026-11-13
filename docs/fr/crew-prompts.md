@@ -118,6 +118,9 @@ ici : le comportement d'abord, puis le texte, puis son marqueur.
 - Les lots se découpent par comportement plutôt que par couche, chacun garde le build vert et nomme chaque lot
   antérieur dont il réutilise un fichier, un type, une fixture ou un réglage, et la documentation part dans un lot à
   elle.
+- Un lot de code nomme les types et les membres qu'il ajoute ou modifie. Une règle qui garde seulement un
+  comportement tel qu'il est devient un test du lot dont le code pourrait le casser, jamais un lot à elle ; un lot
+  refusé faute d'élément se voit dire de faire l'un ou l'autre.
 - Un lot compte deux à cinq étapes de comportement (le code ajoute l'étape build et tests), chaque étape apporte au
   moins un test nommé comme le dépôt nomme ses tests, avec les ids qu'il prouve, et le test d'une étape de
   documentation est nommé par la commande de documentation du dépôt, à défaut sa commande de test, suivie de ce que

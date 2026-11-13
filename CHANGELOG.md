@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed — `/dev-plan` keeps a "nothing else changes" rule inside the batch it guards
+
+- The planner could make a batch of a rule that only keeps a behaviour as it is ("quiet changes printing only"). Such
+  a batch names no code element, so the plan was refused, twice. The instructions now say that such a rule is a test
+  of the batch whose code could break it. The refusal says how to fix it: name the elements, or move the tests.
+
 ### Fixed — `/compact` prints one check mark
 
 - `/compact` printed `✓ ✓ compacted …`: the command added a mark to a line that has its own. A skipped or failed

@@ -240,7 +240,7 @@ export const RULES_18_TO_24_CASES: readonly RuleCase[] = [
   { name: "18: reuse names shown entries", problems: ["reuse: I9 is not an inventory entry shown"], edit: (a) => { a.reuse.push("I9"); } },
   { name: "19: a design row names a batch of the plan", problems: [`${DESIGN_ROW_1}: batch 3 is not a batch of the plan`], edit: (a) => { a.design[0].batch = 3; } },
   { name: "19: a design row names ids of the source", problems: [`${DESIGN_ROW_1}: BR-09 is not an id of the source`], edit: (a) => { a.design[0].ids.push("BR-09"); } },
-  { name: "20: a code batch has an element", problems: [`${B1}: no code element`], edit: (a) => { a.batches[0].elements = []; } },
+  { name: "20: a code batch has an element", problems: [`${B1}: no code element; name in elements what this batch adds or changes, or move its tests to the batch whose code they guard`], edit: (a) => { a.batches[0].elements = []; } },
   { name: "20: a signature is at most 200 characters", problems: [`${B1}: element 2 is longer than 200 characters`], edit: (a) => { a.batches[0].elements[1].signature = "S".repeat(201); } },
   { name: "21: a signature holds no body", problems: [`${B1}: element 2 holds a body`], edit: (a) => { a.batches[0].elements[1].signature = "PruneResult { kept }"; } },
   { name: "24: the feature is not empty", problems: ["feature is empty"], edit: (a) => { a.feature = " "; } },

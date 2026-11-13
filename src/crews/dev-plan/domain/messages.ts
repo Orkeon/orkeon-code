@@ -48,7 +48,8 @@ export const stepCount = (at: string, count: number): string =>
 export const notDesignRuleId = (at: string, id: string): string => `${at}: ${id} is not a design rule id`;
 export const notEarlierBatch = (at: string, dep: string): string => `${at}: depends on ${dep}, which is not an earlier batch`;
 export const docsAndCode = (at: string): string => `${at}: documentation and code in one batch`;
-export const noCodeElement = (at: string): string => `${at}: no code element`;
+export const noCodeElement = (at: string): string =>
+  `${at}: no code element; name in elements what this batch adds or changes, or move its tests to the batch whose code they guard`;
 export const elementTooLong = (at: string, k: number, max: number): string => `${at}: element ${k} is longer than ${max} characters`;
 export const elementHoldsBody = (at: string, k: number): string => `${at}: element ${k} holds a body`;
 

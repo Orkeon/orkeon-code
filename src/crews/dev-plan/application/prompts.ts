@@ -33,6 +33,8 @@ export const PLAN_INSTRUCTIONS: string = [
   "- A batch that reuses a file, a type, a fixture or a setting an earlier batch introduces lists every earlier " +
     "batch it relies on in dependsOn.",
   "- Documentation changes travel in a separate batch (documentation true), apart from code.",
+  "- A code batch names in elements each type or member it adds or changes. A rule that only keeps a behaviour as " +
+    "it is becomes a test of the batch whose code could break it, never a batch of its own.",
   "- A batch has between two and five steps of behaviour (a documentation batch, one to five). Code appends the " +
     "build-and-tests step: never write it. One more refusal or guard on a behaviour is a test of its step, not a " +
     "new step.",
