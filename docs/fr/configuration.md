@@ -45,10 +45,16 @@ Les variables d'environnement préfixées `ORKEON_` l'emportent sur le fichier (
 | `Llm:Profiles:<name>:MaxRateLimitWait` | La même borne pour un profil nommé du runtime, `00:05:00` par défaut |
 | `Llm:Profiles:<name>:Fallback`, `Llm:Profiles:<name>:FallbackBudgetSeconds` | Les profils vers lesquels un appel de `<name>` se déplace, dans l'ordre, quand il échoue d'une façon qu'une nouvelle tentative ne répare pas |
 | `Llm:ModelCapabilities:<id du modèle>` | Ce qu'un modèle accepte : `ReasoningEfforts`, les efforts qu'il prend (un `effort` qu'un modèle listé ne prend pas est abandonné avec un avertissement ; un modèle listé nulle part reçoit tout effort, avec un avertissement), `Vision`, `AudioInput`, `AudioOutput` |
-| `Llm:Thinking:Enabled` | Mode raisonnement, pour les fournisseurs qui en ont un |
+| `Llm:Thinking:Enabled`, `Llm:Thinking:Effort` | Mode raisonnement et intensité du raisonnement, pour les fournisseurs qui en ont un |
 
 Ce que le tableau laisse de côté :
 
+- **`Llm:MaxTokens` sur un modèle qui raisonne toujours** (GLM-5.3 chez Z.AI) :
+  - Son raisonnement compte dans `MaxTokens`. Une étape qui répond en un long JSON, comme le plan de
+    `/dev-plan`, a besoin de place : à 24576 la réponse revenait coupée ou vide, à 65536 elle tient.
+  - Z.AI refuse le `reasoning_effort` `medium` sur GLM-5.3 (HTTP 400, code 1210). Omettez `Llm:Thinking:Effort`, ou
+    listez les efforts que le modèle accepte dans `Llm:ModelCapabilities:<id du modèle>:ReasoningEfforts` (`low`,
+    `high`, `max`). À `low`, le modèle ne raisonne presque plus, et les plans qu'il écrit sont plus souvent refusés.
 - **`Llm:Profiles:<name>:Fallback`, `Llm:Profiles:<name>:FallbackBudgetSeconds`** :
   - Une erreur de transport, un 5xx, un 429 une fois les tentatives épuisées, un délai dépassé.
 - **`Llm:MaxRateLimitWait`** :

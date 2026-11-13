@@ -14,6 +14,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   its `{`, and a shell expansion such as `${QUIET:-0}` is no longer taken for a body. A refusal for a length (the
   feature, a step title, a test name, an element) now gives the length found beside the limit.
 
+### Added — what a model that always reasons needs in the settings
+
+- Configuration says that the reasoning of a model that always reasons (GLM-5.3 on Z.AI) counts against
+  `Llm:MaxTokens`. `/dev-plan` needs 65536 there: at 24576 its plan came back cut or empty. Z.AI refuses the effort
+  `medium` on that model. The page also lists `Llm:Thinking:Effort`.
+
 ### Fixed — one uncited row no longer drops the whole review
 
 - When a finding of the reviewer cited no `path:line`, `§` section or heading even after the second try, the whole
