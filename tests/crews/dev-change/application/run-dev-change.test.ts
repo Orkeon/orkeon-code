@@ -133,6 +133,18 @@ describe("runDevChange — a bug", () => {
 });
 
 describe("runDevChange — failures", () => {
+  it("tells the second attempt the whole parse error, on one line", async () => {
+    // Arrange
+    const f = devChangeSetup(["Yes"]);
+    f.llm.extractions = [new Error('not JSON. Raw: {\n  "route": "bug"'), answer({ questions: [] }), CLEAR];
+
+    // Act
+    await runDevChange(bug, f.deps);
+
+    // Assert
+    assertMentions(f.llm.extracts[1].prompt, ['the answer did not parse: not JSON. Raw: { "route": "bug"']);
+  });
+
   it("reports a write of the brief that fails as such", async () => {
     // Arrange
     const f = devChangeSetup(["Yes"]);

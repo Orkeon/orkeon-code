@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed — a reply that does not parse is quoted whole
+
+- `/dev-plan`, `/dev-change`, `/dev-learn`, the reviews and the audit kept only the first line of the error when the model's
+  answer was not JSON. The runtime quotes the reply after a line break, so all that was left was `Raw: {`: the person
+  could not tell what was wrong, and neither could the second attempt. The whole error is now kept on one line, cut at
+  400 characters.
+
 ### Fixed — `/compact` prints one check mark
 
 - `/compact` printed `✓ ✓ compacted …`: the command added a mark to a line that has its own. A skipped or failed

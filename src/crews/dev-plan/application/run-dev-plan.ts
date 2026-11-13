@@ -40,6 +40,7 @@ import type { AnchorListings } from "./anchor-paths.ts";
 import { BAD_INPUT_REPLACE, BAD_INPUT_SOURCE, BOTH_LINES, COMMANDS_LINE, END_LINE, REFUSED_TWICE, REVIEWED_FAILS_SELF_CHECK, ROWS_NOT_WRITTEN, SETTLE_CHANGE, SETTLE_SPEC, answerThenReplan, batchIsDone, planCannotBeReadNothingReplaced, planFileNotWritten, everyBatch, fewerBatches, inventoryFromTitles, namesNoTraceableId, noRoomForInventory, notInPack, planBlocked, planExists, planWritten, recordsWorkDone, planRendererDefect, reviewHead, reviewNotRunWithCause, planRunFromCheckout, stepIsTicked, tddLineTicked, planTitleNamesNoKind, titleReadsDone, unreviewed } from "./messages.ts";
 import { PERMISSION_GATE_OFF as GATE_OFF } from "../../../shared/application/dev/messages.ts";
 import { answerDidNotParse } from "../../../shared/application/agents/messages.ts";
+import { errorText } from "../../../shared/domain/error-text.ts";
 import { WORKSPACE } from "../../../shared/domain/vfs.ts";
 
 export interface DevPlanInputs { source?: unknown; replace?: unknown }   // source: the token, null for none
@@ -199,7 +200,7 @@ async function askPlan(
     try {
       value = await deps.llm.extract(buildPlanPrompt(promptInput, problems), PLAN_ANSWER_SCHEMA);
     } catch (e) {
-      problems = [answerDidNotParse(firstLine(e))];
+      problems = [answerDidNotParse(errorText(e))];
       continue;
     }
     const checked = checkPlanAnswer(value, checkCtx);

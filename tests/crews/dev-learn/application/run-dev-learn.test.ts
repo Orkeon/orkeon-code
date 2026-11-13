@@ -155,6 +155,17 @@ describe("runDevLearn — proposals", () => {
     strictEqual(writtenTestAxis(f.files).outcome, "proposed");
   });
 
+  it("tells the second try the whole parse error, on one line", async () => {
+    // Arrange
+    const f = twoFailedAnswers();
+
+    // Act
+    await runDevLearn({}, f.deps);
+
+    // Assert
+    assertMentions(f.llm.extracts[1].prompt, ["the answer did not parse: bad json at 3"]);
+  });
+
   it("records no proposal when both tries fail, and still writes the file", async () => {
     // Arrange
     const f = twoFailedAnswers();
