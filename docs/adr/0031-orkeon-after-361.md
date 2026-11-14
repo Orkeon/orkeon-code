@@ -95,8 +95,11 @@ returns nothing, in a message naming the field and its default, and say so in th
   did, and say nothing of the model's levels, until Orkeon's next release.
 - On a runtime between #361 and #365 no profile is read: `llm.profiles` is absent there, and the reader answers
   nothing.
-- The system prompt of every agent grows by the runtime's `## File system` section, a few lines that do not change
-  within a run: the cached prefix stays stable. No live turn was run on it yet.
+- The runtime's `## File system` section does not reach this project's prompts. The runtime writes it in the system
+  prompt it composes for a declarative turn; every agent here runs a body whose `act` sends this project's own
+  system prompt. Checked at `ff69e76` by pointing the host at a local server that keeps the request: one main-loop
+  turn, a system message of 10 794 characters, the eleven sections of `docs/turn.md` and no `## File system`. The
+  cached prefix is the one it was.
 - The older `try … catch` around `llm.profile` (an agent routed to a rung the host does not declare stays on the
   crew's profile, `llm-profile.ts`) could not work before #365. It catches the runtime's `InvalidScriptError` alone
   (#366), read from the globals and handed over as `AgentFactories.refusal`: any other failure of `llm.profile` is

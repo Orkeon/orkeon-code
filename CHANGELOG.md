@@ -47,9 +47,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   a constant above 0) and #374 (a test of Orkeon alone), ahead of the 1.0.0 release: the tool
   and docker modes run 1.0.0 until Orkeon's next release ([ADR 0030](docs/adr/0030-orkeon-after-356.md),
   [ADR 0031](docs/adr/0031-orkeon-after-361.md)).
-- The runtime adds a `## File system` section to the system prompt of every agent that has a file-system tool: the
-  mounts, their rights and where relative paths resolve (Orkeon #348). No agent of this project declares a
-  file-system scope (#349).
+- The runtime's `## File system` section (Orkeon #348: the mounts, their rights and where relative paths resolve)
+  goes to the declarative turns of an agent only. Every agent of this project runs a body that sends its own system
+  prompt, so no prompt of Orkeon Code carries it: the request of a main-loop turn, captured at the pin, holds the
+  eleven sections of this project and nothing else. No agent declares a file-system scope (#349).
 - A sub-agent routed to a rung the host does not declare stays on the crew's profile, as documented: the runtime's
   refusal used to end the crew past the `catch` meant for it (Orkeon #364). Only that refusal, an
   `InvalidScriptError`, means an undeclared rung: any other failure of `llm.profile` ends the crew with its own
