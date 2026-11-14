@@ -2,7 +2,7 @@
 // `<CODE>-PLAN-F<n>.md`, read line by line. Pure, no IO, never throws: a line that
 // looks like a format line but does not match becomes a FormatProblem.
 import {
-  ASSUMPTION_BULLET, ASSUMPTION_ROW, ASSUMPTIONS_SECTION, BATCH_LINE, BATCH_PREFIX, DEPENDS_ON, DONE_LINE, PLAN_TITLE, SHEET_TITLE,
+  ASSUMPTION_BULLET, ASSUMPTION_ROW, ASSUMPTIONS_SECTION, BATCH_LINE, BATCH_PREFIX, BLOCKED_STATE, DEPENDS_ON, DONE_LINE, PLAN_TITLE, SHEET_TITLE,
   STEP_BOX, STEP_HEADING, SUMMARY_HEADING, TDD_LINE,
 } from "./markers.ts";
 import { malformedSummaryRow, malformedTddLine, tddLineOutsideStep, twoTddLines, unknownBatchLine } from "./messages.ts";
@@ -81,14 +81,11 @@ export function parseGlobalPlan(text: string): GlobalPlan {
           const state: BatchState = m[4] ? { kind: "done", date: m[4] } : { kind: "open" };
           batch = { id: m[1], name: m[2], state, steps: [], line };
         } else {
-          plan.problems.push({ line, message: unknownBatchLine(t) });
           const p = BATCH_PREFIX.exec(t);
-          if (p) {
-            const cut = p[2].lastIndexOf(" — ");
-            const name = cut >= 0 ? p[2].slice(0, cut) : p[2];
-            const stateText = cut >= 0 ? p[2].slice(cut + 3) : "";
-            batch = { id: p[1], name, state: { kind: "other", text: stateText }, steps: [], line };
-          }
+          const cut = p ? p[2].lastIndexOf(" — ") : -1;
+          const stateText = p && cut >= 0 ? p[2].slice(cut + 3) : "";
+          if (stateText !== BLOCKED_STATE) plan.problems.push({ line, message: unknownBatchLine(t) });
+          if (p) batch = { id: p[1], name: cut >= 0 ? p[2].slice(0, cut) : p[2], state: { kind: "other", text: stateText }, steps: [], line };
         }
         if (batch) plan.batches.push(batch);
       }

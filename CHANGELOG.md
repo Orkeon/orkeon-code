@@ -63,6 +63,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   stopped at 400, so the end of the reply is kept; `/dev-spec` and the reproduction command of `/dev-change`, which
   quoted its first line only, now quote it whole as well.
 
+### Fixed — `/dev-status` no longer warns on a blocked batch
+
+- A plan whose review left Blocking questions keeps every batch line at `— blocked`; `/dev-status` shows the
+  batch as `blocked` and no longer adds `unknown batch line '### Batch F1 — … — blocked'` for the line `/dev-plan`
+  wrote itself. Any other unknown state is still reported.
+
 ### Fixed — a plan refused for an anchor or a dependency can be mended
 
 - A refused anchor did not say why (`.orkeon/repo.yaml cannot be anchored there`), so the second try repeated it. The

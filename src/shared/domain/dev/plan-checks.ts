@@ -8,7 +8,7 @@ import { parseBatchSheet, parseGlobalPlan, unfencedLines } from "./plan-format.t
 import type { Line } from "./plan-format.ts";
 import { sheetFacts } from "./sheet-facts.ts";
 import { SHEET_ID_SOURCE } from "./trait-pattern.ts";
-import { ASSUMPTIONS_SECTION, BLOCKED_BATCH, BUILD_STEP } from "./markers.ts";
+import { ASSUMPTIONS_SECTION, BUILD_STEP } from "./markers.ts";
 import {
   anchorRowsMismatch, assumptionsNotEmpty, batchesDiffer, buildStepHoldsTdd, dependsOnDiffers, designIdsNeither,
   idOutsideBatch, lastStepIsNot, noAppliedRulesRow, noTestNamesIt, noTraceabilityRow, notASourceId, stepHasNoTdd,
@@ -132,10 +132,8 @@ export function planSelfCheck(input: SelfCheckInput): SelfCheckReport {
   const parsed = input.sheets.map((s) => parseBatchSheet(s.text));
   const source = new Set(input.sourceIds);
 
-  // 1, 14: the plan parses back; a batch line the review marked blocked is tolerated.
-  for (const p of global.problems) {
-    if (!BLOCKED_BATCH.test(p.message)) problems.push(`${input.plan.name}:${p.line}: ${p.message}`);
-  }
+  // 1, 14: the plan parses back; a batch line the review marked blocked is no problem of the parse.
+  for (const p of global.problems) problems.push(`${input.plan.name}:${p.line}: ${p.message}`);
   // 2: every sheet parses back.
   input.sheets.forEach((s, i) => {
     for (const p of parsed[i].problems) problems.push(`${s.name}:${p.line}: ${p.message}`);

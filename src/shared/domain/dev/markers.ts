@@ -64,8 +64,9 @@ export const APPLIED_ROW = /^\| *Applied rules *\|/;
 
 export const BUILD_STEP = "Build and tests";
 
-/** The one parse problem a reviewed plan may carry: a batch the review marked blocked. */
-export const BLOCKED_BATCH = /^unknown batch line '### Batch F\d+ — .+ — blocked'$/;
+/** The state a batch line carries once the plan's review left Blocking questions: written by /dev-plan, read
+ *  back as a state of its own, no parse problem. */
+export const BLOCKED_STATE = "blocked";
 
 // ── Verdicts ────────────────────────────────────────────────────────────────
 

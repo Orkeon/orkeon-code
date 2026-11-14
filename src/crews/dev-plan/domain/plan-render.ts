@@ -4,6 +4,7 @@
 // headers, the box and TDD lines - which the harness and L-1 read back by pattern; every
 // other sentence is this project's. It never checks the answer: checkPlanAnswer did.
 
+import { BLOCKED_STATE } from "../../../shared/domain/dev/markers.ts";
 import { DESIGN_RULE_IDS } from "../../../shared/domain/dev/design-rules.ts";
 import { packValue } from "../../../shared/domain/dev/repo-pack.ts";
 import type { RepoPack } from "../../../shared/domain/dev/repo-pack.ts";
@@ -126,7 +127,7 @@ function globalPlan(input: RenderInput, sheetNames: readonly string[], review: R
   const { answer: a, prefix: p } = input;
   const ids = (b: PlanBatch): string => batchIds(b);
   const deps = (b: PlanBatch): string => (b.dependsOn.length === 0 ? NONE_DASH : b.dependsOn.join(", "));
-  const state = review.blocked ? "blocked" : "open";
+  const state = review.blocked ? BLOCKED_STATE : "open";
   const batchBlocks = a.batches.map((b, k) => [
     `### Batch F${k + 1} — ${b.name} — ${state}`,
     ...b.steps.map((s, j) => `- [ ] ${j + 1}. ${s.title}`),
