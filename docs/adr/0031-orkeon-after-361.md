@@ -44,8 +44,8 @@ returns nothing, in a message naming the field and its default, and say so in th
 
 ## Decision
 
-- **The pin moves to `98799c6`, then to `2fb47b8`** (#365), **to `791760e`** (#371), **then to `070a58e`** (#373),
-  the newest merge commit of Orkeon `main`. The esbuild of the runtime (`0.25.12`) and its .NET SDK (`10.0.300`) do
+- **The pin moves to `98799c6`, then to `2fb47b8`** (#365), **to `791760e`** (#371), **to `070a58e`** (#373), **then to `ff69e76`**
+  (#374, a test of Orkeon alone), the newest merge commit of Orkeon `main`. The esbuild of the runtime (`0.25.12`) and its .NET SDK (`10.0.300`) do
   not change; the typings gain `EffortLevel`, `LlmCapabilities` and `LlmReasoning`, then `llm.profiles`,
   `.filesystem(...)` and `.announceMounts(...)`, then `InvalidScriptError`, then the minimum of each limit in its
   description.
@@ -122,4 +122,5 @@ returns nothing, in a message naming the field and its default, and say so in th
   with `llmProfile` = `ghost`: routed (`llmProfileFallback` given), the crew commits on the host's default model;
   launched on it, the crew fails on the runtime's refusal, which lists the known profiles.
 - Checks at `070a58e`: `npm run check` green, the three smokes in source mode and the package installed in a
-  scratch prefix, which names the pin. No model was called.
+  scratch prefix, which names the pin. No model was called. The same at `ff69e76`, whose typings are those of
+  `070a58e`.

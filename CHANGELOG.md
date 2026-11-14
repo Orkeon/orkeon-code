@@ -35,16 +35,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - All of it is the runtime's own judgement, read through Orkeon #359 and #360 (the host's `Llm:ModelCapabilities`
   included): on Orkeon 1.0.0 (the tool and docker modes) nothing is said of the model's levels.
 
-### Changed — the pin moves to Orkeon main after #373
+### Changed — the pin moves to Orkeon main after #374
 
-- `.orkeon-version` names `070a58e`, Orkeon `main` after #351-#354, #356, #358 (the reasoning modes of
+- `.orkeon-version` names `ff69e76`, Orkeon `main` after #351-#354, #356, #358 (the reasoning modes of
   `orkeon llm probe`), #362 (Z.AI takes `xhigh`; GLM-5.3 keeps `low`, `high` and `max`), #361 (a script reads a
   model's reasoning capabilities and the effort sent), #363 (an agent's file-system scope, not used here), #365
   (a script lists the host's profiles and catches the runtime's refusals), #371 (a refusal is an
   `InvalidScriptError`; `crew.run()` gives the last output as the body returned it, where every crew of this
-  project returns a text) and #373 (a tool refuses a result limit below 1, such as `max_length: 0` on `file_read`
+  project returns a text), #373 (a tool refuses a result limit below 1, such as `max_length: 0` on `file_read`
   or `top_k: 0` on `codebase_search`, where it gave nothing or one hit before; every limit this project passes is
-  a constant above 0), ahead of the 1.0.0 release: the tool
+  a constant above 0) and #374 (a test of Orkeon alone), ahead of the 1.0.0 release: the tool
   and docker modes run 1.0.0 until Orkeon's next release ([ADR 0030](docs/adr/0030-orkeon-after-356.md),
   [ADR 0031](docs/adr/0031-orkeon-after-361.md)).
 - The runtime adds a `## File system` section to the system prompt of every agent that has a file-system tool: the

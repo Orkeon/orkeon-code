@@ -188,8 +188,8 @@ Premier REPL, sans la voix, sur le dépôt d'exemple jetable (`--demo`), en mode
 ./orkeon-code --mode tool --demo
 ```
 
-Le bandeau affiche `orkeon-code <version> on Orkeon (tool: a release, the pin is 070a58e)` : le mode tool exécute
-la release du paquet, `1.0.0` (`41f5079`), en retard sur `070a58e`, l'épingle de `.orkeon-version`, jusqu'à la
+Le bandeau affiche `orkeon-code <version> on Orkeon (tool: a release, the pin is ff69e76)` : le mode tool exécute
+la release du paquet, `1.0.0` (`41f5079`), en retard sur `ff69e76`, l'épingle de `.orkeon-version`, jusqu'à la
 prochaine release d'Orkeon. Viennent ensuite le projet et le fichier de
 réglages. Dans le REPL :
 
