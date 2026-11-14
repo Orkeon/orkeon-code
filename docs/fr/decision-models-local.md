@@ -21,7 +21,7 @@ réponse.
 
 ## Le runtime : le mode source
 
-L'épingle (`cf56fae`) sert Liquid et Kev, et la release `1.0.0` (`41f5079`), en retard sur elle, aussi : le mode
+L'épingle (`3108dac`) sert Liquid et Kev, et la release `1.0.0` (`41f5079`), en retard sur elle, aussi : le mode
 tool sur `1.0.0` connaît `Orkeon:Liquid`, `Orkeon:Kev` et `Orkeon:Decision:Provider`. Le mode docker exécute
 l'image de la dernière release, `1.0.0` à ce jour. Cette page a été écrite en mode source, sur
 un checkout d'Orkeon à l'épingle ou après ([Premiers pas](getting-started.md#mode-source--un-checkout-dorkeon)) :
