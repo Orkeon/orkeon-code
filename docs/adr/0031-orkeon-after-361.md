@@ -95,5 +95,7 @@ add a `## File system` section to the system prompt of every agent that has a fi
   second line for the host's model included. On a host declaring the
   profiles `small` and `large` (GLM-5.3), at `2fb47b8`: `/route` names each rung's model, `/effort medium` and
   `/config set --session llm.profile large` (and `LARGE`) warn that `medium` is sent as `low`, and under
-  `llm.profile ghost` every command answers and says nothing of the model. No model was called in these runs; one live turn ran at
-  `98799c6` on Z.AI (`glm-5.3-flashx`, effort `medium`): its log line read `sent as 'low'`, as the runtime's warning.
+  `llm.profile ghost` every command answers and says nothing of the model. No model was called in these runs. Two live turns
+  then ran at `2fb47b8` on Z.AI: under `llm.profile large` with `medium` stored the log read `act — effort: medium
+  (sent as 'low' to glm-5.3)`, and with no level stored on a host asking for `medium`, `act — effort: none stored,
+  the host asks for medium (sent as 'low' to glm-5.3)`; the runtime's warning said the same and the model answered.
