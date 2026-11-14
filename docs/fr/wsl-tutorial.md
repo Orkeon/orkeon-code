@@ -98,9 +98,9 @@ mkdir -p ~/audio && timeout 20 parecord --channels=1 --rate=16000 --file-format=
 
 ## 3. Orkeon depuis son paquet apt
 
-Le canal `stable` porte la dernière release d'Orkeon, `1.0.0` : c'est le commit du `main` d'Orkeon contre lequel
-Orkeon Code est vérifié (`.orkeon-version`), si bien que le mode tool exécute l'épingle
-([Premiers pas](getting-started.md)). Le canal `dev` publie un paquet par commit de `main` validé par la CI, versionné
+Le canal `stable` porte la dernière release d'Orkeon, `1.0.0` : elle est en retard sur le commit du `main` d'Orkeon
+contre lequel Orkeon Code est vérifié (`.orkeon-version`), si bien que le mode tool exécute un runtime plus ancien que
+l'épingle jusqu'à la prochaine release d'Orkeon ([Premiers pas](getting-started.md)). Le canal `dev` publie un paquet par commit de `main` validé par la CI, versionné
 `1.0.1~dev.<n>` (`n` est le numéro de l'exécution CI), les trois derniers builds seulement : il sert à suivre
 `main` en avance sur l'épinglage, pas à ce tutoriel. Le paquet installe
 `/usr/bin/orkeon-repl` (le REPL, avec son `esbuild` : aucun .NET ni npm à installer) et `orkeon` (la CLI). Systèmes
@@ -188,8 +188,9 @@ Premier REPL, sans la voix, sur le dépôt d'exemple jetable (`--demo`), en mode
 ./orkeon-code --mode tool --demo
 ```
 
-Le bandeau affiche `orkeon-code <version> on Orkeon (tool: a release, the pin is 41f5079)` : le mode tool exécute
-la release du paquet, `1.0.0`, qui est `41f5079`, l'épingle de `.orkeon-version`, tant que l'épingle n'avance pas. Viennent ensuite le projet et le fichier de
+Le bandeau affiche `orkeon-code <version> on Orkeon (tool: a release, the pin is cf56fae)` : le mode tool exécute
+la release du paquet, `1.0.0` (`41f5079`), en retard sur `cf56fae`, l'épingle de `.orkeon-version`, jusqu'à la
+prochaine release d'Orkeon. Viennent ensuite le projet et le fichier de
 réglages. Dans le REPL :
 
 | Commande | Attendu |

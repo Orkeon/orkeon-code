@@ -79,22 +79,21 @@ with the bash launcher ([WSL tutorial](wsl-tutorial.md)). On both, a path spelle
 model's calls and in what a command prints ([architecture](architecture.md#the-vfs-and-the-host-platform));
 under WSL a Windows program is reachable without confinement only, and still receives `/mnt/c/…` paths.
 
-- Orkeon Code is checked against Orkeon's sources at the commit in `.orkeon-version` (`41f5079`, `main` after
-  Orkeon/orkeon#347, 2026-11-12): the [source mode](#source-mode-an-orkeon-checkout) runs that commit, the reference
+- Orkeon Code is checked against Orkeon's sources at the commit in `.orkeon-version` (`cf56fae`, `main` after
+  Orkeon/orkeon#356, 2026-11-13): the [source mode](#source-mode-an-orkeon-checkout) runs that commit, the reference
   runtime.
-- That commit is the one Orkeon released as `1.0.0`: the [tool mode](#tool-mode-orkeon-repl-installed) (the Debian
-  package on the apt `stable` channel, the release archives) runs the pin.
-- The [docker mode](#docker-mode-nothing-to-install-but-docker) runs the image of the last release,
-  `ghcr.io/orkeon/orkeon:latest`, `1.0.0` at this writing: the pin too.
-- When the pin moves on, both modes are behind it until Orkeon's next release, and `/status` says so
-  ([ADR 0013](adr/0013-pin-on-orkeon-commit.md)).
+- The [tool mode](#tool-mode-orkeon-repl-installed) (the Debian package on the apt `stable` channel, the release
+  archives) runs Orkeon's last release, `1.0.0` (`41f5079`), and the
+  [docker mode](#docker-mode-nothing-to-install-but-docker) its image, `ghcr.io/orkeon/orkeon:latest`: both are
+  behind the pin until Orkeon's next release, and `/status` says so ([ADR 0013](adr/0013-pin-on-orkeon-commit.md)).
+  What they lack is listed in [ADR 0030](adr/0030-orkeon-after-356.md).
 - The typings are those of the pin ([Development](development.md#typings)).
 
 The launcher picks the first available mode, in this order, unless `--mode` says otherwise.
 
 ### Tool mode: `orkeon-repl` installed
 
-The REPL is `orkeon-repl` (`Orkeon.ConsoleApp`) of the last release, `1.0.0`, which is the pin at this writing. The
+The REPL is `orkeon-repl` (`Orkeon.ConsoleApp`) of the last release, `1.0.0`, behind the pin at this writing. The
 Debian package and the
 release archives carry it self-contained, with its own esbuild: no .NET to install.
 
@@ -129,7 +128,7 @@ overrides it).
 
 ### Docker mode: nothing to install but Docker
 
-The launcher runs `ghcr.io/orkeon/orkeon:latest`, the image of the last release (`1.0.0` at this writing, which is
+The launcher runs `ghcr.io/orkeon/orkeon:latest`, the image of the last release (`1.0.0` at this writing, behind
 the pin; `ORKEON_CODE_IMAGE` names another image), which carries the
 REPL and esbuild; the image is built for `linux/amd64` and `linux/arm64`, and Docker pulls the one of your machine. The project is mounted in the
 container; on Linux the container runs with your uid, so the files the agent writes belong to you. The shell tool
@@ -149,9 +148,9 @@ whose `global.json` pins another SDK still works. It needs the .NET 10 SDK, the 
 The checkout should sit at the commit of `.orkeon-version`, the one the commands were checked against. The launcher
 moves it there itself when nothing of yours is in the way: no tracked file changed, on `main` or detached, and behind
 the pin (fetched from `origin main` when missing). It then says `orkeon-code: ORKEON_SOURCE moved from <sha7> to the pin
-41f5079.` and the build restores the solution. Otherwise (a branch of your own, uncommitted work, commits ahead of the
+cf56fae.` and the build restores the solution. Otherwise (a branch of your own, uncommitted work, commits ahead of the
 pin, or `ORKEON_SOURCE_FOLLOW_PIN=0`) it leaves the checkout alone, warns (`orkeon-code: warning: ORKEON_SOURCE is at
-<sha7>, the pin of .orkeon-version is 41f5079: the commands were checked against the pin.`) and runs anyway.
+<sha7>, the pin of .orkeon-version is cf56fae: the commands were checked against the pin.`) and runs anyway.
 
 ### No runtime on the machine: the one Orkeon Code downloads
 

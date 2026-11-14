@@ -186,9 +186,12 @@ declare global {
         /** The turns the agent may take on a task. Default 20 — YAML parity `maxIter:`. Must be 1 or more. */
         maxIterations(value: number): this;
         /**
-         * Turns the provider's thinking on at this effort. Anthropic takes the five levels; a provider whose field
-         * knows fewer (three for OpenAI's `reasoning_effort` and Ollama's `think`; four, without `xhigh`, for DeepSeek and Z.ai; all five for OpenRouter) sends the highest it knows
-         * below the one asked, and warns. Applies to the agent's `ctx.llm` calls too, unless a call sets its own.
+         * Turns the provider's thinking on at this effort. A provider whose field knows fewer levels (three, the
+         * default, for Ollama's `think`, Gemini, Azure OpenAI and Mistral; `low` to `xhigh` for OpenAI and Grok; `low`,
+         * `medium`, `high` and `max` for Z.ai; all five for Anthropic, OpenRouter, DeepSeek, Kimi, Qwen, Together AI,
+         * Hugging Face, MiniMax and Mammouth AI) sends the highest it knows below the one asked, and warns. The model's
+         * entry in the capability table narrows the levels further (GLM-5.3 takes `low`, `high` and `max` only).
+         * Applies to the agent's `ctx.llm` calls too, unless a call sets its own.
          */
         effort(level: "low" | "medium" | "high" | "xhigh" | "max"): this;
         /**
@@ -669,6 +672,7 @@ declare global {
 
     /** What `chat(...)` resolves to. A tool call is `act(...)`'s business: `chat` offers no tools. */
     interface ChatResponse {
+        /** The answer; a provider failure gives the `<undefined-llm:<the provider's error>>` marker, never an empty string, as `complete` does. */
         readonly content: string;
         readonly tokensUsed: number;
         readonly model: string;
@@ -1299,9 +1303,11 @@ declare global {
         maxTokens?: number;
         responseFormat?: ResponseFormatType;
         /**
-         * Turns thinking on at this level; anything else throws. Anthropic takes the five levels; a provider whose field
-         * knows fewer (three for OpenAI's `reasoning_effort` and Ollama's `think`; four, without `xhigh`, for DeepSeek and Z.ai; all five for OpenRouter) sends the highest it knows
-         * below the one asked, and warns.
+         * Turns thinking on at this level; anything else throws. A provider whose field knows fewer levels (three, the
+         * default, for Ollama's `think`, Gemini, Azure OpenAI and Mistral; `low` to `xhigh` for OpenAI and Grok; `low`,
+         * `medium`, `high` and `max` for Z.ai; all five for Anthropic, OpenRouter, DeepSeek, Kimi, Qwen, Together AI,
+         * Hugging Face, MiniMax and Mammouth AI) sends the highest it knows below the one asked, and warns. The model's
+         * entry in the capability table narrows the levels further (GLM-5.3 takes `low`, `high` and `max` only).
          */
         effort?: "low" | "medium" | "high" | "xhigh" | "max";
         /**
@@ -3021,11 +3027,11 @@ declare global {
             readonly vertex_labels: readonly { readonly count_estimate?: number; readonly label: string; readonly properties: readonly string[]; }[];
         }>;
 
-        /** `grep` - Which files contain this text? Searches the lines of the text files under path with a regex, glob filtering the files relative to path, and returns path:line:text hits with total_matches and files_matched; output_mode "count" returns the counts alone, so a "how many" question takes one call. At most max_results hits (200) over max_files files (2000) within a 20 s budget; binary and over-1-MiB files are skipped; truncated and scan_complete say when the scan was cut. To find files by name, glob; to search code by structure, structural_search; to search by meaning, codebase_search. */
+        /** `grep` - Which files contain this text? Searches the lines of the text files under path with a regex, glob filtering the files relative to path (a file as path is searched alone, without glob), and returns path:line:text hits with total_matches and files_matched; output_mode "count" returns the counts alone, so a "how many" question takes one call. At most max_results hits (200) over max_files files (2000) within a 20 s budget; binary and over-1-MiB files are skipped; truncated and scan_complete say when the scan was cut. To find files by name, glob; to search code by structure, structural_search; to search by meaning, codebase_search. */
         grep(input: {
             /** Case-insensitive matching */
             case_insensitive?: boolean;
-            /** Optional file filter relative to path (never absolute); all files when absent */
+            /** Optional file filter relative to a folder path (never absolute, never with a file path); all files when absent */
             glob?: string | null;
             /** Maximum number of files scanned; binary or unreadable files are skipped and counted (default: 2000) */
             max_files?: number;
@@ -3033,7 +3039,7 @@ declare global {
             max_results?: number;
             /** hits: one path:line:text per match (default); the scan is not stopped by max_results, it reads up to max_files or the 20 s budget, so a wide search can come back timed_out or truncated. count: no hit lines, only total_matches, files_matched and the per-file counts (the max_results highest) */
             output_mode?: "hits" | "count";
-            /** Root directory searched (virtual path, a mounted directory inside the agent root) */
+            /** Directory searched, or one file searched alone (then no glob); a virtual path inside the agent root */
             path: string;
             /** Regular expression searched in each line (per-match timeout; the scan stops and timed_out is set on a timeout) */
             pattern: string;
