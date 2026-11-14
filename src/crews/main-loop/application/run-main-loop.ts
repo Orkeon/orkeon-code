@@ -35,7 +35,7 @@ import { autoCompactGuarded } from "./auto-compact.ts";
 import type { AutoCompactDeps } from "./auto-compact.ts";
 import { buildTurnPrompt } from "./turn-context.ts";
 import {
-  actEffort, BUDGET_EXHAUSTED_LINE, budgetRanOut, effortNotSent, effortSentAs, gateOffWarning, MODE_ORIGIN_BUILT_IN, modelOverrideIgnored, NO_PROMPT,
+  actEffort, actHostEffort, BUDGET_EXHAUSTED_LINE, budgetRanOut, effortNotSent, effortSentAs, gateOffWarning, MODE_ORIGIN_BUILT_IN, modelOverrideIgnored, NO_PROMPT,
   nothingToSend, preludeRunning, rulesRemoved, ruleWithoutEffect, stopCheckRetryFailed, stopCheckSendsBack,
 } from "./messages.ts";
 import type { TurnContextDeps, TurnPrompt } from "./turn-context.ts";
@@ -131,6 +131,12 @@ export async function appendTurn(session: Pick<SessionIo, "appendMessage">, role
   } catch { /* session buffer optional */ }
 }
 
+/** What the provider receives when it is not the level asked (Orkeon #360); empty when it is, or unknown. */
+function sentOf(report: EffortReport | null): string {
+  if (report === null || report.notice === null || report.notice === "unchecked") return "";
+  return report.sent === null ? effortNotSent(report.model) : effortSentAs(report.sent, report.model);
+}
+
 /**
  * Run the autonomous tool-use loop and return its text output.
  *
@@ -141,12 +147,6 @@ export async function appendTurn(session: Pick<SessionIo, "appendMessage">, role
  * configuration, so the boot credentials and endpoint are preserved and only the
  * model name changes for this call.
  */
-/** What the provider receives when it is not the level asked (Orkeon #360); empty when it is, or unknown. */
-function sentOf(report: EffortReport | null): string {
-  if (report === null || report.notice === null || report.notice === "unchecked") return "";
-  return report.sent === null ? effortNotSent(report.model) : effortSentAs(report.sent, report.model);
-}
-
 export async function runAct(
   deps: { llm: Pick<Llm, "act" | "effortSent">; log: Logger },
   turn: TurnPrompt,
@@ -160,11 +160,11 @@ export async function runAct(
   if (active) deps.log.info(`session flags — ${active}`);
   const maxIterations = maxIterationsFor(flags.effort);
   // A level /effort stored reaches the provider (A-3); the line says what this act was given.
-  if (flags.thinking !== null) {
-    // Judged on the agent's own provider and model (its profile included), the /model override over them.
-    const report = deps.llm.effortSent({ effort: flags.thinking, model: flags.model });
-    deps.log.info(actEffort(flags.thinking, maxIterations, sentOf(report)));
-  }
+  // Judged on the agent's own provider and model (its profile included), the /model override over them. With no
+  // level stored, the host's own `Llm:Thinking:Effort` still goes out: the line says so when the runtime reports one.
+  const report = deps.llm.effortSent({ effort: flags.thinking ?? undefined, model: flags.model });
+  if (flags.thinking !== null) deps.log.info(actEffort(flags.thinking, maxIterations, sentOf(report)));
+  else if (report !== null) deps.log.info(actHostEffort(report.asked, maxIterations, sentOf(report)));
 
   return await deps.llm.act(turn.request, {
     maxIterations,

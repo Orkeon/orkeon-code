@@ -16,7 +16,7 @@ import type { CommandView } from "../view.ts";
 import { optionsOf } from "./choices.ts";
 import {
   EFFORT_CHOICE, EFFORT_UNCHANGED, NONE_SENT, THINKING_NOT_REQUESTED, actIterations, effortDropped, effortLowered,
-  effortSet, effortShown, effortUnchangedNoneStored, effortUnchecked, effortWarning, itTakes, modelTakes, sentAs,
+  effortSet, effortShown, effortUnchangedNoneStored, effortUnchecked, effortWarning, effortWarningDevSteps, hostAsks, itTakes, modelTakes, sentAs,
   thinkingAt, unknownEffort,
 } from "./messages.ts";
 import { markedDefault as defaultLevel } from "../messages.ts";
@@ -46,30 +46,46 @@ async function sessionTarget(deps: TargetDeps): Promise<ReasoningTarget> {
 export function effortNote(report: EffortReport | null, capabilities: ReasoningCapabilities | null): string {
   if (report === null || report.notice === null) return "";
   if (report.notice === "unchecked") return effortUnchecked(report.model, report.asked);
-  if (report.notice === "dropped" || report.sent === null) return effortDropped(report.model);
-  const taken = capabilities !== null && capabilities.known && capabilities.efforts.length > 0;
-  return effortLowered(report.model, report.asked, report.sent) + (taken ? itTakes(capabilities.efforts) : "");
+  const takes = capabilities !== null && capabilities.known ? itTakes(capabilities.efforts) : "";
+  if (report.notice === "dropped" || report.sent === null) return effortDropped(report.model, report.asked) + takes;
+  return effortLowered(report.model, report.asked, report.sent) + takes;
 }
 
-/** The warning line for the effort the session stored, on what its turns now run on; empty when no level is stored
- *  or the level goes out as asked, checked or not: a model the table does not know is `show`'s to say, since most
- *  hosts serve some. /model says it after a switch. */
+/** `effortNote` without the model the table does not know: that one is `show`'s to say, since most hosts serve
+ *  some. */
+export function effortWarningNote(report: EffortReport | null, capabilities: ReasoningCapabilities | null): string {
+  return report?.notice === "unchecked" ? "" : effortNote(report, capabilities);
+}
+
+/** The warning lines for the effort the session stored, on what it reaches; empty when no level is stored or the
+ *  level goes out as asked, checked or not. The turns of /assistant run on the session's target; under a /model
+ *  override the dev steps and the sub-agents still run on the host's own model, so that one is judged too, and
+ *  said when its line differs. /model says it after a switch. */
 export async function storedEffortWarning(deps: TargetDeps & Pick<EffortDeps, "reasoning">): Promise<string> {
-  if (deps.reasoning === undefined) return "";
+  const { reasoning } = deps;
+  if (reasoning === undefined) return "";
   const level = providerEffort(await deps.session.readState(EFFORT_STATE_KEY).catch(() => null));
   if (level === undefined) return "";
   const target = await sessionTarget(deps);
-  const report = deps.reasoning.effort(target, level);
-  if (report?.notice === "unchecked") return "";
-  const note = effortNote(report, deps.reasoning.capabilities(target));
-  return note === "" ? "" : effortWarning(note);
+  const overridden = target.profile === null && target.model !== "";
+  const targets = overridden ? [target, { profile: null, model: "" }] : [target];
+  const [turns, devSteps] = targets.map((each) => effortWarningNote(reasoning.effort(each, level), reasoning.capabilities(each)));
+  const lines = [turns === "" ? "" : effortWarning(turns)];
+  if (devSteps !== undefined && devSteps !== "" && devSteps !== turns) lines.push(effortWarningDevSteps(devSteps));
+  return lines.filter((line) => line !== "").join("\n");
 }
 
 /** The thinking line of `show`: the level asked, then what does not go as asked, else the levels the model takes. */
 function thinkingShown(stored: EffortLevel | undefined, reasoning: ReasoningReader | undefined, target: ReasoningTarget): string {
   const capabilities = reasoning?.capabilities(target) ?? null;
   const takes = capabilities !== null && capabilities.known ? `; ${modelTakes(capabilities.model, capabilities.efforts)}` : "";
-  if (stored === undefined) return THINKING_NOT_REQUESTED + takes;
+  if (stored === undefined) {
+    // The host's own `Llm:Thinking:Effort` goes out on every call all the same.
+    const host = reasoning?.effort(target, null) ?? null;
+    if (host === null) return THINKING_NOT_REQUESTED + takes;
+    const hostNote = effortNote(host, capabilities);
+    return hostAsks(host.asked) + (hostNote === "" ? takes : ` — ${hostNote}`);
+  }
   const note = effortNote(reasoning?.effort(target, stored) ?? null, capabilities);
   return thinkingAt(stored) + (note === "" ? takes : ` — ${note}`);
 }
@@ -96,7 +112,7 @@ export async function runEffort(tokens: string[], deps: EffortDeps): Promise<Com
         })),
       });
       if (!answer) return { text: EFFORT_UNCHANGED };
-      // Confirming the level marked changes nothing: with none stored, it would turn the provider's thinking on.
+      // Confirming the level marked changes nothing: with none stored, it would ask the provider for thinking.
       if (answer.value === (stored ?? DEFAULT_EFFORT)) {
         return {
           text: stored ? EFFORT_UNCHANGED : effortUnchangedNoneStored(answer.value),

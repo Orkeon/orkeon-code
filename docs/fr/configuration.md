@@ -365,30 +365,44 @@ Ce que le tableau laisse de côté :
 `/model`, `/effort`, `/passes` (un alias de `/review`), `/fast`, `/proactive` et `/output-style` changent la façon
 dont les tours suivants s'exécutent.
 
-`/effort` règle aussi la réflexion du fournisseur. Le niveau enregistré est envoyé comme `effort` de l'act par
+`/effort` demande aussi une réflexion au fournisseur. Le niveau enregistré est envoyé comme `effort` de l'act par
 `/assistant`, par chaque étape dev (`/dev-spec`, `/dev-plan`, `/dev-batches`) et par les agents qu'elles lancent ;
-rien n'est envoyé tant qu'aucun niveau n'est enregistré. Les niveaux sont `low`, `medium`, `high`, `xhigh` et `max`.
-Orkeon Code envoie le niveau tel qu'il est enregistré et le runtime le juge : un niveau que le champ du fournisseur ou
-le modèle ne prend pas (`Llm:ModelCapabilities`) est envoyé au plus haut en dessous que les deux prennent, et le
-journal du runtime le dit.
+la session n'en envoie aucun tant qu'aucun niveau n'est enregistré, et le `Llm:Thinking:Effort` de l'hôte, quand il
+en fixe un, part alors seul. Les niveaux sont `low`, `medium`, `high`, `xhigh` et `max`. Orkeon Code envoie le niveau
+tel qu'il est enregistré et le runtime le juge : un niveau que le champ du fournisseur ou le modèle ne prend pas
+(`Llm:ModelCapabilities`) est envoyé au plus haut en dessous que les deux prennent, ou au plus bas d'entre eux quand
+aucun n'est en dessous ; aucun quand ils n'en partagent aucun. Le journal du runtime le dit.
 
-`/effort` lit ce jugement auprès du runtime, pour le modèle sur lequel s'exécutent les tours de la session (son
-`llm.profile`, sinon sa surcharge `/model`, sinon le modèle de l'hôte) :
+`/effort` lit ce jugement auprès du runtime, pour le modèle sur lequel s'exécutent les tours de la session : sa
+surcharge `/model`, sinon le modèle de l'hôte.
 
 - `/effort show` liste les niveaux que le modèle prend (`glm-5.3 takes low, high, max`) et, pour un niveau enregistré
-  qu'il ne prend pas, le niveau envoyé à sa place ;
-- régler un tel niveau l'enregistre quand même, puisque les itérations le suivent, et avertit : `⚠ effort: glm-5.3
-  does not take 'medium': 'low' is sent (it takes low, high, max).` Un modèle qui ne prend aucun effort n'en reçoit
-  aucun, et l'avertissement le dit. Un modèle que la table des capacités ne connaît pas reçoit le niveau sans
-  vérification : `/effort show` le dit, sans avertissement ;
-- le panneau d'un `/effort` sans argument marque chaque niveau qui partirait sous un autre, ou pas du tout ;
-- `/model` donne le même avertissement après un changement, quand le niveau enregistré ne part pas tel quel sur le
-  nouveau modèle, et `/config set llm.profile` (ou son unset) aussi quand le profil change ;
-- un `/route` sans argument liste, sous son état, ce que prend le modèle de chaque échelon du ladder, ou ce que le
-  niveau enregistré y devient : un crew routé s'exécute sur un échelon, avec le niveau que `/effort` a enregistré.
+  qu'il ne prend pas, le niveau envoyé à sa place. Sans niveau enregistré, il nomme le niveau que demande le
+  `Llm:Thinking:Effort` de l'hôte, et ce qu'il devient : `provider thinking: not requested by the session; the host
+  asks for 'medium' — 'medium' is sent to glm-5.3 as 'low' (it takes low, high, max)`. Pour un niveau enregistré sur
+  un modèle que la table des capacités ne connaît pas, il dit que le niveau part sans vérification ; ce cas ne donne
+  pas d'avertissement.
+- Régler un niveau que le modèle ne prend pas l'enregistre quand même, puisque les itérations le suivent, et avertit :
+  `⚠ effort: 'medium' is sent to glm-5.3 as 'low' (it takes low, high, max).` Un niveau que le runtime n'envoie pas
+  du tout donne `⚠ effort: 'high' is not sent to <model>.`, avec les niveaux que le modèle prend quand la table le
+  connaît.
+- Sous une surcharge `/model`, les étapes dev et les sous-agents s'exécutent toujours sur le modèle de l'hôte : quand
+  le niveau n'y part pas tel quel non plus, une deuxième ligne le dit, `⚠ effort, dev steps and sub-agents (the
+  host's model): …`.
+- Le panneau d'un `/effort` sans argument marque chaque niveau qui partirait sous un autre, ou pas du tout.
+- `/model` donne les mêmes avertissements après un changement ou une remise à zéro, et `/config unset llm.profile`
+  quand les tours reviennent à ce modèle. Quand le panneau de `/model` change le modèle et l'effort ensemble, seul le
+  nouveau niveau est jugé, sur le nouveau modèle.
 
-Les étapes dev et leurs agents peuvent s'exécuter sur un autre modèle : l'avertissement ne parle que du modèle de la
-session. Sur un runtime antérieur à Orkeon #361 (les modes tool et docker en 1.0.0), rien n'est dit des niveaux du
+Sous un `llm.profile`, et pour les échelons du ladder de `/route`, les commandes ne disent rien pour l'instant de ce
+que prend le modèle : le runtime ne donne aucun moyen de lire un profil nommé sans échouer sur un nom que l'hôte ne
+déclare pas, ni la liste des noms qu'il déclare. Une issue Orkeon le demande. La ligne de journal d'un tour nomme
+toujours le niveau envoyé, sous un profil aussi, puisqu'elle est jugée sur l'agent qui s'exécute : `act — effort:
+medium (sent as 'low' to glm-5.3), maxIterations: 40`, ou sans niveau enregistré, `act — effort: none stored, the
+host asks for medium (sent as 'low' to glm-5.3), maxIterations: 40`.
+
+Un rôle ou un crew routé peut encore s'exécuter sur un autre modèle : les avertissements ne parlent que des cibles de
+la session. Sur un runtime antérieur à Orkeon #361 (les modes tool et docker en 1.0.0), rien n'est dit des niveaux du
 modèle.
 
 ### Ce que les réglages de l'utilisateur restreignent

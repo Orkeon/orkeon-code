@@ -64,17 +64,21 @@ export interface Llm {
    *  session's rules check nothing; undefined when the facade does not say (a test's). */
   permissionGateEnabled(): boolean | undefined;
   /** What an act with this request sends for its effort (Orkeon #360), judged on the running agent's provider and
-   *  model, the request's profile and model over them; places no call. Null when the request and the crew ask for
-   *  no effort, or the host cannot tell. */
+   *  model, the request's profile and model over them; places no call. A request and a crew that ask for no effort
+   *  give what the host's own configuration sends. Null when nothing asks for an effort, or the host cannot tell.
+   *  A request naming a profile the host does not declare fails as its act would: the runtime's refusal is not an
+   *  error the adapter can catch. */
   effortSent(request: Pick<ActRequest, "effort" | "model" | "profile">): EffortReport | null;
 }
 
 /** What the host's models take for reasoning, read by a command before any call (Orkeon #359, #360): the runtime's
  *  own judgement, the host's `Llm:ModelCapabilities` included. Both answer null when the host cannot tell (no `llm`
- *  namespace, no provider, a profile it does not declare). */
+ *  namespace, no provider), and for a target on a profile: the runtime gives no way to read one without failing on
+ *  a name the host does not declare. */
 export interface ReasoningReader {
   /** What the model of `target` takes. */
   capabilities(target: ReasoningTarget): ReasoningCapabilities | null;
-  /** What a call on `target` asking for `level` sends. */
-  effort(target: ReasoningTarget, level: EffortLevel): EffortReport | null;
+  /** What a call on `target` asking for `level` sends; with no level, what the host's own configuration sends
+   *  (`Llm:Thinking:Effort`), null when it asks for none. */
+  effort(target: ReasoningTarget, level: EffortLevel | null): EffortReport | null;
 }

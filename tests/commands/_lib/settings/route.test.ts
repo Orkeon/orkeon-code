@@ -5,7 +5,7 @@ import { deepStrictEqual, strictEqual } from "node:assert";
 
 import { runRoute } from "../../../../src/commands/_lib/settings/route.ts";
 import {
-  RECENT, SET_OFF, SET_ON, SET_ON_NO_MODEL, STATUS_OFF, STATUS_ON_NO_MODEL, STATUS_WITH_MEDIUM, STATUS_WITH_RUNGS,
+  CUSTOM_LADDER, RECENT, SET_OFF, STATUS_CUSTOM_WITH_HIGH, SET_ON, SET_ON_NO_MODEL, STATUS_OFF, STATUS_ON_NO_MODEL, STATUS_WITH_MEDIUM, STATUS_WITH_RUNGS,
   WHY_LINES, routeCommandSetup, routeOnGlmSetup,
 } from "./route.fixtures.ts";
 import { EFFORT_STATE_KEY } from "../../../../src/shared/domain/session-keys.ts";
@@ -140,5 +140,30 @@ describe("runRoute — what each rung's model takes", () => {
 
     // Assert
     strictEqual(view.text, "route.agents: off; ladder: ghost,large (cheapest first); decision model: present.\n  large: glm-5.3 takes low, high, max");
+  });
+
+  it("leaves out a rung on a model the capability table does not know", async () => {
+    // Arrange
+    const { deps, config } = routeOnGlmSetup();
+    config.values = CUSTOM_LADDER;
+
+    // Act
+    const view = await runRoute([], deps);
+
+    // Assert
+    strictEqual(view.text, STATUS_CUSTOM_WITH_HIGH);
+  });
+
+  it("says nothing of a stored level sent unchecked on a rung the capability table does not know", async () => {
+    // Arrange
+    const { deps, config, session } = routeOnGlmSetup();
+    config.values = CUSTOM_LADDER;
+    session.state.set(EFFORT_STATE_KEY, "high");
+
+    // Act
+    const view = await runRoute([], deps);
+
+    // Assert
+    strictEqual(view.text, STATUS_CUSTOM_WITH_HIGH);
   });
 });

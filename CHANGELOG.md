@@ -9,17 +9,24 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added — `/effort` reads what the model takes
 
-- `/effort show` lists the effort levels the session's model takes (`glm-5.3 takes low, high, max`), and says what a
-  stored level it does not take is sent as. Setting such a level warns under the answer (`⚠ effort: glm-5.3 does not
-  take 'medium': 'low' is sent (it takes low, high, max).`); a model that takes no effort is warned of the same
-  way, and `/effort show` says when the capability table does not know the model, whose level then goes unchecked. The panel of a bare `/effort` marks each level that would be lowered or
-  dropped. The level stored stays the one asked ([ADR 0031](docs/adr/0031-orkeon-after-361.md)).
-- `/model` gives that warning after a switch or a reset, when the stored effort does not go as asked on the new
-  model, and `/config set llm.profile` (or its unset) when the session's profile changes.
-- A bare `/route` lists, under its status, what the model of each rung of the ladder takes, or what the stored
-  effort becomes on it (`  large: glm-5.3 does not take 'medium': 'low' is sent (it takes low, high, max)`).
+- `/effort show` lists the effort levels the session's model takes (`glm-5.3 takes low, high, max`), and says
+  what a stored level it does not take is sent as. Setting such a level warns under the answer (`⚠ effort:
+  'medium' is sent to glm-5.3 as 'low' (it takes low, high, max).`); a level sent as none is warned of the same way.
+  For a stored level, `/effort show` also says when the capability table does not know the model, whose level then
+  goes unchecked. The panel of a bare `/effort` marks each level that would be lowered or dropped. The level stored
+  stays the one asked ([ADR 0031](docs/adr/0031-orkeon-after-361.md)).
+- With no level stored, `/effort show` names the level the host's own `Llm:Thinking:Effort` asks for and what it
+  becomes (`not requested by the session; the host asks for 'medium' — 'medium' is sent to glm-5.3 as 'low' …`),
+  where it said the thinking was not requested; the log line of the turn says the same.
+- Under a `/model` override, a second warning line says what the level becomes on the host's own model, which the
+  dev steps and the sub-agents keep (`⚠ effort, dev steps and sub-agents (the host's model): …`).
+- `/model` gives these warnings after a switch or a reset, when the stored effort does not go as asked on the new
+  model, and `/config unset llm.profile` when the turns go back to it.
+- Under an `llm.profile`, and for the rungs of `/route`, nothing is said yet: the runtime has no read of a named
+  profile that a script survives on a name the host does not declare.
 - The log line of a turn names the level the provider receives when it is not the one asked (`act — effort: medium
-  (sent as 'low' to glm-5.3), maxIterations: 40`).
+  (sent as 'low' to glm-5.3), maxIterations: 40`), and the session-flags line says the level is the one asked
+  (`provider thinking asked at medium`), as the answer of `/effort <level>` does (`asks the provider for thinking`).
 - All of it is the runtime's own judgement, read through Orkeon #359 and #360 (the host's `Llm:ModelCapabilities`
   included): on Orkeon 1.0.0 (the tool and docker modes) nothing is said of the model's levels.
 

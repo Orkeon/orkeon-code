@@ -4,11 +4,14 @@ import { describe, it } from "node:test";
 import { deepStrictEqual, strictEqual } from "node:assert";
 
 import { EFFORT_STATE_KEY, MODEL_PREFERENCE_STATE_KEY } from "../../../../src/shared/domain/session-keys.ts";
-import { HIGH_DROPPED, HIGH_UNCHECKED, TAKES_NO_EFFORT } from "../../../support/fixtures/reasoning.ts";
+import {
+  HIGH_AS_ASKED, HIGH_DROPPED, HIGH_UNCHECKED, MEDIUM_LOWERED, TAKES_NO_EFFORT, UNKNOWN_TAKES, XHIGH_LOWERED_UNKNOWN,
+} from "../../../support/fixtures/reasoning.ts";
 import {
   effortHarness, glmHarness, HIGH_ON_GLM_TEXT, HIGH_UNCHECKED_TEXT, HIGH_ON_PLAIN_TEXT, MEDIUM_ON_GLM_TEXT, NOTHING_STORED_ON_GLM_TEXT,
   NOTHING_STORED_TEXT, SET_HIGH_DROPPED_TEXT, SET_HIGH_TEXT, SET_MEDIUM_ON_GLM_TEXT,
-  THINKING_STAYS_OFF_TEXT, UNKNOWN_LEVEL_TEXT,
+  NO_THINKING_ASKED_TEXT, UNKNOWN_LEVEL_TEXT, DEV_STEPS_CASES, HOST_HIGH_ON_GLM_TEXT, HOST_MEDIUM_ON_GLM_TEXT, PANEL_CASES,
+  TARGET_CASES, XHIGH_LOWERED_UNKNOWN_TEXT, profiledHarness,
 } from "./effort.fixtures.ts";
 
 describe("/effort without a panel", () => {
@@ -107,7 +110,7 @@ describe("/effort with a panel", () => {
     const view = await run();
 
     // Assert
-    deepStrictEqual([view.text, session.state.size], [THINKING_STAYS_OFF_TEXT, 0]);
+    deepStrictEqual([view.text, session.state.size], [NO_THINKING_ASKED_TEXT, 0]);
   });
 
   it("stores nothing when the person leaves", async () => {
@@ -223,7 +226,7 @@ describe("/effort on a model whose levels the runtime knows", () => {
   it("sets a level without a warning on a model the capability table does not know", async () => {
     // Arrange
     const { reasoning, run } = glmHarness();
-    reasoning.capabilitiesAnswer = null;
+    reasoning.capabilitiesAnswer = UNKNOWN_TAKES;
     reasoning.reports = { high: HIGH_UNCHECKED };
 
     // Act
@@ -237,7 +240,7 @@ describe("/effort on a model whose levels the runtime knows", () => {
     // Arrange
     const { session, reasoning, run } = glmHarness();
     session.state.set(EFFORT_STATE_KEY, "high");
-    reasoning.capabilitiesAnswer = null;
+    reasoning.capabilitiesAnswer = UNKNOWN_TAKES;
     reasoning.reports = { high: HIGH_UNCHECKED };
 
     // Act
@@ -247,17 +250,19 @@ describe("/effort on a model whose levels the runtime knows", () => {
     strictEqual(view.text, HIGH_UNCHECKED_TEXT);
   });
 
-  it("judges the model /model switched to", async () => {
-    // Arrange
-    const { session, reasoning, run } = glmHarness();
-    session.state.set(MODEL_PREFERENCE_STATE_KEY, "glm-5.3");
+  for (const c of TARGET_CASES) {
+    it(c.name, async () => {
+      // Arrange
+      const { session, reasoning, run } = glmHarness();
+      session.state.set(MODEL_PREFERENCE_STATE_KEY, c.override);
 
-    // Act
-    await run("show");
+      // Act
+      await run("show");
 
-    // Assert
-    deepStrictEqual(reasoning.targets[0], { profile: null, model: "glm-5.3" });
-  });
+      // Assert
+      deepStrictEqual(reasoning.targets[0], c.target);
+    });
+  }
 
   it("says in the panel what a level the model does not take is sent as", async () => {
     // Arrange
@@ -287,4 +292,123 @@ describe("/effort on a model whose levels the runtime knows", () => {
     // Assert
     strictEqual(view.text, SET_MEDIUM_ON_GLM_TEXT);
   });
+
+  for (const c of PANEL_CASES) {
+    it(c.name, async () => {
+      // Arrange
+      const { chooser, reasoning, run } = glmHarness();
+      chooser.interactive = true;
+      reasoning.reports = { high: c.report };
+
+      // Act
+      await run();
+
+      // Assert
+      strictEqual(chooser.asked[0].options[2].description, c.description);
+    });
+  }
+
+  it("names no levels when no level is stored on a model the capability table does not know", async () => {
+    // Arrange
+    const { reasoning, run } = glmHarness();
+    reasoning.capabilitiesAnswer = UNKNOWN_TAKES;
+
+    // Act
+    const view = await run("show");
+
+    // Assert
+    strictEqual(view.text, NOTHING_STORED_TEXT);
+  });
+
+  it("names no levels after a lowered level on a model the capability table does not know", async () => {
+    // Arrange
+    const { session, reasoning, run } = glmHarness();
+    session.state.set(EFFORT_STATE_KEY, "xhigh");
+    reasoning.capabilitiesAnswer = UNKNOWN_TAKES;
+    reasoning.reports = { xhigh: XHIGH_LOWERED_UNKNOWN };
+
+    // Act
+    const view = await run("show");
+
+    // Assert
+    strictEqual(view.text, XHIGH_LOWERED_UNKNOWN_TEXT);
+  });
+});
+
+describe("/effort and the level the host's own configuration asks for", () => {
+  it("says the host asks for a level when the session stored none", async () => {
+    // Arrange
+    const { reasoning, run } = glmHarness();
+    reasoning.hostReport = HIGH_AS_ASKED;
+
+    // Act
+    const view = await run("show");
+
+    // Assert
+    strictEqual(view.text, HOST_HIGH_ON_GLM_TEXT);
+  });
+
+  it("says what the host's level is sent as when the model does not take it", async () => {
+    // Arrange
+    const { reasoning, run } = glmHarness();
+    reasoning.hostReport = MEDIUM_LOWERED;
+
+    // Act
+    const view = await run("show");
+
+    // Assert
+    strictEqual(view.text, HOST_MEDIUM_ON_GLM_TEXT);
+  });
+
+  it("asks the runtime what the host sends with no level when the session stored none", async () => {
+    // Arrange
+    const { reasoning, run } = glmHarness();
+
+    // Act
+    await run("show");
+
+    // Assert
+    deepStrictEqual(reasoning.levelsAsked, [null]);
+  });
+});
+
+describe("/effort under an llm.profile", () => {
+  it("judges the profile's model, not the /model override", async () => {
+    // Arrange
+    const { reasoning, run } = profiledHarness();
+
+    // Act
+    await run("show");
+
+    // Assert
+    deepStrictEqual(reasoning.targets[0], { profile: "large", model: "deepseek-chat" });
+  });
+
+  it("warns of the level the profile's model sends in place of the one set", async () => {
+    // Arrange
+    const { run } = profiledHarness();
+
+    // Act
+    const view = await run("medium");
+
+    // Assert
+    strictEqual(view.text, SET_MEDIUM_ON_GLM_TEXT);
+  });
+});
+
+describe("/effort under a /model override", () => {
+  for (const c of DEV_STEPS_CASES) {
+    it(c.name, async () => {
+      // Arrange
+      const { session, reasoning, run } = glmHarness();
+      session.state.set(MODEL_PREFERENCE_STATE_KEY, "glm-5.3");
+      reasoning.byModel = c.byModel;
+
+      // Act
+      const view = await run("medium");
+
+      // Assert
+      strictEqual(view.text, c.text);
+    });
+  }
 });

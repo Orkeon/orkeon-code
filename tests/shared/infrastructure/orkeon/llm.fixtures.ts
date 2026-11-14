@@ -166,6 +166,8 @@ export interface EffortSentCase {
 }
 
 const LOWERED = { model: "glm-5.3", asked: "medium", sent: "low", notice: "lowered" };
+/** What the host's own `Llm:Thinking:Effort` sends, reported with no effort asked. */
+const HOST_HIGH = { model: "glm-5.3", asked: "high", sent: "high", notice: null };
 
 /** What an act sends for its effort, asked of the facade without a call (Orkeon #360). */
 export const EFFORTS_SENT: readonly EffortSentCase[] = [
@@ -175,7 +177,15 @@ export const EFFORTS_SENT: readonly EffortSentCase[] = [
     defaults: { effort: "medium" }, request: { model: "glm-5.3" }, answer: LOWERED,
     asked: [{ effort: "medium", llm: { model: "glm-5.3" } }], expected: LOWERED,
   },
-  { name: "answers nothing, unasked, when neither names an effort", request: {}, answer: LOWERED, asked: [], expected: null },
+  {
+    name: "keeps the request's effort over the crew's",
+    defaults: { effort: "low" }, request: { effort: "medium" }, answer: LOWERED, asked: [{ effort: "medium" }], expected: LOWERED,
+  },
+  {
+    name: "asks with no effort when neither names one, and answers what the host's own configuration sends",
+    request: {}, answer: HOST_HIGH, asked: [{}], expected: HOST_HIGH,
+  },
+  { name: "answers nothing when neither names an effort and the host asks for none", request: {}, answer: null, asked: [{}], expected: null },
   { name: "answers nothing when the facade cannot tell", request: { effort: "high" }, answer: null, asked: [{ effort: "high" }], expected: null },
   {
     name: "answers nothing when the facade throws on the profile",

@@ -14,7 +14,7 @@ import { EFFORT_STATE_KEY, ROUTE_RECENT_STATE_KEY } from "../../../shared/domain
 import { routeWhy } from "../../../shared/application/agents/route-agent.ts";
 import { HOST_DEFAULT_MODEL } from "../../../shared/application/agents/messages.ts";
 import type { CommandView } from "../view.ts";
-import { effortNote } from "./effort.ts";
+import { effortWarningNote } from "./effort.ts";
 import { NOTHING_ROUTED_YET, ROUTE_USAGE, modelTakes, routeSet, routeStatus, routedRecord, rungLine } from "./messages.ts";
 
 export interface RouteCommandDeps {
@@ -31,7 +31,7 @@ export interface RouteCommandDeps {
 function rungReasoning(rung: string, effort: EffortLevel | undefined, reasoning: ReasoningReader): string | null {
   const target = { profile: rung, model: "" };
   const capabilities = reasoning.capabilities(target);
-  const note = effort === undefined ? "" : effortNote(reasoning.effort(target, effort), capabilities);
+  const note = effort === undefined ? "" : effortWarningNote(reasoning.effort(target, effort), capabilities);
   if (note !== "") return rungLine(rung, note);
   return capabilities !== null && capabilities.known ? rungLine(rung, modelTakes(capabilities.model, capabilities.efforts)) : null;
 }

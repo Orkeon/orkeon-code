@@ -48,6 +48,10 @@ export function stopCheckRetryFailed(guard: string, error: string): string {
 export function actEffort(level: string, maxIterations: number, sent: string): string {
   return `act — effort: ${level}${sent}, maxIterations: ${maxIterations}`;
 }
+/** The same line when the session stored no level and the host's own configuration asks for one. */
+export function actHostEffort(level: string, maxIterations: number, sent: string): string {
+  return `act — effort: none stored, the host asks for ${level}${sent}, maxIterations: ${maxIterations}`;
+}
 export const effortSentAs = (sent: string, model: string): string => ` (sent as '${sent}' to ${model})`;
 export const effortNotSent = (model: string): string => ` (none sent to ${model})`;
 

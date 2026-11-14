@@ -345,28 +345,41 @@ What the table leaves out:
 `/model`, `/effort`, `/passes` (an alias of `/review`), `/fast`, `/proactive` and `/output-style` change how the next
 turns run.
 
-`/effort` also sets the provider's thinking. The stored level is sent as the act's `effort` by `/assistant`, by every
-dev step (`/dev-spec`, `/dev-plan`, `/dev-batches`) and by the agents these start; nothing is sent while no level is
-stored. The levels are `low`, `medium`, `high`, `xhigh` and `max`. Orkeon Code sends
-the level as stored and the runtime judges it: a level the provider's field or the model does not take
-(`Llm:ModelCapabilities`) is sent as the highest one below it that both take, and the runtime's log says so.
+`/effort` also asks the provider for thinking. The stored level is sent as the act's `effort` by `/assistant`, by
+every dev step (`/dev-spec`, `/dev-plan`, `/dev-batches`) and by the agents these start; the session sends none
+while no level is stored, and the host's own `Llm:Thinking:Effort`, when it sets one, then goes out alone. The levels
+are `low`, `medium`, `high`, `xhigh` and `max`. Orkeon Code sends the level as stored and the runtime judges it: a
+level the provider's field or the model does not take (`Llm:ModelCapabilities`) is sent as the highest one below it
+that both take, or the lowest of them when none is below; none at all when they share none. The runtime's log says
+so.
 
-`/effort` reads that judgement from the runtime, for the model the session's turns run on (its `llm.profile`, else
-its `/model` override, else the host's own model):
+`/effort` reads that judgement from the runtime, for the model the session's turns run on: its `/model` override,
+else the host's own model.
 
 - `/effort show` lists the levels the model takes (`glm-5.3 takes low, high, max`) and, for a stored level it does
-  not take, the level sent in its place;
-- setting such a level stores it all the same, since the iterations follow it, and warns: `⚠ effort: glm-5.3 does
-  not take 'medium': 'low' is sent (it takes low, high, max).` A model that takes no effort gets none, and the
-  warning says so. A model the capability table does not know gets the level unchecked: `/effort show` says it,
-  without a warning;
-- the panel of a bare `/effort` marks each level that would be sent as another one, or not at all;
-- `/model` gives the same warning after a switch, when the stored level does not go as asked on the new model, and
-  so does `/config set llm.profile` (or its unset) when the profile changes;
-- a bare `/route` lists, under its status, what the model of each rung of the ladder takes, or what the stored level
-  becomes on it: a routed crew runs on a rung, with the level `/effort` stored.
+  not take, the level sent in its place. With no level stored, it names the level the host's `Llm:Thinking:Effort`
+  asks for, and what it becomes: `provider thinking: not requested by the session; the host asks for 'medium' —
+  'medium' is sent to glm-5.3 as 'low' (it takes low, high, max)`. For a stored level on a model the capability
+  table does not know, it says that the level goes out unchecked; that case gets no warning.
+- Setting a level the model does not take stores it all the same, since the iterations follow it, and warns:
+  `⚠ effort: 'medium' is sent to glm-5.3 as 'low' (it takes low, high, max).` A level the runtime does not send
+  at all reads `⚠ effort: 'high' is not sent to <model>.`, with the levels the model takes when the table knows it.
+- Under a `/model` override, the dev steps and the sub-agents still run on the host's own model: when the level
+  does not go as asked there either, a second line says so, `⚠ effort, dev steps and sub-agents (the host's model):
+  …`.
+- The panel of a bare `/effort` marks each level that would be sent as another one, or not at all.
+- `/model` gives the same warnings after a switch or a reset, and `/config unset llm.profile` when the turns go
+  back to that model. When the panel of `/model` changes the model and the effort together, only the new level is
+  judged, on the new model.
 
-The dev steps and their agents may run on another model: the warning speaks of the session's model only. On a
+Under an `llm.profile`, and for the rungs of the `/route` ladder, the commands say nothing of what the model takes
+for now: the runtime gives no way to read a named profile without failing on a name the host does not declare, nor
+the list of the names it declares. An Orkeon issue asks for one. The log line of a turn still names the level sent,
+under a profile too, since it is judged on the running agent: `act — effort: medium (sent as 'low' to glm-5.3),
+maxIterations: 40`, or with no level stored, `act — effort: none stored, the host asks for medium (sent as 'low' to
+glm-5.3), maxIterations: 40`.
+
+A role or a routed crew may run on another model again: the warnings speak of the session's targets only. On a
 runtime before Orkeon #361 (the tool and docker modes on 1.0.0), nothing is said of the model's levels.
 
 ### What the user settings narrow

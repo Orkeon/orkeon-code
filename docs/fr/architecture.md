@@ -334,7 +334,7 @@ rend le texte, ou le message d'échec propre à l'outil sans l'enrobage du runti
 | `ChildRuntime` | Les enfants d'une exécution de crew : en lancer un en arrière-plan, lister, arrêter, lire ce qu'il a laissé (`ctx.spawnBackground`, `instances()`/`stop()` du crew, sa mémoire) | `child-agents.ts` | `fake-child-runtime.ts` |
 | `HumanInput` | Une question à la personne : un choix, un texte, une sélection multiple ; personne ne répondant est une réponse en soi (`human_input`) | `human-input.ts` | `fake-human-input.ts` |
 | `Chooser` | Un panneau dans la console : une option parmi plusieurs, avec un réglage facultatif sur les flèches latérales ; `interactive` dit si un panneau peut s'ouvrir (`ctx.prompt`, `ctx.interactive`) | `chooser.ts` | `fake-chooser.ts` |
-| `ReasoningReader` | Ce qu'un modèle de l'hôte prend pour le raisonnement et ce que devient un effort demandé, tels que le runtime les juge (l'espace `llm` : `capabilities`, `reasoning`) | `reasoning.ts` | `fake-reasoning-reader.ts` |
+| `ReasoningReader` | Ce qu'un modèle de l'hôte prend pour le raisonnement et ce que devient un effort demandé, tels que le runtime les juge (l'espace `llm` : `capabilities`, `reasoning` ; un profil nommé n'est pas lu, Orkeon n'en donne aucune lecture sûre) | `reasoning.ts` | `fake-reasoning-reader.ts` |
 | `ThemeConsole` | La palette de la console pour la session (`ctx.theme`, `ctx.setTheme`) | le contexte de commande lui-même | `fake-theme-console.ts` |
 | `Files` | Lire, écrire et lister par chemin virtuel, les montages du VFS (`file_read`, `file_write`, `directory_read`, `list_mounts`) | `files.ts` | `fake-files.ts` |
 | `Progress` | La ligne de progression du runtime, au mieux (`progress_report`) | `progress.ts` | `fake-progress.ts` |
@@ -349,7 +349,7 @@ rend le texte, ou le message d'échec propre à l'outil sans l'enrobage du runti
 | `CostIndex` | Le coût d'accès que `/dev-batches` mesure : les racines indexées, le rafraîchissement des fichiers du lot, le rapport (`index_status`, `incremental_reindex`, `access_cost`) | `code-index.ts` | `fake-cost-index.ts` |
 | `CrewHost` | Lister et lancer des crews (le service `script-host`, `ctx.services`) | `crew-host.ts` | `fake-crew-host.ts` |
 | `PermissionRules` | Les règles de session de la garde de permission du runtime : ajouter, effacer, lister (le service `permissions`, `ctx.services`) | `permission-rules.ts` | `fake-permission-rules.ts` |
-| `Llm` | Le modèle : `act` (la boucle d'outils), `complete`, `extract` (`ctx.llm` de l'agent en cours) ; un `act` ou un `complete` qui échoue lève une `LlmFailure` | `llm.ts` | `fake-llm.ts` |
+| `Llm` | Le modèle : `act` (la boucle d'outils), `complete`, `extract` (`ctx.llm` de l'agent en cours), `effortSent` (ce qu'un act envoie pour son effort, `ctx.llm.reasoning`) ; un `act` ou un `complete` qui échoue lève une `LlmFailure` | `llm.ts` | `fake-llm.ts` |
 | `RunState` | L'état propre de l'agent en cours, pour une exécution de crew (`ctx.state`) | `run-state.ts` | `fake-run-state.ts` |
 | `CrewMemory` | La mémoire clé/valeur du crew en cours, partagée par ses agents le temps d'une exécution (`ctx.memory.crew`) | `crew-memory.ts` | `fake-crew-memory.ts` |
 | `Clock` | L'heure courante (`ports/clock.ts`), la seule lecture de l'horloge hors de `shared/infrastructure/` | `wiring.ts` (`orkeonClock()`) | `fake-clock.ts` |

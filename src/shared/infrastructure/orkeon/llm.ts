@@ -98,10 +98,11 @@ export function createLlm(
     permissionGateEnabled,
     effortSent(request) {
       const effort = request.effort ?? defaults.effort;
-      // A facade without it (a test's, a runtime before #360) cannot say; nor can one that throws on the profile.
-      if (effort === undefined || llm.reasoning === undefined) return null;
+      // A facade without it (a test's, a runtime before #360) cannot say. With no effort asked, the runtime reports
+      // what the host's own configuration sends, or nothing.
+      if (llm.reasoning === undefined) return null;
       try {
-        return effortReportOf(llm.reasoning({ effort, ...callOptions(request) }));
+        return effortReportOf(llm.reasoning({ ...(effort === undefined ? {} : { effort }), ...callOptions(request) }));
       } catch {
         return null;
       }

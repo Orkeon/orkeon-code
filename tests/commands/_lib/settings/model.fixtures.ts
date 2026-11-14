@@ -1,7 +1,7 @@
 // The harness /model runs over (FakeSessionStore, FakeTelemetry reporting kimi-k3 and a catalogue of two, FakeLogger),
 // and the texts it answers that run past a line.
 import { runModel } from "../../../../src/commands/_lib/settings/model.ts";
-import { NO_MODEL_REPORTED } from "../../../../src/commands/_lib/settings/messages.ts";
+import { NO_MODEL_REPORTED, effortSet } from "../../../../src/commands/_lib/settings/messages.ts";
 import type { CommandView } from "../../../../src/commands/_lib/view.ts";
 import { createConfigStore, USER_CONFIG_FILE_PATH } from "../../../../src/shared/application/config-store.ts";
 import { renderModelList } from "../../../../src/shared/domain/model-catalog.ts";
@@ -10,6 +10,8 @@ import { FakeChooser } from "../../../support/doubles/fake-chooser.ts";
 import { FakeFiles } from "../../../support/doubles/fake-files.ts";
 import { FakeLogger } from "../../../support/doubles/fake-logger.ts";
 import { FakeReasoningReader } from "../../../support/doubles/fake-reasoning-reader.ts";
+import type { ReasoningAnswers } from "../../../support/doubles/fake-reasoning-reader.ts";
+import { GLM_TAKES, HIGH_DROPPED, MEDIUM_LOWERED } from "../../../support/fixtures/reasoning.ts";
 import { FakeSessionStore } from "../../../support/doubles/fake-session-store.ts";
 import { FakeTelemetry } from "../../../support/doubles/fake-telemetry.ts";
 
@@ -77,4 +79,15 @@ export const PROFILE_SWITCH_WARNING =
 export const PROFILE_SWITCHED_TEXT = `model set to 'deepseek-chat' — ⚠ ${PROFILE_SWITCH_WARNING}.`;
 
 /** The line under a switch when the stored `medium` goes out as `low` on the model switched to. */
-export const MEDIUM_LOWERED_WARNING = "⚠ effort: glm-5.3 does not take 'medium': 'low' is sent (it takes low, high, max).";
+export const MEDIUM_LOWERED_WARNING = "⚠ effort: 'medium' is sent to glm-5.3 as 'low' (it takes low, high, max).";
+
+/** What /model reset answers when the stored `medium` goes out as `low` on the boot model. */
+export const RESET_LOWERED_TEXT = `model override cleared — turns go back to kimi-k3.\n${MEDIUM_LOWERED_WARNING}`;
+
+/** What the /model panel answers when deepseek-chat and `medium` are picked together, `high` stored before. */
+export const PANEL_BOTH_TEXT = `${SWITCHED_TEXT}\n${effortSet("medium", 40)}\n${MEDIUM_LOWERED_WARNING}`;
+
+/** deepseek-chat as GLM-5.3 on Z.AI: `medium` goes out as `low`, `high` would not be sent at all. */
+export const DEEPSEEK_AS_GLM: Record<string, ReasoningAnswers> = {
+  "deepseek-chat": { capabilities: GLM_TAKES, reports: { medium: MEDIUM_LOWERED, high: HIGH_DROPPED } },
+};

@@ -20,6 +20,7 @@ import {
   BARE_TURN_CONTEXT, BLOCKED_ANSWER, blockedRequest, DEFAULT_LOADED, DENYING_CHAINS, DICTATION, EXPLICIT_PLAN, EXTRAS, EXTRA_RULES, EXTRA_TOOLS_INPUT, PARSED_RULES,
   REQUEST_WITH_TRANSCRIPT, RULED_CATALOGUE, SCRIPT_TOOLS_CASES, SESSION_START, SILENT_GATES, SPEAK, SPEAKER_FAILURE,
   attachSkill, PRUNING, pruneBinding, STORED_RULES, suggestBinding, TRANSCRIPT, TRANSCRIPTION_PRELUDE, turnSetup, PROFILED_INPUT, PROFILE_OVERRIDE_WARNING,
+  EFFORT_LOG_CASES,
 } from "./run-main-loop.fixtures.ts";
 import {
   assertGateWarningBefore, assertLogged, assertSuggestedApart, assertLoggedLike, assertPromptEndsWith, assertToolTraceMessage,
@@ -27,7 +28,6 @@ import {
 import { createToolTrace } from "../../../../src/shared/application/dev/tool-trace-recorder.ts";
 import { assertMentions } from "../../../support/assertions/text.ts";
 import { PROJECT_WIN, windowsHost } from "../../../support/fixtures/host-context.ts";
-import { HIGH_DROPPED, MEDIUM_LOWERED } from "../../../support/fixtures/reasoning.ts";
 
 describe("loadCatalogue", () => {
   it("builds the catalogue of the explicit mode, with the stored rules that parse", () => {
@@ -465,30 +465,41 @@ describe("runMainLoop — the turn", () => {
     assertLogged(log.lines, "info: act — effort: low, maxIterations: 10");
   });
 
-  it("logs the level the provider receives when the model does not take the effort stored", async () => {
+  for (const c of EFFORT_LOG_CASES) {
+    it(c.name, async () => {
+      // Arrange
+      const { store, llm, log, deps } = turnSetup();
+      if (c.stored !== undefined) store.state.set(EFFORT_STATE_KEY, c.stored);
+      llm.effortReport = c.report;
+
+      // Act
+      await runMainLoop({ prompt: "go", permissionMode: "plan" }, EXPLICIT_PLAN, deps);
+
+      // Assert
+      assertLogged(log.lines, c.line);
+    });
+  }
+
+  it("logs no effort when none is stored and the host asks for none", async () => {
     // Arrange
-    const { store, llm, log, deps } = turnSetup();
-    store.state.set(EFFORT_STATE_KEY, "medium");
-    llm.effortReport = MEDIUM_LOWERED;
+    const { log, deps } = turnSetup();
 
     // Act
     await runMainLoop({ prompt: "go", permissionMode: "plan" }, EXPLICIT_PLAN, deps);
 
     // Assert
-    assertLogged(log.lines, "info: act — effort: medium (sent as 'low' to glm-5.3), maxIterations: 40");
+    deepStrictEqual(log.lines.filter((line) => line.startsWith("info: act — effort")), []);
   });
 
-  it("logs that no effort is sent on a model that takes none", async () => {
+  it("asks what the act sends with no effort when none is stored", async () => {
     // Arrange
-    const { store, llm, log, deps } = turnSetup();
-    store.state.set(EFFORT_STATE_KEY, "high");
-    llm.effortReport = HIGH_DROPPED;
+    const { llm, deps } = turnSetup();
 
     // Act
     await runMainLoop({ prompt: "go", permissionMode: "plan" }, EXPLICIT_PLAN, deps);
 
     // Assert
-    assertLogged(log.lines, "info: act — effort: high (none sent to plain-1), maxIterations: 80");
+    deepStrictEqual(llm.effortsAsked.map((request) => request.effort), [undefined]);
   });
 
   it("asks what the act sends with the effort stored and the /model override", async () => {

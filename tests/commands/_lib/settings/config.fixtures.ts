@@ -125,3 +125,11 @@ export const UNNARROWED_SET_CASES: readonly SetRefusalCase[] = [
     text: "permissions.fallback = bypassPermissions [session] — overrides the file until /clear.",
   },
 ];
+
+const MEDIUM_LOWERED_WARNING = "⚠ effort: 'medium' is sent to glm-5.3 as 'low' (it takes low, high, max).";
+
+/** What `/config set --session llm.profile large` answers when `large` sends the stored `medium` as `low`. */
+export const PROFILE_SET_LOWERED_TEXT = `llm.profile = large [session] — overrides the file until /clear.\n${MEDIUM_LOWERED_WARNING}`;
+
+/** What `/config unset --session llm.profile` answers when the host's own model sends the stored `medium` as `low`. */
+export const PROFILE_UNSET_LOWERED_TEXT = `llm.profile session override removed (the file value applies again).\n${MEDIUM_LOWERED_WARNING}`;

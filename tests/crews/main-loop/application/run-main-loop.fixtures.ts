@@ -14,6 +14,8 @@ import { FakeSessionStore } from "../../../support/doubles/fake-session-store.ts
 import { FakeShell } from "../../../support/doubles/fake-shell.ts";
 import { FakeTelemetry } from "../../../support/doubles/fake-telemetry.ts";
 import { FakeToolCatalogue } from "../../../support/doubles/fake-tool-catalogue.ts";
+import type { EffortReport } from "../../../../src/shared/domain/agent-policy/reasoning.ts";
+import { HIGH_AS_ASKED, HIGH_DROPPED, HIGH_UNCHECKED, MEDIUM_LOWERED } from "../../../support/fixtures/reasoning.ts";
 
 /** The ports of one turn, over fakes; `outcome` is what every compaction attempt
  *  returns, and `compactions` the buffer length each attempt saw. */
@@ -204,3 +206,33 @@ export function suggestBinding() {
   };
   return { suggest, asked };
 }
+
+export interface EffortLogCase { name: string; stored?: string; report: EffortReport | null; line: string }
+
+/** The act's effort line, from the level /effort stored and what the runtime reports the act sends (Orkeon #360). */
+export const EFFORT_LOG_CASES: readonly EffortLogCase[] = [
+  {
+    name: "logs the level the provider receives when the model does not take the effort stored",
+    stored: "medium", report: MEDIUM_LOWERED, line: "info: act — effort: medium (sent as 'low' to glm-5.3), maxIterations: 40",
+  },
+  {
+    name: "logs that no effort is sent on a model that takes none",
+    stored: "high", report: HIGH_DROPPED, line: "info: act — effort: high (none sent to plain-1), maxIterations: 80",
+  },
+  {
+    name: "logs the stored level alone when it goes unchecked on a model the table does not know",
+    stored: "high", report: HIGH_UNCHECKED, line: "info: act — effort: high, maxIterations: 80",
+  },
+  {
+    name: "logs the stored level alone when it goes as asked",
+    stored: "high", report: HIGH_AS_ASKED, line: "info: act — effort: high, maxIterations: 80",
+  },
+  {
+    name: "logs the level the host asks for when none is stored",
+    report: HIGH_AS_ASKED, line: "info: act — effort: none stored, the host asks for high, maxIterations: 40",
+  },
+  {
+    name: "logs what the host's level is sent as when none is stored and the model does not take it",
+    report: MEDIUM_LOWERED, line: "info: act — effort: none stored, the host asks for medium (sent as 'low' to glm-5.3), maxIterations: 40",
+  },
+];

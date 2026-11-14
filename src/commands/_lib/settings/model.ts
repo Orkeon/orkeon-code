@@ -161,10 +161,14 @@ async function pickModel(
   if (!answer) return { text: MODEL_UNCHANGED };
 
   const texts: string[] = [];
+  const newEffort = answer.control !== undefined && answer.control !== null && answer.control !== "" && answer.control !== effort;
   if (answer.value.toLowerCase() !== effective.toLowerCase()) {
-    texts.push((await runModel([answer.value], { ...deps, chooser: undefined })).text ?? "");
+    // With a new effort too, the level still stored is about to be replaced: the effort's own answer judges the
+    // new one on the new model.
+    const reasoning = newEffort ? undefined : deps.reasoning;
+    texts.push((await runModel([answer.value], { ...deps, chooser: undefined, reasoning })).text ?? "");
   }
-  if (answer.control && answer.control !== effort) {
+  if (answer.control && newEffort) {
     texts.push((await runEffort([answer.control], { session: deps.session, config: deps.config, reasoning: deps.reasoning })).text ?? "");
   }
   return { text: texts.length > 0 ? texts.join("\n") : MODEL_UNCHANGED };
