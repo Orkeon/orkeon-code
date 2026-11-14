@@ -5,7 +5,7 @@ import { deepStrictEqual, strictEqual } from "node:assert";
 
 import { createReasoningReader } from "../../../../src/shared/infrastructure/orkeon/reasoning.ts";
 import { FakeLlmConfigs } from "../../../support/doubles/fake-llm-configs.ts";
-import { BOOT, MEDIUM_ON_GLM, OVERRIDE, PROFILE_CASES } from "./reasoning.fixtures.ts";
+import { BOOT, DECLARED_PROFILE_CASES, HOST_PROFILES, MEDIUM_ON_GLM, OVERRIDE, PROFILED, UNDECLARED_PROFILE } from "./reasoning.fixtures.ts";
 
 describe("createReasoningReader — capabilities", () => {
   it("reads what the host's own model takes when the session names neither a profile nor a model", () => {
@@ -31,19 +31,33 @@ describe("createReasoningReader — capabilities", () => {
     deepStrictEqual([host.asked, capabilities?.known], [["model:my-custom"], false]);
   });
 
-  for (const c of PROFILE_CASES) {
-    it(`answers nothing for ${c.name}, without asking the host`, () => {
+  for (const c of DECLARED_PROFILE_CASES) {
+    it(`reads the profile the host declares: ${c.name}`, () => {
       // Arrange
       const host = new FakeLlmConfigs();
+      host.profileModels = HOST_PROFILES;
       const reader = createReasoningReader(host);
 
       // Act
       const capabilities = reader.capabilities(c.target);
 
       // Assert
-      deepStrictEqual([capabilities, host.asked], [null, []]);
+      deepStrictEqual([host.asked, capabilities?.model], [[`profile:${c.target.profile}`], "glm-5.3"]);
     });
   }
+
+  it("answers nothing for a profile the host does not declare, without asking for it", () => {
+    // Arrange
+    const host = new FakeLlmConfigs();
+    host.profileModels = HOST_PROFILES;
+    const reader = createReasoningReader(host);
+
+    // Act
+    const capabilities = reader.capabilities(UNDECLARED_PROFILE);
+
+    // Assert
+    deepStrictEqual([capabilities, host.asked], [null, []]);
+  });
 
   it("answers nothing on a host without the llm namespace", () => {
     // Arrange
@@ -104,19 +118,31 @@ describe("createReasoningReader — effort", () => {
     strictEqual(report, null);
   });
 
-  for (const c of PROFILE_CASES) {
-    it(`answers nothing for a level on ${c.name}, without asking the host`, () => {
-      // Arrange
-      const host = new FakeLlmConfigs();
-      const reader = createReasoningReader(host);
+  it("reads what the runtime sends for a level on a profile the host declares", () => {
+    // Arrange
+    const host = new FakeLlmConfigs();
+    host.profileModels = HOST_PROFILES;
+    const reader = createReasoningReader(host);
 
-      // Act
-      const report = reader.effort(c.target, "high");
+    // Act
+    const report = reader.effort(PROFILED, "medium");
 
-      // Assert
-      deepStrictEqual([report, host.asked], [null, []]);
-    });
-  }
+    // Assert
+    deepStrictEqual(report, MEDIUM_ON_GLM);
+  });
+
+  it("answers nothing for a level on a profile the host does not declare, without asking for it", () => {
+    // Arrange
+    const host = new FakeLlmConfigs();
+    host.profileModels = HOST_PROFILES;
+    const reader = createReasoningReader(host);
+
+    // Act
+    const report = reader.effort(UNDECLARED_PROFILE, "high");
+
+    // Assert
+    deepStrictEqual([report, host.asked], [null, []]);
+  });
 
   it("answers nothing on a host without the llm namespace", () => {
     // Arrange

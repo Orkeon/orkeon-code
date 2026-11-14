@@ -372,15 +372,17 @@ else the host's own model.
   back to that model. When the panel of `/model` changes the model and the effort together, only the new level is
   judged, on the new model.
 
-Under an `llm.profile`, and for the rungs of the `/route` ladder, the commands say nothing of what the model takes
-for now: the runtime gives no way to read a named profile without failing on a name the host does not declare, nor
-the list of the names it declares. An Orkeon issue asks for one. The log line of a turn still names the level sent,
-under a profile too, since it is judged on the running agent: `act — effort: medium (sent as 'low' to glm-5.3),
-maxIterations: 40`, or with no level stored, `act — effort: none stored, the host asks for medium (sent as 'low' to
-glm-5.3), maxIterations: 40`.
+Under an `llm.profile`, the model judged is the profile's: `/effort`, `/model` and `/config set llm.profile <name>`
+speak of it, and a bare `/route` adds a line per rung of the ladder with what its model takes (`small:
+glm-5.3-flashx takes low, high, max`), or what the stored level becomes on it. A profile the host does not declare
+gets no line and no warning: the commands check the name against the runtime's list first (`llm.profiles`, Orkeon
+#364), without case. The log line of a turn names the level sent, under a profile too, since it is judged on the
+running agent: `act — effort: medium (sent as 'low' to glm-5.3), maxIterations: 40`, or with no level stored, `act —
+effort: none stored, the host asks for medium (sent as 'low' to glm-5.3), maxIterations: 40`.
 
 A role or a routed crew may run on another model again: the warnings speak of the session's targets only. On a
-runtime before Orkeon #361 (the tool and docker modes on 1.0.0), nothing is said of the model's levels.
+runtime before Orkeon #361 (the tool and docker modes on 1.0.0), nothing is said of the model's levels; before
+#364, nothing of a profile's.
 
 ### What the user settings narrow
 

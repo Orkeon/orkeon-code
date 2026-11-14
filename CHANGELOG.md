@@ -22,21 +22,29 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   dev steps and the sub-agents keep (`⚠ effort, dev steps and sub-agents (the host's model): …`).
 - `/model` gives these warnings after a switch or a reset, when the stored effort does not go as asked on the new
   model, and `/config unset llm.profile` when the turns go back to it.
-- Under an `llm.profile`, and for the rungs of `/route`, nothing is said yet: the runtime has no read of a named
-  profile that a script survives on a name the host does not declare.
+- Under an `llm.profile`, the model judged is the profile's, and a bare `/route` gives a line per rung of the
+  ladder with what its model takes (`small: glm-5.3-flashx takes low, high, max`) or what the stored level becomes
+  on it; `/config set llm.profile <name>` warns when the stored level does not go as asked on the profile set. A
+  profile the host does not declare gets no line and no warning (the names come from `llm.profiles`, Orkeon #364).
 - The log line of a turn names the level the provider receives when it is not the one asked (`act — effort: medium
   (sent as 'low' to glm-5.3), maxIterations: 40`), and the session-flags line says the level is the one asked
   (`provider thinking asked at medium`), as the answer of `/effort <level>` does (`asks the provider for thinking`).
 - All of it is the runtime's own judgement, read through Orkeon #359 and #360 (the host's `Llm:ModelCapabilities`
   included): on Orkeon 1.0.0 (the tool and docker modes) nothing is said of the model's levels.
 
-### Changed — the pin moves to Orkeon main after #361
+### Changed — the pin moves to Orkeon main after #365
 
-- `.orkeon-version` names `98799c6`, Orkeon `main` after #351-#354, #356, #358 (the reasoning modes of
-  `orkeon llm probe`), #362 (Z.AI takes `xhigh`; GLM-5.3 keeps `low`, `high` and `max`) and #361 (a script reads a
-  model's reasoning capabilities and the effort sent), ahead of the 1.0.0 release: the tool
+- `.orkeon-version` names `2fb47b8`, Orkeon `main` after #351-#354, #356, #358 (the reasoning modes of
+  `orkeon llm probe`), #362 (Z.AI takes `xhigh`; GLM-5.3 keeps `low`, `high` and `max`), #361 (a script reads a
+  model's reasoning capabilities and the effort sent), #363 (an agent's file-system scope, not used here) and #365
+  (a script lists the host's profiles and catches the runtime's refusals), ahead of the 1.0.0 release: the tool
   and docker modes run 1.0.0 until Orkeon's next release ([ADR 0030](docs/adr/0030-orkeon-after-356.md),
   [ADR 0031](docs/adr/0031-orkeon-after-361.md)).
+- The runtime adds a `## File system` section to the system prompt of every agent that has a file-system tool: the
+  mounts, their rights and where relative paths resolve (Orkeon #348). No agent of this project declares a
+  file-system scope (#349).
+- A sub-agent routed to a rung the host does not declare stays on the crew's profile, as documented: the runtime's
+  refusal used to end the crew past the `catch` meant for it (Orkeon #364).
 - A question a crew asks from the background shows in the main screen, tagged with its task (`[t8] dev-spec asks:
   …`), and the prompt reads `answer [t8]>`; it can be answered from the task's thread too (Orkeon #352).
 - `grep` searches a file given as its path (Orkeon #351).

@@ -2,8 +2,10 @@
 // FakeLlmConfigs: a stand-in for the runtime's `llm` namespace, to test the ReasoningReader of
 // src/shared/infrastructure/orkeon/reasoning.ts. The host boots on `bootModel` (GLM-5.3, which takes low, high and
 // max and lowers any other level to low); any other model named is unknown to the capability table and takes what
-// is asked, unchecked. `hostEffort` is what the host's own `Llm:Thinking:Effort` asks for (undefined: none). Every
-// configuration asked lands in `asked` ("default", "model:<name>").
+// is asked, unchecked. `hostEffort` is what the host's own `Llm:Thinking:Effort` asks for (undefined: none).
+// `profileModels` maps each profile the host declares to its model; `profiles` lists their names after "default",
+// and `profile(name)` throws on any other, as the runtime does. Every configuration asked lands in `asked`
+// ("default", "model:<name>", "profile:<name>").
 import type { LlmConfigs } from "../../../src/shared/infrastructure/orkeon/reasoning.ts";
 
 type Level = "low" | "medium" | "high" | "xhigh" | "max";
@@ -27,7 +29,12 @@ function config(model: string, effort: Level | undefined): LlmConfig {
 export class FakeLlmConfigs implements LlmConfigs {
   bootModel = "glm-5.3";
   hostEffort: Level | undefined = undefined;
+  profileModels: Record<string, string> = {};
   asked: string[] = [];
+
+  get profiles(): readonly string[] {
+    return ["default", ...Object.keys(this.profileModels)];
+  }
 
   get default_(): LlmConfig {
     this.asked.push("default");
@@ -37,5 +44,12 @@ export class FakeLlmConfigs implements LlmConfigs {
   model(name: string): LlmConfig {
     this.asked.push(`model:${name}`);
     return config(name, this.hostEffort);
+  }
+
+  profile(name: string): LlmConfig {
+    this.asked.push(`profile:${name}`);
+    const declared = Object.keys(this.profileModels).find((known) => known.toLowerCase() === name.trim().toLowerCase());
+    if (declared === undefined) throw new Error(`llm.profile("${name}") names the LLM profile '${name}', which this host does not offer.`);
+    return config(this.profileModels[declared] as string, this.hostEffort);
   }
 }

@@ -7,7 +7,8 @@
 // its system prompt and its tool definitions (Orkeon #254): the prompts are assembled so that this prefix stays
 // byte-identical turn after turn. Only a provider whose cache is explicit (Anthropic) needs the request; the others
 // cache by their own rules. A sub-agent's act routed to a rung the host does not declare stays on the crew's profile
-// (declaredRoute), as a crew launched on one does: the runtime throws on an unknown profile name.
+// (declaredRoute), as a crew launched on one does: the runtime throws on an unknown profile name, an error a script
+// catches since Orkeon #364.
 
 import { llmProfileFallbackOf, llmProfileOf } from "../../domain/llm-profile.ts";
 import { noLlmNamespace } from "./messages.ts";

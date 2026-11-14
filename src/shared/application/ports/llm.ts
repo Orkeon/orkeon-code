@@ -66,15 +66,13 @@ export interface Llm {
   /** What an act with this request sends for its effort (Orkeon #360), judged on the running agent's provider and
    *  model, the request's profile and model over them; places no call. A request and a crew that ask for no effort
    *  give what the host's own configuration sends. Null when nothing asks for an effort, or the host cannot tell.
-   *  A request naming a profile the host does not declare fails as its act would: the runtime's refusal is not an
-   *  error the adapter can catch. */
+   *  Null too for a request naming a profile the host does not declare: its act is the one that fails. */
   effortSent(request: Pick<ActRequest, "effort" | "model" | "profile">): EffortReport | null;
 }
 
 /** What the host's models take for reasoning, read by a command before any call (Orkeon #359, #360): the runtime's
  *  own judgement, the host's `Llm:ModelCapabilities` included. Both answer null when the host cannot tell (no `llm`
- *  namespace, no provider), and for a target on a profile: the runtime gives no way to read one without failing on
- *  a name the host does not declare. */
+ *  namespace, no provider), and for a target on a profile the host does not declare (Orkeon #364). */
 export interface ReasoningReader {
   /** What the model of `target` takes. */
   capabilities(target: ReasoningTarget): ReasoningCapabilities | null;

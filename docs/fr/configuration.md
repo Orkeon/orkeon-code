@@ -394,16 +394,18 @@ surcharge `/model`, sinon le modèle de l'hôte.
   quand les tours reviennent à ce modèle. Quand le panneau de `/model` change le modèle et l'effort ensemble, seul le
   nouveau niveau est jugé, sur le nouveau modèle.
 
-Sous un `llm.profile`, et pour les échelons du ladder de `/route`, les commandes ne disent rien pour l'instant de ce
-que prend le modèle : le runtime ne donne aucun moyen de lire un profil nommé sans échouer sur un nom que l'hôte ne
-déclare pas, ni la liste des noms qu'il déclare. Une issue Orkeon le demande. La ligne de journal d'un tour nomme
-toujours le niveau envoyé, sous un profil aussi, puisqu'elle est jugée sur l'agent qui s'exécute : `act — effort:
-medium (sent as 'low' to glm-5.3), maxIterations: 40`, ou sans niveau enregistré, `act — effort: none stored, the
-host asks for medium (sent as 'low' to glm-5.3), maxIterations: 40`.
+Sous un `llm.profile`, le modèle jugé est celui du profil : `/effort`, `/model` et `/config set llm.profile <name>`
+parlent de lui, et un `/route` sans argument ajoute une ligne par échelon du ladder avec ce que prend son modèle
+(`small: glm-5.3-flashx takes low, high, max`), ou ce que le niveau enregistré y devient. Un profil que l'hôte ne
+déclare pas n'a ni ligne ni avertissement : les commandes comparent d'abord le nom à la liste du runtime
+(`llm.profiles`, Orkeon #364), sans la casse. La ligne de journal d'un tour nomme le niveau envoyé, sous un profil
+aussi, puisqu'elle est jugée sur l'agent qui s'exécute : `act — effort: medium (sent as 'low' to glm-5.3),
+maxIterations: 40`, ou sans niveau enregistré, `act — effort: none stored, the host asks for medium (sent as 'low'
+to glm-5.3), maxIterations: 40`.
 
 Un rôle ou un crew routé peut encore s'exécuter sur un autre modèle : les avertissements ne parlent que des cibles de
 la session. Sur un runtime antérieur à Orkeon #361 (les modes tool et docker en 1.0.0), rien n'est dit des niveaux du
-modèle.
+modèle ; avant #364, rien de ceux d'un profil.
 
 ### Ce que les réglages de l'utilisateur restreignent
 
