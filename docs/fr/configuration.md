@@ -368,8 +368,9 @@ dont les tours suivants s'exécutent.
 `/effort` règle aussi la réflexion du fournisseur. Le niveau enregistré est envoyé comme `effort` de l'act par
 `/assistant`, par chaque étape dev (`/dev-spec`, `/dev-plan`, `/dev-batches`) et par les agents qu'elles lancent ;
 rien n'est envoyé tant qu'aucun niveau n'est enregistré. Les niveaux sont `low`, `medium`, `high`, `xhigh` et `max`.
-Claude prend les cinq ; un fournisseur dont le champ ne connaît pas un niveau reçoit le plus haut qu'il connaît en
-dessous, et le journal du runtime le dit.
+Orkeon Code envoie le niveau tel qu'il est enregistré et le runtime le juge : un niveau que le champ du fournisseur ou
+le modèle ne prend pas (`Llm:ModelCapabilities`) est envoyé au plus haut en dessous que les deux prennent, et le
+journal du runtime le dit.
 
 ### Ce que les réglages de l'utilisateur restreignent
 

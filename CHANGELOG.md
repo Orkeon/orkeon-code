@@ -9,7 +9,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed — the pin moves to Orkeon main after #356
 
-- `.orkeon-version` names `cf56fae`, Orkeon `main` after #351-#354 and #356, ahead of the 1.0.0 release: the tool
+- `.orkeon-version` names `3108dac`, Orkeon `main` after #351-#354, #356 and #358 (the reasoning modes of
+  `orkeon llm probe`, which change nothing here), ahead of the 1.0.0 release: the tool
   and docker modes run 1.0.0 until Orkeon's next release ([ADR 0030](docs/adr/0030-orkeon-after-356.md)).
 - A question a crew asks from the background shows in the main screen, tagged with its task (`[t8] dev-spec asks:
   …`), and the prompt reads `answer [t8]>`; it can be answered from the task's thread too (Orkeon #352).
@@ -93,7 +94,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed — the pin moves to Orkeon 1.0.0
 
 - `.orkeon-version` names `41f5079`, Orkeon `main` after #347: the commit Orkeon released as 1.0.0. The tool mode on
-  that release (the apt `stable` channel, the archives) ran the pin until it moved to `cf56fae`; the guides and
+  that release (the apt `stable` channel, the archives) ran the pin until it moved on; the guides and
   `.config/dotnet-tools.json` name `1.0.0`.
 - Since #333 an LLM call takes a profile of the host (`llm: { profile }`), where it took a model of the agent's
   provider only.

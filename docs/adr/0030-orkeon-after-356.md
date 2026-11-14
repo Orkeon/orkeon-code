@@ -26,6 +26,9 @@ thinking and effort depend on the model on every provider, from one capability t
   status meta, the issue template, the guides. The esbuild of the runtime (`0.25.12`) and its .NET SDK (`10.0.300`)
   do not change. The typings from `scripts/sync-typings.sh` change in comments only: the effort levels per provider,
   the `<undefined-llm:…>` marker a failed `chat` gives, `grep` on a file.
+- **The pin then moves to `3108dac`** (#358, merged on 2026-11-14), the next merge commit of `main`: it adds the
+  reasoning modes M15 to M18 of `orkeon llm probe` and their campaign reports, and changes nothing this project
+  runs; the typings are the same.
 - **`errorText` keeps 1200 characters**, where it kept 400. The `extract` error of #353 gives the JSON error, the
   finish reason and the tokens, then the first and the last 200 characters of the reply, about 850 characters at
   most: at 400 the end of a reply cut short was lost, for the person and for the second try. `/dev-spec` and the
@@ -48,7 +51,7 @@ thinking and effort depend on the model on every provider, from one capability t
   effort this project asks for (`/effort`, a crew's `effort`) that the model does not take now reaches it lowered.
 - A refused answer quoted to the model on the second try of `/dev-spec`, `/dev-plan`, `/dev-change`, `/dev-learn` or
   a sub-agent can be three times as long.
-- Checks at `cf56fae`: `npm run check` green; in source mode, `bash scripts/smoke-runtime.sh`: 50 commands loaded,
+- Checks at `cf56fae`, then again at `3108dac`: `npm run check` green; in source mode, `bash scripts/smoke-runtime.sh`: 50 commands loaded,
   0 skipped, 0 conflicts; `bash scripts/smoke-crew.sh` commits the mock's subject; `bash scripts/smoke-validate.sh`:
   18 crews, 0 failed. The fixes of #351-#356 were not run against a live host yet: the live session of
   [Development](../development.md#upgrading-orkeon) comes before the merge.

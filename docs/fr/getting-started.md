@@ -79,8 +79,8 @@ avec le lanceur bash ([tutoriel WSL](wsl-tutorial.md)). Sur les deux, un chemin 
 dans les appels du modèle et dans ce qu'une commande imprime ([architecture](architecture.md#le-vfs-et-la-plateforme-hôte)) ;
 sous WSL un programme Windows n'est joignable que sans confinement, et reçoit encore des chemins `/mnt/c/…`.
 
-- Orkeon Code est vérifié contre les sources d'Orkeon au commit de `.orkeon-version` (`cf56fae`, le `main` après
-  Orkeon/orkeon#356, 2026-11-13) : le [mode source](#mode-source--un-checkout-dorkeon) exécute ce commit, le runtime
+- Orkeon Code est vérifié contre les sources d'Orkeon au commit de `.orkeon-version` (`3108dac`, le `main` après
+  Orkeon/orkeon#358, 2026-11-14) : le [mode source](#mode-source--un-checkout-dorkeon) exécute ce commit, le runtime
   de référence.
 - Le [mode tool](#mode-tool--orkeon-repl-installé) (le paquet Debian sur le canal apt `stable`, les archives de
   release) exécute la dernière release d'Orkeon, `1.0.0` (`41f5079`), et le
@@ -149,9 +149,9 @@ ce checkout, ou `ORKEON_ESBUILD_PATH`.
 Le checkout devrait être au commit de `.orkeon-version`, celui contre lequel les commandes ont été vérifiées. Le
 lanceur l'y amène lui-même quand rien de vous n'est en jeu : aucun fichier suivi modifié, sur `main` ou détaché, et en
 retard sur l'épingle (récupéré depuis `origin main` s'il manque). Il dit alors `orkeon-code: ORKEON_SOURCE moved from
-<sha7> to the pin cf56fae.` et le build restaure la solution. Sinon (une branche à vous, du travail non commité, des
+<sha7> to the pin 3108dac.` et le build restaure la solution. Sinon (une branche à vous, du travail non commité, des
 commits en avance sur l'épingle, ou `ORKEON_SOURCE_FOLLOW_PIN=0`), il laisse le checkout tel quel, avertit
-(`orkeon-code: warning: ORKEON_SOURCE is at <sha7>, the pin of .orkeon-version is cf56fae: the commands were checked
+(`orkeon-code: warning: ORKEON_SOURCE is at <sha7>, the pin of .orkeon-version is 3108dac: the commands were checked
 against the pin.`) et lance quand même.
 
 ### Aucun runtime sur la machine : celui qu'Orkeon Code télécharge
