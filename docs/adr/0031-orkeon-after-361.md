@@ -37,12 +37,22 @@ A refusal caught that way was a plain `Error`, told from another failure by a st
 2026-11-14) delivered it: `InvalidScriptError`. The same merge makes the `output` of `crew.run()` the value the
 last body returned, where an object gave its .NET type name (#369); every crew of this project returns a text.
 
+A small model fills every optional field of a tool and sends `0` for a limit: `relational_database_query` then
+returned no row and a success, and the crew reported figures of its own (#372, opened from this project's account).
+#373 (`070a58e`, merged on `main` on 2026-11-14) makes every tool that reads a result limit refuse a value that
+returns nothing, in a message naming the field and its default, and say so in the field's description.
+
 ## Decision
 
-- **The pin moves to `98799c6`, then to `2fb47b8`** (#365), **then to `791760e`** (#371), the newest merge commit of
-  Orkeon `main`. The esbuild of the runtime (`0.25.12`) and its .NET SDK (`10.0.300`) do not change; the typings
-  gain `EffortLevel`, `LlmCapabilities` and `LlmReasoning`, then `llm.profiles`, `.filesystem(...)` and
-  `.announceMounts(...)`, then `InvalidScriptError`.
+- **The pin moves to `98799c6`, then to `2fb47b8`** (#365), **to `791760e`** (#371), **then to `070a58e`** (#373),
+  the newest merge commit of Orkeon `main`. The esbuild of the runtime (`0.25.12`) and its .NET SDK (`10.0.300`) do
+  not change; the typings gain `EffortLevel`, `LlmCapabilities` and `LlmReasoning`, then `llm.profiles`,
+  `.filesystem(...)` and `.announceMounts(...)`, then `InvalidScriptError`, then the minimum of each limit in its
+  description.
+- **No limit of this project changes at #373.** The adapters pass constants above 0 (`max_length`, `max_entries`,
+  `max_nodes`, `top_k`, `max_lines`, `max_depth`, `max_results`), so no call of a script is refused. A model that
+  sends `0` for a limit now reads the tool's refusal and its default instead of an empty result. `memory_recall`,
+  this project's own tool, keeps raising a `top_k` below 1 to one entry: it never answered "nothing" for it.
 - **The runtime judges, this project reads.** No copy of the capability table and no rule of its own: a new port,
   `ReasoningReader`, answers what a model takes and what a level becomes on it, from the `llm` namespace
   (`llm.profile(name)`, else `llm.model(name)`, else `llm.default_`, then `.capabilities` and
@@ -111,3 +121,5 @@ last body returned, where an object gave its .NET type name (#369); every crew o
 - Checks at `791760e`: `npm run check` green and the three smokes in source mode. `git-commit` under `--llm-mock`
   with `llmProfile` = `ghost`: routed (`llmProfileFallback` given), the crew commits on the host's default model;
   launched on it, the crew fails on the runtime's refusal, which lists the known profiles.
+- Checks at `070a58e`: `npm run check` green, the three smokes in source mode and the package installed in a
+  scratch prefix, which names the pin. No model was called.
