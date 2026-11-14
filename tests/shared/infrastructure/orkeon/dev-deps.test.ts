@@ -12,6 +12,7 @@ import {
 import { assertAskedNames, assertRootPathsOnly } from "./dev-deps.assertions.ts";
 import { WORKSPACE } from "../../../../src/shared/domain/vfs.ts";
 import { recorder } from "../../../support/fixtures/tool-recorder.ts";
+import { FakeLlm } from "../../../support/doubles/fake-llm.ts";
 import { PROJECT_GIT, windowsHost } from "../../../support/fixtures/host-context.ts";
 
 describe("implementDeps and verifyDeps", () => {
@@ -226,7 +227,7 @@ describe("implementDeps and verifyDeps", () => {
     // Arrange
     const m = await loadDevDeps();
     const { ctx } = context();
-    const marker = { act: async () => "child", complete: async () => "", extract: async () => ({}), permissionGateEnabled: () => undefined };
+    const marker = new FakeLlm();
 
     // Act
     const wrapped = m.verifyDeps(ctx, { hooks: [], effort: undefined, memoryOn: false, validationSlot: undefined, wrapLlm: () => marker, harvest: true });

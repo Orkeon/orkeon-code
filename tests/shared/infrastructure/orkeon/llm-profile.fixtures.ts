@@ -18,7 +18,9 @@ export class RecordingAgentBuilder {
 }
 
 /** A config as `llm.profile(name)` answers it. */
-export const profileConfig = (name: string): LlmConfig => ({ provider: "host", profile: name, model: "", with: () => profileConfig(name) });
+export const profileConfig = (name: string): LlmConfig => ({
+  provider: "host", profile: name, model: "", capabilities: null, reasoning: null, with: () => profileConfig(name),
+});
 
 export function factories(withProfile = true, unknown: readonly string[] = []): AgentFactories & { built: RecordingAgentBuilder[] } {
   const built: RecordingAgentBuilder[] = [];

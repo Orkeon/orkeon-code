@@ -18,6 +18,7 @@
 import type {
   AnchorIndex, Chooser, Clock, CodeIndex, CostIndex, DecisionModel, Files, HumanInput, Llm, Logger, MemoryStore, Progress,
   SessionStore, SharedMemory, Shell, ShellJobs, Telemetry, ToolCatalogue,
+  ReasoningReader,
 } from "../../application/ports.ts";
 import type { CompactDeps } from "../../application/compaction/compact-session.ts";
 import { writeWorkflowState } from "../../application/workflow/workflow-state.ts";
@@ -30,6 +31,7 @@ import type { SessionIo } from "../../application/session-io.ts";
 import type { ServiceLocator } from "../../../commands/.orkeon/orkeon-cli.d.ts";
 import { AgentBuilder, Llm as HostLlm, Rag, Tools, inputs } from "../globals.ts";
 import { declaredRoute, profiledAgent } from "./llm-profile.ts";
+import { createReasoningReader } from "./reasoning.ts";
 import { actRoute } from "../../application/agents/route-agent.ts";
 import type { ActRoute } from "../../application/agents/route-agent.ts";
 import { llmProfileOf, llmSessionProfileOf } from "../../domain/llm-profile.ts";
@@ -129,6 +131,9 @@ export const orkeonCompactionDeps = (
     workflow: (trigger) => writeWorkflowState({ session, files, shell, config, clock }, trigger),
   };
 };
+
+/** What the host's models take for reasoning, and what becomes of an effort asked (orkeon/reasoning.ts). */
+export const orkeonReasoning = (): ReasoningReader => createReasoningReader(HostLlm);
 
 /** The runtime's agent factories: `agentBuilder` and `llm.profile`, the latter absent where the host declares no `llm`. */
 export const orkeonAgentFactories = (): AgentFactories => {

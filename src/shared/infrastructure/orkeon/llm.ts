@@ -15,6 +15,7 @@
 // (shared/application/dev/tool-callbacks.ts) as the second argument: each act then carries the
 // onToolCall/onToolResult built for its own mode. The request's `effort` is the runtime's
 // `act({effort})` as it is; the crew's own level, when it has one, fills a request that names none.
+// `effortSent` asks the facade what such an act sends for its effort (`ctx.llm.reasoning`, Orkeon #360), without a call.
 // The request's `context` is the runtime's `act({context})` (Orkeon #276), a blank one left out.
 // Every act's callbacks, the crew's or none, sit inside the host's (hostCallbacks): under a host whose paths have
 // another spelling, or with path lists, a call's paths come back to the VFS and are judged before the crew's
@@ -24,6 +25,7 @@
 import type { ActRequest, CompleteRequest, Llm, ModelOverride } from "../../application/ports.ts";
 import type { PermissionMode } from "../../domain/permission-modes.ts";
 import { budgetExhaustedAnswer, llmFailureOf } from "../../domain/llm-failure.ts";
+import { effortReportOf } from "../../domain/agent-policy/reasoning.ts";
 import { hostCallbacks } from "../../application/dev/tool-callbacks.ts";
 import type { ActCallbacks, ToolCallbacks } from "../../application/dev/tool-callbacks.ts";
 import type { HostSource } from "../../application/host-context.ts";
@@ -82,7 +84,7 @@ function withContext(request: ActRequest): ActRequest {
 }
 
 export function createLlm(
-  llm: Pick<LlmFacade, "act" | "complete" | "extract" | "chat"> & Partial<Pick<LlmFacade, "permissionGate">>,
+  llm: Pick<LlmFacade, "act" | "complete" | "extract" | "chat"> & Partial<Pick<LlmFacade, "permissionGate" | "reasoning">>,
   callbacks?: Pick<ToolCallbacks, "forAct">,
   defaults: LlmDefaults = {},
 ): Llm {
@@ -94,6 +96,17 @@ export function createLlm(
   const host = defaults.host ?? orkeonHostContext;
   return {
     permissionGateEnabled,
+    effortSent(request) {
+      const effort = request.effort ?? defaults.effort;
+      // A facade without it (a test's, a runtime before #360) cannot say. With no effort asked, the runtime reports
+      // what the host's own configuration sends, or nothing.
+      if (llm.reasoning === undefined) return null;
+      try {
+        return effortReportOf(llm.reasoning({ ...(effort === undefined ? {} : { effort }), ...callOptions(request) }));
+      } catch {
+        return null;
+      }
+    },
     async act(prompt, request) {
       // The crew's effort (/effort, handed as an input) when the request names none.
       const effort = request.effort ?? defaults.effort;

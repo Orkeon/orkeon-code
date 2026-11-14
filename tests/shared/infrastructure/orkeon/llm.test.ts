@@ -6,7 +6,7 @@ import { strictEqual, deepStrictEqual, rejects } from "node:assert";
 import { createLlm } from "../../../../src/shared/infrastructure/orkeon/llm.ts";
 import { FakeLlmFacade } from "../../../support/doubles/fake-llm-facade.ts";
 import {
-  ACT_ANSWERS, ACT_FAILURE_MARKERS, COMPLETIONS, CONTEXT_CASES, DISK_READ, EFFORTS, GATES, REQUESTS, SCHEMA, VIRTUAL_READ, actCallbacksOf,
+  ACT_ANSWERS, ACT_FAILURE_MARKERS, COMPLETIONS, CONTEXT_CASES, DISK_READ, EFFORTS, EFFORTS_SENT, GATES, REQUESTS, SCHEMA, VIRTUAL_READ, actCallbacksOf,
   llmWithCallbacks,
 } from "./llm.fixtures.ts";
 import { windowsHost } from "../../../support/fixtures/host-context.ts";
@@ -284,4 +284,33 @@ describe("createLlm — the crew's effort (A-3)", () => {
       deepStrictEqual(facade.calls.map((call) => (call.args[1] as { effort?: string }).effort), [c.expected]);
     });
   }
+});
+
+describe("createLlm — effortSent", () => {
+  for (const c of EFFORTS_SENT) {
+    it(c.name, () => {
+      // Arrange
+      const facade = new FakeLlmFacade();
+      facade.reasoningReport = c.answer;
+      const llm = createLlm(facade, undefined, c.defaults);
+
+      // Act
+      const report = llm.effortSent(c.request);
+
+      // Assert
+      deepStrictEqual([facade.calls.map((call) => call.args[0]), report], [c.asked, c.expected]);
+    });
+  }
+
+  it("answers nothing over a facade that has no reasoning()", () => {
+    // Arrange
+    const { act, complete, extract, chat } = new FakeLlmFacade();
+    const llm = createLlm({ act, complete, extract, chat });
+
+    // Act
+    const report = llm.effortSent({ effort: "high" });
+
+    // Assert
+    strictEqual(report, null);
+  });
 });

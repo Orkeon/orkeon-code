@@ -280,7 +280,8 @@ is picked at each launch of `/dev-spec` (and its alias `/dev-change`), `/dev-pla
   leave the session's profile. Each routed launch writes a log line with the profile and why, and the last 5 are
   kept in the session for `/route why`; the choice is made before the launch, so a launch the host then refuses (a
   crew already running) has still asked the model and is listed. `/route on|off` sets `route.agents` for the session; bare, it says where the
-  routing stands.
+  routing stands, then what the model of each rung takes for reasoning, or what the effort `/effort` stored becomes
+  on it.
 
 ## Suggesting skills for a turn
 

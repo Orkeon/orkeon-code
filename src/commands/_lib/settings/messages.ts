@@ -156,17 +156,41 @@ export const EFFORT_CHOICE = "Reasoning effort for this session";
 export const actIterations = (count: number): string => `${count} act() iterations`;
 export const EFFORT_UNCHANGED = "reasoning effort unchanged.";
 export const effortUnchangedNoneStored = (level: string): string =>
-  "reasoning effort unchanged: no level is stored, so the provider's thinking stays off " +
-  `(/effort ${level} turns it on).`;
-export const effortShown = (level: string, ladder: string, stored: string | null, levels: readonly string[]): string =>
+  "reasoning effort unchanged: no level is stored, so the session asks the provider for no thinking " +
+  `(/effort ${level} asks for it).`;
+export const THINKING_NOT_REQUESTED = "not requested (no level stored)";
+/** With no level stored, the level the host's own configuration asks for (`Llm:Thinking:Effort`). */
+export const hostAsks = (level: string): string => `not requested by the session; the host asks for '${level}'`;
+export const thinkingAt = (level: string): string => `at '${level}' (act effort)`;
+export const effortShown = (level: string, ladder: string, thinking: string, levels: readonly string[]): string =>
   `reasoning effort: ${level}\nact() iterations per level: ${ladder}\n` +
-  `provider thinking: ${stored ? `at '${stored}' (act effort)` : "not requested (no level stored)"}\n` +
+  `provider thinking: ${thinking}\n` +
   `usage: /effort [<${levels.join("|")}>|show]`;
+/** The levels the session's model takes, after the thinking of `show`. */
+export const modelTakes = (model: string, efforts: readonly string[]): string =>
+  efforts.length > 0 ? `${model} takes ${efforts.join(", ")}` : `${model} takes no effort level`;
+/** What the runtime does with a level that does not go as asked, or that it cannot check (Orkeon #360). The cause
+ *  may be the model, the provider or the host's settings: the levels the model takes follow when it is known. */
+export const effortLowered = (model: string, asked: string, sent: string): string =>
+  `'${asked}' is sent to ${model} as '${sent}'`;
+export const itTakes = (efforts: readonly string[]): string =>
+  efforts.length > 0 ? ` (it takes ${efforts.join(", ")})` : " (it takes no effort level)";
+export const effortDropped = (model: string, asked: string): string => `'${asked}' is not sent to ${model}`;
+export const effortUnchecked = (model: string, asked: string): string =>
+  `the capability table does not know ${model}: '${asked}' is sent unchecked`;
+/** The line under an answer of /effort or /model when the effort does not go as asked. */
+export const effortWarning = (note: string): string => `⚠ effort: ${note}.`;
+/** The same line for the host's own model under a /model override: the dev steps and the sub-agents run on it. */
+export const effortWarningDevSteps = (note: string): string => `⚠ effort, dev steps and sub-agents (the host's model): ${note}.`;
+/** Under the thinking line of `show`, the same for the host's own model under a /model override. */
+export const thinkingDevSteps = (note: string): string => `\n  dev steps and sub-agents (the host's model): ${note}`;
+export const sentAs = (sent: string): string => `, sent as '${sent}'`;
+export const NONE_SENT = ", none sent";
 export const unknownEffort = (level: string, levels: readonly string[]): string =>
   `unknown level '${level}' — expected one of: ${levels.join(", ")}, show.`;
 export const effortSet = (level: string, iterations: number): string =>
   `reasoning effort set to '${level}' — the next /assistant turn gets ` +
-  `${iterations} act() iterations and the provider's ` +
+  `${iterations} act() iterations and asks the provider for ` +
   `thinking at '${level}' (act effort; the dev steps and their children too). Session-scoped; /clear clears it.`;
 
 // /hooks
@@ -379,4 +403,6 @@ export const routeSet = (on: boolean, model: boolean): string =>
   on
     ? `route.agents: on for this session${model ? "" : " (the host has no decision model: nothing is routed until it has one)"}; /clear clears it.`
     : "route.agents: off for this session; /clear clears it.";
+/** Under the status: what a rung's model takes, or what the stored effort becomes on it. */
+export const rungLine = (rung: string, what: string): string => `  ${rung}: ${what}`;
 export const routedRecord = (crew: string, profile: string, why: string): string => `${crew} on '${profile}': ${why}`;

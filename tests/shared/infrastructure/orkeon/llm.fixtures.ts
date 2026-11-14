@@ -154,6 +154,46 @@ export const EFFORTS: readonly EffortCase[] = [
   { name: "names no effort without defaults nor request", request: {}, expected: undefined },
 ];
 
+export interface EffortSentCase {
+  name: string;
+  defaults?: { effort?: EffortLevel };
+  request: { effort?: EffortLevel; model?: string; profile?: string };
+  /** What the facade's reasoning() answers; an Error is thrown. */
+  answer: unknown;
+  /** The options reasoning() received; none when it was not asked. */
+  asked: unknown[];
+  expected: unknown;
+}
+
+const LOWERED = { model: "glm-5.3", asked: "medium", sent: "low", notice: "lowered" };
+/** What the host's own `Llm:Thinking:Effort` sends, reported with no effort asked. */
+const HOST_HIGH = { model: "glm-5.3", asked: "high", sent: "high", notice: null };
+
+/** What an act sends for its effort, asked of the facade without a call (Orkeon #360). */
+export const EFFORTS_SENT: readonly EffortSentCase[] = [
+  { name: "asks the facade with the request's effort", request: { effort: "medium" }, answer: LOWERED, asked: [{ effort: "medium" }], expected: LOWERED },
+  {
+    name: "asks with the crew's effort when the request names none, and with the request's model",
+    defaults: { effort: "medium" }, request: { model: "glm-5.3" }, answer: LOWERED,
+    asked: [{ effort: "medium", llm: { model: "glm-5.3" } }], expected: LOWERED,
+  },
+  {
+    name: "keeps the request's effort over the crew's",
+    defaults: { effort: "low" }, request: { effort: "medium" }, answer: LOWERED, asked: [{ effort: "medium" }], expected: LOWERED,
+  },
+  {
+    name: "asks with no effort when neither names one, and answers what the host's own configuration sends",
+    request: {}, answer: HOST_HIGH, asked: [{}], expected: HOST_HIGH,
+  },
+  { name: "answers nothing when neither names an effort and the host asks for none", request: {}, answer: null, asked: [{}], expected: null },
+  { name: "answers nothing when the facade cannot tell", request: { effort: "high" }, answer: null, asked: [{ effort: "high" }], expected: null },
+  {
+    name: "answers nothing when the facade throws on the profile",
+    request: { effort: "high", profile: "ghost" }, answer: new Error("unknown LLM profile 'ghost'"),
+    asked: [{ effort: "high", llm: { profile: "ghost" } }], expected: null,
+  },
+];
+
 export interface ContextCase {
   name: string;
   context: string;

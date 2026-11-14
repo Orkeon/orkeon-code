@@ -10,8 +10,14 @@ import { judgeModelChoice, renderModelList } from "../../../../src/shared/domain
 import { NO_CATALOGUE_NOTE } from "../../../../src/shared/domain/messages.ts";
 import { DEFAULT_EFFORT, EFFORT_LEVELS } from "../../../../src/shared/domain/agent-policy/behavior-flags.ts";
 import { EFFORT_STATE_KEY, MODEL_PREFERENCE_STATE_KEY } from "../../../../src/shared/domain/session-keys.ts";
+import { GLM_TAKES, MEDIUM_LOWERED } from "../../../support/fixtures/reasoning.ts";
 import {
   DECLARED,
+  DEEPSEEK_AS_GLM,
+  MEDIUM_LOWERED_WARNING,
+  PANEL_BOTH_TEXT,
+  PANEL_MODEL_ONLY_TEXT,
+  RESET_LOWERED_TEXT,
   NO_MODEL_SHOW_TEXT,
   PROFILE_SHOW_TEXT,
   PROFILE_SWITCHED_TEXT,
@@ -376,5 +382,128 @@ describe("/model <name>", () => {
 
     // Assert
     deepStrictEqual(log.lines, [`warn: ${PROFILE_SWITCH_WARNING}`]);
+  });
+});
+
+describe("/model and the effort /effort stored", () => {
+  it("warns after a switch that the stored effort is lowered on the new model", async () => {
+    // Arrange
+    const { session, reasoning, run } = modelHarness();
+    session.state.set(EFFORT_STATE_KEY, "medium");
+    reasoning.capabilitiesAnswer = GLM_TAKES;
+    reasoning.reports = { medium: MEDIUM_LOWERED };
+
+    // Act
+    const view = await run("deepseek-chat");
+
+    // Assert
+    deepStrictEqual(view, { text: `${SWITCHED_TEXT}\n${MEDIUM_LOWERED_WARNING}` });
+  });
+
+  it("judges the stored effort on the model switched to", async () => {
+    // Arrange
+    const { session, reasoning, run } = modelHarness();
+    session.state.set(EFFORT_STATE_KEY, "medium");
+
+    // Act
+    await run("deepseek-chat");
+
+    // Assert
+    deepStrictEqual(reasoning.targets[0], { profile: null, model: "deepseek-chat" });
+  });
+
+  it("says nothing of the effort when none is stored", async () => {
+    // Arrange
+    const { reasoning, run } = modelHarness();
+    reasoning.reports = { medium: MEDIUM_LOWERED };
+
+    // Act
+    const view = await run("deepseek-chat");
+
+    // Assert
+    deepStrictEqual([view, reasoning.targets], [{ text: SWITCHED_TEXT }, []]);
+  });
+
+  it("warns after a reset that the stored effort is lowered on the boot model", async () => {
+    // Arrange
+    const { session, reasoning, run } = modelHarness();
+    session.state.set(EFFORT_STATE_KEY, "medium");
+    reasoning.capabilitiesAnswer = GLM_TAKES;
+    reasoning.reports = { medium: MEDIUM_LOWERED };
+
+    // Act
+    const view = await run("reset");
+
+    // Assert
+    deepStrictEqual(view, { text: RESET_LOWERED_TEXT });
+  });
+
+  it("judges the stored effort on the boot model after a reset", async () => {
+    // Arrange
+    const { session, reasoning, run } = modelHarness();
+    session.state.set(MODEL_PREFERENCE_STATE_KEY, "deepseek-chat");
+    session.state.set(EFFORT_STATE_KEY, "medium");
+
+    // Act
+    await run("reset");
+
+    // Assert
+    deepStrictEqual(reasoning.targets[0], { profile: null, model: "" });
+  });
+
+  it("warns after a switch to an undeclared model that the stored effort is lowered there", async () => {
+    // Arrange
+    const { session, reasoning, run } = modelHarness();
+    session.state.set(EFFORT_STATE_KEY, "medium");
+    reasoning.capabilitiesAnswer = GLM_TAKES;
+    reasoning.reports = { medium: MEDIUM_LOWERED };
+
+    // Act
+    const view = await run("claude", "x");
+
+    // Assert
+    deepStrictEqual(view, { text: `${UNDECLARED_TEXT}\n${MEDIUM_LOWERED_WARNING}` });
+  });
+
+  it("judges in the panel only the new effort on the new model when both are picked", async () => {
+    // Arrange
+    const { session, chooser, reasoning, pick } = modelHarness();
+    session.state.set(EFFORT_STATE_KEY, "high");
+    reasoning.byModel = DEEPSEEK_AS_GLM;
+    chooser.answers = [{ value: "deepseek-chat", control: "medium" }];
+
+    // Act
+    const view = await pick();
+
+    // Assert
+    deepStrictEqual(view, { text: PANEL_BOTH_TEXT });
+  });
+
+  it("warns in the panel of the stored effort when the answer carries no effort", async () => {
+    // Arrange
+    const { session, chooser, reasoning, pick } = modelHarness();
+    session.state.set(EFFORT_STATE_KEY, "medium");
+    reasoning.byModel = DEEPSEEK_AS_GLM;
+    chooser.answers = ["deepseek-chat"];
+
+    // Act
+    const view = await pick();
+
+    // Assert
+    deepStrictEqual(view, { text: PANEL_MODEL_ONLY_TEXT });
+  });
+
+  it("warns in the panel of the stored effort on the model picked when the effort is left alone", async () => {
+    // Arrange
+    const { session, chooser, reasoning, pick } = modelHarness();
+    session.state.set(EFFORT_STATE_KEY, "medium");
+    reasoning.byModel = DEEPSEEK_AS_GLM;
+    chooser.answers = [{ value: "deepseek-chat", control: "medium" }];
+
+    // Act
+    const view = await pick();
+
+    // Assert
+    deepStrictEqual(view, { text: `${SWITCHED_TEXT}\n${MEDIUM_LOWERED_WARNING}` });
   });
 });

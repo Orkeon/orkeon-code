@@ -190,8 +190,8 @@ A first REPL, without speech, on the throwaway sample repository (`--demo`), in 
 ./orkeon-code --mode tool --demo
 ```
 
-The banner shows `orkeon-code <version> on Orkeon (tool: a release, the pin is 3108dac)`: the tool mode runs the
-package's release, `1.0.0` (`41f5079`), behind `3108dac`, the pin of `.orkeon-version`, until Orkeon's next release. Then come the project and the settings file. In the REPL:
+The banner shows `orkeon-code <version> on Orkeon (tool: a release, the pin is 2fb47b8)`: the tool mode runs the
+package's release, `1.0.0` (`41f5079`), behind `2fb47b8`, the pin of `.orkeon-version`, until Orkeon's next release. Then come the project and the settings file. In the REPL:
 
 | Command | Expected |
 |---|---|

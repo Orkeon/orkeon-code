@@ -301,7 +301,7 @@ describe("describeActiveFlags", () => {
     const line = describeActiveFlags(flags);
 
     // Assert
-    assertMentions(line, ["provider thinking medium"]);
+    assertMentions(line, ["provider thinking asked at medium"]);
   });
 
   it("names a junk effort, resolved as unset, not at all", () => {

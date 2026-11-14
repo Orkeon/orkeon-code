@@ -161,6 +161,11 @@ declare global {
         readonly role: string;
     }
 
+    /**
+     * A method that refuses its argument, and `build()` missing a field, throws an `Error` the
+     * script catches (`try … catch`), its `clrType` `"InvalidScriptException"` — `"ArgumentException"`
+     * for a role or goal over the domain's length limit.
+     */
     interface AgentBuilder<TIn = unknown, TOut = unknown, TState = unknown> {
         name(value: string): this;
         role(value: string): this;
@@ -193,7 +198,7 @@ declare global {
          * entry in the capability table narrows the levels further (GLM-5.3 takes `low`, `high` and `max` only).
          * Applies to the agent's `ctx.llm` calls too, unless a call sets its own.
          */
-        effort(level: "low" | "medium" | "high" | "xhigh" | "max"): this;
+        effort(level: EffortLevel): this;
         /**
          * YAML parity `cache:` — asks the provider's prompt cache to keep the system prompt and/or the
          * tool definitions. Only a provider whose cache is explicit (Anthropic) needs it; the others cache
@@ -225,6 +230,23 @@ declare global {
          * parent's, and so does each later `crew.send` to it. Left out, the run is unrooted.
          */
         workingRoot(path: string): this;
+        /**
+         * YAML parity `filesystem:` (#349) — the only virtual paths the agent's tools may touch, each a
+         * path or `{ path, access }` with `access` one of `"ro"`, `"rw"`, `"rwnd"` (left out: the
+         * mount's own rights). An entry selects and narrows the mount that holds it, never widens it:
+         * a path under no mount, or an access the mount does not grant, refuses the agent's run when it
+         * starts, never at build. Every other path is refused on every mount, by the file tools,
+         * `list_mounts`, the search and RAG tools and `shell_command` alike. A `.workingRoot(...)` must
+         * lie inside it. A child started by `spawn_agent` or `ctx.spawnBackground` runs under its
+         * parent's scope, which its own can only narrow. Left out, the run's mounts apply.
+         */
+        filesystem(entries: ReadonlyArray<string | { path: string; access?: "ro" | "rw" | "rwnd" }>): this;
+        /**
+         * YAML parity `announce_mounts:` (#348) — whether the agent's declarative turns list its
+         * virtual paths (its `.filesystem([...])`, else the run's mounts) and its working root in the
+         * system prompt, when it has a file-system tool. On by default.
+         */
+        announceMounts(value: boolean): this;
         concurrency(n: number): this;
         withState<S>(factory: (() => S) | S): AgentBuilder<TIn, TOut, S>;
         /**
@@ -320,7 +342,8 @@ declare global {
         fallback(value: unknown): ErrorAction;
         /**
          * Run the body again. `delay` is milliseconds or a duration string ("250ms", "2s");
-         * `max` caps the attempts, and reaching it rethrows the original error.
+         * `max` caps the attempts, and reaching it rethrows the original error. A `delay` that is
+         * not a finite number throws an `Error` the script catches.
          */
         retry(options?: { delay?: number | string; max?: number }): ErrorAction;
     };
@@ -371,7 +394,9 @@ declare global {
         /**
          * One prompt, the answer. A call a stage of the host's decision profile blocks rejects
          * with a `DecisionBlockedError`, as `chat`, `extract`, `decide`, `act` and a `stream`
-         * iteration do; uncaught, it fails the run.
+         * iteration do; uncaught, it fails the run. A `llm: { profile }` the host does not offer,
+         * or an option it refuses, rejects with an `Error` (its `clrType` `"InvalidScriptException"`),
+         * as `chat`, `extract` and `decide` do.
          */
         complete(prompt: string, opts?: LlmCallOptions): Promise<string>;
         /** A conversation, the answer. Takes a bare message array or `{ messages: [...] }`. */
@@ -389,6 +414,9 @@ declare global {
          * reasoning is COUNTED on the returned object, not yielded — it is not
          * part of the answer, and a caller writing chunks to a file must not
          * find it there.
+         *
+         * A `llm: { profile }` the host does not offer throws here, at the call, an `Error` the
+         * script catches.
          */
         stream(prompt: string, opts?: LlmCallOptions): LlmStream;
         /**
@@ -421,7 +449,22 @@ declare global {
          * call, when `.tools([...])` names a tool the host does not offer.
          */
         act(prompt: string, opts?: ActOptions): Promise<ActResult>;
-        /** Cancels the in-flight and future llm calls of this context; a running `act()` resolves with `{ interrupted: true }`. */
+        /**
+         * What the call these options name sends for the effort (#360), judged as that call is: on the
+         * agent's provider, model and effort, the options' own `effort` and `llm: { profile, model }`
+         * over them. The report `complete` and `extract` cannot carry, since they return the answer
+         * alone; `act`, `chat` and `stream` carry it as `reasoning`. `null` when no effort is asked or
+         * no provider answers. Places no call. A `llm: { profile }` the host does not offer throws an
+         * `Error` the script catches, listing the known profiles (`llm.profiles`).
+         */
+        reasoning(opts?: LlmCallOptions): LlmReasoning | null;
+        /**
+         * What the model of the call these options name takes for reasoning (#359), on the provider
+         * that call goes to. `null` when no provider answers. Places no call. A `llm: { profile }` the
+         * host does not offer throws an `Error` the script catches, listing the known profiles.
+         */
+        capabilities(opts?: LlmCallOptions): LlmCapabilities | null;
+        /** Cancels the in-flight and future llm calls of this context; a running `act()` resolves with `{ interrupted: true }`. Called after the agent's attempt ended (from a topic handler that outlives it), it does nothing. */
         interrupt(): void;
         /** Whether `interrupt()` was requested (or the host cancelled the run). */
         readonly isInterrupted: boolean;
@@ -460,7 +503,7 @@ declare global {
          */
         llm?: { profile?: string; model?: string; provider?: never };
         /** Turns the provider's thinking on at this effort for the call. */
-        effort?: "low" | "medium" | "high" | "xhigh" | "max";
+        effort?: EffortLevel;
         /**
          * The prompt-cache request of the call, as `agentBuilder().cache(...)` takes it; it wins over the
          * agent's own. `{}` turns caching off for the call.
@@ -507,6 +550,8 @@ declare global {
          * also logs progress every 200 deltas.
          */
         readonly reasoningChunks: number;
+        /** The effort the call asks for and the one the provider sends; `null` when none is asked. Readable at once. */
+        readonly reasoning: LlmReasoning | null;
     }
 
     /** Terminal usage of one streamed call, on `LlmStream.usage`. */
@@ -662,6 +707,8 @@ declare global {
          * `BudgetExhaustedError` instead.
          */
         readonly budgetExhausted?: true;
+        /** The effort the loop's turns ask for and the one the provider sends; `null` when none is asked. */
+        readonly reasoning: LlmReasoning | null;
     }
 
     interface Message {
@@ -676,6 +723,8 @@ declare global {
         readonly content: string;
         readonly tokensUsed: number;
         readonly model: string;
+        /** The effort the call asks for and the one the provider sends; `null` when none is asked. */
+        readonly reasoning: LlmReasoning | null;
     }
 
     interface JsonSchema {
@@ -883,6 +932,11 @@ declare global {
         readonly at: number;
     }
 
+    /**
+     * A method that refuses its argument, and `build()` refusing the crew (two agents of one name:
+     * `clrType` `"DuplicateAgentNameException"`), throws an `Error` the script catches
+     * (`try … catch`), its `clrType` `"InvalidScriptException"` otherwise.
+     */
     interface CrewBuilder {
         name(value: string): this;
         /** The crew goal; when omitted, one is synthesized from the name. */
@@ -1074,7 +1128,8 @@ declare global {
     interface FsmTransition<TState extends string = string, TPayload = unknown> {
         /**
          * Where this event leads. Validated when the literal is built: a target that is not
-         * a key of `states` throws `InvalidScriptException` before the machine ever runs.
+         * a key of `states` throws an `Error` the script catches (`clrType`
+         * `"InvalidScriptException"`) before the machine ever runs.
          */
         target: TState;
         /**
@@ -1118,7 +1173,8 @@ declare global {
     /**
      * Builds a state machine from a literal. Rejects at build time: a missing or non-string
      * `name`/`initial`, a `states` that is not an object, an `initial` that is not declared,
-     * a transition without a string `target`, and a `target` naming an undeclared state.
+     * a transition without a string `target`, and a `target` naming an undeclared state. The
+     * refusal is an `Error` the script catches, its `clrType` `"InvalidScriptException"`.
      */
     function stateMachine<TState extends string, TPayload = unknown>(
         def: FsmDefinition<TState, TPayload>,
@@ -1248,7 +1304,9 @@ declare global {
     }
 
     /**
-     * Builds a graph from a literal.
+     * Builds a graph from a literal. A literal it refuses (a bad shape, an invalid topology:
+     * every fault in one message) throws an `Error` the script catches, its `clrType`
+     * `"InvalidScriptException"`.
      *
      * `TState` cannot be inferred from the node bodies -- a node both takes and returns the
      * state, so inference is circular -- and falls back to `Record<string, unknown>`, which
@@ -1290,9 +1348,72 @@ declare global {
         readonly model: string;
         readonly temperature?: number;
         readonly maxTokens?: number;
+        /**
+         * What the provider and this configuration's model take for reasoning, read from the runtime's capability
+         * table (the host's `Llm:ModelCapabilities` overrides included), by the rule every call is judged with.
+         * `null` when the provider cannot tell (no provider, a test double).
+         */
+        readonly capabilities: LlmCapabilities | null;
+        /**
+         * The effort a call on this configuration asks for and the one the provider sends — the host's
+         * `Llm:Thinking:Effort` included. `null` when no effort is asked or the provider cannot tell. Inside an
+         * agent, `ctx.llm` calls run on the agent's provider, model and effort, which no configuration carries:
+         * read `ctx.llm.reasoning(opts)` there, the report `extract` and `complete` cannot carry.
+         */
+        readonly reasoning: LlmReasoning | null;
 
-        /** Returns a copy with the given fields overridden. Any other key is refused. */
+        /**
+         * Returns a copy with the given fields overridden. Any other key, or a value out of its domain,
+         * throws an `Error` the script catches (its `clrType` is `"InvalidScriptException"`).
+         */
         with(overrides: LlmConfigOverrides): LlmConfig;
+    }
+
+    /** An effort level a script may ask for. */
+    type EffortLevel = "low" | "medium" | "high" | "xhigh" | "max";
+
+    /** What a provider and one of its models take for reasoning, on `LlmConfig.capabilities`. */
+    interface LlmCapabilities {
+        /** The model judged: the configuration's, else the provider's own. */
+        readonly model: string;
+        /**
+         * Whether the capability table knows the model. When it does not, the provider's levels rule and an effort
+         * is sent unchecked.
+         */
+        readonly known: boolean;
+        /**
+         * The lower of the provider's and the model's support: `none` (no reasoning pass), `effortOnly` (an effort
+         * hint, no off switch), `toggle` (on and off) or `budget` (a token budget as well).
+         */
+        readonly thinking: "none" | "effortOnly" | "toggle" | "budget";
+        /**
+         * The levels a call sees sent as asked, in order: the provider's, narrowed by the model's entry. Empty when the
+         * model takes no effort or has no reasoning pass. Another level is lowered, or dropped (`LlmReasoning`).
+         */
+        readonly efforts: readonly EffortLevel[];
+    }
+
+    /**
+     * What the runtime does with the effort a call asks for: `reasoning` on `LlmConfig`, `ActResult`, `ChatResponse`
+     * and `LlmStream`, and `ctx.llm.reasoning(opts)`. Judged before the call: a fallback profile answers for its
+     * first link and a decision profile for its target, so a call that fails over, or that a decision routes to
+     * another profile, may be judged otherwise.
+     */
+    interface LlmReasoning {
+        /** The model the call goes to. */
+        readonly model: string;
+        /** The effort asked: the call's `effort`, the agent's, the configuration's, or the host's `Llm:Thinking:Effort`. */
+        readonly asked: EffortLevel;
+        /** The effort sent to the provider; `null` when none is. */
+        readonly sent: EffortLevel | null;
+        /**
+         * `null` when `sent` is `asked` on a model the table knows. Otherwise: `lowered` (the level is not one the
+         * provider and the model both take: the highest one below was sent, or the lowest one when none lies below),
+         * `dropped` (`sent` is `null`: the model takes no effort, the model or the provider has no thinking control,
+         * or the provider's field carries none of the model's levels), or `unchecked` (the table does not know the
+         * model: the effort was sent as asked).
+         */
+        readonly notice: "lowered" | "dropped" | "unchecked" | null;
     }
 
     /** What `LlmConfig.with(...)` and `llm.model(name, ...)` apply. */
@@ -1307,9 +1428,10 @@ declare global {
          * default, for Ollama's `think`, Gemini, Azure OpenAI and Mistral; `low` to `xhigh` for OpenAI and Grok; `low`,
          * `medium`, `high` and `max` for Z.ai; all five for Anthropic, OpenRouter, DeepSeek, Kimi, Qwen, Together AI,
          * Hugging Face, MiniMax and Mammouth AI) sends the highest it knows below the one asked, and warns. The model's
-         * entry in the capability table narrows the levels further (GLM-5.3 takes `low`, `high` and `max` only).
+         * entry in the capability table narrows the levels further (GLM-5.3 takes `low`, `high` and `max` only):
+         * `LlmConfig.capabilities` lists the levels of the model, `reasoning` says what the call sends.
          */
-        effort?: "low" | "medium" | "high" | "xhigh" | "max";
+        effort?: EffortLevel;
         /**
          * The prompt-cache request, as `agentBuilder().cache(...)` takes it; an object that marks nothing
          * cacheable (`{}`) turns caching off, the host default `Llm:Cache` included.
@@ -1341,16 +1463,30 @@ declare global {
          */
         const default_: LlmConfig;
 
-        /** `llm.default_` on another model: `llm.default_.with({ model: name, ...overrides })`. */
+        /**
+         * `llm.default_` on another model: `llm.default_.with({ model: name, ...overrides })`. An empty
+         * name or an override `with` refuses throws an `Error` the script catches.
+         */
         function model(name: string, overrides?: Omit<LlmConfigOverrides, "model">): LlmConfig;
 
         /**
          * One of the host's named profiles (`Llm:Profiles:<name>`), on its own model unless
          * `overrides.model` names another. An agent configured with it runs on that profile's
          * provider — its turns and its `ctx.llm` calls. `"default"` is `llm.default_`. A name the
-         * host does not offer throws, listing the known profiles.
+         * host does not offer throws an `Error` the script catches (`try … catch`), listing the
+         * known profiles, its `clrType` `"InvalidScriptException"`; `llm.profiles` tells beforehand
+         * whether a name is one of them.
          */
         function profile(name: string, overrides?: LlmConfigOverrides): LlmConfig;
+
+        /**
+         * The names `llm.profile(name)` takes (#364): `"default"` first, then the host's profiles
+         * (`Llm:Profiles:<name>`) in the order and the spelling it declared them, those its
+         * allow-list refuses left out. Names only: no endpoint, no key. A frozen array, the same at
+         * every read; `["default"]` on a host that declares no profile. `llm.profile` compares a name
+         * without case (and trims it): compare the same way before asking for one.
+         */
+        const profiles: readonly string[];
     }
 }
 
@@ -1525,6 +1661,11 @@ declare global {
         backoff?: "fixed" | "exponential";
     }
 
+    /**
+     * A method that refuses its argument, and `build()` missing a field, throws an `Error` the
+     * script catches (`try … catch`), its `clrType` `"InvalidScriptException"` — `"ArgumentException"`
+     * for a value the domain refuses (a description or expected output over its length limit).
+     */
     interface TaskBuilder<TIn = unknown, TOut = unknown> {
         name(value: string): this;
         description(value: string): this;
@@ -1602,7 +1743,7 @@ declare global {
         /**
          * Runs this task only when the named decision task's answers match `clauses`, or
          * (`"otherwise"`) when no other task gated on that decision matches. A task takes one
-         * `.when()`: a second call throws an `InvalidScriptException` naming the task.
+         * `.when()`: a second call throws an `Error` naming the task.
          */
         when(decisionTask: string, clauses: WhenClauses | "otherwise"): this;
         build(): Task<TIn, TOut>;
@@ -1677,7 +1818,8 @@ declare global {
         /**
          * Starts an expectation for prompts that contain the string (case ignored), or match the regular
          * expression, of `{ prompt: ... }`. The first expectation that fits a prompt answers it. Complete
-         * it with `.respond(...)`.
+         * it with `.respond(...)`. A regular expression .NET cannot read (`/\u{41}/u`) throws at
+         * `.respond(...)` an `Error` the script catches, its `clrType` `"RegexParseException"`.
          */
         when(matcher: string | { readonly prompt: string | RegExp }): MockLlmExpectation;
     }
@@ -1718,13 +1860,22 @@ declare global {
         /** Opens expectations on the model: `test.mockLlm.when("weather").respond("sunny")`. */
         const mockLlm: MockLlmHandle;
 
-        /** The mocked tool named `name`, created on first use. */
+        /**
+         * The mocked tool named `name`, created on first use. An empty name throws an `Error` the
+         * script catches, its `clrType` `"ArgumentException"`.
+         */
         function mockTool(name: string): MockToolHandle;
 
-        /** Throws when the model was not called as `options` says. */
+        /**
+         * Throws when the model was not called as `options` says: an `Error` the script catches,
+         * its `clrType` `"AssertionException"`.
+         */
         function assertLlmCalled(options?: AssertLlmCalledOptions): void;
 
-        /** Throws when the mocked tool `name` was not called as `options` says, or is unknown. */
+        /**
+         * Throws when the mocked tool `name` was not called as `options` says, or is unknown: an
+         * `Error` the script catches, its `clrType` `"AssertionException"`.
+         */
         function assertToolCalled(name: string, options?: AssertToolCalledOptions): void;
     }
 }
@@ -1753,6 +1904,10 @@ declare global {
         execute(input: TIn, ctx?: unknown): TOut | Promise<TOut>;
     }
 
+    /**
+     * A method that refuses its argument, and `build()` missing a field, throws an `Error` the
+     * script catches (`try … catch`), its `clrType` `"InvalidScriptException"`.
+     */
     interface ToolBuilder<TIn = unknown, TOut = unknown> {
         name(value: string): this;
         description(value: string): this;

@@ -314,7 +314,8 @@ décision sur le runtime, ce profil est choisi à chaque lancement de `/dev-spec
   - Le choix est fait avant le lancement, un lancement que le runtime refuse ensuite (un crew déjà en cours) a donc
     quand même interrogé le modèle et figure dans la liste.
   - `/route on|off` règle `route.agents` pour la session.
-  - Nu, il dit où en est le routage.
+  - Nu, il dit où en est le routage, puis ce que le modèle de chaque échelon prend pour le raisonnement, ou ce que
+    l'effort enregistré par `/effort` y devient.
 
 ## Suggérer des skills pour un tour
 
