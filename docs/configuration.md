@@ -347,8 +347,9 @@ turns run.
 
 `/effort` also sets the provider's thinking. The stored level is sent as the act's `effort` by `/assistant`, by every
 dev step (`/dev-spec`, `/dev-plan`, `/dev-batches`) and by the agents these start; nothing is sent while no level is
-stored. The levels are `low`, `medium`, `high`, `xhigh` and `max`. Claude takes the five; a provider whose field
-does not know a level receives the highest it knows below it, and the runtime's log says so.
+stored. The levels are `low`, `medium`, `high`, `xhigh` and `max`. Orkeon Code sends
+the level as stored and the runtime judges it: a level the provider's field or the model does not take
+(`Llm:ModelCapabilities`) is sent as the highest one below it that both take, and the runtime's log says so.
 
 ### What the user settings narrow
 
