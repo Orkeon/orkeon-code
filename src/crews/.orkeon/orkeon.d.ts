@@ -135,6 +135,21 @@ declare global {
     }
 
     /**
+     * Thrown when the host refuses what the script asked of it (`clrType`
+     * `"InvalidScriptException"`): a builder method refusing its argument, a `build()` missing a
+     * field, a `stateMachine`/`stateGraph` literal it rejects, `llm.profile` naming a profile the
+     * host lacks, an `llm` option out of its domain — synchronous, or the rejection of an awaited
+     * `ctx.llm.*` call. A script that tries an optional setting tells it from other failures:
+     * `if (!(e instanceof InvalidScriptError)) throw e;`. A value over a domain limit
+     * (`"ArgumentException"`) and an out-of-range `ErrorAction.retry` delay
+     * (`"OverflowException"`) stay a plain `Error`.
+     */
+    class InvalidScriptError extends Error implements HostError {
+        readonly clrType?: string;
+        readonly clr?: unknown;
+    }
+
+    /**
      * The code an `onError` handler reads on `err.code` — exactly the codes the runtime's
      * mapper produces (`ErrorCodeMapper`).
      */
@@ -162,9 +177,9 @@ declare global {
     }
 
     /**
-     * A method that refuses its argument, and `build()` missing a field, throws an `Error` the
-     * script catches (`try … catch`), its `clrType` `"InvalidScriptException"` — `"ArgumentException"`
-     * for a role or goal over the domain's length limit.
+     * A method that refuses its argument, and `build()` missing a field, throws an
+     * `InvalidScriptError` the script catches (`try … catch`) — a plain `Error`, its `clrType`
+     * `"ArgumentException"`, for a role or goal over the domain's length limit.
      */
     interface AgentBuilder<TIn = unknown, TOut = unknown, TState = unknown> {
         name(value: string): this;
@@ -395,7 +410,7 @@ declare global {
          * One prompt, the answer. A call a stage of the host's decision profile blocks rejects
          * with a `DecisionBlockedError`, as `chat`, `extract`, `decide`, `act` and a `stream`
          * iteration do; uncaught, it fails the run. A `llm: { profile }` the host does not offer,
-         * or an option it refuses, rejects with an `Error` (its `clrType` `"InvalidScriptException"`),
+         * or an option it refuses, rejects with an `InvalidScriptError`,
          * as `chat`, `extract` and `decide` do.
          */
         complete(prompt: string, opts?: LlmCallOptions): Promise<string>;
@@ -882,8 +897,12 @@ declare global {
      * it was declared and always empty, so `result.artifacts.get("x")` compiled and threw.
      */
     interface CrewResult {
-        /** The text of the last non-null agent output; `""` when no agent returned anything. */
-        readonly output: string;
+        /**
+         * The last agent output that was not `null` (a body returning `undefined` gives `null`),
+         * as the body returned it — the same value as its `tasks[i].output`, an object staying an
+         * object, `false`, `0` and `""` counting; `""` when every output was `null`.
+         */
+        readonly output: unknown;
         /** One entry per agent run, in the order they ran. */
         readonly tasks: readonly TaskResult[];
     }
@@ -934,8 +953,8 @@ declare global {
 
     /**
      * A method that refuses its argument, and `build()` refusing the crew (two agents of one name:
-     * `clrType` `"DuplicateAgentNameException"`), throws an `Error` the script catches
-     * (`try … catch`), its `clrType` `"InvalidScriptException"` otherwise.
+     * a `DuplicateAgentNameError`), throws an error the script catches (`try … catch`), an
+     * `InvalidScriptError` otherwise.
      */
     interface CrewBuilder {
         name(value: string): this;
@@ -1128,8 +1147,8 @@ declare global {
     interface FsmTransition<TState extends string = string, TPayload = unknown> {
         /**
          * Where this event leads. Validated when the literal is built: a target that is not
-         * a key of `states` throws an `Error` the script catches (`clrType`
-         * `"InvalidScriptException"`) before the machine ever runs.
+         * a key of `states` throws an `InvalidScriptError` the script catches before the
+         * machine ever runs.
          */
         target: TState;
         /**
@@ -1174,7 +1193,7 @@ declare global {
      * Builds a state machine from a literal. Rejects at build time: a missing or non-string
      * `name`/`initial`, a `states` that is not an object, an `initial` that is not declared,
      * a transition without a string `target`, and a `target` naming an undeclared state. The
-     * refusal is an `Error` the script catches, its `clrType` `"InvalidScriptException"`.
+     * refusal is an `InvalidScriptError` the script catches.
      */
     function stateMachine<TState extends string, TPayload = unknown>(
         def: FsmDefinition<TState, TPayload>,
@@ -1213,8 +1232,8 @@ declare global {
     /**
      * What the runner reports as the run's result. Optional: the value of the last
      * expression is used when a script never assigns it. Whatever goes here is serialised
-     * to JSON, so assign a plain projection -- a `CrewResult` holds host objects and does
-     * not survive the trip.
+     * to JSON: a `CrewResult` goes whole (`output` and `tasks`), a plain projection only
+     * what it names.
      */
     var result: unknown;
 }
@@ -1305,8 +1324,7 @@ declare global {
 
     /**
      * Builds a graph from a literal. A literal it refuses (a bad shape, an invalid topology:
-     * every fault in one message) throws an `Error` the script catches, its `clrType`
-     * `"InvalidScriptException"`.
+     * every fault in one message) throws an `InvalidScriptError` the script catches.
      *
      * `TState` cannot be inferred from the node bodies -- a node both takes and returns the
      * state, so inference is circular -- and falls back to `Record<string, unknown>`, which
@@ -1364,7 +1382,7 @@ declare global {
 
         /**
          * Returns a copy with the given fields overridden. Any other key, or a value out of its domain,
-         * throws an `Error` the script catches (its `clrType` is `"InvalidScriptException"`).
+         * throws an `InvalidScriptError` the script catches.
          */
         with(overrides: LlmConfigOverrides): LlmConfig;
     }
@@ -1473,8 +1491,8 @@ declare global {
          * One of the host's named profiles (`Llm:Profiles:<name>`), on its own model unless
          * `overrides.model` names another. An agent configured with it runs on that profile's
          * provider — its turns and its `ctx.llm` calls. `"default"` is `llm.default_`. A name the
-         * host does not offer throws an `Error` the script catches (`try … catch`), listing the
-         * known profiles, its `clrType` `"InvalidScriptException"`; `llm.profiles` tells beforehand
+         * host does not offer throws an `InvalidScriptError` the script catches (`try … catch`),
+         * listing the known profiles; `llm.profiles` tells beforehand
          * whether a name is one of them.
          */
         function profile(name: string, overrides?: LlmConfigOverrides): LlmConfig;
@@ -1662,9 +1680,10 @@ declare global {
     }
 
     /**
-     * A method that refuses its argument, and `build()` missing a field, throws an `Error` the
-     * script catches (`try … catch`), its `clrType` `"InvalidScriptException"` — `"ArgumentException"`
-     * for a value the domain refuses (a description or expected output over its length limit).
+     * A method that refuses its argument, and `build()` missing a field, throws an
+     * `InvalidScriptError` the script catches (`try … catch`) — a plain `Error`, its `clrType`
+     * `"ArgumentException"`, for a value the domain refuses (a description or expected output
+     * over its length limit).
      */
     interface TaskBuilder<TIn = unknown, TOut = unknown> {
         name(value: string): this;
@@ -1905,8 +1924,8 @@ declare global {
     }
 
     /**
-     * A method that refuses its argument, and `build()` missing a field, throws an `Error` the
-     * script catches (`try … catch`), its `clrType` `"InvalidScriptException"`.
+     * A method that refuses its argument, and `build()` missing a field, throws an
+     * `InvalidScriptError` the script catches (`try … catch`).
      */
     interface ToolBuilder<TIn = unknown, TOut = unknown> {
         name(value: string): this;

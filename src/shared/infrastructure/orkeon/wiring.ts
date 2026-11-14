@@ -29,7 +29,7 @@ import { bindHostContext, orkeonHostContext } from "./host-context.ts";
 import { createSessionIo } from "../../application/session-io.ts";
 import type { SessionIo } from "../../application/session-io.ts";
 import type { ServiceLocator } from "../../../commands/.orkeon/orkeon-cli.d.ts";
-import { AgentBuilder, Llm as HostLlm, Rag, Tools, inputs } from "../globals.ts";
+import { AgentBuilder, InvalidScript, Llm as HostLlm, Rag, Tools, inputs } from "../globals.ts";
 import { declaredRoute, profiledAgent } from "./llm-profile.ts";
 import { createReasoningReader } from "./reasoning.ts";
 import { actRoute } from "../../application/agents/route-agent.ts";
@@ -135,10 +135,15 @@ export const orkeonCompactionDeps = (
 /** What the host's models take for reasoning, and what becomes of an effort asked (orkeon/reasoning.ts). */
 export const orkeonReasoning = (): ReasoningReader => createReasoningReader(HostLlm);
 
-/** The runtime's agent factories: `agentBuilder` and `llm.profile`, the latter absent where the host declares no `llm`. */
+/** The runtime's agent factories: `agentBuilder`, `llm.profile`, absent where the host declares no `llm`, and its
+ *  refusals, instances of `InvalidScriptError` (Orkeon #366). */
 export const orkeonAgentFactories = (): AgentFactories => {
   const host = HostLlm;
-  return { agent: AgentBuilder, profile: host === undefined ? undefined : (name) => host.profile(name) };
+  return {
+    agent: AgentBuilder,
+    profile: host === undefined ? undefined : (name) => host.profile(name),
+    refusal: (error) => InvalidScript !== undefined && error instanceof InvalidScript,
+  };
 };
 
 /** An agent builder on the profile the crew input names (`llmProfile`, the session's `llm.profile`), else the plain
@@ -155,5 +160,5 @@ export const orkeonActRoute = (
     { decision: orkeonDecisionModel(tools), files: orkeonFiles(tools, root), session: orkeonSessionStore(tools), config: orkeonConfigStore(tools, root), log },
     { session: llmSessionProfileOf(input), crew: llmProfileOf(input) },
   ),
-  orkeonAgentFactories().profile,
+  orkeonAgentFactories(),
 );

@@ -1,7 +1,7 @@
 // shared/infrastructure/orkeon/llm-profile.ts: an agent builder on the profile the crew input names. Run:
 //   node --test tests/shared/infrastructure/orkeon/llm-profile.test.ts
 import { describe, it } from "node:test";
-import { deepStrictEqual, strictEqual, throws } from "node:assert";
+import { deepStrictEqual, rejects, strictEqual, throws } from "node:assert";
 import { PROMPT_CACHE, declaredRoute, profiledAgent } from "../../../../src/shared/infrastructure/orkeon/llm-profile.ts";
 import { assertBuiltOn } from "./llm-profile.assertions.ts";
 import { CACHE_CASES, DECLARED_ROUTES, FALLBACK_CASES, TASK, factories } from "./llm-profile.fixtures.ts";
@@ -53,6 +53,17 @@ describe("profiledAgent", () => {
     throws(act, /unknown LLM profile 'small'/);
   });
 
+  it("throws a failure of a routed profile that is no refusal instead of falling back", () => {
+    // Arrange
+    const host = factories(true, [], ["small"]);
+
+    // Act
+    const act = () => profiledAgent({ llmProfile: "small", llmProfileFallback: "large" }, host);
+
+    // Assert
+    throws(act, /the profile 'small' cannot be read/);
+  });
+
   for (const c of CACHE_CASES) {
     it(c.name, () => {
       // Arrange
@@ -96,10 +107,21 @@ describe("declaredRoute", () => {
       const host = factories(c.withProfile, ["small"]);
 
       // Act
-      const profile = await declaredRoute(async () => c.answer, host.profile)(TASK);
+      const profile = await declaredRoute(async () => c.answer, host)(TASK);
 
       // Assert
       strictEqual(profile, c.profile);
     });
   }
+
+  it("rejects with a failure of the routed profile that is no refusal", async () => {
+    // Arrange
+    const host = factories(true, [], ["small"]);
+
+    // Act
+    const act = declaredRoute(async () => "small", host)(TASK);
+
+    // Assert
+    await rejects(act, /the profile 'small' cannot be read/);
+  });
 });

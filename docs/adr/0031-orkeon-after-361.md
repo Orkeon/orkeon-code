@@ -32,11 +32,17 @@ Orkeon (#364), and #365 (`2fb47b8`, merged on `main` on 2026-11-14) delivered th
 script catches. Just before it, #363 gave an agent a file-system scope (`.filesystem([...])`) and made the runtime
 add a `## File system` section to the system prompt of every agent that has a file-system tool.
 
+A refusal caught that way was a plain `Error`, told from another failure by a string only (`clrType`
+`"InvalidScriptException"`). This project asked for a class (#366), and #371 (`791760e`, merged on `main` on
+2026-11-14) delivered it: `InvalidScriptError`. The same merge makes the `output` of `crew.run()` the value the
+last body returned, where an object gave its .NET type name (#369); every crew of this project returns a text.
+
 ## Decision
 
-- **The pin moves to `98799c6`, then to `2fb47b8`** (#365), the newest merge commit of Orkeon `main`. The esbuild
-  of the runtime (`0.25.12`) and its .NET SDK (`10.0.300`) do not change; the typings gain `EffortLevel`,
-  `LlmCapabilities` and `LlmReasoning`, then `llm.profiles`, `.filesystem(...)` and `.announceMounts(...)`.
+- **The pin moves to `98799c6`, then to `2fb47b8`** (#365), **then to `791760e`** (#371), the newest merge commit of
+  Orkeon `main`. The esbuild of the runtime (`0.25.12`) and its .NET SDK (`10.0.300`) do not change; the typings
+  gain `EffortLevel`, `LlmCapabilities` and `LlmReasoning`, then `llm.profiles`, `.filesystem(...)` and
+  `.announceMounts(...)`, then `InvalidScriptError`.
 - **The runtime judges, this project reads.** No copy of the capability table and no rule of its own: a new port,
   `ReasoningReader`, answers what a model takes and what a level becomes on it, from the `llm` namespace
   (`llm.profile(name)`, else `llm.model(name)`, else `llm.default_`, then `.capabilities` and
@@ -82,7 +88,10 @@ add a `## File system` section to the system prompt of every agent that has a fi
 - The system prompt of every agent grows by the runtime's `## File system` section, a few lines that do not change
   within a run: the cached prefix stays stable. No live turn was run on it yet.
 - The older `try … catch` around `llm.profile` (an agent routed to a rung the host does not declare stays on the
-  crew's profile, `llm-profile.ts`) could not work before #365; it does now, unchanged.
+  crew's profile, `llm-profile.ts`) could not work before #365. It catches the runtime's `InvalidScriptError` alone
+  (#366), read from the globals and handed over as `AgentFactories.refusal`: any other failure of `llm.profile` is
+  thrown as it came. The reasoning reader keeps its wide `catch`: a command that only says what a model takes
+  answers nothing rather than fail.
 - A role's profile or a routed crew may put the dev steps on yet another model: their acts are still lowered by the
   runtime, with its warning, and no command of this project says it.
 - A fallback profile is judged on its first link and a decision profile on its target (the runtime's rule): a call
@@ -99,3 +108,6 @@ add a `## File system` section to the system prompt of every agent that has a fi
   then ran at `2fb47b8` on Z.AI: under `llm.profile large` with `medium` stored the log read `act — effort: medium
   (sent as 'low' to glm-5.3)`, and with no level stored on a host asking for `medium`, `act — effort: none stored,
   the host asks for medium (sent as 'low' to glm-5.3)`; the runtime's warning said the same and the model answered.
+- Checks at `791760e`: `npm run check` green and the three smokes in source mode. `git-commit` under `--llm-mock`
+  with `llmProfile` = `ghost`: routed (`llmProfileFallback` given), the crew commits on the host's default model;
+  launched on it, the crew fails on the runtime's refusal, which lists the known profiles.

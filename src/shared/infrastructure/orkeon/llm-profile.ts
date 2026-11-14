@@ -7,17 +7,20 @@
 // its system prompt and its tool definitions (Orkeon #254): the prompts are assembled so that this prefix stays
 // byte-identical turn after turn. Only a provider whose cache is explicit (Anthropic) needs the request; the others
 // cache by their own rules. A sub-agent's act routed to a rung the host does not declare stays on the crew's profile
-// (declaredRoute), as a crew launched on one does: the runtime throws on an unknown profile name, an error a script
-// catches since Orkeon #364.
+// (declaredRoute), as a crew launched on one does: the runtime throws on an unknown profile name an
+// `InvalidScriptError` (Orkeon #364, #366), which `refusal` recognises. Any other failure of `llm.profile` is no
+// undeclared name: it is thrown as it came.
 
 import { llmProfileFallbackOf, llmProfileOf } from "../../domain/llm-profile.ts";
 import { noLlmNamespace } from "./messages.ts";
 import type { ActRoute } from "../../application/agents/route-agent.ts";
 
-/** What building a profiled agent needs of the runtime: the agent builder and `llm.profile`, absent where the host declares no `llm`. */
+/** What building a profiled agent needs of the runtime: the agent builder, `llm.profile`, absent where the host
+ *  declares no `llm`, and `refusal`, whether an error is the runtime refusing what the script asked. */
 export interface AgentFactories {
   agent: () => any;
   profile: ((name: string) => LlmConfig) | undefined;
+  refusal: (error: unknown) => boolean;
 }
 
 /** The prompt cache every agent requests: the system prompt and the tools, for the vendor's default lifetime. */
@@ -33,20 +36,22 @@ export function profiledAgent(input: Readonly<Record<string, unknown>>, factorie
   // A routed name the host does not declare: the crew runs as it would have without the routing.
   try {
     return builder.llm(factories.profile(name));
-  } catch {
+  } catch (error) {
+    if (!factories.refusal(error)) throw error;
     return fallback === null ? builder : builder.llm(factories.profile(fallback));
   }
 }
 
 /** `route`, answering null for a profile the host does not declare (or on a host without `llm`). */
-export function declaredRoute(route: ActRoute, profile: AgentFactories["profile"]): ActRoute {
+export function declaredRoute(route: ActRoute, { profile, refusal }: Pick<AgentFactories, "profile" | "refusal">): ActRoute {
   return async (task) => {
     const name = await route(task);
     if (name === null || profile === undefined) return null;
     try {
       profile(name);
       return name;
-    } catch {
+    } catch (error) {
+      if (!refusal(error)) throw error;
       return null;
     }
   };

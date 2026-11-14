@@ -34,6 +34,10 @@ export const Rag: typeof rag | undefined = typeof rag === "undefined" ? undefine
  *  model takes for reasoning, for a command as for a crew. */
 export const Llm: typeof llm | undefined = typeof llm === "undefined" ? undefined : llm;
 
+/** The class of the runtime's refusals of what a script asked (`llm.profile` naming a profile the host lacks, a
+ *  builder method refusing its argument; Orkeon #366), or undefined where the host plants none. */
+export const InvalidScript: typeof InvalidScriptError | undefined = typeof InvalidScriptError === "undefined" ? undefined : InvalidScriptError;
+
 /** Typed accessor for `globalThis.inputs` (crew/command invocation payload).
  *
  *  ⚠️ The implementation binding is deliberately NOT named `inputs`: esbuild
