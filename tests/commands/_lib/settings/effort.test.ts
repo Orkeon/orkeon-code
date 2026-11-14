@@ -5,11 +5,11 @@ import { deepStrictEqual, strictEqual } from "node:assert";
 
 import { EFFORT_STATE_KEY, MODEL_PREFERENCE_STATE_KEY } from "../../../../src/shared/domain/session-keys.ts";
 import {
-  HIGH_AS_ASKED, HIGH_DROPPED, HIGH_UNCHECKED, MEDIUM_LOWERED, TAKES_NO_EFFORT, UNKNOWN_TAKES, XHIGH_LOWERED_UNKNOWN,
+  HIGH_AS_ASKED, HIGH_DROPPED, HIGH_UNCHECKED, MEDIUM_LOWERED, MEDIUM_SWITCHED_OFF, QWEN_TAKES, TAKES_NO_EFFORT, UNKNOWN_TAKES, XHIGH_LOWERED_UNKNOWN,
 } from "../../../support/fixtures/reasoning.ts";
 import {
   effortHarness, glmHarness, HIGH_ON_GLM_TEXT, HIGH_UNCHECKED_TEXT, HIGH_ON_PLAIN_TEXT, MEDIUM_ON_GLM_TEXT, NOTHING_STORED_ON_GLM_TEXT,
-  NOTHING_STORED_TEXT, SET_HIGH_DROPPED_TEXT, SET_HIGH_TEXT, SET_MEDIUM_ON_GLM_TEXT,
+  NOTHING_STORED_TEXT, SET_HIGH_DROPPED_TEXT, SET_HIGH_TEXT, SET_MEDIUM_ON_GLM_TEXT, SET_MEDIUM_SWITCHED_OFF_TEXT,
   NO_THINKING_ASKED_TEXT, UNKNOWN_LEVEL_TEXT, DEV_STEPS_CASES, HOST_HIGH_ON_GLM_TEXT, HOST_MEDIUM_ON_GLM_TEXT, PANEL_CASES,
   TARGET_CASES, XHIGH_LOWERED_UNKNOWN_TEXT, profiledHarness,
 } from "./effort.fixtures.ts";
@@ -393,6 +393,32 @@ describe("/effort under an llm.profile", () => {
 
     // Assert
     strictEqual(view.text, SET_MEDIUM_ON_GLM_TEXT);
+  });
+
+  it("asks nothing of the host's own model under a profile", async () => {
+    // Arrange
+    const { reasoning, run } = profiledHarness();
+
+    // Act
+    await run("medium");
+
+    // Assert
+    deepStrictEqual(reasoning.targets.filter((target) => target.profile === null), []);
+  });
+});
+
+describe("/effort on a level the host's settings drop", () => {
+  it("leaves the model's levels out of the warning when the model takes the level", async () => {
+    // Arrange
+    const { reasoning, run } = glmHarness();
+    reasoning.capabilitiesAnswer = QWEN_TAKES;
+    reasoning.reports = { medium: MEDIUM_SWITCHED_OFF };
+
+    // Act
+    const view = await run("medium");
+
+    // Assert
+    strictEqual(view.text, SET_MEDIUM_SWITCHED_OFF_TEXT);
   });
 });
 

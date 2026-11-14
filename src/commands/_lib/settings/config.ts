@@ -18,7 +18,6 @@ import type { ConfigStore } from "../../../shared/application/config-store.ts";
 import { readLlmProfile } from "../../../shared/application/llm-profile.ts";
 import type { ReasoningReader } from "../../../shared/application/ports.ts";
 import type { SessionIo } from "../../../shared/application/session-io.ts";
-import { LLM_PROFILE_CONFIG_KEY } from "../../../shared/domain/llm-profile.ts";
 import { storedEffortWarning } from "./effort.ts";
 import type { CommandView } from "../view.ts";
 import { CONFIG_GET_USAGE, CONFIG_UNSET_USAGE, CONFIG_USAGE, KEYS_NOTE, configFileLine, configFileMalformed, fileValueSet, keyNotInFile, keyRemoved, keyUnset, keyValue, nestedKeys, noSessionOverride, refusingToOverwrite, refusingUnparsed, sessionOverrideRemoved, sessionValueSet, unknownStoredKeys, userSettingsUnparsed, valueIgnored } from "./messages.ts";
@@ -43,7 +42,7 @@ function takeSessionFlag(tokens: string[]): { session: boolean; rest: string[] }
  *  effort /effort stored does not go as asked there. */
 export async function runConfig(tokens: string[], deps: ConfigDeps): Promise<CommandView> {
   const { session, reasoning, config } = deps;
-  if (session === undefined || reasoning === undefined || !tokens.includes(LLM_PROFILE_CONFIG_KEY)) return applyConfig(tokens, deps);
+  if (session === undefined || reasoning === undefined) return applyConfig(tokens, deps);
   const before = (await readLlmProfile(config)).profile;
   const view = await applyConfig(tokens, deps);
   if ((await readLlmProfile(config)).profile === before || view.text === undefined) return view;

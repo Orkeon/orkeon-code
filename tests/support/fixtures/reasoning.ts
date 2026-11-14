@@ -32,3 +32,9 @@ export const XHIGH_LOWERED_UNKNOWN: EffortReport = { model: "my-custom", asked: 
 
 /** `medium` on a model that takes it: sent as asked. */
 export const MEDIUM_AS_ASKED: EffortReport = { model: "kimi-k3", asked: "medium", sent: "medium", notice: null };
+
+/** A model that takes `medium`, on a host whose settings switch its thinking off. */
+export const QWEN_TAKES: ReasoningCapabilities = { model: "qwen-3", known: true, thinking: "toggle", efforts: ["low", "medium", "high"] };
+
+/** `medium` on that host: the model takes it, the settings drop it. */
+export const MEDIUM_SWITCHED_OFF: EffortReport = { model: "qwen-3", asked: "medium", sent: null, notice: "dropped" };

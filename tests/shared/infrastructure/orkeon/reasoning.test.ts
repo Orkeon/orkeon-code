@@ -5,7 +5,7 @@ import { deepStrictEqual, strictEqual } from "node:assert";
 
 import { createReasoningReader } from "../../../../src/shared/infrastructure/orkeon/reasoning.ts";
 import { FakeLlmConfigs } from "../../../support/doubles/fake-llm-configs.ts";
-import { BOOT, DECLARED_PROFILE_CASES, HOST_PROFILES, MEDIUM_ON_GLM, OVERRIDE, PROFILED, UNDECLARED_PROFILE } from "./reasoning.fixtures.ts";
+import { BOOT, DECLARED_PROFILE_CASES, DEFAULT_PROFILE, NO_PROVIDER, HOST_PROFILES, MEDIUM_ON_GLM, OVERRIDE, PROFILED, UNDECLARED_PROFILE } from "./reasoning.fixtures.ts";
 
 describe("createReasoningReader — capabilities", () => {
   it("reads what the host's own model takes when the session names neither a profile nor a model", () => {
@@ -57,6 +57,31 @@ describe("createReasoningReader — capabilities", () => {
 
     // Assert
     deepStrictEqual([capabilities, host.asked], [null, []]);
+  });
+
+  it("reads the host's own model for the profile named default, in any case", () => {
+    // Arrange
+    const host = new FakeLlmConfigs();
+    const reader = createReasoningReader(host);
+
+    // Act
+    const capabilities = reader.capabilities(DEFAULT_PROFILE);
+
+    // Assert
+    deepStrictEqual([capabilities?.model, host.asked], ["glm-5.3", ["profile:Default"]]);
+  });
+
+  it("answers nothing when the runtime refuses the configuration", () => {
+    // Arrange
+    const host = new FakeLlmConfigs();
+    host.refusal = NO_PROVIDER;
+    const reader = createReasoningReader(host);
+
+    // Act
+    const capabilities = reader.capabilities(BOOT);
+
+    // Assert
+    strictEqual(capabilities, null);
   });
 
   it("answers nothing on a host without the llm namespace", () => {
@@ -142,6 +167,19 @@ describe("createReasoningReader — effort", () => {
 
     // Assert
     deepStrictEqual([report, host.asked], [null, []]);
+  });
+
+  it("answers nothing for a level when the runtime refuses the configuration", () => {
+    // Arrange
+    const host = new FakeLlmConfigs();
+    host.refusal = NO_PROVIDER;
+    const reader = createReasoningReader(host);
+
+    // Act
+    const report = reader.effort(OVERRIDE, "medium");
+
+    // Assert
+    strictEqual(report, null);
   });
 
   it("answers nothing on a host without the llm namespace", () => {

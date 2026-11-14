@@ -1,7 +1,7 @@
 // The harness /model runs over (FakeSessionStore, FakeTelemetry reporting kimi-k3 and a catalogue of two, FakeLogger),
 // and the texts it answers that run past a line.
 import { runModel } from "../../../../src/commands/_lib/settings/model.ts";
-import { NO_MODEL_REPORTED, effortSet } from "../../../../src/commands/_lib/settings/messages.ts";
+import { NO_MODEL_REPORTED } from "../../../../src/commands/_lib/settings/messages.ts";
 import type { CommandView } from "../../../../src/commands/_lib/view.ts";
 import { createConfigStore, USER_CONFIG_FILE_PATH } from "../../../../src/shared/application/config-store.ts";
 import { renderModelList } from "../../../../src/shared/domain/model-catalog.ts";
@@ -85,7 +85,13 @@ export const MEDIUM_LOWERED_WARNING = "⚠ effort: 'medium' is sent to glm-5.3 a
 export const RESET_LOWERED_TEXT = `model override cleared — turns go back to kimi-k3.\n${MEDIUM_LOWERED_WARNING}`;
 
 /** What the /model panel answers when deepseek-chat and `medium` are picked together, `high` stored before. */
-export const PANEL_BOTH_TEXT = `${SWITCHED_TEXT}\n${effortSet("medium", 40)}\n${MEDIUM_LOWERED_WARNING}`;
+export const PANEL_BOTH_TEXT = `${SWITCHED_TEXT}\n` +
+  "reasoning effort set to 'medium' — the next /assistant turn gets 40 act() iterations and asks the provider for " +
+  "thinking at 'medium' (act effort; the dev steps and their children too). Session-scoped; /clear clears it.\n" +
+  MEDIUM_LOWERED_WARNING;
+
+/** What the /model panel answers when deepseek-chat is picked and `medium` stays stored. */
+export const PANEL_MODEL_ONLY_TEXT = `${SWITCHED_TEXT}\n${MEDIUM_LOWERED_WARNING}`;
 
 /** deepseek-chat as GLM-5.3 on Z.AI: `medium` goes out as `low`, `high` would not be sent at all. */
 export const DEEPSEEK_AS_GLM: Record<string, ReasoningAnswers> = {

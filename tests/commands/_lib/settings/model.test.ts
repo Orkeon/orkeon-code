@@ -16,6 +16,7 @@ import {
   DEEPSEEK_AS_GLM,
   MEDIUM_LOWERED_WARNING,
   PANEL_BOTH_TEXT,
+  PANEL_MODEL_ONLY_TEXT,
   RESET_LOWERED_TEXT,
   NO_MODEL_SHOW_TEXT,
   PROFILE_SHOW_TEXT,
@@ -476,6 +477,20 @@ describe("/model and the effort /effort stored", () => {
 
     // Assert
     deepStrictEqual(view, { text: PANEL_BOTH_TEXT });
+  });
+
+  it("warns in the panel of the stored effort when the answer carries no effort", async () => {
+    // Arrange
+    const { session, chooser, reasoning, pick } = modelHarness();
+    session.state.set(EFFORT_STATE_KEY, "medium");
+    reasoning.byModel = DEEPSEEK_AS_GLM;
+    chooser.answers = ["deepseek-chat"];
+
+    // Act
+    const view = await pick();
+
+    // Assert
+    deepStrictEqual(view, { text: PANEL_MODEL_ONLY_TEXT });
   });
 
   it("warns in the panel of the stored effort on the model picked when the effort is left alone", async () => {

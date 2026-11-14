@@ -35,7 +35,8 @@ export interface ActRequest extends ModelOverride {
   /** The mode the host's permission gate applies to each tool call. */
   permissionMode?: string;
   /** The provider's thinking at this level (`act({effort})`); none when absent. A level the provider or the model
-   *  does not take is lowered or dropped by the runtime, with a warning in its log: `Llm.effortSent` says which. */
+   *  does not take is sent as another one (the highest it takes below, else the lowest it takes) or dropped by the
+   *  runtime, with a warning in its log: `Llm.effortSent` says which. */
   effort?: EffortLevel;
   /** The agent's tools offered for this call (a role's subset); all of them when absent. */
   tools?: readonly string[];

@@ -12,8 +12,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `/effort show` lists the effort levels the session's model takes (`glm-5.3 takes low, high, max`), and says
   what a stored level it does not take is sent as. Setting such a level warns under the answer (`⚠ effort:
   'medium' is sent to glm-5.3 as 'low' (it takes low, high, max).`); a level sent as none is warned of the same way.
-  For a stored level, `/effort show` also says when the capability table does not know the model, whose level then
-  goes unchecked. The panel of a bare `/effort` marks each level that would be lowered or dropped. The level stored
+  `/effort show` also says when the capability table does not know the model, whose level, stored or the host's,
+  then goes unchecked. The panel of a bare `/effort` marks each level that would be sent as another one, or not at
+  all. The level stored
   stays the one asked ([ADR 0031](docs/adr/0031-orkeon-after-361.md)).
 - With no level stored, `/effort show` names the level the host's own `Llm:Thinking:Effort` asks for and what it
   becomes (`not requested by the session; the host asks for 'medium' — 'medium' is sent to glm-5.3 as 'low' …`),
@@ -22,13 +23,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   dev steps and the sub-agents keep (`⚠ effort, dev steps and sub-agents (the host's model): …`).
 - `/model` gives these warnings after a switch or a reset, when the stored effort does not go as asked on the new
   model, and `/config unset llm.profile` when the turns go back to it.
-- Under an `llm.profile`, the model judged is the profile's, and a bare `/route` gives a line per rung of the
-  ladder with what its model takes (`small: glm-5.3-flashx takes low, high, max`) or what the stored level becomes
-  on it; `/config set llm.profile <name>` warns when the stored level does not go as asked on the profile set. A
+- A bare `/route` gives a line per rung of the ladder with what its model takes (`small: glm-5.3-flashx takes low,
+  high, max`) or what the stored level becomes on it. Under an `llm.profile`, the model judged is the profile's:
+  `/config set llm.profile <name>` warns when the stored level does not go as asked on the profile set. A
   profile the host does not declare gets no line and no warning (the names come from `llm.profiles`, Orkeon #364).
 - The log line of a turn names the level the provider receives when it is not the one asked (`act — effort: medium
   (sent as 'low' to glm-5.3), maxIterations: 40`), and the session-flags line says the level is the one asked
-  (`provider thinking asked at medium`), as the answer of `/effort <level>` does (`asks the provider for thinking`).
+  (`provider thinking asked at medium`), as the answer of `/effort <level>` does (`asks the provider for thinking`), and the panel confirmed on the level
+  marked with none stored (`the session asks the provider for no thinking`).
 - All of it is the runtime's own judgement, read through Orkeon #359 and #360 (the host's `Llm:ModelCapabilities`
   included): on Orkeon 1.0.0 (the tool and docker modes) nothing is said of the model's levels.
 

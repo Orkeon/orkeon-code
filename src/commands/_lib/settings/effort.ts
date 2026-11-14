@@ -47,8 +47,11 @@ export function effortNote(report: EffortReport | null, capabilities: ReasoningC
   if (report === null || report.notice === null) return "";
   if (report.notice === "unchecked") return effortUnchecked(report.model, report.asked);
   const takes = capabilities !== null && capabilities.known ? itTakes(capabilities.efforts) : "";
-  if (report.notice === "dropped" || report.sent === null) return effortDropped(report.model, report.asked) + takes;
-  return effortLowered(report.model, report.asked, report.sent) + takes;
+  if (report.sent !== null) return effortLowered(report.model, report.asked, report.sent) + takes;
+  // A level the model takes is dropped by the provider or the host's settings (its thinking switched off): the
+  // model's levels would read as the cause, so they are left out.
+  const taken = capabilities !== null && capabilities.efforts.includes(report.asked);
+  return effortDropped(report.model, report.asked) + (taken ? "" : takes);
 }
 
 /** `effortNote` without the model the table does not know: that one is `show`'s to say, since most hosts serve

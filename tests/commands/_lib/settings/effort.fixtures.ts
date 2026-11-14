@@ -61,6 +61,8 @@ export function profiledHarness() {
   const config = createConfigStore({ files, session });
   const reasoning = new FakeReasoningReader();
   reasoning.byProfile = { large: { capabilities: GLM_TAKES, reports: { medium: MEDIUM_LOWERED } } };
+  // The host's own model would drop the level: under a profile nothing runs on it, and nothing is said of it.
+  reasoning.byModel = { "": DROPPED };
   const run = (...tokens: string[]): Promise<CommandView> => runEffort(tokens, { session, config, reasoning });
   return { session, reasoning, run };
 }
@@ -75,6 +77,9 @@ const MEDIUM_DROPPED_NOTE = "'medium' is not sent to plain-1 (it takes no effort
 export const MEDIUM_ON_GLM_TEXT = shown("medium", `at 'medium' (act effort) — ${MEDIUM_NOTE}`);
 
 export const SET_MEDIUM_ON_GLM_TEXT = `${setText("medium", 40)}\n⚠ effort: ${MEDIUM_NOTE}.`;
+
+/** A level the model takes and the host's settings drop: the model's levels are not the cause, and are left out. */
+export const SET_MEDIUM_SWITCHED_OFF_TEXT = `${setText("medium", 40)}\n⚠ effort: 'medium' is not sent to qwen-3.`;
 
 export const SET_HIGH_DROPPED_TEXT = `${SET_HIGH_TEXT}\n⚠ effort: 'high' is not sent to plain-1 (it takes no effort level).`;
 

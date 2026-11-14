@@ -7,10 +7,10 @@
 ## Context
 
 Since Orkeon #356 the runtime judges an effort against the provider and the model, from one capability table: a
-level the model does not take is lowered, an effort on a model that takes none is dropped, and a model the table
-does not know gets the effort unchecked. A script could not read any of it. `/effort` therefore offered its five
-levels on every model and answered `the provider's thinking at 'medium'` on GLM-5.3, which received `low`; the
-runtime's log alone said so.
+level the model does not take is sent as the highest it takes below (else the lowest it takes), an effort on a
+model that takes none is dropped, and a model the table does not know gets the effort unchecked. A script could
+not read any of it. `/effort` therefore offered its five levels on every model and answered `the provider's
+thinking at 'medium'` on GLM-5.3, which received `low`; the runtime's log alone said so.
 
 This project asked for the two reads on Orkeon (#359, #360), and Orkeon delivered them in #361 (`98799c6`, merged on
 `main` on 2026-11-14):
