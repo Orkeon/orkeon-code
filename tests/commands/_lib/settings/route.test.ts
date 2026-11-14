@@ -5,8 +5,10 @@ import { deepStrictEqual, strictEqual } from "node:assert";
 
 import { runRoute } from "../../../../src/commands/_lib/settings/route.ts";
 import {
-  RECENT, SET_OFF, SET_ON, SET_ON_NO_MODEL, STATUS_OFF, STATUS_ON_NO_MODEL, WHY_LINES, routeCommandSetup,
+  RECENT, SET_OFF, SET_ON, SET_ON_NO_MODEL, STATUS_OFF, STATUS_ON_NO_MODEL, STATUS_WITH_MEDIUM, STATUS_WITH_RUNGS,
+  WHY_LINES, routeCommandSetup, routeOnGlmSetup,
 } from "./route.fixtures.ts";
+import { EFFORT_STATE_KEY } from "../../../../src/shared/domain/session-keys.ts";
 
 describe("runRoute", () => {
   it("says where the routing stands when bare", async () => {
@@ -101,5 +103,42 @@ describe("runRoute", () => {
 
     // Assert
     strictEqual(view.text, "usage: /route [on|off|why]");
+  });
+});
+
+describe("runRoute — what each rung's model takes", () => {
+  it("lists under the status the levels each rung's model takes", async () => {
+    // Arrange
+    const { deps } = routeOnGlmSetup();
+
+    // Act
+    const view = await runRoute([], deps);
+
+    // Assert
+    strictEqual(view.text, STATUS_WITH_RUNGS);
+  });
+
+  it("says what the stored effort is sent as on a rung whose model does not take it", async () => {
+    // Arrange
+    const { deps, session } = routeOnGlmSetup();
+    session.state.set(EFFORT_STATE_KEY, "medium");
+
+    // Act
+    const view = await runRoute([], deps);
+
+    // Assert
+    strictEqual(view.text, STATUS_WITH_MEDIUM);
+  });
+
+  it("leaves out a rung the runtime cannot tell about", async () => {
+    // Arrange
+    const { deps, config } = routeOnGlmSetup();
+    config.values = { "route.ladder": "ghost,large" };
+
+    // Act
+    const view = await runRoute([], deps);
+
+    // Assert
+    strictEqual(view.text, "route.agents: off; ladder: ghost,large (cheapest first); decision model: present.\n  large: glm-5.3 takes low, high, max");
   });
 });

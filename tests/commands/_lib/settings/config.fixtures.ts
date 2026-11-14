@@ -6,6 +6,7 @@ import { CONFIG_FILE_PATH, USER_CONFIG_FILE_PATH, createConfigStore } from "../.
 import { CONFIG_KEYS } from "../../../../src/shared/domain/config-schema.ts";
 import { CONFIG_MAP_STATE_KEY } from "../../../../src/shared/domain/session-keys.ts";
 import { FakeFiles } from "../../../support/doubles/fake-files.ts";
+import { FakeReasoningReader } from "../../../support/doubles/fake-reasoning-reader.ts";
 import { FakeSessionStore } from "../../../support/doubles/fake-session-store.ts";
 
 export const KEY = "advisor.model";
@@ -43,6 +44,8 @@ export const NARROW_USER_SETTINGS = { "permissions.fallback": "plan", "tools.ext
 export interface ConfigHarness {
   files: FakeFiles;
   store: FakeSessionStore;
+  /** What the runtime says of the models; nothing unless a test fills it. */
+  reasoning: FakeReasoningReader;
   /** Runs `/config <tokens…>`. */
   run(...tokens: string[]): Promise<CommandView>;
   /** The project settings file as stored, `{}` when absent. */
@@ -69,10 +72,12 @@ export function configHarness(seed: ConfigSeed = {}): ConfigHarness {
   if (seed.file !== undefined) files.files.set(CONFIG_FILE_PATH, asText(seed.file));
   if (seed.user !== undefined) files.files.set(USER_CONFIG_FILE_PATH, asText(seed.user));
   if (seed.session !== undefined) store.state.set(CONFIG_MAP_STATE_KEY, JSON.stringify(seed.session));
-  const deps = { config: createConfigStore({ files, session: store }) };
+  const reasoning = new FakeReasoningReader();
+  const deps = { config: createConfigStore({ files, session: store }), session: store, reasoning };
   return {
     files,
     store,
+    reasoning,
     run: (...tokens) => runConfig(tokens, deps),
     fileMap: () => JSON.parse(files.files.get(CONFIG_FILE_PATH) ?? "{}"),
     sessionMap: () => JSON.parse(store.state.get(CONFIG_MAP_STATE_KEY) ?? "{}"),

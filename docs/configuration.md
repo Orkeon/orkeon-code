@@ -361,7 +361,10 @@ its `/model` override, else the host's own model):
   warning says so. A model the capability table does not know gets the level unchecked: `/effort show` says it,
   without a warning;
 - the panel of a bare `/effort` marks each level that would be sent as another one, or not at all;
-- `/model` gives the same warning after a switch, when the stored level does not go as asked on the new model.
+- `/model` gives the same warning after a switch, when the stored level does not go as asked on the new model, and
+  so does `/config set llm.profile` (or its unset) when the profile changes;
+- a bare `/route` lists, under its status, what the model of each rung of the ladder takes, or what the stored level
+  becomes on it: a routed crew runs on a rung, with the level `/effort` stored.
 
 The dev steps and their agents may run on another model: the warning speaks of the session's model only. On a
 runtime before Orkeon #361 (the tool and docker modes on 1.0.0), nothing is said of the model's levels.

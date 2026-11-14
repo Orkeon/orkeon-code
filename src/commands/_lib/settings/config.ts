@@ -15,12 +15,21 @@ import {
 } from "../../../shared/domain/config-schema.ts";
 import { CONFIG_FILE_PATH, USER_CONFIG_FILE_PATH } from "../../../shared/application/config-store.ts";
 import type { ConfigStore } from "../../../shared/application/config-store.ts";
+import { readLlmProfile } from "../../../shared/application/llm-profile.ts";
+import type { ReasoningReader } from "../../../shared/application/ports.ts";
+import type { SessionIo } from "../../../shared/application/session-io.ts";
+import { LLM_PROFILE_CONFIG_KEY } from "../../../shared/domain/llm-profile.ts";
+import { storedEffortWarning } from "./effort.ts";
 import type { CommandView } from "../view.ts";
 import { CONFIG_GET_USAGE, CONFIG_UNSET_USAGE, CONFIG_USAGE, KEYS_NOTE, configFileLine, configFileMalformed, fileValueSet, keyNotInFile, keyRemoved, keyUnset, keyValue, nestedKeys, noSessionOverride, refusingToOverwrite, refusingUnparsed, sessionOverrideRemoved, sessionValueSet, unknownStoredKeys, userSettingsUnparsed, valueIgnored } from "./messages.ts";
 import { unknownConfigKey } from "../../../shared/domain/messages.ts";
 
 export interface ConfigDeps {
   config: ConfigStore;
+  /** Where the effort /effort stored is read, once `llm.profile` changed. */
+  session?: Pick<SessionIo, "readState">;
+  /** What the profile the turns now run on makes of that effort; absent: nothing is said of it. */
+  reasoning?: ReasoningReader;
 }
 
 /** `--session` selects the session layer; the default is the persisted file. */
@@ -29,8 +38,20 @@ function takeSessionFlag(tokens: string[]): { session: boolean; rest: string[] }
   return { session: rest.length !== tokens.length, rest };
 }
 
-/** `/config [list|keys|get|set|unset] …`, from the command's raw tokens. */
+/** `/config [list|keys|get|set|unset] …`, from the command's raw tokens. A set or an unset that changes the
+ *  session's `llm.profile` moves its turns onto another model: the answer then warns, as /model does, when the
+ *  effort /effort stored does not go as asked there. */
 export async function runConfig(tokens: string[], deps: ConfigDeps): Promise<CommandView> {
+  const { session, reasoning, config } = deps;
+  if (session === undefined || reasoning === undefined || !tokens.includes(LLM_PROFILE_CONFIG_KEY)) return applyConfig(tokens, deps);
+  const before = (await readLlmProfile(config)).profile;
+  const view = await applyConfig(tokens, deps);
+  if ((await readLlmProfile(config)).profile === before || view.text === undefined) return view;
+  const warning = await storedEffortWarning({ session, config, reasoning });
+  return warning === "" ? view : { ...view, text: `${view.text}\n${warning}` };
+}
+
+async function applyConfig(tokens: string[], deps: ConfigDeps): Promise<CommandView> {
   const { config } = deps;
   const { session: useSession, rest } = takeSessionFlag(tokens);
   const [sub, key, ...valueParts] = rest;

@@ -15,7 +15,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   way, and `/effort show` says when the capability table does not know the model, whose level then goes unchecked. The panel of a bare `/effort` marks each level that would be lowered or
   dropped. The level stored stays the one asked ([ADR 0031](docs/adr/0031-orkeon-after-361.md)).
 - `/model` gives that warning after a switch or a reset, when the stored effort does not go as asked on the new
-  model.
+  model, and `/config set llm.profile` (or its unset) when the session's profile changes.
+- A bare `/route` lists, under its status, what the model of each rung of the ladder takes, or what the stored
+  effort becomes on it (`  large: glm-5.3 does not take 'medium': 'low' is sent (it takes low, high, max)`).
 - The log line of a turn names the level the provider receives when it is not the one asked (`act — effort: medium
   (sent as 'low' to glm-5.3), maxIterations: 40`).
 - All of it is the runtime's own judgement, read through Orkeon #359 and #360 (the host's `Llm:ModelCapabilities`

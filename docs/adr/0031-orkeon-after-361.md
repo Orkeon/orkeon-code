@@ -37,6 +37,9 @@ Between the two, #362 made Z.AI take `xhigh` (GLM-5.3 keeps `low`, `high` and `m
 - **The level stored stays the one asked.** The iteration ladder follows it, and the model may change with `/model`
   or `llm.profile`; the runtime lowers it at each call.
 - **`/model` warns** after a switch or a reset when the stored effort does not go as asked on the new model.
+- **`/config set llm.profile` warns the same way** when the session's profile changes, and **a bare `/route` lists
+  each rung of the ladder** with what its model takes, or what the stored effort becomes on it: a routed crew runs
+  on a rung with the stored effort.
 - **A model the table does not know is said by `/effort show` only**, not warned of: its level goes out as asked,
   and most hosts serve such models.
 - **The main loop's log line names the level sent** when it is not the one asked (`act — effort: medium (sent as
@@ -49,7 +52,7 @@ Between the two, #362 made Z.AI take `xhigh` (GLM-5.3 keeps `low`, `high` and `m
 - The tool mode and the docker mode (Orkeon 1.0.0) have neither read: `/effort` and `/model` answer there as they
   did, and say nothing of the model's levels, until Orkeon's next release.
 - The dev steps and their agents may run on other models (a role's, a routed profile): `/effort` judges the
-  session's model only. Their own acts are still lowered by the runtime, with its warning.
+  session's model only, and `/route` the rungs. Their own acts are still lowered by the runtime, with its warning.
 - A fallback profile is judged on its first link and a decision profile on its target (the runtime's rule): a call
   that fails over may be sent another level than the one announced.
 - Checks at `98799c6`: `npm run check` green; in source mode, `bash scripts/smoke-runtime.sh`, `bash

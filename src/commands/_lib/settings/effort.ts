@@ -31,7 +31,7 @@ export interface EffortDeps {
   config?: Pick<ConfigStore, "readValue" | "readFile">;
 }
 
-type TargetDeps = Pick<EffortDeps, "session" | "config">;
+type TargetDeps = { session: Pick<SessionIo, "readState"> } & Pick<EffortDeps, "config">;
 
 /** What the session's turns run on: its `llm.profile`, else its /model override, else the host's own model. */
 async function sessionTarget(deps: TargetDeps): Promise<ReasoningTarget> {

@@ -383,7 +383,9 @@ journal du runtime le dit.
   vérification : `/effort show` le dit, sans avertissement ;
 - le panneau d'un `/effort` sans argument marque chaque niveau qui partirait sous un autre, ou pas du tout ;
 - `/model` donne le même avertissement après un changement, quand le niveau enregistré ne part pas tel quel sur le
-  nouveau modèle.
+  nouveau modèle, et `/config set llm.profile` (ou son unset) aussi quand le profil change ;
+- un `/route` sans argument liste, sous son état, ce que prend le modèle de chaque échelon du ladder, ou ce que le
+  niveau enregistré y devient : un crew routé s'exécute sur un échelon, avec le niveau que `/effort` a enregistré.
 
 Les étapes dev et leurs agents peuvent s'exécuter sur un autre modèle : l'avertissement ne parle que du modèle de la
 session. Sur un runtime antérieur à Orkeon #361 (les modes tool et docker en 1.0.0), rien n'est dit des niveaux du
