@@ -141,3 +141,33 @@ export const DEV_STEPS_CASES: readonly DevStepsCase[] = [
     byModel: { "glm-5.3": SILENT, "": DROPPED }, text: `${setText("medium", 40)}\n${DEV_STEPS_LINE}`,
   },
 ];
+
+const HOST_MEDIUM_DROPPED: EffortReport = { ...MEDIUM_DROPPED };
+const SHOW_DEV_STEPS_LINE = `\n  dev steps and sub-agents (the host's model): ${MEDIUM_DROPPED_NOTE}`;
+
+export interface ShowDevStepsCase { name: string; stored: string | null; byModel: Record<string, ReasoningAnswers>; text: string }
+
+/** `/effort show` under the /model override `glm-5.3`: the thinking line judges it, a second one the host's model (""). */
+export const SHOW_DEV_STEPS_CASES: readonly ShowDevStepsCase[] = [
+  {
+    name: "shows apart what the stored level becomes on the host's own model, for the dev steps",
+    stored: "medium", byModel: { "glm-5.3": LOWERED, "": DROPPED },
+    text: shown("medium", `at 'medium' (act effort) — ${MEDIUM_NOTE}${SHOW_DEV_STEPS_LINE}`),
+  },
+  {
+    name: "shows one line when the override and the host's own model make the same thing of the stored level",
+    stored: "medium", byModel: { "glm-5.3": LOWERED, "": LOWERED },
+    text: shown("medium", `at 'medium' (act effort) — ${MEDIUM_NOTE}`),
+  },
+  {
+    name: "shows nothing of the dev steps when the host's own model takes the stored level",
+    stored: "medium", byModel: { "glm-5.3": LOWERED, "": SILENT },
+    text: shown("medium", `at 'medium' (act effort) — ${MEDIUM_NOTE}`),
+  },
+  {
+    name: "shows apart what the host's own level becomes on the host's own model when none is stored",
+    stored: null,
+    byModel: { "glm-5.3": { capabilities: GLM_TAKES, reports: {}, hostReport: MEDIUM_LOWERED }, "": { capabilities: TAKES_NO_EFFORT, reports: {}, hostReport: HOST_MEDIUM_DROPPED } },
+    text: shown("medium (default)", `not requested by the session; the host asks for 'medium' — ${MEDIUM_NOTE}${SHOW_DEV_STEPS_LINE}`),
+  },
+];

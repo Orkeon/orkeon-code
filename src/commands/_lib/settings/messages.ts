@@ -182,6 +182,8 @@ export const effortUnchecked = (model: string, asked: string): string =>
 export const effortWarning = (note: string): string => `⚠ effort: ${note}.`;
 /** The same line for the host's own model under a /model override: the dev steps and the sub-agents run on it. */
 export const effortWarningDevSteps = (note: string): string => `⚠ effort, dev steps and sub-agents (the host's model): ${note}.`;
+/** Under the thinking line of `show`, the same for the host's own model under a /model override. */
+export const thinkingDevSteps = (note: string): string => `\n  dev steps and sub-agents (the host's model): ${note}`;
 export const sentAs = (sent: string): string => `, sent as '${sent}'`;
 export const NONE_SENT = ", none sent";
 export const unknownEffort = (level: string, levels: readonly string[]): string =>

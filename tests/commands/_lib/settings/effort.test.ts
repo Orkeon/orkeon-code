@@ -11,7 +11,7 @@ import {
   effortHarness, glmHarness, HIGH_ON_GLM_TEXT, HIGH_UNCHECKED_TEXT, HIGH_ON_PLAIN_TEXT, MEDIUM_ON_GLM_TEXT, NOTHING_STORED_ON_GLM_TEXT,
   NOTHING_STORED_TEXT, SET_HIGH_DROPPED_TEXT, SET_HIGH_TEXT, SET_MEDIUM_ON_GLM_TEXT, SET_MEDIUM_SWITCHED_OFF_TEXT,
   NO_THINKING_ASKED_TEXT, UNKNOWN_LEVEL_TEXT, DEV_STEPS_CASES, HOST_HIGH_ON_GLM_TEXT, HOST_MEDIUM_ON_GLM_TEXT, PANEL_CASES,
-  TARGET_CASES, XHIGH_LOWERED_UNKNOWN_TEXT, profiledHarness,
+  SHOW_DEV_STEPS_CASES, TARGET_CASES, XHIGH_LOWERED_UNKNOWN_TEXT, profiledHarness,
 } from "./effort.fixtures.ts";
 
 describe("/effort without a panel", () => {
@@ -437,4 +437,33 @@ describe("/effort under a /model override", () => {
       strictEqual(view.text, c.text);
     });
   }
+});
+
+describe("/effort show under a /model override", () => {
+  for (const c of SHOW_DEV_STEPS_CASES) {
+    it(c.name, async () => {
+      // Arrange
+      const { session, reasoning, run } = glmHarness();
+      session.state.set(MODEL_PREFERENCE_STATE_KEY, "glm-5.3");
+      if (c.stored !== null) session.state.set(EFFORT_STATE_KEY, c.stored);
+      reasoning.byModel = c.byModel;
+
+      // Act
+      const view = await run("show");
+
+      // Assert
+      strictEqual(view.text, c.text);
+    });
+  }
+
+  it("asks nothing of the host's own model on show when the session runs on it", async () => {
+    // Arrange
+    const { reasoning, run } = glmHarness();
+
+    // Act
+    await run("show");
+
+    // Assert
+    strictEqual(reasoning.targets.length, 2);
+  });
 });

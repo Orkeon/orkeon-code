@@ -11,15 +11,11 @@ export interface ReasoningTarget {
   model: string;
 }
 
-export const THINKING_SUPPORTS = ["none", "effortOnly", "toggle", "budget"] as const;
-export type ThinkingSupport = (typeof THINKING_SUPPORTS)[number];
-
 /** What a provider and one of its models take for reasoning. */
 export interface ReasoningCapabilities {
   model: string;
   /** Whether the capability table knows the model; when it does not, an effort is sent unchecked. */
   known: boolean;
-  thinking: ThinkingSupport;
   /** The levels sent as asked, in order; empty when the model takes no effort. */
   efforts: readonly EffortLevel[];
 }
@@ -45,9 +41,8 @@ function fieldsOf(raw: unknown): Record<string, unknown> | null {
 export function capabilitiesOf(raw: unknown): ReasoningCapabilities | null {
   const fields = fieldsOf(raw);
   if (fields === null || typeof fields.model !== "string") return null;
-  const thinking = THINKING_SUPPORTS.find((support) => support === fields.thinking) ?? "none";
   const efforts = Array.isArray(fields.efforts) ? fields.efforts.filter((level): level is EffortLevel => isEffortLevel(level)) : [];
-  return { model: fields.model, known: fields.known === true, thinking, efforts };
+  return { model: fields.model, known: fields.known === true, efforts };
 }
 
 /** The report the runtime answered; null when it answered none (no effort asked, no provider), or one whose asked

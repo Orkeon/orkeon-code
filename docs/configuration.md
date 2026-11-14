@@ -367,7 +367,8 @@ else the host's own model.
   and the level is not one of them.
 - Under a `/model` override, the dev steps and the sub-agents still run on the host's own model: when the level
   does not go as asked there, and not the way the first line says, a second line says so, `⚠ effort, dev steps and sub-agents (the host's model):
-  …`.
+  …`. `/effort show` says the same under its thinking line (`dev steps and sub-agents (the host's model): …`), for
+  the stored level, else for the host's own.
 - The panel of a bare `/effort` marks each level that would be sent as another one, or not at all.
 - `/model` gives the same warnings after a switch or a reset, and `/config unset llm.profile` when the turns go
   back to that model. When the panel of `/model` changes the model and the effort together, only the new level is

@@ -16,7 +16,7 @@ describe("createReasoningReader — capabilities", () => {
     const capabilities = reader.capabilities(BOOT);
 
     // Assert
-    deepStrictEqual(capabilities, { model: "glm-5.3", known: true, thinking: "effortOnly", efforts: ["low", "high", "max"] });
+    deepStrictEqual(capabilities, { model: "glm-5.3", known: true, efforts: ["low", "high", "max"] });
   });
 
   it("reads the /model override on the host's provider", () => {

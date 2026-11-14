@@ -5,31 +5,31 @@ export interface CapabilitiesCase { name: string; raw: unknown; expected: Reason
 
 export const CAPABILITIES_CASES: readonly CapabilitiesCase[] = [
   {
-    name: "reads the model, whether the table knows it, the thinking support and the levels",
+    name: "reads the model, whether the table knows it and the levels",
     raw: { model: "glm-5.3", known: true, thinking: "effortOnly", efforts: ["low", "high", "max"] },
-    expected: { model: "glm-5.3", known: true, thinking: "effortOnly", efforts: ["low", "high", "max"] },
+    expected: { model: "glm-5.3", known: true, efforts: ["low", "high", "max"] },
   },
   {
     name: "keeps an empty list of levels for a model that takes none",
     raw: { model: "plain-1", known: true, thinking: "none", efforts: [] },
-    expected: { model: "plain-1", known: true, thinking: "none", efforts: [] },
+    expected: { model: "plain-1", known: true, efforts: [] },
   },
   {
     name: "drops a level that is not one of the five",
     raw: { model: "m", known: false, thinking: "toggle", efforts: ["minimal", "low", "none"] },
-    expected: { model: "m", known: false, thinking: "toggle", efforts: ["low"] },
+    expected: { model: "m", known: false, efforts: ["low"] },
   },
   {
-    name: "reads a thinking support it does not know as none, and a missing list as empty",
+    name: "reads a missing list of levels as empty",
     raw: { model: "m", known: true, thinking: "adaptive" },
-    expected: { model: "m", known: true, thinking: "none", efforts: [] },
+    expected: { model: "m", known: true, efforts: [] },
   },
   { name: "answers nothing for null", raw: null, expected: null },
   { name: "answers nothing for an object that names no model", raw: { known: true, efforts: ["low"] }, expected: null },
   {
     name: "reads a model whose table entry says nothing of known as unknown",
     raw: { model: "m", thinking: "toggle", efforts: ["low"] },
-    expected: { model: "m", known: false, thinking: "toggle", efforts: ["low"] },
+    expected: { model: "m", known: false, efforts: ["low"] },
   },
   { name: "answers nothing for a value that is not an object", raw: "glm-5.3", expected: null },
 ];

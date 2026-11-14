@@ -17,7 +17,7 @@ import { optionsOf } from "./choices.ts";
 import {
   EFFORT_CHOICE, EFFORT_UNCHANGED, NONE_SENT, THINKING_NOT_REQUESTED, actIterations, effortDropped, effortLowered,
   effortSet, effortShown, effortUnchangedNoneStored, effortUnchecked, effortWarning, effortWarningDevSteps, hostAsks, itTakes, modelTakes, sentAs,
-  thinkingAt, unknownEffort,
+  thinkingAt, thinkingDevSteps, unknownEffort,
 } from "./messages.ts";
 import { markedDefault as defaultLevel } from "../messages.ts";
 
@@ -40,6 +40,14 @@ async function sessionTarget(deps: TargetDeps): Promise<ReasoningTarget> {
     deps.config === undefined ? null : readLlmProfile(deps.config).then((read) => read.profile),
   ]);
   return { profile, model: (model ?? "").trim() };
+}
+
+/** The host's own model: under a /model override, the dev steps and the sub-agents still run on it. */
+const HOST_TARGET: ReasoningTarget = { profile: null, model: "" };
+
+/** Whether the turns run on a /model override: no profile, which would win over it, and a model named. */
+function overridden(target: ReasoningTarget): boolean {
+  return target.profile === null && target.model !== "";
 }
 
 /** What to say of an effort that does not go as asked; empty when it does, or when the runtime did not say. */
@@ -70,27 +78,27 @@ export async function storedEffortWarning(deps: TargetDeps & Pick<EffortDeps, "r
   const level = providerEffort(await deps.session.readState(EFFORT_STATE_KEY).catch(() => null));
   if (level === undefined) return "";
   const target = await sessionTarget(deps);
-  const overridden = target.profile === null && target.model !== "";
-  const targets = overridden ? [target, { profile: null, model: "" }] : [target];
+  const targets = overridden(target) ? [target, HOST_TARGET] : [target];
   const [turns, devSteps] = targets.map((each) => effortWarningNote(reasoning.effort(each, level), reasoning.capabilities(each)));
   const lines = [turns === "" ? "" : effortWarning(turns)];
   if (devSteps !== undefined && devSteps !== "" && devSteps !== turns) lines.push(effortWarningDevSteps(devSteps));
   return lines.filter((line) => line !== "").join("\n");
 }
 
-/** The thinking line of `show`: the level asked, then what does not go as asked, else the levels the model takes. */
+/** The thinking line of `show`: the level asked, then what does not go as asked, else the levels the model takes.
+ *  Under a /model override, a second line for the host's own model, which the dev steps and the sub-agents keep,
+ *  when the level (the one stored, else the host's own) does not go as asked there and not the way the first says. */
 function thinkingShown(stored: EffortLevel | undefined, reasoning: ReasoningReader | undefined, target: ReasoningTarget): string {
   const capabilities = reasoning?.capabilities(target) ?? null;
   const takes = capabilities !== null && capabilities.known ? `; ${modelTakes(capabilities.model, capabilities.efforts)}` : "";
-  if (stored === undefined) {
-    // The host's own `Llm:Thinking:Effort` goes out on every call all the same.
-    const host = reasoning?.effort(target, null) ?? null;
-    if (host === null) return THINKING_NOT_REQUESTED + takes;
-    const hostNote = effortNote(host, capabilities);
-    return hostAsks(host.asked) + (hostNote === "" ? takes : ` — ${hostNote}`);
-  }
-  const note = effortNote(reasoning?.effort(target, stored) ?? null, capabilities);
-  return thinkingAt(stored) + (note === "" ? takes : ` — ${note}`);
+  // With no level stored, the host's own `Llm:Thinking:Effort` goes out on every call all the same.
+  const report = reasoning?.effort(target, stored ?? null) ?? null;
+  const note = effortNote(report, capabilities);
+  const asked = stored !== undefined ? thinkingAt(stored) : report === null ? THINKING_NOT_REQUESTED : hostAsks(report.asked);
+  const line = asked + (note === "" ? takes : ` — ${note}`);
+  if (reasoning === undefined || !overridden(target)) return line;
+  const hostNote = effortNote(reasoning.effort(HOST_TARGET, stored ?? null), reasoning.capabilities(HOST_TARGET));
+  return hostNote === "" || hostNote === note ? line : line + thinkingDevSteps(hostNote);
 }
 
 /** What a level of the panel becomes on the session's model, after its iterations; empty when it goes as asked. */

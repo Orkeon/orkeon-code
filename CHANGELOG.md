@@ -20,7 +20,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   becomes (`not requested by the session; the host asks for 'medium' — 'medium' is sent to glm-5.3 as 'low' …`),
   where it said the thinking was not requested; the log line of the turn says the same.
 - Under a `/model` override, a second warning line says what the level becomes on the host's own model, which the
-  dev steps and the sub-agents keep (`⚠ effort, dev steps and sub-agents (the host's model): …`).
+  dev steps and the sub-agents keep (`⚠ effort, dev steps and sub-agents (the host's model): …`); `/effort show`
+  says the same under its thinking line.
 - `/model` gives these warnings after a switch or a reset, when the stored effort does not go as asked on the new
   model, and `/config unset llm.profile` when the turns go back to it.
 - A bare `/route` gives a line per rung of the ladder with what its model takes (`small: glm-5.3-flashx takes low,

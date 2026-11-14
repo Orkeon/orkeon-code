@@ -51,7 +51,8 @@ add a `## File system` section to the system prompt of every agent that has a fi
 - **The model judged is the one the session's turns run on**: its `llm.profile`, else its `/model` override, else
   the host's own model. Under an override, the stored level is judged on the host's own model too, which the dev
   steps and the sub-agents keep: a second warning line, `⚠ effort, dev steps and sub-agents (the host's model): …`, says what it becomes
-  there when that differs from the first line.
+  there when that differs from the first line; `show` says the same under its thinking line, for the stored level,
+  else for the host's own.
 - **`/effort` says it**: `show` lists the levels the model takes and what a stored level it does not take is sent
   as (`'medium' is sent to glm-5.3 as 'low' (it takes low, high, max)`); setting such a level warns under the
   answer; the panel marks each level that would be lowered or dropped. The set answer says the provider is asked
@@ -90,7 +91,9 @@ add a `## File system` section to the system prompt of every agent that has a fi
   configured: `/effort show` now raises it.
 - Checks at `2fb47b8`: `npm run check` green; in source mode, `bash scripts/smoke-runtime.sh`, `bash
   scripts/smoke-crew.sh` and `bash scripts/smoke-validate.sh`. On a Z.AI host (`Llm:Thinking:Effort` = `medium`,
-  GLM-5.3), at `98799c6`: `/effort show`, `/effort medium` and `/model` answer as above. On a host declaring the
+  GLM-5.3), at `2fb47b8`: `/effort show`, `/effort medium`, `/model <name>` and `/model reset` answer as above, the
+  second line for the host's model included. On a host declaring the
   profiles `small` and `large` (GLM-5.3), at `2fb47b8`: `/route` names each rung's model, `/effort medium` and
   `/config set --session llm.profile large` (and `LARGE`) warn that `medium` is sent as `low`, and under
-  `llm.profile ghost` every command answers and says nothing of the model. No model was called.
+  `llm.profile ghost` every command answers and says nothing of the model. No model was called in these runs; one live turn ran at
+  `98799c6` on Z.AI (`glm-5.3-flashx`, effort `medium`): its log line read `sent as 'low'`, as the runtime's warning.

@@ -388,7 +388,8 @@ surcharge `/model`, sinon le modèle de l'hôte.
   connaît et que le niveau n'en fait pas partie.
 - Sous une surcharge `/model`, les étapes dev et les sous-agents s'exécutent toujours sur le modèle de l'hôte : quand
   le niveau n'y part pas tel quel, et pas de la façon que dit la première ligne, une deuxième ligne le dit, `⚠ effort, dev steps and sub-agents (the
-  host's model): …`.
+  host's model): …`. `/effort show` dit la même chose sous sa ligne de thinking (`dev steps and sub-agents (the
+  host's model): …`), pour le niveau enregistré, sinon pour celui de l'hôte.
 - Le panneau d'un `/effort` sans argument marque chaque niveau qui partirait sous un autre, ou pas du tout.
 - `/model` donne les mêmes avertissements après un changement ou une remise à zéro, et `/config unset llm.profile`
   quand les tours reviennent à ce modèle. Quand le panneau de `/model` change le modèle et l'effort ensemble, seul le
