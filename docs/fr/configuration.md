@@ -372,6 +372,23 @@ Orkeon Code envoie le niveau tel qu'il est enregistré et le runtime le juge : u
 le modèle ne prend pas (`Llm:ModelCapabilities`) est envoyé au plus haut en dessous que les deux prennent, et le
 journal du runtime le dit.
 
+`/effort` lit ce jugement auprès du runtime, pour le modèle sur lequel s'exécutent les tours de la session (son
+`llm.profile`, sinon sa surcharge `/model`, sinon le modèle de l'hôte) :
+
+- `/effort show` liste les niveaux que le modèle prend (`glm-5.3 takes low, high, max`) et, pour un niveau enregistré
+  qu'il ne prend pas, le niveau envoyé à sa place ;
+- régler un tel niveau l'enregistre quand même, puisque les itérations le suivent, et avertit : `⚠ effort: glm-5.3
+  does not take 'medium': 'low' is sent (it takes low, high, max).` Un modèle qui ne prend aucun effort n'en reçoit
+  aucun, et l'avertissement le dit. Un modèle que la table des capacités ne connaît pas reçoit le niveau sans
+  vérification : `/effort show` le dit, sans avertissement ;
+- le panneau d'un `/effort` sans argument marque chaque niveau qui partirait sous un autre, ou pas du tout ;
+- `/model` donne le même avertissement après un changement, quand le niveau enregistré ne part pas tel quel sur le
+  nouveau modèle.
+
+Les étapes dev et leurs agents peuvent s'exécuter sur un autre modèle : l'avertissement ne parle que du modèle de la
+session. Sur un runtime antérieur à Orkeon #361 (les modes tool et docker en 1.0.0), rien n'est dit des niveaux du
+modèle.
+
 ### Ce que les réglages de l'utilisateur restreignent
 
 - `permissions.fallback`, `tools.extra`, `memory.autoAdmitAudited`, `dev.prAuto` et `paths.allow` réglés dans le

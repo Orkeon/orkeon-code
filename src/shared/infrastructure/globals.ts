@@ -29,8 +29,9 @@ export const ToolBuilder: () => ToolBuilder<unknown, unknown> = toolBuilder;
  *  AddOrkeonRag): orkeon/shared-memory.ts then calls the rag_search and rag_ingest tools. */
 export const Rag: typeof rag | undefined = typeof rag === "undefined" ? undefined : rag;
 
-/** The `llm` namespace (`llm.profile`, `llm.default_`), or undefined where the host declares none (a command
- *  engine): orkeon/llm-profile.ts builds an agent on the profile the crew input names. */
+/** The `llm` namespace (`llm.profile`, `llm.default_`), or undefined where the host declares none:
+ *  orkeon/llm-profile.ts builds an agent on the profile the crew input names, orkeon/reasoning.ts reads what a
+ *  model takes for reasoning, for a command as for a crew. */
 export const Llm: typeof llm | undefined = typeof llm === "undefined" ? undefined : llm;
 
 /** Typed accessor for `globalThis.inputs` (crew/command invocation payload).

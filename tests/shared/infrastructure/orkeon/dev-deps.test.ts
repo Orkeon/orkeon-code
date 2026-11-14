@@ -226,7 +226,7 @@ describe("implementDeps and verifyDeps", () => {
     // Arrange
     const m = await loadDevDeps();
     const { ctx } = context();
-    const marker = { act: async () => "child", complete: async () => "", extract: async () => ({}), permissionGateEnabled: () => undefined };
+    const marker = { act: async () => "child", complete: async () => "", extract: async () => ({}), permissionGateEnabled: () => undefined, effortSent: () => null };
 
     // Act
     const wrapped = m.verifyDeps(ctx, { hooks: [], effort: undefined, memoryOn: false, validationSlot: undefined, wrapLlm: () => marker, harvest: true });

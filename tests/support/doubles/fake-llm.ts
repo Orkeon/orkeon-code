@@ -4,8 +4,10 @@
 // throws. Every call lands in `acts`, `completes` or `extracts` with the prompt
 // and the settings it received. `gateEnabled` is what the host says of its gate.
 // `onAct`, when set, is awaited at each act before it lands, as a model calling
-// its tools before it answers.
+// its tools before it answers. `effortReport` is what the host says an act sends for its effort (null: it cannot
+// tell); the requests asked land in `effortsAsked`.
 import type { ActRequest, CompleteRequest, Llm } from "../../../src/shared/application/ports.ts";
+import type { EffortReport } from "../../../src/shared/domain/agent-policy/reasoning.ts";
 
 function reply<T>(replies: readonly T[], index: number): T {
   const value = replies[Math.min(index, replies.length - 1)];
@@ -22,6 +24,13 @@ export class FakeLlm implements Llm {
   extracts: Array<{ prompt: string; schema: object }> = [];
   gateEnabled: boolean | undefined = true;
   onAct: ((prompt: string, request: ActRequest) => Promise<void> | void) | null = null;
+  effortReport: EffortReport | null = null;
+  effortsAsked: Array<Pick<ActRequest, "effort" | "model" | "profile">> = [];
+
+  effortSent(request: Pick<ActRequest, "effort" | "model" | "profile">): EffortReport | null {
+    this.effortsAsked.push(request);
+    return this.effortReport;
+  }
 
   permissionGateEnabled(): boolean | undefined {
     return this.gateEnabled;

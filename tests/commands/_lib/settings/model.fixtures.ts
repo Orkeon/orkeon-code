@@ -9,6 +9,7 @@ import { NO_CATALOGUE_NOTE } from "../../../../src/shared/domain/messages.ts";
 import { FakeChooser } from "../../../support/doubles/fake-chooser.ts";
 import { FakeFiles } from "../../../support/doubles/fake-files.ts";
 import { FakeLogger } from "../../../support/doubles/fake-logger.ts";
+import { FakeReasoningReader } from "../../../support/doubles/fake-reasoning-reader.ts";
 import { FakeSessionStore } from "../../../support/doubles/fake-session-store.ts";
 import { FakeTelemetry } from "../../../support/doubles/fake-telemetry.ts";
 
@@ -26,11 +27,12 @@ export function modelHarness(profile?: string) {
   const files = new FakeFiles();
   if (profile !== undefined) files.files.set(USER_CONFIG_FILE_PATH, JSON.stringify({ "llm.profile": profile }));
   const config = createConfigStore({ files, session });
-  const run = (...tokens: string[]): Promise<CommandView> => runModel(tokens, { session, telemetry, config, log });
+  const reasoning = new FakeReasoningReader();
+  const run = (...tokens: string[]): Promise<CommandView> => runModel(tokens, { session, telemetry, config, log, reasoning });
   const chooser = new FakeChooser();
   const pick = (...tokens: string[]): Promise<CommandView> =>
-    runModel(tokens, { session, telemetry, config, log, chooser });
-  return { session, telemetry, log, run, chooser, pick };
+    runModel(tokens, { session, telemetry, config, log, chooser, reasoning });
+  return { session, telemetry, log, run, chooser, pick, reasoning };
 }
 
 /** What /model show answers on that host, without an override. */
@@ -73,3 +75,6 @@ export const PROFILE_SWITCH_WARNING =
 
 /** What /model deepseek-chat answers under the llm.profile `guarded`. */
 export const PROFILE_SWITCHED_TEXT = `model set to 'deepseek-chat' — ⚠ ${PROFILE_SWITCH_WARNING}.`;
+
+/** The line under a switch when the stored `medium` goes out as `low` on the model switched to. */
+export const MEDIUM_LOWERED_WARNING = "⚠ effort: glm-5.3 does not take 'medium': 'low' is sent (it takes low, high, max).";

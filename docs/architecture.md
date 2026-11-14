@@ -319,6 +319,7 @@ the text, or the tool's own failure message without the runtime's wrapping, and 
 | `ChildRuntime` | The children of a crew run: spawn one in the background, list, stop, read what it left (`ctx.spawnBackground`, the crew's `instances()`/`stop()`, its memory) | `child-agents.ts` | `fake-child-runtime.ts` |
 | `HumanInput` | A question to the person: a choice, a text, a multi-select; nobody answering is an answer of its own (`human_input`) | `human-input.ts` | `fake-human-input.ts` |
 | `Chooser` | A panel in the console: one option among several, with an optional control on the side arrows; `interactive` says whether one can open (`ctx.prompt`, `ctx.interactive`) | `chooser.ts` | `fake-chooser.ts` |
+| `ReasoningReader` | What a model of the host takes for reasoning and what an effort asked becomes on it, as the runtime judges them (the `llm` namespace: `capabilities`, `reasoning`) | `reasoning.ts` | `fake-reasoning-reader.ts` |
 | `ThemeConsole` | The console's palette for the session (`ctx.theme`, `ctx.setTheme`) | the command context itself | `fake-theme-console.ts` |
 | `Files` | Read, write and list by virtual path, the VFS mounts (`file_read`, `file_write`, `directory_read`, `list_mounts`) | `files.ts` | `fake-files.ts` |
 | `Progress` | The host's progress line, best effort (`progress_report`) | `progress.ts` | `fake-progress.ts` |

@@ -334,6 +334,7 @@ rend le texte, ou le message d'échec propre à l'outil sans l'enrobage du runti
 | `ChildRuntime` | Les enfants d'une exécution de crew : en lancer un en arrière-plan, lister, arrêter, lire ce qu'il a laissé (`ctx.spawnBackground`, `instances()`/`stop()` du crew, sa mémoire) | `child-agents.ts` | `fake-child-runtime.ts` |
 | `HumanInput` | Une question à la personne : un choix, un texte, une sélection multiple ; personne ne répondant est une réponse en soi (`human_input`) | `human-input.ts` | `fake-human-input.ts` |
 | `Chooser` | Un panneau dans la console : une option parmi plusieurs, avec un réglage facultatif sur les flèches latérales ; `interactive` dit si un panneau peut s'ouvrir (`ctx.prompt`, `ctx.interactive`) | `chooser.ts` | `fake-chooser.ts` |
+| `ReasoningReader` | Ce qu'un modèle de l'hôte prend pour le raisonnement et ce que devient un effort demandé, tels que le runtime les juge (l'espace `llm` : `capabilities`, `reasoning`) | `reasoning.ts` | `fake-reasoning-reader.ts` |
 | `ThemeConsole` | La palette de la console pour la session (`ctx.theme`, `ctx.setTheme`) | le contexte de commande lui-même | `fake-theme-console.ts` |
 | `Files` | Lire, écrire et lister par chemin virtuel, les montages du VFS (`file_read`, `file_write`, `directory_read`, `list_mounts`) | `files.ts` | `fake-files.ts` |
 | `Progress` | La ligne de progression du runtime, au mieux (`progress_report`) | `progress.ts` | `fake-progress.ts` |

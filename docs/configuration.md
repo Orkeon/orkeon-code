@@ -351,6 +351,21 @@ stored. The levels are `low`, `medium`, `high`, `xhigh` and `max`. Orkeon Code s
 the level as stored and the runtime judges it: a level the provider's field or the model does not take
 (`Llm:ModelCapabilities`) is sent as the highest one below it that both take, and the runtime's log says so.
 
+`/effort` reads that judgement from the runtime, for the model the session's turns run on (its `llm.profile`, else
+its `/model` override, else the host's own model):
+
+- `/effort show` lists the levels the model takes (`glm-5.3 takes low, high, max`) and, for a stored level it does
+  not take, the level sent in its place;
+- setting such a level stores it all the same, since the iterations follow it, and warns: `⚠ effort: glm-5.3 does
+  not take 'medium': 'low' is sent (it takes low, high, max).` A model that takes no effort gets none, and the
+  warning says so. A model the capability table does not know gets the level unchecked: `/effort show` says it,
+  without a warning;
+- the panel of a bare `/effort` marks each level that would be sent as another one, or not at all;
+- `/model` gives the same warning after a switch, when the stored level does not go as asked on the new model.
+
+The dev steps and their agents may run on another model: the warning speaks of the session's model only. On a
+runtime before Orkeon #361 (the tool and docker modes on 1.0.0), nothing is said of the model's levels.
+
 ### What the user settings narrow
 
 - `permissions.fallback`, `tools.extra`, `memory.autoAdmitAudited`, `dev.prAuto` and `paths.allow` set in the

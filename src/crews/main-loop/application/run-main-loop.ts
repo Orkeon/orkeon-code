@@ -35,7 +35,7 @@ import { autoCompactGuarded } from "./auto-compact.ts";
 import type { AutoCompactDeps } from "./auto-compact.ts";
 import { buildTurnPrompt } from "./turn-context.ts";
 import {
-  BUDGET_EXHAUSTED_LINE, budgetRanOut, gateOffWarning, MODE_ORIGIN_BUILT_IN, modelOverrideIgnored, NO_PROMPT,
+  actEffort, BUDGET_EXHAUSTED_LINE, budgetRanOut, effortNotSent, effortSentAs, gateOffWarning, MODE_ORIGIN_BUILT_IN, modelOverrideIgnored, NO_PROMPT,
   nothingToSend, preludeRunning, rulesRemoved, ruleWithoutEffect, stopCheckRetryFailed, stopCheckSendsBack,
 } from "./messages.ts";
 import type { TurnContextDeps, TurnPrompt } from "./turn-context.ts";
@@ -46,6 +46,7 @@ import {
 import type { Guard, StopFacts, TurnStartFacts } from "../domain/turn-chains.ts";
 import { readStartOutput } from "../../../shared/domain/session-start.ts";
 import { llmProfileOf } from "../../../shared/domain/llm-profile.ts";
+import type { EffortReport } from "../../../shared/domain/agent-policy/reasoning.ts";
 
 /** The crew's input, as launchMainLoop (/assistant, /summary, /transcribe --then, /voice send and --go) passes it. */
 export interface MainLoopInputs {
@@ -140,8 +141,14 @@ export async function appendTurn(session: Pick<SessionIo, "appendMessage">, role
  * configuration, so the boot credentials and endpoint are preserved and only the
  * model name changes for this call.
  */
+/** What the provider receives when it is not the level asked (Orkeon #360); empty when it is, or unknown. */
+function sentOf(report: EffortReport | null): string {
+  if (report === null || report.notice === null || report.notice === "unchecked") return "";
+  return report.sent === null ? effortNotSent(report.model) : effortSentAs(report.sent, report.model);
+}
+
 export async function runAct(
-  deps: { llm: Pick<Llm, "act">; log: Logger },
+  deps: { llm: Pick<Llm, "act" | "effortSent">; log: Logger },
   turn: TurnPrompt,
   mode: string,
   flags: BehaviorFlags = DEFAULT_BEHAVIOR_FLAGS,
@@ -153,7 +160,11 @@ export async function runAct(
   if (active) deps.log.info(`session flags — ${active}`);
   const maxIterations = maxIterationsFor(flags.effort);
   // A level /effort stored reaches the provider (A-3); the line says what this act was given.
-  if (flags.thinking !== null) deps.log.info(`act — effort: ${flags.thinking}, maxIterations: ${maxIterations}`);
+  if (flags.thinking !== null) {
+    // Judged on the agent's own provider and model (its profile included), the /model override over them.
+    const report = deps.llm.effortSent({ effort: flags.thinking, model: flags.model });
+    deps.log.info(actEffort(flags.thinking, maxIterations, sentOf(report)));
+  }
 
   return await deps.llm.act(turn.request, {
     maxIterations,
@@ -176,7 +187,7 @@ export async function runAct(
 /** The ports one turn runs on. */
 export interface MainLoopDeps extends TurnContextDeps, Omit<AutoCompactDeps, "session"> {
   session: SessionIo;
-  llm: Pick<Llm, "act" | "permissionGateEnabled">;
+  llm: Pick<Llm, "act" | "effortSent" | "permissionGateEnabled">;
   /** The calls of a prelude and an epilogue, by the registered name the launching command found. */
   tools: Pick<ToolCatalogue, "callText">;
   /** The recorder of the act's tool calls (dev/tool-trace-recorder); absent, the turn stores no [tools] message. */

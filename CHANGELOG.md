@@ -7,11 +7,27 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-### Changed — the pin moves to Orkeon main after #356
+### Added — `/effort` reads what the model takes
 
-- `.orkeon-version` names `3108dac`, Orkeon `main` after #351-#354, #356 and #358 (the reasoning modes of
-  `orkeon llm probe`, which change nothing here), ahead of the 1.0.0 release: the tool
-  and docker modes run 1.0.0 until Orkeon's next release ([ADR 0030](docs/adr/0030-orkeon-after-356.md)).
+- `/effort show` lists the effort levels the session's model takes (`glm-5.3 takes low, high, max`), and says what a
+  stored level it does not take is sent as. Setting such a level warns under the answer (`⚠ effort: glm-5.3 does not
+  take 'medium': 'low' is sent (it takes low, high, max).`); a model that takes no effort is warned of the same
+  way, and `/effort show` says when the capability table does not know the model, whose level then goes unchecked. The panel of a bare `/effort` marks each level that would be lowered or
+  dropped. The level stored stays the one asked ([ADR 0031](docs/adr/0031-orkeon-after-361.md)).
+- `/model` gives that warning after a switch or a reset, when the stored effort does not go as asked on the new
+  model.
+- The log line of a turn names the level the provider receives when it is not the one asked (`act — effort: medium
+  (sent as 'low' to glm-5.3), maxIterations: 40`).
+- All of it is the runtime's own judgement, read through Orkeon #359 and #360 (the host's `Llm:ModelCapabilities`
+  included): on Orkeon 1.0.0 (the tool and docker modes) nothing is said of the model's levels.
+
+### Changed — the pin moves to Orkeon main after #361
+
+- `.orkeon-version` names `98799c6`, Orkeon `main` after #351-#354, #356, #358 (the reasoning modes of
+  `orkeon llm probe`), #362 (Z.AI takes `xhigh`; GLM-5.3 keeps `low`, `high` and `max`) and #361 (a script reads a
+  model's reasoning capabilities and the effort sent), ahead of the 1.0.0 release: the tool
+  and docker modes run 1.0.0 until Orkeon's next release ([ADR 0030](docs/adr/0030-orkeon-after-356.md),
+  [ADR 0031](docs/adr/0031-orkeon-after-361.md)).
 - A question a crew asks from the background shows in the main screen, tagged with its task (`[t8] dev-spec asks:
   …`), and the prompt reads `answer [t8]>`; it can be answered from the task's thread too (Orkeon #352).
 - `grep` searches a file given as its path (Orkeon #351).

@@ -158,10 +158,26 @@ export const EFFORT_UNCHANGED = "reasoning effort unchanged.";
 export const effortUnchangedNoneStored = (level: string): string =>
   "reasoning effort unchanged: no level is stored, so the provider's thinking stays off " +
   `(/effort ${level} turns it on).`;
-export const effortShown = (level: string, ladder: string, stored: string | null, levels: readonly string[]): string =>
+export const THINKING_NOT_REQUESTED = "not requested (no level stored)";
+export const thinkingAt = (level: string): string => `at '${level}' (act effort)`;
+export const effortShown = (level: string, ladder: string, thinking: string, levels: readonly string[]): string =>
   `reasoning effort: ${level}\nact() iterations per level: ${ladder}\n` +
-  `provider thinking: ${stored ? `at '${stored}' (act effort)` : "not requested (no level stored)"}\n` +
+  `provider thinking: ${thinking}\n` +
   `usage: /effort [<${levels.join("|")}>|show]`;
+/** The levels the session's model takes, after the thinking of `show`. */
+export const modelTakes = (model: string, efforts: readonly string[]): string =>
+  efforts.length > 0 ? `${model} takes ${efforts.join(", ")}` : `${model} takes no effort level`;
+/** What the runtime does with a level the model does not take, or cannot check (Orkeon #360). */
+export const effortLowered = (model: string, asked: string, sent: string): string =>
+  `${model} does not take '${asked}': '${sent}' is sent`;
+export const itTakes = (efforts: readonly string[]): string => ` (it takes ${efforts.join(", ")})`;
+export const effortDropped = (model: string): string => `${model} takes no effort level: none is sent`;
+export const effortUnchecked = (model: string, asked: string): string =>
+  `the capability table does not know ${model}: '${asked}' is sent unchecked`;
+/** The line under an answer of /effort or /model when the effort does not go as asked. */
+export const effortWarning = (note: string): string => `⚠ effort: ${note}.`;
+export const sentAs = (sent: string): string => `, sent as '${sent}'`;
+export const NONE_SENT = ", none sent";
 export const unknownEffort = (level: string, levels: readonly string[]): string =>
   `unknown level '${level}' — expected one of: ${levels.join(", ")}, show.`;
 export const effortSet = (level: string, iterations: number): string =>

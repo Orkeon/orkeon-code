@@ -27,6 +27,7 @@ import {
 import { createToolTrace } from "../../../../src/shared/application/dev/tool-trace-recorder.ts";
 import { assertMentions } from "../../../support/assertions/text.ts";
 import { PROJECT_WIN, windowsHost } from "../../../support/fixtures/host-context.ts";
+import { HIGH_DROPPED, MEDIUM_LOWERED } from "../../../support/fixtures/reasoning.ts";
 
 describe("loadCatalogue", () => {
   it("builds the catalogue of the explicit mode, with the stored rules that parse", () => {
@@ -462,6 +463,45 @@ describe("runMainLoop — the turn", () => {
     strictEqual(llm.acts[0].request.effort, "low");
     strictEqual(llm.acts[0].request.maxIterations, 10);
     assertLogged(log.lines, "info: act — effort: low, maxIterations: 10");
+  });
+
+  it("logs the level the provider receives when the model does not take the effort stored", async () => {
+    // Arrange
+    const { store, llm, log, deps } = turnSetup();
+    store.state.set(EFFORT_STATE_KEY, "medium");
+    llm.effortReport = MEDIUM_LOWERED;
+
+    // Act
+    await runMainLoop({ prompt: "go", permissionMode: "plan" }, EXPLICIT_PLAN, deps);
+
+    // Assert
+    assertLogged(log.lines, "info: act — effort: medium (sent as 'low' to glm-5.3), maxIterations: 40");
+  });
+
+  it("logs that no effort is sent on a model that takes none", async () => {
+    // Arrange
+    const { store, llm, log, deps } = turnSetup();
+    store.state.set(EFFORT_STATE_KEY, "high");
+    llm.effortReport = HIGH_DROPPED;
+
+    // Act
+    await runMainLoop({ prompt: "go", permissionMode: "plan" }, EXPLICIT_PLAN, deps);
+
+    // Assert
+    assertLogged(log.lines, "info: act — effort: high (none sent to plain-1), maxIterations: 80");
+  });
+
+  it("asks what the act sends with the effort stored and the /model override", async () => {
+    // Arrange
+    const { store, llm, deps } = turnSetup();
+    store.state.set(EFFORT_STATE_KEY, "medium");
+    store.state.set(MODEL_PREFERENCE_STATE_KEY, "glm-5.3");
+
+    // Act
+    await runMainLoop({ prompt: "go", permissionMode: "plan" }, EXPLICIT_PLAN, deps);
+
+    // Assert
+    deepStrictEqual(llm.effortsAsked, [{ effort: "medium", model: "glm-5.3" }]);
   });
 
   it("forwards no effort when no level is set", async () => {
