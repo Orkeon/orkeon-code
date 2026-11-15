@@ -23,6 +23,7 @@ export const SYSTEM_MARKERS: ReadonlyArray<[behaviour: string, marker: string]> 
   ["only looks", "you alter no file"],
   ["closed questions", "settled by a yes, a no, or a choice"],
   ["one sentence ending with ?", "closes with a question mark"],
+  ["a question of 300 characters at most", "one sentence of at most 300 characters"],
   ["cited or dropped", "a finding without a citation is dropped"],
   ["two weights, Major on a hesitation", "When you hesitate between the two, take Major."],
   ["no style findings", "style and phrasing are out of scope"],

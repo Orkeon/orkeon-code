@@ -52,6 +52,18 @@ describe("checkSpecAnswer — repaired without a second call", () => {
     assertData(result, [["", ""], ["entered", "essential"]]);
   });
 
+  it("accepts a technical word in a question, which is asked and not specified", () => {
+    // Arrange
+    const spec = validSpec();
+    const answer = { ...spec, questions: spec.questions.map((q, i) => (i === 0 ? { ...q, question: "Does quiet mode keep the exit code?" } : q)) };
+
+    // Act
+    const result = checkSpecAnswer(answer);
+
+    // Assert
+    assertNoProblem(result);
+  });
+
   it("turns a long dash of the name into a hyphen", () => {
     // Arrange
     const answer = { ...validSpec(), name: "Prune — old" };

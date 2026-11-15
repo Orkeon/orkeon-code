@@ -172,6 +172,8 @@ leurs droits, l'endroit où se résolvent les chemins relatifs.
   existent.
 - Un fait que l'index du code donne est énoncé, jamais demandé.
 - Le modèle répond en JSON et le code écrit le fichier.
+- Le code vérifie le vocabulaire métier du corps, pas des questions : une question est posée, pas spécifiée, et
+  celles du relecteur peuvent nommer ce dont elles parlent.
 - Le prompt dit chaque limite de forme que vérifie le code (la longueur d'un nom, de l'énoncé d'une règle, d'une
   question, une ligne par champ, les nombres), pour qu'aucune ne soit découverte par un refus ; un tiret long dans le
   nom devient un trait d'union.

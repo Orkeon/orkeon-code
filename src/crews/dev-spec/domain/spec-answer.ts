@@ -148,7 +148,9 @@ const oneLine = (t: string): boolean => !/[\r\n]/.test(t);
 export const useCaseId = (k: number): string => `UC-${String(k + 1).padStart(2, "0")}`;
 export const ruleId = (k: number): string => `BR-${String(k + 1).padStart(2, "0")}`;
 
-/** Every text of the answer a reader sees, but the overview (a flowchart's syntax) and the vocabulary. */
+/** Every text of the answer's body, but the overview (a flowchart's syntax) and the vocabulary. The questions are
+ *  left out: a question is asked to a person, not specified, it may name what it is about, and the fold lists the
+ *  ones the reviewer wrote, which no purity rule held. */
 function bodyTexts(a: SpecAnswer): string[] {
   return [
     a.name, a.summary, a.context,
@@ -160,7 +162,6 @@ function bodyTexts(a: SpecAnswer): string[] {
     ...a.relations.flatMap((r) => [r.upstream, r.downstream]),
     ...a.outOfScope.flatMap((r) => [r.exclusion, r.reason]),
     ...a.assumptions.flatMap((r) => [r.assumption, r.validatedBy]),
-    ...a.questions.flatMap((q) => [q.question, q.impact, ...q.options]),
   ];
 }
 

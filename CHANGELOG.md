@@ -38,6 +38,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   create and says so in a warning of the summary. A production file given as existing and absent is still refused.
 - A documentation batch's test (the repository's documentation command) may name no id: a plan was refused, and
   drafted again whole (three minutes), because the changelog step's check proved no rule of the spec.
+- The business-words check of a spec no longer reads its questions: the rewrite of the spec was refused when a
+  question the reviewer had written named something technical (an exit status), which no rule forbade it.
 - The log says why an answer was refused and asked again (`dev-spec: answer refused, asked again: …`, the same for
   `/dev-plan` and the reviewer's extraction).
 
@@ -86,9 +88,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - All of it is the runtime's own judgement, read through Orkeon #359 and #360 (the host's `Llm:ModelCapabilities`
   included): on Orkeon 1.0.0 (the tool and docker modes) nothing is said of the model's levels.
 
-### Changed — the pin moves to Orkeon main after #377
+### Changed — the pin moves to Orkeon main after #380
 
-- `.orkeon-version` names `3a6a0d9`, Orkeon `main` after #351-#354, #356, #358 (the reasoning modes of
+- `.orkeon-version` names `322ffb9`, Orkeon `main` after #380 (the date of Orkeon 1.1.0 in its changelog, nothing
+  of the runtime), itself after #351-#354, #356, #358 (the reasoning modes of
   `orkeon llm probe`), #362 (Z.AI takes `xhigh`; GLM-5.3 keeps `low`, `high` and `max`), #361 (a script reads a
   model's reasoning capabilities and the effort sent), #363 (an agent's file-system scope, not used here), #365
   (a script lists the host's profiles and catches the runtime's refusals), #371 (a refusal is an

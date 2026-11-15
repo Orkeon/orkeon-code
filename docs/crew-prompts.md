@@ -150,7 +150,8 @@ Every system prompt below ends with the runtime's `## File system` section when 
 
 ## Spec (`dev-spec`)
 
-- Business words only, never a class, a file, a status code or a call.
+- Business words only, never a class, a file, a status code or a call. Code checks the body, not the questions: a
+  question is asked, not specified, and the reviewer's own may name what they are about.
 - Each use case names its actor, its intent, where the actor meets it and one to seven steps.
 - Each rule is one yes-or-no statement with its origin and severity, applied to use cases that exist.
 - A fact the code index answers is stated, never asked.
