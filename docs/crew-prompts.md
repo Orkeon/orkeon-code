@@ -197,6 +197,10 @@ Every system prompt below ends with the runtime's `## File system` section when 
   a symbol a search hit names with `symbol_source` on its fqn, a file by its name or a pattern with `glob` where no
   project list already says so, each said only to a charter holding the tool.
 - It opens only what the files point to, around the cited line.
+- The review of a plan, a spec or a brief has sixteen look-ups (tool calls) and is told so: it spends them on what
+  the heaviest questions need, several in one turn. Code refuses every call past them with the order to write the
+  findings from what was read, so a review concludes instead of running out of turns while it reads. The review of
+  the next batch keeps its own bound of turns.
 - Twelve questions at most, the heaviest first.
 
 ## Commit (`git-commit`)

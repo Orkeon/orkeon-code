@@ -217,6 +217,10 @@ leurs droits, l'endroit où se résolvent les chemins relatifs.
   son nom ou un motif par `glob` là où aucune liste du projet ne le dit déjà, chacun dit seulement à une charte qui
   a l'outil.
 - Il n'ouvre que ce que les fichiers désignent, autour de la ligne citée.
+- La relecture d'un plan, d'une spec ou d'un brief dispose de seize consultations (appels d'outils) et le sait : elle
+  les dépense pour ce que demandent les questions les plus lourdes, plusieurs dans un même tour. Le code refuse tout
+  appel au-delà, avec l'ordre d'écrire les constats à partir de ce qui a été lu : une relecture conclut au lieu
+  d'épuiser ses tours en lisant. La relecture du lot suivant garde sa propre borne de tours.
 - Douze questions au plus, les plus lourdes d'abord.
 
 ## Commit (`git-commit`)

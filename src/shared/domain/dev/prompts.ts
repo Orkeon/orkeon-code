@@ -5,7 +5,7 @@
 // goes in the brief only, never in the system message.
 
 import { BOUNDED_READ_RULE, KNOWN_TOOLS_RULE, NODE_READ_RULE } from "./reading-rule.ts";
-import { NEXT_BATCH_REVIEWER_CHARTER, REVIEWER_TOOLS } from "./reviewer-charter.ts";
+import { NEXT_BATCH_REVIEWER_CHARTER, REVIEWER_LOOKUPS, REVIEWER_TOOLS } from "./reviewer-charter.ts";
 import { describeCodeIntelRouting } from "../code-intel-routing.ts";
 import { PROJECT_LIST_RULE } from "./prompts/brief-blocks.ts";
 
@@ -118,6 +118,14 @@ const closing = (tools: readonly string[], listed: boolean): string[] => [
   "batch by its id: F1, F2…).",
 ];
 
+/** The look-up budget of a plan, a spec or a brief's review: said so that the reviewer spends it on what weighs. */
+const LOOKUP_BUDGET_RULE = [
+  "",
+  `You have ${REVIEWER_LOOKUPS} look-ups (tool calls) in all: spend them on what the heaviest questions need, several in one`,
+  "turn when they do not depend on one another. Past them every call is refused: write your findings then, from what",
+  "you read.",
+];
+
 /** The closing of a spec or a brief: the same reading rule, its own material and targets. */
 function sourceClosing(document: string, targets: string): string[] {
   return [
@@ -141,12 +149,12 @@ function sourceClosing(document: string, targets: string): string[] {
 
 /** The behaviour common to every mode, then the mode's focus: the act's system message. No material. */
 export function reviewSystem(mode: ReviewMode): string {
-  if (mode === "spec") return [...COMMON, ...SPEC_FOCUS, ...sourceClosing("spec", "the spec as a whole, or one UC- or BR- id")].join("\n");
+  if (mode === "spec") return [...COMMON, ...SPEC_FOCUS, ...LOOKUP_BUDGET_RULE, ...sourceClosing("spec", "the spec as a whole, or one UC- or BR- id")].join("\n");
   if (mode === "change") {
-    return [...COMMON, ...CHANGE_FOCUS, ...sourceClosing("brief", "the brief as a whole, or one CH- id")].join("\n");
+    return [...COMMON, ...CHANGE_FOCUS, ...LOOKUP_BUDGET_RULE, ...sourceClosing("brief", "the brief as a whole, or one CH- id")].join("\n");
   }
   if (mode === "next-batch") return [...COMMON, ...NEXT_BATCH_FOCUS, ...closing(NEXT_BATCH_REVIEWER_CHARTER.tools, true)].join("\n");
-  return [...COMMON, ...PLAN_FOCUS, ...closing(REVIEWER_TOOLS, false)].join("\n");
+  return [...COMMON, ...PLAN_FOCUS, ...LOOKUP_BUDGET_RULE, ...closing(REVIEWER_TOOLS, false)].join("\n");
 }
 
 /** A review brief with every choice made: what it says is in the brief, the inventory trimmed, the project list. */

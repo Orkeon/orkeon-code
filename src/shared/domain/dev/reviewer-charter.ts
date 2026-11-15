@@ -21,6 +21,10 @@ export const REVIEWER_CHARTER: Charter = {
   maxIterations: 20,
 };
 
+/** The look-ups (tool calls) a review of a plan, a spec or a brief may make: past them every call is refused and the
+ *  reviewer writes its findings, so that a review always concludes inside its charter's turns. */
+export const REVIEWER_LOOKUPS = 16;
+
 /** The review of the next batch of /dev-batches: its brief carries the batch's sheet and what the closed batches
  *  changed, so five read tools and eight turns are enough (a plan's review keeps the ten and its twenty); glob is one
  *  of them, since its brief lists the project's files and a cut list sends the reader to it. */

@@ -16,6 +16,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `/dev-implement` and the auditor of `/dev-verify` stop on the same reason, and `/agent` fails with it. The main
   loop still shows the runtime's notice as the turn's answer, with a warning in the log.
 
+### Changed — the adversarial reviewer has a look-up budget
+
+- The reviewer of `/dev-spec`, `/dev-change` and `/dev-plan` makes sixteen tool calls at most, and its prompt says
+  so. A call past them is refused with the order to write the findings from what was read: a review concludes
+  instead of reading until its twenty turns run out, and its last, heaviest turns are no longer spent. The review
+  of the next batch of `/dev-batches` is unchanged.
+
 ### Changed — `/dev-spec` rewrites the spec with the answers once
 
 - `/dev-spec` no longer has the model rewrite the whole spec after each round of questions (about two minutes a

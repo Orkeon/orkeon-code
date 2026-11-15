@@ -47,9 +47,9 @@ export const BRIEF_PIECES: readonly string[] = [MARK, "PRUNE-PLAN-F1.md", "PRUNE
 
 /** Each mode's focus: what its system holds and what it leaves out. */
 export const MODE_FOCUS: ReadonlyArray<{ mode: "spec" | "change" | "plan"; holds: readonly string[]; lacks: readonly string[] }> = [
-  { mode: "spec", holds: ["For a business spec, ask in particular:", "the spec as a whole, or one UC- or BR- id", "Decisions section records is settled and wins over the body"], lacks: ["For a plan"] },
-  { mode: "change", holds: ["For a change brief", "the brief as a whole, or one CH- id"], lacks: [] },
-  { mode: "plan", holds: ["For a plan, ask in particular:"], lacks: [] },
+  { mode: "spec", holds: ["For a business spec, ask in particular:", "the spec as a whole, or one UC- or BR- id", "Decisions section records is settled and wins over the body", "You have 16 look-ups (tool calls) in all"], lacks: ["For a plan"] },
+  { mode: "change", holds: ["For a change brief", "the brief as a whole, or one CH- id", "You have 16 look-ups (tool calls) in all"], lacks: [] },
+  { mode: "plan", holds: ["For a plan, ask in particular:", "You have 16 look-ups (tool calls) in all"], lacks: [] },
 ];
 
 
