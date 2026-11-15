@@ -14,7 +14,7 @@ import { FakePrecedents, PRECEDENTS_SAMPLE } from "../../../support/doubles/fake
 import {
   ANSWER, CLEAR, CODE, GAPS_REVIEW, REQUEST, SPEC, SPEC_TIMING, devSpecSetup, folded, run, specWithQ1Decided, timedSetup,
 } from "./run-dev-spec.fixtures.ts";
-import { assertAllMention, assertHasLines, assertNoPromptMentions } from "./run-dev-spec.assertions.ts";
+import { assertAllMention, assertHasLines, assertNoPromptMentions, assertSingleFold } from "./run-dev-spec.assertions.ts";
 import { assertAllUnder } from "../../../support/assertions/paths.ts";
 import { WORKSPACE } from "../../../../src/shared/domain/vfs.ts";
 
@@ -22,7 +22,7 @@ describe("runDevSpec — a new spec settled with the person", () => {
   it("ends its summary on the time each phase took, the person's questions apart from the model's fold", async () => {
     // Arrange
     const f = timedSetup(["No", "Leave it open"]);
-    f.llm.extractions = [ANSWER, folded(), CLEAR];
+    f.llm.extractions = [ANSWER, CLEAR, folded()];
 
     // Act
     const text = await run(f);
@@ -34,7 +34,7 @@ describe("runDevSpec — a new spec settled with the person", () => {
   it("runs the reviewer's act on the profile its route answers", async () => {
     // Arrange
     const f = devSpecSetup(["No", "Leave it open"]);
-    f.llm.extractions = [ANSWER, folded(), CLEAR];
+    f.llm.extractions = [ANSWER, CLEAR, folded()];
 
     // Act
     await runDevSpec({ code: "prune", request: REQUEST }, { ...f.deps, route: async () => "small" });
@@ -43,10 +43,10 @@ describe("runDevSpec — a new spec settled with the person", () => {
     strictEqual(f.llm.acts[0].request.profile, "small");
   });
 
-  it("asks Blocking first, writes each answer before the next question, folds, reviews, ends on /dev-plan", async () => {
+  it("asks Blocking first, writes each answer before the next question, reviews, folds, ends on /dev-plan", async () => {
     // Arrange
     const f = devSpecSetup(["No", "Leave it open"]);
-    f.llm.extractions = [ANSWER, folded(), CLEAR];
+    f.llm.extractions = [ANSWER, CLEAR, folded()];
 
     // Act
     const text = await run(f);
@@ -62,7 +62,7 @@ describe("runDevSpec — a new spec settled with the person", () => {
     const spec = f.files.files.get(SPEC) ?? "";
     deepStrictEqual(parseOpenQuestions(spec).map((q) => q.id), ["Q2"]);
     deepStrictEqual(parseDecisions(spec).map((d) => d.id), ["Q1"]);
-    ok(f.llm.extracts[1].prompt.includes("- Q1: Is a pinned entry pruned? → No"), "the fold carries the decision");
+    ok(f.llm.extracts[2].prompt.includes("- Q1: Is a pinned entry pruned? → No"), "the fold carries the decision");
     strictEqual(f.llm.acts.length, 1, "one review");
     const lines = text.split("\n");
     strictEqual(lines[0], "dev-spec: workbench/prune/SPEC-prune.md written — 2 ids (UC-01, BR-01)");
@@ -70,10 +70,22 @@ describe("runDevSpec — a new spec settled with the person", () => {
     strictEqual(lines.at(-1), DEV_SPEC_NEXT.replace("{code}", "prune"));
   });
 
+  it("rewrites the spec once, after the review's questions, with the decisions of both rounds", async () => {
+    // Arrange
+    const f = devSpecSetup(["No", "Refuse", "Yes, a pinned entry is reported"]);
+    f.llm.extractions = [ANSWER, GAPS_REVIEW, { ...ANSWER, questions: [] }];
+
+    // Act
+    await run(f);
+
+    // Assert
+    assertSingleFold(f.llm.extracts.map((e) => e.prompt), ["- Q1: ", "- Q2: ", "- Q3: "]);
+  });
+
   it("asks a Blocking review row as text and records its answer", async () => {
     // Arrange
     const f = devSpecSetup(["No", "Refuse", "Yes, a pinned entry is reported"]);
-    f.llm.extractions = [ANSWER, { ...ANSWER, questions: [] }, GAPS_REVIEW, { ...ANSWER, questions: [] }];
+    f.llm.extractions = [ANSWER, GAPS_REVIEW, { ...ANSWER, questions: [] }];
 
     // Act
     const text = await run(f);
@@ -115,7 +127,7 @@ describe("runDevSpec — a revision", () => {
     const f = devSpecSetup(["Refuse"]);
     f.files.files.set(SPEC, await specWithQ1Decided());
     f.files.listings.set(CODE, ["SPEC-prune.md"]);
-    f.llm.extractions = [ANSWER, folded(), CLEAR];
+    f.llm.extractions = [ANSWER, CLEAR, folded()];
 
     // Act
     const text = await run(f, { code: "prune", request: "Also say what happens to a pinned entry." });
@@ -229,7 +241,7 @@ describe("runDevSpec — refusals", () => {
   it("tells the second attempt the whole parse error, on one line", async () => {
     // Arrange
     const f = devSpecSetup();
-    f.llm.extractions = [new Error('not JSON. Raw: {\n  "useCases": [\n    "a"'), ANSWER, folded(), CLEAR];
+    f.llm.extractions = [new Error('not JSON. Raw: {\n  "useCases": [\n    "a"'), ANSWER, CLEAR, folded()];
 
     // Act
     await run(f);
@@ -257,7 +269,7 @@ describe("runDevSpec — refusals", () => {
   it("T1: recalls decisions and methods once from the code and the brief, the block in every extract and named at the end", async () => {
     // Arrange
     const f = devSpecSetup(["No", "Leave it open"]);
-    f.llm.extractions = [ANSWER, folded(), CLEAR];
+    f.llm.extractions = [ANSWER, CLEAR, folded()];
     const precedents = FakePrecedents.hits();
 
     // Act

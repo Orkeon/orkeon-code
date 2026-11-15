@@ -1,16 +1,16 @@
 // /dev-spec's use case: checks the inputs and the checkout, finds the code's folder (a change brief there refuses:
 // one source per code), inventories the code by the index, asks the model for the spec as JSON (once more on a
 // refused answer), renders, self-checks and writes SPEC-<code>.md, then asks the person its open questions one at a
-// time through human_input - each answer written to the file before the next question - and folds the answers into
-// the body. Unless a question went unanswered, the read-only reviewer questions the spec once; its Blocking rows are
-// asked too. With nobody to answer (an unattended run), the questions stay in the file and the run ends BLOCKED:
+// time through human_input - each answer written to the file before the next question. Unless a question went
+// unanswered, the read-only reviewer questions the spec once; its Blocking rows are asked too. One fold then ends
+// the run: the model rewrites the body with every decision of the run. With nobody to answer (an unattended run), the questions stay in the file and the run ends BLOCKED:
 // nothing is decided on anyone's behalf. On an existing spec it revises: the person's edits and decisions are kept.
 import type { CodeIndex, Files, HumanInput, Llm, Logger, Shell } from "../../../shared/application/ports.ts";
 import type { ActRoute } from "../../../shared/application/agents/route-agent.ts";
 import type { ConfigStore } from "../../../shared/application/config-store.ts";
 import { loadDevContext } from "../../../shared/application/dev/load-dev-context.ts";
 import { briefInventory, briefInventoryLine, briefPhrases, renderBriefInventory } from "../../../shared/application/dev/brief-inventory.ts";
-import { questionRound } from "../../../shared/application/dev/question-round.ts";
+import { foldDecisions, questionRound } from "../../../shared/application/dev/question-round.ts";
 import type { Folded, RoundState } from "../../../shared/application/dev/question-round.ts";
 import { reviewLine, reviewSource } from "../../../shared/application/dev/source-review.ts";
 import { PhaseTimer } from "../../../shared/application/dev/phase-timer.ts";
@@ -153,7 +153,8 @@ export async function runDevSpec(input: DevSpecInputs, deps: DevSpecDeps): Promi
       deps.log.info(`${STEP}: ${spec.shown} ${verb}`);
     }
 
-    // 5. The questions, Blocking first, each answer written before the next one; then one fold.
+    // 5. The questions, Blocking first, each answer written before the next one. No rewrite per round: the answers
+    // stay in the decisions section, which the reviewer reads, and one fold ends the run (step 7).
     // The person's time is the "questions" phase, the model's fold its own.
     const fold = (st: RoundState, fresh: readonly Decision[]): Promise<Folded> => timer.time("fold", async () => {
       const r = await askSpec(deps, {
@@ -161,8 +162,8 @@ export async function runDevSpec(input: DevSpecInputs, deps: DevSpecDeps): Promi
         precedents: recalled.block,
       }, (a) => numberQuestions(a.questions, st.decisions, st.open), st.decisions, null);
       return r.ok ? { ok: true, text: r.drafted.text, open: r.drafted.open } : { ok: false, problems: r.problems };
-    }, "round");
-    const round = { human: deps.human, today, label: `${STEP} ${code}`, headings: HEADINGS, write, fold };
+    });
+    const round = { human: deps.human, today, label: `${STEP} ${code}`, headings: HEADINGS, write };
     const first = await timer.time("questions", () => questionRound(state, round), "round");
     state = first.state;
     warnings.push(...first.warnings);
@@ -190,7 +191,12 @@ export async function runDevSpec(input: DevSpecInputs, deps: DevSpecDeps): Promi
       }
     }
 
-    // 7. The end message.
+    // 7. One fold: the body rewritten with every decision of the run.
+    const folded = await foldDecisions(state, made, fold, write);
+    state = folded.state;
+    warnings.push(...folded.warnings);
+
+    // 8. The end message.
     const parsed = parsePlanSource(state.text, "spec");
     const ids = parsed.ids.map((i) => i.id);
     const lines = [

@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed — `/dev-spec` rewrites the spec with the answers once
+
+- `/dev-spec` no longer has the model rewrite the whole spec after each round of questions (about two minutes a
+  rewrite on a small request): the answers are recorded under `## 13. Decisions` as before, and one rewrite at the
+  end of the run, after the questions of the review, writes every decision of the run into the body. The reviewer
+  reads the spec before that rewrite and is told that a recorded decision wins over the body. `/dev-change` keeps
+  its rewrite per round.
+
 ### Added — `/dev-spec` and `/dev-plan` say where the time went
 
 - The summary of `/dev-spec` and `/dev-plan` ends on a `timing:` line, also logged, with the time of each phase

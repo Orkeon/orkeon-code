@@ -169,6 +169,8 @@ leurs droits, l'endroit où se résolvent les chemins relatifs.
 - Le modèle répond en JSON et le code écrit le fichier.
 - Ses questions ouvertes sont posées une à une, Blocking d'abord, l'option recommandée en tête, chaque réponse
   écrite sous `## 13. Decisions` avant la question suivante.
+- Le corps est réécrit avec les réponses une seule fois, à la fin de l'exécution, après les questions de la
+  relecture : un tour de questions ne réécrit rien, ses réponses restent sous `## 13. Decisions` jusque-là.
 - Sans personne pour répondre (une exécution sans opérateur), elles restent dans le fichier et l'étape se lit
   `BLOCKED`, jamais une réponse par défaut.
 
@@ -196,6 +198,9 @@ leurs droits, l'endroit où se résolvent les chemins relatifs.
   de conception, Major quand une hypothèse consignée suffit, et Major quand il hésite entre les deux.
 - Avant de demander, il cherche la réponse dans le reste du matériau (les autres fichiers que nomme le brief, le
   code), et une question que ce matériau tranche déjà n'est pas une ligne.
+- Pour une spec, ce que consigne sa section Decisions est tranché et l'emporte sur le corps, réécrit avec elle
+  seulement après la relecture : une question à laquelle une décision répond, ou une ligne du corps qu'une décision
+  remplace, n'est pas une ligne.
 - Le style est hors sujet et une liste vide est une réponse CLEAR.
 - Chaque question cible le plan (ou la spec, le brief) ou un lot par son identifiant seul, et l'extraction nomme les
   identifiants permis : un qualificatif après l'identifiant (`F2 (step 1)`) est ramené à l'identifiant, une cible

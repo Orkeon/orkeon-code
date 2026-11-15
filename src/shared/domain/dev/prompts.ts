@@ -57,6 +57,8 @@ const SPEC_FOCUS = [
   "  use case;",
   "- whether the lifecycle is covered (create, read, change, withdraw, as relevant), whether an error or an edge that",
   "  matters has no behaviour, and whether something the code already does is asked again or named differently.",
+  "What the spec's Decisions section records is settled and wins over the body, which is rewritten with it only",
+  "after your review: a question a decision answers, or a body line a decision replaces, is no row.",
 ];
 
 const CHANGE_FOCUS = [

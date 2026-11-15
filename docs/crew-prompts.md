@@ -154,6 +154,8 @@ Every system prompt below ends with the runtime's `## File system` section when 
 - The model answers in JSON and code writes the file.
 - Its open questions are asked one at a time, Blocking first, the recommended option first, each answer written
   under `## 13. Decisions` before the next question.
+- The body is rewritten with the answers once, at the end of the run, after the questions of the review: a round of
+  questions rewrites nothing, its answers stay under `## 13. Decisions` until then.
 - Nobody to answer (an unattended run) leaves them in the file and the step reads `BLOCKED`, never a default answer.
 
 ## Change (`dev-change`)
@@ -179,6 +181,8 @@ Every system prompt below ends with the runtime's `## File system` section when 
   when an assumption on record is enough, and Major when torn between the two.
 - Before asking, it looks for the answer in the rest of the material (the other files the brief names, the code),
   and a question that material already settles is no row.
+- For a spec, what its Decisions section records is settled and wins over the body, rewritten with it only after the
+  review: a question a decision answers, or a body line a decision replaces, is no row.
 - Style is out of scope and an empty list is a CLEAR answer.
 - Each question targets the plan (or the spec, the brief) or one batch by its id alone, and the extraction names the
   ids it may use: a qualifier after the id (`F2 (step 1)`) is folded to the id, a target naming two ids is dropped.
