@@ -53,15 +53,14 @@ export const REFUSED_SPECS: readonly RefusedSpecCase[] = [
     ],
   },
   {
-    name: "a question with one option, a cell with '|' and a name with '—'",
+    name: "a cell with '|' and a name with '—'",
     answer: () => {
       const a = validSpec();
       a.name = "Prune — old";
-      a.questions[1].options = ["Refuse"];
       a.outOfScope[0].reason = "a | b";
       return a;
     },
-    problems: [{ startsWith: "name:" }, { startsWith: "question 2: no option, or 2 to" }, { startsWith: "outOfScope 1: reason" }],
+    problems: [{ startsWith: "name:" }, { startsWith: "outOfScope 1: reason" }],
   },
 ];
 
@@ -73,3 +72,12 @@ export const DECIDED_Q1 = { id: "Q1", question: "Does a prune with no cut-off re
 export const SPEC_IDS = [
   ["UC-01", "remove the entries saved before a cut-off"], ["BR-01", "a feedback entry stays whatever its age"],
 ];
+
+/** The valid spec with `data` as its data rows. */
+export const specWithData = (data: SpecAnswer["data"]): SpecAnswer => ({ ...validSpec(), data });
+
+/** The valid spec whose first question has `options`. */
+export function specWithOptions(options: string[]): SpecAnswer {
+  const spec = validSpec();
+  return { ...spec, questions: spec.questions.map((q, i) => (i === 0 ? { ...q, options } : q)) };
+}

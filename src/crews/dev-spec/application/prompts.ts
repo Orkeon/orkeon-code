@@ -23,13 +23,16 @@ const SPEC_INSTRUCTIONS: string = [
     "when the feature has neither branch nor lifecycle.",
   "- Leave a table empty rather than fill it with nothing: data, states, cross-cutting, relations, out of scope and " +
     "assumptions are optional.",
+  "- A data row's source is one of entered, computed, imported, catalogue, and its importance one of essential, " +
+    "secondary, expert; leave either empty when none fits.",
   "- An assumption is what you took for lack of an answer and the person who will validate it.",
   "",
   "Questions:",
   "- Ask only what neither the request nor the code settles and what would change a use case, a rule, the data, a " +
     "state or the scope. Never ask what a decision below already settled.",
   "- Each question is one line ending with ?, Blocking when the answer reshapes the spec, Major when an assumption " +
-    "is enough to go on; options are none, or two to four short answers with the one you recommend first.",
+    "is enough to go on; options are none, or two to four short answers with the one you recommend first, each on one line " +
+    "of at most 120 characters, without ';' nor '|'.",
   "- A TBD in the body needs its question.",
 ].join("\n");
 

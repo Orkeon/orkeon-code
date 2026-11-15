@@ -14,6 +14,9 @@ export const waitReturnedAtOnce = (agent: string, early: number): string =>
   `the wait for ${agent} returned at once ${early} times in a row`;
 
 // run-sub-agent.ts
+/** The log line of an answer refused and asked again: what was wrong with it. */
+export const answerAskedAgain = (who: string, problems: readonly string[]): string =>
+  `${who}: answer refused, asked again: ${problems.join("; ")}`;
 export const answerDidNotParse = (reason: string): string => `the answer did not parse: ${reason}`;
 export const briefTooLong = (length: number, max: number): string => `the brief is ${length} characters, over ${max}`;
 export const ROUTE_WITHOUT_DECISION_MODEL =

@@ -1,7 +1,7 @@
 // The read-only review of a written spec or change brief, once per run: the reviewer's sub-agent questions the
 // file, and its rows join the open questions (a row asking what an open question or a decision already holds is
 // not added), the file written again. The rows' ids are returned so the caller asks the Blocking ones.
-import type { Llm } from "../ports.ts";
+import type { Llm, Logger } from "../ports.ts";
 import { runSubAgent } from "../agents/run-sub-agent.ts";
 import type { ActRoute } from "../agents/route-agent.ts";
 import { REVIEWER_CHARTER } from "../../domain/dev/reviewer-charter.ts";
@@ -31,7 +31,7 @@ export type SourceReviewOutcome =
 
 export async function reviewSource(
   llm: Pick<Llm, "act" | "extract">, state: RoundState, request: SourceReviewRequest, write: (text: string) => Promise<void>,
-  route?: ActRoute,
+  route?: ActRoute, log?: Pick<Logger, "info">,
 ): Promise<SourceReviewOutcome> {
   const targets = [request.whole, ...request.ids];
   const outcome = await runSubAgent(llm, {
@@ -44,7 +44,7 @@ export async function reviewSource(
     schema: REVIEW_ANSWER_SCHEMA,
     answerPrompt: (reply, problems) => buildReviewAnswerPrompt(reply, problems, targets),
     ...reviewChecks(targets),
-  }, route);
+  }, route, log);
   if (!outcome.ok) return { ran: false, reason: `${outcome.reason}: ${outcome.problems[0] ?? "no detail"}` };
   const review = outcome.value;
   if (review.rows.length === 0) return { ran: true, review, state, added: [] };

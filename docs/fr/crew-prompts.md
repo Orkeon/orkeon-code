@@ -167,6 +167,10 @@ leurs droits, l'endroit où se résolvent les chemins relatifs.
   existent.
 - Un fait que l'index du code donne est énoncé, jamais demandé.
 - Le modèle répond en JSON et le code écrit le fichier.
+- La source et l'importance d'une ligne de données viennent de deux listes courtes que donne le prompt ; un mot hors
+  de ces listes est laissé vide par le code. Une option tient sur une ligne de 120 caractères sans `;` ni `|` : le
+  code change les séparateurs en virgules, et une question dont les options ne tiennent toujours pas dans une ligne
+  est posée en texte libre. Ni l'un ni l'autre ne coûte un second appel.
 - Ses questions ouvertes sont posées une à une, Blocking d'abord, l'option recommandée en tête, chaque réponse
   écrite sous `## 13. Decisions` avant la question suivante.
 - Le corps est réécrit avec les réponses une seule fois, à la fin de l'exécution, après les questions de la

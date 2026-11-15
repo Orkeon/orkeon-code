@@ -4,7 +4,7 @@
 // severity, applied to use cases that exist; every vocabulary term is used; a TBD has its open question; nothing
 // technical is named; every cell fits its table. Ids are code's: UC-nn and BR-nn by position. Pure, no IO.
 import type { Checked } from "../../../shared/domain/agents/charter.ts";
-import { MAX_QUESTIONS, QUESTION_SCHEMA, breaksCell, draftQuestionProblems } from "../../../shared/domain/dev/questions.ts";
+import { MAX_QUESTIONS, QUESTION_SCHEMA, breaksCell, draftQuestionProblems, tidyOptions } from "../../../shared/domain/dev/questions.ts";
 import type { DraftQuestion } from "../../../shared/domain/dev/questions.ts";
 import { NO_CONTEXT, NO_SUMMARY, NO_USE_CASE, OVERVIEW_IS_FLOWCHART, TECHNICAL, appliesToNamesIds, appliesToUnknown, businessPurity, cellSpansLines, dataImportanceIs, dataSourceIs, fieldSpansLines, noActor, noIntent, noOrigin, noWhere, scenarioSteps, severityIs, termUsedNowhere, tooManyRows, tooManyRules, tooManyUseCases } from "./messages.ts";
 import {
@@ -103,6 +103,10 @@ function rows<K extends string>(v: unknown, keys: readonly K[]): Array<Record<K,
   });
 }
 
+/** `value` in lower case when it is one of `allowed`, none otherwise: a column the model filled with a word of its own
+ *  is left empty, which the template allows, instead of costing a second call. */
+const oneOf = (value: string, allowed: readonly string[]): string => (allowed.includes(value.toLowerCase()) ? value.toLowerCase() : "");
+
 /** The value read leniently: every field present, strings trimmed, missing lists empty. */
 function readSpecAnswer(value: unknown): SpecAnswer {
   const o = isObject(value) ? value : {};
@@ -125,7 +129,9 @@ function readSpecAnswer(value: unknown): SpecAnswer {
         severity: text(x.severity).toLowerCase() as RuleSeverity, appliesTo: textList(x.appliesTo), example: text(x.example),
       };
     }),
-    data: rows(o.data, ["datum", "description", "source", "importance"]),
+    data: rows(o.data, ["datum", "description", "source", "importance"]).map((d) => ({
+      ...d, source: oneOf(d.source, DATA_SOURCES), importance: oneOf(d.importance, DATA_IMPORTANCE),
+    })),
     states: rows(o.states, ["state", "event", "next", "condition"]),
     crossCutting: textList(o.crossCutting),
     relations: rows(o.relations, ["upstream", "downstream"]),
@@ -133,7 +139,7 @@ function readSpecAnswer(value: unknown): SpecAnswer {
     assumptions: rows(o.assumptions, ["assumption", "validatedBy"]),
     questions: list(o.questions).map((q) => {
       const x = isObject(q) ? q : {};
-      return { severity: text(x.severity), question: text(x.question), impact: text(x.impact), options: textList(x.options) };
+      return { severity: text(x.severity), question: text(x.question), impact: text(x.impact), options: tidyOptions(textList(x.options)) };
     }),
   };
 }

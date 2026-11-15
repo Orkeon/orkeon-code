@@ -33,7 +33,7 @@ import { buildSpecPrompt } from "./spec-material.ts";
 import type { SpecPromptInput } from "./spec-material.ts";
 import { DEV_SPEC_NEXT, answerThem, blockedUnanswered, cannotBeReadNothingWritten, changeBriefExists, specNotWrittenAnswersKept, decisionsThisRun, newSpecNeedsBrief, refusedTwice, rendererDefect, stillBlocking } from "./messages.ts";
 import { PERMISSION_GATE_OFF } from "../../../shared/application/dev/messages.ts";
-import { answerDidNotParse } from "../../../shared/application/agents/messages.ts";
+import { answerAskedAgain, answerDidNotParse } from "../../../shared/application/agents/messages.ts";
 
 export interface DevSpecInputs { code?: unknown; request?: unknown }
 export interface DevSpecDeps {
@@ -65,10 +65,15 @@ async function askSpec(
       value = await (timer === null ? ask() : timer.time("draft", ask));
     } catch (e) {
       problems = [answerDidNotParse(errorText(e))];
+      deps.log.info(answerAskedAgain(STEP, problems));
       continue;
     }
     const checked = checkSpecAnswer(value);
-    if (!checked.ok) { problems = checked.problems; continue; }
+    if (!checked.ok) {
+      problems = checked.problems;
+      deps.log.info(answerAskedAgain(STEP, problems));
+      continue;
+    }
     const answer = checked.value;
     const questions = open(answer);
     const text = renderSpec({ code: prompt.code, answer, open: questions, decisions });
@@ -177,7 +182,7 @@ export async function runDevSpec(input: DevSpecInputs, deps: DevSpecDeps): Promi
       review = await timer.time("review", () => reviewSource(timer.timedExtract(deps.llm, "review extract"), state, {
         mode: "spec", whole: "spec", folder: folder.shown, fileShown: spec.shown, origin: request.from,
         inventory: inventoryText, ids, headings: HEADINGS,
-      }, write, deps.route));
+      }, write, deps.route, deps.log));
       if (deps.llm.permissionGateEnabled() === false) warnings.push(PERMISSION_GATE_OFF);
       if (review.ran && review.added.length > 0) {
         state = review.state;

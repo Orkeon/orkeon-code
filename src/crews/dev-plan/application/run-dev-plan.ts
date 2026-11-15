@@ -40,7 +40,7 @@ import { checkAnchorPaths } from "./anchor-paths.ts";
 import type { AnchorListings } from "./anchor-paths.ts";
 import { BAD_INPUT_REPLACE, BAD_INPUT_SOURCE, BOTH_LINES, COMMANDS_LINE, END_LINE, REFUSED_TWICE, REVIEWED_FAILS_SELF_CHECK, ROWS_NOT_WRITTEN, SETTLE_CHANGE, SETTLE_SPEC, answerThenReplan, batchIsDone, planCannotBeReadNothingReplaced, planFileNotWritten, everyBatch, fewerBatches, inventoryFromTitles, namesNoTraceableId, noRoomForInventory, notInPack, planBlocked, planExists, planWritten, recordsWorkDone, planRendererDefect, reviewHead, reviewNotRunWithCause, planRunFromCheckout, stepIsTicked, tddLineTicked, planTitleNamesNoKind, titleReadsDone, unreviewed } from "./messages.ts";
 import { PERMISSION_GATE_OFF as GATE_OFF } from "../../../shared/application/dev/messages.ts";
-import { answerDidNotParse } from "../../../shared/application/agents/messages.ts";
+import { answerAskedAgain, answerDidNotParse } from "../../../shared/application/agents/messages.ts";
 import { errorText } from "../../../shared/domain/error-text.ts";
 import { WORKSPACE } from "../../../shared/domain/vfs.ts";
 
@@ -202,12 +202,21 @@ async function askPlan(
       value = await timer.time("draft", () => deps.llm.extract(buildPlanPrompt(promptInput, problems), PLAN_ANSWER_SCHEMA));
     } catch (e) {
       problems = [answerDidNotParse(errorText(e))];
+      deps.log.info(answerAskedAgain("dev-plan", problems));
       continue;
     }
     const checked = checkPlanAnswer(value, checkCtx);
-    if (!checked.ok) { problems = checked.problems; continue; }
+    if (!checked.ok) {
+      problems = checked.problems;
+      deps.log.info(answerAskedAgain("dev-plan", problems));
+      continue;
+    }
     const paths = await checkAnchorPaths(deps.files, checked.value, listings);
-    if (paths.length > 0) { problems = paths; continue; }
+    if (paths.length > 0) {
+      problems = paths;
+      deps.log.info(answerAskedAgain("dev-plan", problems));
+      continue;
+    }
     const rendered = render(checked.value);
     const self = planSelfCheck({ plan: rendered.plan, sheets: rendered.sheets, sourceIds });
     if (!self.ok) {
@@ -400,7 +409,7 @@ export async function runDevPlan(input: DevPlanInputs, deps: DevPlanDeps): Promi
     schema: REVIEW_ANSWER_SCHEMA,
     answerPrompt: (reply, problems) => buildReviewAnswerPrompt(reply, problems, targets),
     ...reviewChecks(targets),
-  }, deps.route));
+  }, deps.route, deps.log));
 
   // 13. Review rows into the files; the review is never run again.
   let review: ReviewAnswer | null = null;

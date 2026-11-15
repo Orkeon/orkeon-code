@@ -8,8 +8,8 @@ import { parsePlanSource } from "../../../../src/shared/domain/dev/spec-format.t
 import { parseDecisions, parseOpenQuestions } from "../../../../src/shared/domain/dev/questions.ts";
 import { checkSpecAnswer } from "../../../../src/crews/dev-spec/domain/spec-answer.ts";
 import { renderSpec } from "../../../../src/crews/dev-spec/domain/spec-render.ts";
-import { DECIDED_Q1, OPEN_Q2, REFUSED_SPECS, SPEC_IDS, validSpec } from "./spec-answer.fixtures.ts";
-import { assertNoProblem, assertProblems } from "./spec-answer.assertions.ts";
+import { DECIDED_Q1, OPEN_Q2, REFUSED_SPECS, SPEC_IDS, specWithData, specWithOptions, validSpec } from "./spec-answer.fixtures.ts";
+import { assertData, assertFirstOptions, assertNoProblem, assertProblems } from "./spec-answer.assertions.ts";
 
 describe("checkSpecAnswer", () => {
   it("accepts a valid answer", () => {
@@ -35,6 +35,33 @@ describe("checkSpecAnswer", () => {
       assertProblems(result, c.problems);
     });
   }
+});
+
+describe("checkSpecAnswer — repaired without a second call", () => {
+  it("leaves empty a data source and an importance outside their lists, a known one in lower case", () => {
+    // Arrange
+    const answer = specWithData([
+      { datum: "Cut-off", description: "the date", source: "Command line", importance: "High" },
+      { datum: "Entry", description: "one row", source: "Entered", importance: "essential" },
+    ]);
+
+    // Act
+    const result = checkSpecAnswer(answer);
+
+    // Assert
+    assertData(result, [["", ""], ["entered", "essential"]]);
+  });
+
+  it("asks as free text a question whose options do not fit a row", () => {
+    // Arrange
+    const answer = specWithOptions(["No", "y".repeat(121)]);
+
+    // Act
+    const result = checkSpecAnswer(answer);
+
+    // Assert
+    assertFirstOptions(result, []);
+  });
 });
 
 describe("renderSpec", () => {

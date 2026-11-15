@@ -152,6 +152,9 @@ Every system prompt below ends with the runtime's `## File system` section when 
 - Each rule is one yes-or-no statement with its origin and severity, applied to use cases that exist.
 - A fact the code index answers is stated, never asked.
 - The model answers in JSON and code writes the file.
+- A data row's source and importance come from two short lists the prompt gives; a word outside them is left empty
+  by code. An option fits one line of 120 characters without `;` nor `|`: code turns the separators into commas, and
+  a question whose options still do not fit a row is asked as free text. Neither costs a second call.
 - Its open questions are asked one at a time, Blocking first, the recommended option first, each answer written
   under `## 13. Decisions` before the next question.
 - The body is rewritten with the answers once, at the end of the run, after the questions of the review: a round of

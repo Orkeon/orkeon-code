@@ -13,6 +13,8 @@ import {
   CONTEXT_ONLY, DRAFTS, H, HAND_WRITTEN_ROWS, Q1, Q2, REVIEW_ROWS, rewrittenSections, writtenSections,
 } from "./questions.fixtures.ts";
 import { assertRewrittenInPlace } from "./questions.assertions.ts";
+import { tidyOptions } from "../../../../src/shared/domain/dev/questions.ts";
+import { TIDY_OPTIONS } from "./questions.fixtures.ts";
 
 describe("questions — rows", () => {
   it("writes the options with the recommended first", () => {
@@ -182,4 +184,19 @@ describe("questions — drafts", () => {
     // Assert
     deepStrictEqual(drafts.map((d) => [d.question, d.impact, d.options.length]), [["UC-01: Is it told?", "review, § 4", 0], ["Whole?", "review, § 2", 0]]);
   });
+});
+
+describe("tidyOptions", () => {
+  for (const c of TIDY_OPTIONS) {
+    it(c.name, () => {
+      // Arrange
+      const { options } = c;
+
+      // Act
+      const tidy = tidyOptions(options);
+
+      // Assert
+      deepStrictEqual(tidy, c.expected);
+    });
+  }
 });

@@ -38,3 +38,14 @@ export const REVIEW_ROWS = [
   { severity: "Blocking", question: "Is it told?", evidence: "§ 4", target: "UC-01" },
   { severity: "Major", question: "Whole?", evidence: "§ 2", target: "spec" },
 ];
+
+/** Options as a model gives them and what fits a row. */
+export const TIDY_OPTIONS: ReadonlyArray<{ name: string; options: readonly string[]; expected: readonly string[] }> = [
+  { name: "keeps options that fit as they are", options: ["No", "Yes"], expected: ["No", "Yes"] },
+  { name: "turns the row's separators into commas", options: ["Console only; no file", "Both | always"], expected: ["Console only, no file", "Both, always"] },
+  { name: "puts an option on one line", options: ["No,\nnever", "Yes"], expected: ["No, never", "Yes"] },
+  { name: "drops an empty option, a repeat and the leave-open answer code adds", options: ["No", " ", "no", "Leave it open", "Yes"], expected: ["No", "Yes"] },
+  { name: "keeps four options at most", options: ["a", "b", "c", "d", "e"], expected: ["a", "b", "c", "d"] },
+  { name: "leaves a question with a single option without options", options: ["Yes"], expected: [] },
+  { name: "leaves a question with an option over 120 characters without options", options: ["No", "y".repeat(121)], expected: [] },
+];

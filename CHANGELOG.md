@@ -23,6 +23,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   instead of reading until its twenty turns run out, and its last, heaviest turns are no longer spent. The review
   of the next batch of `/dev-batches` is unchanged.
 
+### Changed — `/dev-spec` and `/dev-change` repair an answer instead of asking the model again
+
+- A spec was refused, and asked again whole (about a minute), for two faults of form the prompt never mentioned:
+  a data row whose source or importance was a word outside the template's lists, and a question's option longer
+  than a row holds or carrying `;` or `|`. The prompt now says both, and code repairs what still comes: the column
+  is left empty, the separators become commas, and a question whose options do not fit is asked as free text.
+- The log says why an answer was refused and asked again (`dev-spec: answer refused, asked again: …`, the same for
+  `/dev-plan` and the reviewer's extraction).
+
 ### Changed — `/dev-spec` rewrites the spec with the answers once
 
 - `/dev-spec` no longer has the model rewrite the whole spec after each round of questions (about two minutes a
