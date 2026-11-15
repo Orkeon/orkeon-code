@@ -154,6 +154,18 @@ describe("createLlm — act", () => {
     await rejects(act, { name: "BudgetExhaustedError", dimension: "tokens", answer: "partial" });
   });
 
+  it("throws a result flagged exhausted as an IterationsExhausted with its turns, never answers the runtime's notice", async () => {
+    // Arrange
+    const facade = new FakeLlmFacade();
+    facade.actResult = { output: "(max tool-call iterations reached without a final answer)", exhausted: true, iterations: 20 };
+
+    // Act
+    const act = createLlm(facade).act("p", {});
+
+    // Assert
+    await rejects(act, { name: "IterationsExhausted", iterations: 20, message: "the act used its 20 tool-call turns without a final answer" });
+  });
+
   for (const c of ACT_FAILURE_MARKERS) {
     it(c.name, async () => {
       // Arrange

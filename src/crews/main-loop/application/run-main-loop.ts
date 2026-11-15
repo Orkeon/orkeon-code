@@ -19,7 +19,7 @@ import {
   applyPrelude, epilogueArgs, errorText, parseEpilogue, parsePrelude, toolFailure,
 } from "../../../shared/domain/prelude.ts";
 import type { PreludeCall } from "../../../shared/domain/prelude.ts";
-import { budgetExhaustedAnswerOf, decisionBlockOf, decisionBlockText } from "../../../shared/domain/llm-failure.ts";
+import { budgetExhaustedAnswerOf, decisionBlockOf, decisionBlockText, iterationsExhaustedOf } from "../../../shared/domain/llm-failure.ts";
 import type { SessionIo } from "../../../shared/application/session-io.ts";
 import { stateSnapshot } from "../../../shared/application/state-snapshot.ts";
 import {
@@ -35,7 +35,7 @@ import { autoCompactGuarded } from "./auto-compact.ts";
 import type { AutoCompactDeps } from "./auto-compact.ts";
 import { buildTurnPrompt } from "./turn-context.ts";
 import {
-  actEffort, actHostEffort, BUDGET_EXHAUSTED_LINE, budgetRanOut, effortNotSent, effortSentAs, gateOffWarning, MODE_ORIGIN_BUILT_IN, modelOverrideIgnored, NO_PROMPT,
+  actEffort, actHostEffort, BUDGET_EXHAUSTED_LINE, budgetRanOut, turnsRanOut, effortNotSent, effortSentAs, gateOffWarning, MODE_ORIGIN_BUILT_IN, modelOverrideIgnored, NO_PROMPT,
   nothingToSend, preludeRunning, rulesRemoved, ruleWithoutEffect, stopCheckRetryFailed, stopCheckSendsBack,
 } from "./messages.ts";
 import type { TurnContextDeps, TurnPrompt } from "./turn-context.ts";
@@ -242,7 +242,8 @@ interface TurnAnswer { answer: string; cut: boolean }
  *  with the reason, and the second answer stands whatever the chain would say of it. When that
  *  retry throws, a first answer that is not blank stands, with a warning. An act whose token
  *  budget ran out (BudgetExhaustedAnswer) gives its wrap-up as the answer, `cut`, and goes
- *  through no stop check: a second act would meet the same spent budget. */
+ *  through no stop check: a second act would meet the same spent budget. An act stopped at its
+ *  iteration cap (IterationsExhausted) answers the runtime's notice, with no stop check either. */
 async function stopChecked(
   deps: Pick<MainLoopDeps, "llm" | "log" | "chains">, turn: TurnPrompt, mode: string, flags: BehaviorFlags,
   request: string, closingLine: string | null, pruningOf: () => Promise<ContextPruning>,
@@ -251,6 +252,11 @@ async function stopChecked(
   try {
     answer = await runAct(deps, turn, mode, flags, await pruningOf());
   } catch (error) {
+    const stopped = iterationsExhaustedOf(error);
+    if (stopped !== null) {
+      deps.log.warn(turnsRanOut(errorText(error)));
+      return { answer: stopped.notice, cut: false };
+    }
     const exhausted = budgetExhaustedAnswerOf(error);
     if (exhausted === null) throw error;
     deps.log.warn(budgetRanOut(errorText(error)));

@@ -16,6 +16,10 @@ export const blockedByDecisionProfile = (profile: string, stage: string, why: st
 /** What the error of an exhausted token budget says: the runtime's words, so a reader sees the dimension. */
 export const BUDGET_EXHAUSTED_MESSAGE = "Token budget exhausted: the model made its last call without tools, and its answer is cut short";
 
+/** What the error of an act stopped at its iteration cap says: `turns` tool-call turns, no final answer. */
+export const iterationsExhaustedMessage = (turns: number | null): string =>
+  `the act used its ${turns === null ? "" : `${turns} `}tool-call turns without a final answer`;
+
 // ── Code index ──────────────────────────────────────────────────────────
 
 /** What the index cache did, in words. */

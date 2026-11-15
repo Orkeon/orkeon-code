@@ -5,7 +5,7 @@
 // goes in the brief only, never in the system message.
 
 import { BOUNDED_READ_RULE, KNOWN_TOOLS_RULE, NODE_READ_RULE } from "./reading-rule.ts";
-import { NEXT_BATCH_REVIEWER_CHARTER, REVIEWER_TOOLS } from "./reviewer-charter.ts";
+import { NEXT_BATCH_REVIEWER_CHARTER, REVIEWER_LOOKUPS, REVIEWER_TOOLS } from "./reviewer-charter.ts";
 import { describeCodeIntelRouting } from "../code-intel-routing.ts";
 import { PROJECT_LIST_RULE } from "./prompts/brief-blocks.ts";
 
@@ -19,7 +19,8 @@ const COMMON = [
   "",
   "How a finding is asked:",
   "- Phrase it so that it is settled by a yes, a no, or a choice among the options it names.",
-  "- Write it as one sentence that closes with a question mark.",
+  "- Write it as one sentence of at most 300 characters that closes with a question mark; what does not fit goes",
+  "  in its evidence.",
   "- Cite where it comes from: a path:line you opened, or a section of the files (§ n, or a heading);",
   "  a finding without a citation is dropped, so a suspicion you cannot point at stays out of the list.",
   "- Before asking, look for the answer in the rest of the material (the other files the brief names, the code):",
@@ -57,6 +58,8 @@ const SPEC_FOCUS = [
   "  use case;",
   "- whether the lifecycle is covered (create, read, change, withdraw, as relevant), whether an error or an edge that",
   "  matters has no behaviour, and whether something the code already does is asked again or named differently.",
+  "What the spec's Decisions section records is settled and wins over the body, which is rewritten with it only",
+  "after your review: a question a decision answers, or a body line a decision replaces, is no row.",
 ];
 
 const CHANGE_FOCUS = [
@@ -116,6 +119,14 @@ const closing = (tools: readonly string[], listed: boolean): string[] => [
   "batch by its id: F1, F2…).",
 ];
 
+/** The look-up budget of a plan, a spec or a brief's review: said so that the reviewer spends it on what weighs. */
+const LOOKUP_BUDGET_RULE = [
+  "",
+  `You have ${REVIEWER_LOOKUPS} look-ups (tool calls) in all: spend them on what the heaviest questions need, several in one`,
+  "turn when they do not depend on one another. Past them every call is refused: write your findings then, from what",
+  "you read.",
+];
+
 /** The closing of a spec or a brief: the same reading rule, its own material and targets. */
 function sourceClosing(document: string, targets: string): string[] {
   return [
@@ -139,12 +150,12 @@ function sourceClosing(document: string, targets: string): string[] {
 
 /** The behaviour common to every mode, then the mode's focus: the act's system message. No material. */
 export function reviewSystem(mode: ReviewMode): string {
-  if (mode === "spec") return [...COMMON, ...SPEC_FOCUS, ...sourceClosing("spec", "the spec as a whole, or one UC- or BR- id")].join("\n");
+  if (mode === "spec") return [...COMMON, ...SPEC_FOCUS, ...LOOKUP_BUDGET_RULE, ...sourceClosing("spec", "the spec as a whole, or one UC- or BR- id")].join("\n");
   if (mode === "change") {
-    return [...COMMON, ...CHANGE_FOCUS, ...sourceClosing("brief", "the brief as a whole, or one CH- id")].join("\n");
+    return [...COMMON, ...CHANGE_FOCUS, ...LOOKUP_BUDGET_RULE, ...sourceClosing("brief", "the brief as a whole, or one CH- id")].join("\n");
   }
   if (mode === "next-batch") return [...COMMON, ...NEXT_BATCH_FOCUS, ...closing(NEXT_BATCH_REVIEWER_CHARTER.tools, true)].join("\n");
-  return [...COMMON, ...PLAN_FOCUS, ...closing(REVIEWER_TOOLS, false)].join("\n");
+  return [...COMMON, ...PLAN_FOCUS, ...LOOKUP_BUDGET_RULE, ...closing(REVIEWER_TOOLS, false)].join("\n");
 }
 
 /** A review brief with every choice made: what it says is in the brief, the inventory trimmed, the project list. */
@@ -214,7 +225,7 @@ export function reviewAnswerPrompt(text: string, problems: readonly string[], ta
     "Turn the review below into the JSON answer. Take the rows from the review as written; invent no row it does not",
     "hold. The verdict follows the rows: GAPS when the review asks one question or more, CLEAR when it asks none,",
     "whatever word the review opens with. A row's severity is Blocking or Major; its question is one closed question",
-    "ending with ?; its evidence is a path:line, a § n or a section heading; its target is the id alone, one of",
+    "of at most 300 characters ending with ? (shorten a longer one to what it asks); its evidence is a path:line, a § n or a section heading; its target is the id alone, one of",
     `${targets.join(", ")} (never the id with a qualifier, such as "F2 (step 1)").`,
     ...(problems.length > 0 ? ["", "The previous answer was refused; fix each of these:", ...problems.map((p) => `- ${p}`)] : []),
     "",

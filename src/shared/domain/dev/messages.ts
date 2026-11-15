@@ -227,6 +227,19 @@ export const acceptedHarness = (id: string, title: string): string =>
 export const acceptedRepository = (id: string, title: string, path: string): string =>
   `accepted ${id} — ${title}: ${path} is not edited by /dev-learn; make the change in a batch (/dev-spec <code> refactor, or by hand):`;
 
+// ── The timing line of /dev-spec and /dev-plan ──────────────────────────
+
+export const timingSeconds = (seconds: number): string => `${seconds} s`;
+export const timingMinutes = (minutes: number, seconds: number): string => `${minutes} min ${seconds} s`;
+export const timingAttempts = (n: number): string => `(${n} attempts)`;
+export const timingRounds = (n: number): string => `(${n} rounds)`;
+export const timingPasses = (n: number): string => `(${n} passes)`;
+/** One phase: its name, its duration, then its runs when it ran more than once ("" otherwise). */
+export const timingPhase = (phase: string, duration: string, runs: string): string =>
+  `${phase} ${duration}${runs === "" ? "" : ` ${runs}`}`;
+export const TIMING_SEPARATOR = " · ";
+export const timingLine = (phases: string, total: string): string => `timing: ${phases} — total ${total}`;
+
 // ── The permission gate of a dev step ───────────────────────────────────
 
 export const GATE_ONLY_HINT = " /dev-batches <code> F<n> --audit --gate-only runs no model and needs no gate.";

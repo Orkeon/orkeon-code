@@ -47,6 +47,7 @@ import { childAgentBody, openChildAct } from "../../shared/infrastructure/orkeon
 import { charterCatalogue } from "../../shared/domain/agents/charter.ts";
 import { instanceLimits } from "../../shared/domain/agents/instances.ts";
 import { REVIEWER_CHARTER } from "../../shared/domain/dev/reviewer-charter.ts";
+import { reviewerCallbacks } from "../../shared/application/dev/spend.ts";
 import { STEP_BUDGETS } from "../../shared/domain/dev/step-budget.ts";
 import { stepPrecedents } from "../../shared/application/dev/step-precedents.ts";
 import { runDevChange } from "./application/run-dev-change.ts";
@@ -72,7 +73,7 @@ const reviewer = () => {
     .tools(charterCatalogue(REVIEWER_CHARTER))
     .withAutonomousTools(memoryRecallTools(ToolBuilder, orkeonMemoryToolPorts, memoryOn))
     .maxIterations(REVIEWER_CHARTER.maxIterations)
-    .body(childAgentBody(callbacksFor));
+    .body(childAgentBody((ctx: any) => reviewerCallbacks(callbacksFor(ctx))));
   return effort === undefined ? builder : builder.effort(effort);
 };
 

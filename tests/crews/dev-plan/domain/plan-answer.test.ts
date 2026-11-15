@@ -27,6 +27,17 @@ describe("checkPlanAnswer on the golden answers", () => {
     assertProblems(r, []);
   });
 
+  it("accepts a documentation batch whose test names no id", () => {
+    // Arrange
+    const answer = edited({ edit: (a) => { for (const s of a.batches[1].steps) for (const t of s.tests) t.ids = []; } });
+
+    // Act
+    const r = checkPlanAnswer(answer, CTX);
+
+    // Assert
+    assertProblems(r, []);
+  });
+
   it("accepts answer-cache.json against the refactor brief", () => {
     // Arrange
     const answer = copy(BRIEF_ANSWER);

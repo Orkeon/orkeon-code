@@ -27,3 +27,19 @@ export function assertProblems(result: Checked<unknown>, checks: readonly Proble
     ok(problems.some((p) => matches(p, check)), `no problem ${JSON.stringify(check)} in:\n${problems.join("\n")}`);
   }
 }
+
+type Read = { data: Array<{ source: string; importance: string }>; questions: Array<{ options: string[] }> };
+
+/** The answer is accepted and its data rows read `expected`, each a [source, importance] pair. */
+export function assertData(result: Checked<unknown>, expected: ReadonlyArray<readonly [string, string]>): void {
+  deepStrictEqual(problemsOf(result), []);
+  ok(result.ok);
+  deepStrictEqual((result.value as Read).data.map((d) => [d.source, d.importance]), expected);
+}
+
+/** The answer is accepted and its first question has `options`. */
+export function assertFirstOptions(result: Checked<unknown>, options: readonly string[]): void {
+  deepStrictEqual(problemsOf(result), []);
+  ok(result.ok);
+  deepStrictEqual((result.value as Read).questions[0].options, options);
+}

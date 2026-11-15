@@ -94,6 +94,17 @@ describe("reviewSystem — next-batch mode (/dev-batches)", () => {
     ok(!system.includes("For a plan, ask in particular:"));
   });
 
+  it("says no look-up budget to the next batch's reviewer, bounded by its turns", () => {
+    // Arrange
+    const mode = "next-batch";
+
+    // Act
+    const system = reviewSystem(mode);
+
+    // Assert
+    ok(!system.includes("look-ups"), "the next-batch system names a look-up budget");
+  });
+
   it("routes the next-batch reviewer to none of the tools its charter lacks", () => {
     // Arrange
     const mode = "next-batch";

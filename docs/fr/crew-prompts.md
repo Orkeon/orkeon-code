@@ -127,6 +127,11 @@ leurs droits, l'endroit où se résolvent les chemins relatifs.
   refusé faute d'élément se voit dire de faire l'un ou l'autre.
 - Un refus dit quoi changer : pour une longueur, il donne la longueur trouvée à côté de la limite ; pour une
   signature qui contient un corps, il la cite à partir de son `{`. Une expansion shell `${…}` n'est pas un corps.
+- Le test d'une étape de documentation peut ne nommer aucun identifiant de la source : c'est la commande de
+  documentation du dépôt.
+- Un fichier de test ou de doublure ancré comme existant et absent du dépôt est planifié par le code comme fichier
+  à créer, avec un avertissement dans le résumé, au lieu d'un second appel ; un fichier de production donné comme
+  existant et absent est refusé.
 - Un ancrage refusé dit pourquoi et quoi ancrer à la place : un dossier des réglages propres aux outils (`.claude/`,
   `.orkeon/` : le code que l'étape change, le réglage dit dans la note de l'étape), le dossier de travail (le chemin
   auquel le changement appartient), ou un chemin qui n'est pas écrit depuis la racine du dépôt avec `/`. Un refus
@@ -167,8 +172,19 @@ leurs droits, l'endroit où se résolvent les chemins relatifs.
   existent.
 - Un fait que l'index du code donne est énoncé, jamais demandé.
 - Le modèle répond en JSON et le code écrit le fichier.
+- Le code vérifie le vocabulaire métier du corps, pas des questions : une question est posée, pas spécifiée, et
+  celles du relecteur peuvent nommer ce dont elles parlent.
+- Le prompt dit chaque limite de forme que vérifie le code (la longueur d'un nom, de l'énoncé d'une règle, d'une
+  question, une ligne par champ, les nombres), pour qu'aucune ne soit découverte par un refus ; un tiret long dans le
+  nom devient un trait d'union.
+- La source et l'importance d'une ligne de données viennent de deux listes courtes que donne le prompt ; un mot hors
+  de ces listes est laissé vide par le code. Une option tient sur une ligne de 120 caractères sans `;` ni `|` : le
+  code change les séparateurs en virgules, et une question dont les options ne tiennent toujours pas dans une ligne
+  est posée en texte libre. Ni l'un ni l'autre ne coûte un second appel.
 - Ses questions ouvertes sont posées une à une, Blocking d'abord, l'option recommandée en tête, chaque réponse
   écrite sous `## 13. Decisions` avant la question suivante.
+- Le corps est réécrit avec les réponses une seule fois, à la fin de l'exécution, après les questions de la
+  relecture : un tour de questions ne réécrit rien, ses réponses restent sous `## 13. Decisions` jusque-là.
 - Sans personne pour répondre (une exécution sans opérateur), elles restent dans le fichier et l'étape se lit
   `BLOCKED`, jamais une réponse par défaut.
 
@@ -188,7 +204,7 @@ leurs droits, l'endroit où se résolvent les chemins relatifs.
 
 - Le relecteur traque les trous que l'auteur a laissés ouverts et ne fait que regarder : il ne modifie aucun
   fichier, ne lance aucune commande, et le code consigne ce qu'il rapporte.
-- Chaque constat est une phrase qui finit par une question que tranche un oui, un non ou un choix parmi les options
+- Chaque constat est une phrase de 300 caractères au plus qui finit par une question que tranche un oui, un non ou un choix parmi les options
   listées, et il cite un `path:line` qu'il a ouvert ou une section des fichiers. Le code redemande une fois un
   constat sans citation ; s'il n'en a toujours pas, il est gardé, sa preuve marquée `(no citation)`, pour qu'une
   seule ligne n'écarte jamais toute la relecture.
@@ -196,6 +212,9 @@ leurs droits, l'endroit où se résolvent les chemins relatifs.
   de conception, Major quand une hypothèse consignée suffit, et Major quand il hésite entre les deux.
 - Avant de demander, il cherche la réponse dans le reste du matériau (les autres fichiers que nomme le brief, le
   code), et une question que ce matériau tranche déjà n'est pas une ligne.
+- Pour une spec, ce que consigne sa section Decisions est tranché et l'emporte sur le corps, réécrit avec elle
+  seulement après la relecture : une question à laquelle une décision répond, ou une ligne du corps qu'une décision
+  remplace, n'est pas une ligne.
 - Le style est hors sujet et une liste vide est une réponse CLEAR.
 - Chaque question cible le plan (ou la spec, le brief) ou un lot par son identifiant seul, et l'extraction nomme les
   identifiants permis : un qualificatif après l'identifiant (`F2 (step 1)`) est ramené à l'identifiant, une cible
@@ -212,6 +231,10 @@ leurs droits, l'endroit où se résolvent les chemins relatifs.
   son nom ou un motif par `glob` là où aucune liste du projet ne le dit déjà, chacun dit seulement à une charte qui
   a l'outil.
 - Il n'ouvre que ce que les fichiers désignent, autour de la ligne citée.
+- La relecture d'un plan, d'une spec ou d'un brief dispose de seize consultations (appels d'outils) et le sait : elle
+  les dépense pour ce que demandent les questions les plus lourdes, plusieurs dans un même tour. Le code refuse tout
+  appel au-delà, avec l'ordre d'écrire les constats à partir de ce qui a été lu : une relecture conclut au lieu
+  d'épuiser ses tours en lisant. La relecture du lot suivant garde sa propre borne de tours.
 - Douze questions au plus, les plus lourdes d'abord.
 
 ## Commit (`git-commit`)

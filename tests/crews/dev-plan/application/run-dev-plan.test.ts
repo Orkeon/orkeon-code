@@ -11,14 +11,25 @@ import { runDevPlan } from "../../../../src/crews/dev-plan/application/run-dev-p
 import { FakePrecedents, PRECEDENTS_SAMPLE } from "../../../support/doubles/fake-precedents.ts";
 import {
   ANSWER, B1S1, B2S1, BLOCKED_END, CLEAR, CLEAR_SUMMARY, CODE, F1, F2, FEWER_BATCHES_TEXT, FOURTEEN_UNKNOWN_REUSE, INVENTORY, MAJOR_LINES,
-  NEXT_LINE, PJ, PLAN, REFUSALS, REVIEW_BLOCKING, REVIEW_MAJOR, REVIEW_UNCITED, STARTED_PLAN_TEXT, fixture, setup,
-  withGoldenPlan, withThreeBatchPlan, written,
+  NEXT_LINE, PJ, PLAN, PLAN_TIMING, REFUSALS, REVIEW_BLOCKING, REVIEW_MAJOR, REVIEW_UNCITED, STARTED_PLAN_TEXT, fixture,
+  setup, timedSetup, withGoldenPlan, withThreeBatchPlan, written,
 } from "./run-dev-plan.fixtures.ts";
 import { assertGoldenRenders, assertGuarded, assertListedOnce } from "./run-dev-plan.assertions.ts";
 import { assertMentions } from "../../../support/assertions/text.ts";
 import { WORKSPACE } from "../../../../src/shared/domain/vfs.ts";
 
 describe("runDevPlan — a plan written and reviewed", () => {
+  it("ends its summary on the time each phase took, the review's extraction apart from its act", async () => {
+    // Arrange
+    const f = timedSetup();
+
+    // Act
+    const text = await runDevPlan({ source: "prune" }, f.deps);
+
+    // Assert
+    strictEqual(text.split("\n").at(-1), PLAN_TIMING);
+  });
+
   it("writes the plan, its sheets and plan.json, and ends on the next command (review CLEAR)", async () => {
     // Arrange
     const f = setup();

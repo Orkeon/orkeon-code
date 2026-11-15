@@ -40,6 +40,8 @@ export const nameTooLong = (at: string, length: number, max: number): string =>
   `${at}: the name is ${length} characters, longer than ${max}`;
 export const projectEmpty = (at: string): string => `${at}: the project is empty`;
 export const notUnpinnedRow = (at: string, row: string): string => `${at}: ${row} is not an unpinned row`;
+export const anchorKindSetRight = (path: string): string =>
+  `anchor ${path}: a test file given as existing is not there, planned as a file to create`;
 export const namesNoId = (at: string): string => `${at}: names no id`;
 export const memberIsNot = (at: string, ref: string | undefined, member: string, name: string): string =>
   `${at}: anchor ${ref}: member "${member}" is not ${name}; leave member out to add a member to it`;
@@ -52,7 +54,9 @@ export const stepCount = (at: string, count: number): string =>
   `${at}: ${count} behaviour steps; 2 to 5 (1 to 5 for documentation)`;
 export const notDesignRuleId = (at: string, id: string): string => `${at}: ${id} is not a design rule id`;
 export const notEarlierBatch = (at: string, dep: string): string => `${at}: depends on ${dep}, which is not an earlier batch`;
-export const docsAndCode = (at: string): string => `${at}: documentation and code in one batch`;
+export const docsAndCode = (at: string, docs: string, code: string): string =>
+  `${at}: documentation and code in one batch (documentation: ${docs || "none"}; code: ${code || "none"}): ` +
+  "give the documentation paths a batch of their own, marked documentation, and leave the code paths in a batch that is not";
 export const noCodeElement = (at: string): string =>
   `${at}: no code element; name in elements what this batch adds or changes, or move its tests to the batch whose code they guard`;
 export const elementTooLong = (at: string, k: number, length: number, max: number): string =>

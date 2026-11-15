@@ -66,6 +66,11 @@ Le runtime exécute les sources sous des règles qui façonnent tout ce qui suit
   bout, les langages étant détectés sans être nommés.
 - **Un budget arrête `act` par une erreur typée.** Un budget `toolCalls` arrête `act` par une
   `BudgetExhaustedException` typée.
+- **Un acte arrêté à son plafond d'itérations est un échec, jamais une réponse.** Le runtime résout un tel acte avec
+  `exhausted: true` et un avis à la place des mots du modèle ; l'adaptateur `Llm` le lève comme une
+  `IterationsExhausted`. Un relecteur ou un auditeur qui n'a jamais conclu se lit alors `not run`, avec les tours
+  qu'il a utilisés, au lieu d'un avis interprété comme `CLEAR` ; la boucle principale montre l'avis comme réponse du
+  tour.
 
 Chaque point d'entrée est donc sa propre racine de composition : il construit les adaptateurs dont il a besoin et les
 remet à un cas d'usage qui reçoit ses dépendances en paramètres. Les ports sont des interfaces, effacées de chaque
@@ -536,6 +541,11 @@ publishCrew(CrewBuilder().name("analyze").process("sequential").withAgent(analys
     correction (aucune pour un audit que le budget a arrêté, dont la reprise tourne alors), jusqu'à trois tours
     d'audit en GAPS depuis le dernier VALID, un audit arrêté par le budget compté pour un.
   - Le troisième encore GAPS revient à un humain.
+- **`dev-spec`** et **`dev-plan`**, ce par quoi ils finissent :
+  - Une ligne `timing:` clôt le résumé et va au journal : le temps de chaque phase qui a tourné (`inventory`, `draft`,
+    `questions` - le temps que la personne met à répondre -, `fold`, `review`, `review extract`, `write`), ses
+    tentatives, tours ou passes quand elle a tourné plus d'une fois, puis `other` (ce que le run a passé hors de
+    toute phase) et le total.
 
 Un dossier commençant par `_` contient une sonde de développement (`probe.ork.ts`), jamais l'équipe d'une commande :
 `_probe-shared-memory` mesure le rappel de la mémoire partagée sur un jeu de référence, lancée par

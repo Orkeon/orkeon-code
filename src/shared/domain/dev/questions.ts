@@ -142,6 +142,26 @@ export const QUESTION_SCHEMA: object = {
   required: ["severity", "question", "impact", "options"],
 };
 
+/**
+ * The options of a question as a model gave them, made to fit a row without a second call: each on one line, its
+ * ';' and '|' (the separators of the row) turned into commas, the empty ones, the repeats and LEAVE_OPEN (code adds
+ * it) dropped, MAX_OPTIONS kept. A question left with one option, or with one longer than a row holds, has none: it
+ * is asked as free text.
+ */
+export function tidyOptions(options: readonly string[]): string[] {
+  const seen = new Set<string>();
+  const kept: string[] = [];
+  for (const raw of options) {
+    const option = raw.replace(/\s*[;|]\s*/g, ", ").replace(/\s+/g, " ").trim();
+    const key = option.toLowerCase();
+    if (option === "" || key === LEAVE_OPEN.toLowerCase() || seen.has(key)) continue;
+    seen.add(key);
+    kept.push(option);
+  }
+  if (kept.length < 2 || kept.some((o) => o.length > MAX_OPTION_CHARS)) return [];
+  return kept.slice(0, MAX_OPTIONS);
+}
+
 /** What is wrong with question `k` of an answer: [] when it is one closed question fitting a row. */
 export function draftQuestionProblems(q: DraftQuestion, k: number): string[] {
   const problems: string[] = [];

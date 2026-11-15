@@ -5,7 +5,8 @@ import { deepStrictEqual, ok, strictEqual } from "node:assert";
 
 import { runSubAgent } from "../../../../src/shared/application/agents/run-sub-agent.ts";
 import { FakeLlm } from "../../../support/doubles/fake-llm.ts";
-import { budgetExhaustedAnswer } from "../../../../src/shared/domain/llm-failure.ts";
+import { FakeLogger } from "../../../support/doubles/fake-logger.ts";
+import { budgetExhaustedAnswer, iterationsExhausted } from "../../../../src/shared/domain/llm-failure.ts";
 import { CANCELLED_ACTS, CHARTER, FINAL_EXTRACTION_FAILURES, ROUTES, acceptsNine, call } from "./run-sub-agent.fixtures.ts";
 
 describe("runSubAgent", () => {
@@ -142,6 +143,21 @@ describe("runSubAgent", () => {
     deepStrictEqual([outcome.ok, (outcome as { reason: string }).reason, llm.extracts.length], [false, "model-failed", 0]);
   });
 
+  it("reports an act stopped at its iteration cap as model-failed with its turns, without extracting the notice", async () => {
+    // Arrange
+    const llm = new FakeLlm();
+    llm.answers = [iterationsExhausted(20, "(max tool-call iterations reached without a final answer)")];
+
+    // Act
+    const outcome = await runSubAgent(llm, call());
+
+    // Assert
+    deepStrictEqual(
+      [outcome.ok, (outcome as { reason: string }).reason, (outcome as { problems: string[] }).problems, llm.extracts.length],
+      [false, "model-failed", ["the act used its 20 tool-call turns without a final answer"], 0],
+    );
+  });
+
   for (const c of CANCELLED_ACTS) {
     it(`reports a cancelled act as cancelled: ${c.name}`, async () => {
       // Arrange
@@ -185,6 +201,20 @@ describe("runSubAgent", () => {
     deepStrictEqual(outcome, { ok: true, value: 7, reply: "the reply", tries: 2 });
     strictEqual(llm.acts.length, 1);
     strictEqual(llm.extracts[1].prompt, "answer from: the reply | fix: the answer did not parse: Unexpected token at 3");
+  });
+
+  it("logs why the first answer was refused when it asks again", async () => {
+    // Arrange
+    const llm = new FakeLlm();
+    const log = new FakeLogger();
+    llm.answers = ["the reply"];
+    llm.extractions = [new Error("Unexpected token"), { count: 7 }];
+
+    // Act
+    await runSubAgent(llm, call(), undefined, log);
+
+    // Assert
+    deepStrictEqual(log.lines, [`info: ${CHARTER.name}: answer refused, asked again: the answer did not parse: Unexpected token`]);
   });
 
   it("checks the second try with lastCheck when the call gives one", async () => {

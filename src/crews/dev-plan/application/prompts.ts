@@ -44,7 +44,7 @@ export const PLAN_INSTRUCTIONS: string = [
     "followed by what the step documents, at level unit, so two documentation steps never share a name; never " +
     "invent a command.",
   "- A test's ids hold the UC, BR and CH ids it proves; its covers hold only the U<n> of the rows to characterise, " +
-    "and stay empty from a specification.",
+    "and stay empty from a specification. A documentation step's test may name no id.",
   "- Every UC, BR and CH id is carried by a test and has a code owner in traceability.",
   "- An adapter (storage, network, process) gets an integration test, or the step's note says why not.",
   "- From a change brief, the rows to characterise come first, as tests passing at once in the first step of " +

@@ -5,7 +5,7 @@
 // `route: "feature"` says the request is a new promise, for /dev-spec. CH ids are code's, by position. Pure.
 import type { Checked } from "../../../shared/domain/agents/charter.ts";
 import type { ChangeKind } from "../../../shared/domain/dev/spec-format.ts";
-import { MAX_QUESTIONS, QUESTION_SCHEMA, breaksCell, draftQuestionProblems } from "../../../shared/domain/dev/questions.ts";
+import { MAX_QUESTIONS, QUESTION_SCHEMA, breaksCell, draftQuestionProblems, tidyOptions } from "../../../shared/domain/dev/questions.ts";
 import type { DraftQuestion } from "../../../shared/domain/dev/questions.ts";
 import { NO_CRITERION, NO_CHANGE_SUMMARY, PERF_NEEDS_NUMBER, REFACTOR_NEEDS_PIN, cellOneLine, noBehaviour, noDesign, noProof, severityIsBlockingOrWarning, tooManyCriteria, tooManyLines } from "./messages.ts";
 import {
@@ -94,7 +94,7 @@ function readChangeAnswer(value: unknown): ChangeAnswer {
     assumptions: rows(o.assumptions, ["assumption", "validatedBy"]),
     questions: list(o.questions).map((q) => {
       const x = isObject(q) ? q : {};
-      return { severity: text(x.severity), question: text(x.question), impact: text(x.impact), options: textList(x.options) };
+      return { severity: text(x.severity), question: text(x.question), impact: text(x.impact), options: tidyOptions(textList(x.options)) };
     }),
   };
 }

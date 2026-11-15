@@ -4,7 +4,7 @@ import { describe, it } from "node:test";
 import { deepStrictEqual, strictEqual } from "node:assert";
 
 import { spendGuard } from "../../../../src/shared/application/dev/spend.ts";
-import { FILE_READ_CALL, guardedAct } from "./spend.fixtures.ts";
+import { FILE_READ_CALL, LOOKUPS_SPENT, guardedAct, reviewerActAfter } from "./spend.fixtures.ts";
 
 describe("createSpend and spendGuard", () => {
   it("lets the first call through", async () => {
@@ -65,5 +65,29 @@ describe("createSpend and spendGuard", () => {
 
     // Assert
     strictEqual(guarded, callbacks);
+  });
+});
+
+describe("reviewerCallbacks", () => {
+  it("lets the reviewer's sixteenth look-up through", async () => {
+    // Arrange
+    const act = await reviewerActAfter(15);
+
+    // Act
+    const verdict = await act.onToolCall(FILE_READ_CALL);
+
+    // Assert
+    strictEqual(verdict, "allow");
+  });
+
+  it("refuses the seventeenth look-up with the order to write the findings", async () => {
+    // Arrange
+    const act = await reviewerActAfter(16);
+
+    // Act
+    const verdict = await act.onToolCall(FILE_READ_CALL);
+
+    // Assert
+    deepStrictEqual(verdict, { deny: LOOKUPS_SPENT });
   });
 });

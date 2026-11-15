@@ -7,6 +7,59 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed — a review that ran out of turns no longer reads `CLEAR`
+
+- An agent stopped at its iteration cap gave the runtime's notice in place of an answer, and that notice was
+  parsed as one: a reviewer of `/dev-spec`, `/dev-change`, `/dev-plan` or `/dev-batches` that used its 20 turns
+  without concluding was reported `review: CLEAR`. Such an act is now a failure: the summary reads
+  `review: not run (model-failed: the act used its 20 tool-call turns without a final answer)`, a role of
+  `/dev-implement` and the auditor of `/dev-verify` stop on the same reason, and `/agent` fails with it. The main
+  loop still shows the runtime's notice as the turn's answer, with a warning in the log.
+
+### Changed — the adversarial reviewer has a look-up budget
+
+- The reviewer of `/dev-spec`, `/dev-change` and `/dev-plan` makes sixteen tool calls at most, and its prompt says
+  so. A call past them is refused with the order to write the findings from what was read: a review concludes
+  instead of reading until its twenty turns run out, and its last, heaviest turns are no longer spent. The review
+  of the next batch of `/dev-batches` is unchanged.
+
+### Changed — `/dev-spec` and `/dev-change` repair an answer instead of asking the model again
+
+- A spec was refused, and asked again whole (about a minute), for two faults of form the prompt never mentioned:
+  a data row whose source or importance was a word outside the template's lists, and a question's option longer
+  than a row holds or carrying `;` or `|`. The prompt now says both, and code repairs what still comes: the column
+  is left empty, the separators become commas, and a question whose options do not fit is asked as free text.
+- The spec's prompt now lists every limit of form the code checks (lengths of a name, a rule's statement and a
+  question, one line per field, the counts), and the reviewer is told a question holds 300 characters: an answer
+  was refused for limits it had never been told. A long dash in a spec's name becomes a hyphen.
+- A plan refused for a batch mixing documentation and code is asked again with the paths of each kind and what
+  to do with them; the second attempt, which never sees the refused answer, could not tell which path was meant.
+- A plan that anchors as existing a test file that is not there is no longer refused: code plans the file as one to
+  create and says so in a warning of the summary. A production file given as existing and absent is still refused.
+- A documentation batch's test (the repository's documentation command) may name no id: a plan was refused, and
+  drafted again whole (three minutes), because the changelog step's check proved no rule of the spec.
+- The business-words check of a spec no longer reads its questions: the rewrite of the spec was refused when a
+  question the reviewer had written named something technical (an exit status), which no rule forbade it.
+- The log says why an answer was refused and asked again (`dev-spec: answer refused, asked again: …`, the same for
+  `/dev-plan` and the reviewer's extraction).
+
+### Changed — `/dev-spec` rewrites the spec with the answers once
+
+- `/dev-spec` no longer has the model rewrite the whole spec after each round of questions (about two minutes a
+  rewrite on a small request): the answers are recorded under `## 13. Decisions` as before, and one rewrite at the
+  end of the run, after the questions of the review, writes every decision of the run into the body. The reviewer
+  reads the spec before that rewrite and is told that a recorded decision wins over the body. `/dev-change` keeps
+  its rewrite per round.
+
+### Added — `/dev-spec` and `/dev-plan` say where the time went
+
+- The summary of `/dev-spec` and `/dev-plan` ends on a `timing:` line, also logged, with the time of each phase
+  that ran and the total (`timing: inventory 3 s · draft 58 s (2 attempts) · questions 40 s · fold 31 s · review
+  6 min 12 s · review extract 9 s · other 4 s — total 8 min 37 s`). `other` is what the run spent outside every
+  phase, so the total is the run's own. The person's time to answer the questions is a phase of its
+  own, apart from the model's fold; the reviewer's act (`review`) apart from the extraction of its answer
+  (`review extract`). Nothing else of the runs changes: the same model calls, the same files.
+
 ### Added — `/effort` reads what the model takes
 
 - `/effort show` lists the effort levels the session's model takes (`glm-5.3 takes low, high, max`), and says
@@ -35,9 +88,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - All of it is the runtime's own judgement, read through Orkeon #359 and #360 (the host's `Llm:ModelCapabilities`
   included): on Orkeon 1.0.0 (the tool and docker modes) nothing is said of the model's levels.
 
-### Changed — the pin moves to Orkeon main after #377
+### Changed — the pin moves to Orkeon main after #380
 
-- `.orkeon-version` names `3a6a0d9`, Orkeon `main` after #351-#354, #356, #358 (the reasoning modes of
+- `.orkeon-version` names `322ffb9`, Orkeon `main` after #380 (the date of Orkeon 1.1.0 in its changelog, nothing
+  of the runtime), itself after #351-#354, #356, #358 (the reasoning modes of
   `orkeon llm probe`), #362 (Z.AI takes `xhigh`; GLM-5.3 keeps `low`, `high` and `max`), #361 (a script reads a
   model's reasoning capabilities and the effort sent), #363 (an agent's file-system scope, not used here), #365
   (a script lists the host's profiles and catches the runtime's refusals), #371 (a refusal is an

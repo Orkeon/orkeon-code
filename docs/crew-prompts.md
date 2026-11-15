@@ -115,6 +115,9 @@ Every system prompt below ends with the runtime's `## File system` section when 
   told to do one or the other.
 - A refusal says what to change: one for a length gives the length found beside the limit, one for a signature that
   holds a body quotes it from its `{`. A shell expansion `${…}` is not a body.
+- A documentation step's test may name no id of the source: it is the repository's documentation command.
+- A test or double file anchored as existing that is not there is planned by code as a file to create, with a
+  warning in the summary, instead of a second call; a production file given as existing and absent is refused.
 - An anchor refused says why and what to anchor instead: a folder of the tools' own settings (`.claude/`, `.orkeon/`:
   the code the step changes, the setting said in the step's note), the work folder (the path the change belongs to),
   or a path not written from the repository's root with `/`. A refusal names a batch `F<n>`, as `dependsOn` and the
@@ -147,13 +150,21 @@ Every system prompt below ends with the runtime's `## File system` section when 
 
 ## Spec (`dev-spec`)
 
-- Business words only, never a class, a file, a status code or a call.
+- Business words only, never a class, a file, a status code or a call. Code checks the body, not the questions: a
+  question is asked, not specified, and the reviewer's own may name what they are about.
 - Each use case names its actor, its intent, where the actor meets it and one to seven steps.
 - Each rule is one yes-or-no statement with its origin and severity, applied to use cases that exist.
 - A fact the code index answers is stated, never asked.
 - The model answers in JSON and code writes the file.
+- The prompt says every limit of form code checks (the length of a name, of a rule's statement, of a question, one
+  line per field, the counts), so that none is met first as a refusal; a long dash in the name becomes a hyphen.
+- A data row's source and importance come from two short lists the prompt gives; a word outside them is left empty
+  by code. An option fits one line of 120 characters without `;` nor `|`: code turns the separators into commas, and
+  a question whose options still do not fit a row is asked as free text. Neither costs a second call.
 - Its open questions are asked one at a time, Blocking first, the recommended option first, each answer written
   under `## 13. Decisions` before the next question.
+- The body is rewritten with the answers once, at the end of the run, after the questions of the review: a round of
+  questions rewrites nothing, its answers stay under `## 13. Decisions` until then.
 - Nobody to answer (an unattended run) leaves them in the file and the step reads `BLOCKED`, never a default answer.
 
 ## Change (`dev-change`)
@@ -172,13 +183,15 @@ Every system prompt below ends with the runtime's `## File system` section when 
 
 - The reviewer hunts for the gaps the author left open and only looks: it changes no file and runs no command, and
   code records what it reports.
-- Each finding is one sentence ending in a question that a yes, a no or a choice among listed options settles, and
+- Each finding is one sentence of 300 characters at most ending in a question that a yes, a no or a choice among listed options settles, and
   it cites a `path:line` it opened or a section of the files. Code asks again once for an uncited finding; one still
   uncited after that is kept, its evidence marked `(no citation)`, so that one row never drops the whole review.
 - Blocking when any answer would reshape a use case, a rule, the data, a state, the scope or a design choice, Major
   when an assumption on record is enough, and Major when torn between the two.
 - Before asking, it looks for the answer in the rest of the material (the other files the brief names, the code),
   and a question that material already settles is no row.
+- For a spec, what its Decisions section records is settled and wins over the body, rewritten with it only after the
+  review: a question a decision answers, or a body line a decision replaces, is no row.
 - Style is out of scope and an empty list is a CLEAR answer.
 - Each question targets the plan (or the spec, the brief) or one batch by its id alone, and the extraction names the
   ids it may use: a qualifier after the id (`F2 (step 1)`) is folded to the id, a target naming two ids is dropped.
@@ -193,6 +206,10 @@ Every system prompt below ends with the runtime's `## File system` section when 
   a symbol a search hit names with `symbol_source` on its fqn, a file by its name or a pattern with `glob` where no
   project list already says so, each said only to a charter holding the tool.
 - It opens only what the files point to, around the cited line.
+- The review of a plan, a spec or a brief has sixteen look-ups (tool calls) and is told so: it spends them on what
+  the heaviest questions need, several in one turn. Code refuses every call past them with the order to write the
+  findings from what was read, so a review concludes instead of running out of turns while it reads. The review of
+  the next batch keeps its own bound of turns.
 - Twelve questions at most, the heaviest first.
 
 ## Commit (`git-commit`)

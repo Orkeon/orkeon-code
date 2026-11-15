@@ -30,6 +30,11 @@ __pycache__/
 # Work folders of a session (plans, notes, reports, test campaigns): never part of the repository
 /todo/
 /temp/
+/workbench/
+
+# The runtime's local state at the root of the checkout (code index, cache, configuration); src/crews/.orkeon/ holds
+# the typings and stays tracked
+/.orkeon/
 
 # Documentation site (scripts/build-docs-site.sh)
 /_site/

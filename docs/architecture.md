@@ -62,6 +62,10 @@ The runtime runs the sources under rules that shape everything below:
   without being named.
 - **A budget stops `act` with a typed error.** A `toolCalls` budget stops `act` with a typed
   `BudgetExhaustedException`.
+- **An act stopped at its iteration cap is a failure, never an answer.** The runtime resolves such an act with
+  `exhausted: true` and a notice in place of the model's words; the `Llm` adapter throws it as an
+  `IterationsExhausted`. A reviewer or an auditor that never concluded then reads `not run`, with the turns it used,
+  instead of a notice parsed as `CLEAR`; the main loop shows the notice as the turn's answer.
 
 So each entry point is its own composition root: it builds the adapters it needs and hands them to a use case that
 takes its dependencies as parameters. The ports are interfaces, erased from every bundle, and a test imports a use
@@ -513,6 +517,10 @@ publishCrew(CrewBuilder().name("analyze").process("sequential").withAgent(analys
     correction (none for an audit the budget stopped, whose resume then runs), up to three audit rounds in GAPS
     since the last VALID, an audit the budget stopped counted as one.
   - The third still GAPS goes to a human.
+- **`dev-spec`** and **`dev-plan`**, what they end on:
+  - A `timing:` line closes the summary and goes to the log: the time of each phase that ran (`inventory`, `draft`,
+    `questions` - the person's time to answer -, `fold`, `review`, `review extract`, `write`), its attempts, rounds
+    or passes when it ran more than once, then `other` (what the run spent outside every phase) and the total.
 
 A folder starting with `_` holds a development probe (`probe.ork.ts`), never a command's crew: `_probe-shared-memory`
 measures the shared memory's recall on a reference set, run by `scripts/check-shared-memory.sh` before a release.

@@ -213,11 +213,11 @@ export const ANCHOR_CASES: readonly RuleCase[] = [
   { name: "15: a test anchor per step", problems: [`${F1S1}: no test anchor`], edit: (a) => { a.batches[0].steps[0].anchors.tests = []; } },
   { name: "15: a production anchor per step, a documentation batch needing no test anchor", problems: [`${F2S1}: no production anchor`], edit: (a) => { a.batches[1].steps[0].anchors.production = []; } },
   {
-    name: "16: documentation and code never share a batch: documentation in a code batch", problems: [`${F1}: documentation and code in one batch`],
+    name: "16: documentation and code never share a batch: documentation in a code batch", problems: [`${F1}: documentation and code in one batch (documentation: README.md; code: src/shared/domain/memory-prune.ts, src/shared/domain/memory.ts, src/commands/_lib/memory.ts): give the documentation paths a batch of their own, marked documentation, and leave the code paths in a batch that is not`],
     edit: (a) => { a.batches[0].steps[0].anchors.production.push({ kind: "existing", path: "README.md" }); },
   },
   {
-    name: "16: documentation and code never share a batch: code in a documentation batch", problems: [`${F2}: documentation and code in one batch`],
+    name: "16: documentation and code never share a batch: code in a documentation batch", problems: [`${F2}: documentation and code in one batch (documentation: docs/commands.md, docs/fr/commands.md; code: src/x.ts): give the documentation paths a batch of their own, marked documentation, and leave the code paths in a batch that is not`],
     edit: (a) => { a.batches[1].steps[0].anchors.production.push({ kind: "create", path: "src/x.ts" }); },
   },
   { name: "17: two batches sharing a path and not ordered", problems: [`${F1} and ${F3} share src/commands/_lib/memory.ts and neither depends on the other`], edit: third([]) },

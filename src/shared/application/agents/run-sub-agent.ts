@@ -8,12 +8,12 @@
 // runs on (route-agent.ts actRoute): null, or a route that throws, leaves the act on the agent's own profile; the
 // extractions are never routed.
 
-import type { Llm } from "../ports.ts";
+import type { Llm, Logger } from "../ports.ts";
 import type { ActRoute } from "./route-agent.ts";
 import { MAX_BRIEF_CHARS, charterProblems } from "../../domain/agents/charter.ts";
 import type { Charter, Checked } from "../../domain/agents/charter.ts";
 import { readBudgetExhausted } from "../../domain/dev/step-budget.ts";
-import { answerDidNotParse, briefTooLong } from "./messages.ts";
+import { answerAskedAgain, answerDidNotParse, briefTooLong } from "./messages.ts";
 import { errorText } from "../../domain/error-text.ts";
 
 export interface SubAgentCall<T> {
@@ -83,7 +83,7 @@ async function routedProfile(route: ActRoute | undefined, crew: string, brief: s
 }
 
 export async function runSubAgent<T>(
-  llm: Pick<Llm, "act" | "extract">, call: SubAgentCall<T>, route?: ActRoute,
+  llm: Pick<Llm, "act" | "extract">, call: SubAgentCall<T>, route?: ActRoute, log?: Pick<Logger, "info">,
 ): Promise<SubAgentOutcome<T>> {
   const { charter, brief } = call;
   const invalid = charterProblems(charter);
@@ -111,6 +111,7 @@ export async function runSubAgent<T>(
   const first = await tryAnswer(llm, call, reply, [], call.check);
   if (first.ok) return { ok: true, value: first.value, reply, tries: 1 };
   if ("reason" in first) return { ok: false, reason: first.reason, problems: first.problems, reply };
+  log?.info(answerAskedAgain(charter.name, first.problems));
   const second = await tryAnswer(llm, call, reply, first.problems, call.lastCheck ?? call.check);
   if (second.ok) return { ok: true, value: second.value, reply, tries: 2 };
   if ("reason" in second) return { ok: false, reason: second.reason, problems: second.problems, reply };

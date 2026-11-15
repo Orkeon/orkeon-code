@@ -18,6 +18,9 @@ export const mountCheckRefusedHook = (label: string, denial: string): string =>
 // spend.ts, wrapped-tools.ts
 export const budgetSpent = (limit: number): string =>
   `budget: this batch has spent its ${limit} tool calls; end the act and say what is left`;
+export const lookupsSpent = (limit: number): string =>
+  `review: your ${limit} look-ups are spent; open nothing more and write your findings now, from what you read: ` +
+  "CLEAR, or each question with its severity, evidence and target";
 export const noRoleRestores = (command: string): string => `'${command}' restores: no role restores, the step did it once`;
 
 // measure-access-cost.ts
