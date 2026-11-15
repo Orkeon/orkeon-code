@@ -32,6 +32,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - The spec's prompt now lists every limit of form the code checks (lengths of a name, a rule's statement and a
   question, one line per field, the counts), and the reviewer is told a question holds 300 characters: an answer
   was refused for limits it had never been told. A long dash in a spec's name becomes a hyphen.
+- A plan refused for a batch mixing documentation and code is asked again with the paths of each kind and what
+  to do with them; the second attempt, which never sees the refused answer, could not tell which path was meant.
 - The log says why an answer was refused and asked again (`dev-spec: answer refused, asked again: …`, the same for
   `/dev-plan` and the reviewer's extraction).
 

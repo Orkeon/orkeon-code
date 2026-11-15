@@ -52,7 +52,9 @@ export const stepCount = (at: string, count: number): string =>
   `${at}: ${count} behaviour steps; 2 to 5 (1 to 5 for documentation)`;
 export const notDesignRuleId = (at: string, id: string): string => `${at}: ${id} is not a design rule id`;
 export const notEarlierBatch = (at: string, dep: string): string => `${at}: depends on ${dep}, which is not an earlier batch`;
-export const docsAndCode = (at: string): string => `${at}: documentation and code in one batch`;
+export const docsAndCode = (at: string, docs: string, code: string): string =>
+  `${at}: documentation and code in one batch (documentation: ${docs || "none"}; code: ${code || "none"}): ` +
+  "give the documentation paths a batch of their own, marked documentation, and leave the code paths in a batch that is not";
 export const noCodeElement = (at: string): string =>
   `${at}: no code element; name in elements what this batch adds or changes, or move its tests to the batch whose code they guard`;
 export const elementTooLong = (at: string, k: number, length: number, max: number): string =>

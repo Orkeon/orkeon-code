@@ -619,7 +619,7 @@ function batchProblems(b: PlanBatch, k: number, ctx: PlanCheckContext, inventory
   const production = b.steps.flatMap((s) => s.anchors.production).map((a) => pathOf(a, ctx)).filter((p): p is string => p !== undefined);
   const docs = production.filter(isDocPath);
   if ((docs.length > 0 && !b.documentation) || (b.documentation && docs.length < production.length)) {
-    out.push(docsAndCode(at));
+    out.push(docsAndCode(at, [...new Set(docs)].join(", "), [...new Set(production.filter((p) => !isDocPath(p)))].join(", ")));
   }
   // 20, 21: the code elements.
   if (!b.documentation && b.elements.length === 0) out.push(noCodeElement(at));
