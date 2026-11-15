@@ -111,7 +111,7 @@ const oneOf = (value: string, allowed: readonly string[]): string => (allowed.in
 function readSpecAnswer(value: unknown): SpecAnswer {
   const o = isObject(value) ? value : {};
   return {
-    name: text(o.name), summary: text(o.summary), context: text(o.context),
+    name: text(o.name).replace(/\s*—\s*/g, " - "), summary: text(o.summary), context: text(o.context),
     vocabulary: rows(o.vocabulary, ["term", "definition"]),
     overview: typeof o.overview === "string" ? o.overview.trim() : "",
     useCases: list(o.useCases).map((u) => {

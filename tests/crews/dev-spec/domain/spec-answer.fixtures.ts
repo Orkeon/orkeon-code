@@ -53,10 +53,10 @@ export const REFUSED_SPECS: readonly RefusedSpecCase[] = [
     ],
   },
   {
-    name: "a cell with '|' and a name with '—'",
+    name: "a cell with '|' and a name over 80 characters",
     answer: () => {
       const a = validSpec();
-      a.name = "Prune — old";
+      a.name = "n".repeat(81);
       a.outOfScope[0].reason = "a | b";
       return a;
     },

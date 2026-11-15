@@ -167,6 +167,9 @@ leurs droits, l'endroit où se résolvent les chemins relatifs.
   existent.
 - Un fait que l'index du code donne est énoncé, jamais demandé.
 - Le modèle répond en JSON et le code écrit le fichier.
+- Le prompt dit chaque limite de forme que vérifie le code (la longueur d'un nom, de l'énoncé d'une règle, d'une
+  question, une ligne par champ, les nombres), pour qu'aucune ne soit découverte par un refus ; un tiret long dans le
+  nom devient un trait d'union.
 - La source et l'importance d'une ligne de données viennent de deux listes courtes que donne le prompt ; un mot hors
   de ces listes est laissé vide par le code. Une option tient sur une ligne de 120 caractères sans `;` ni `|` : le
   code change les séparateurs en virgules, et une question dont les options ne tiennent toujours pas dans une ligne
@@ -194,7 +197,7 @@ leurs droits, l'endroit où se résolvent les chemins relatifs.
 
 - Le relecteur traque les trous que l'auteur a laissés ouverts et ne fait que regarder : il ne modifie aucun
   fichier, ne lance aucune commande, et le code consigne ce qu'il rapporte.
-- Chaque constat est une phrase qui finit par une question que tranche un oui, un non ou un choix parmi les options
+- Chaque constat est une phrase de 300 caractères au plus qui finit par une question que tranche un oui, un non ou un choix parmi les options
   listées, et il cite un `path:line` qu'il a ouvert ou une section des fichiers. Le code redemande une fois un
   constat sans citation ; s'il n'en a toujours pas, il est gardé, sa preuve marquée `(no citation)`, pour qu'une
   seule ligne n'écarte jamais toute la relecture.

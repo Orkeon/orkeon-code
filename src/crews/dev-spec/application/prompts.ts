@@ -27,6 +27,12 @@ const SPEC_INSTRUCTIONS: string = [
     "secondary, expert; leave either empty when none fits.",
   "- An assumption is what you took for lack of an answer and the person who will validate it.",
   "",
+  "Form, checked by code (an answer outside it is refused):",
+  "- name: one line of at most 80 characters, without a long dash; each use case's and each rule's name the same.",
+  "- A rule's statement is one line of at most 200 characters; what does not fit is a second rule or its example.",
+  "- Every field of a use case, a rule and a table is one line, without '|'; a scenario step is one line.",
+  "- At most 12 use cases, 24 rules and 12 questions; a question is one line of at most 300 characters, its impact too.",
+  "",
   "Questions:",
   "- Ask only what neither the request nor the code settles and what would change a use case, a rule, the data, a " +
     "state or the scope. Never ask what a decision below already settled.",

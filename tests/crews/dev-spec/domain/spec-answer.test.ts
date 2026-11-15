@@ -52,6 +52,17 @@ describe("checkSpecAnswer — repaired without a second call", () => {
     assertData(result, [["", ""], ["entered", "essential"]]);
   });
 
+  it("turns a long dash of the name into a hyphen", () => {
+    // Arrange
+    const answer = { ...validSpec(), name: "Prune — old" };
+
+    // Act
+    const result = checkSpecAnswer(answer);
+
+    // Assert
+    strictEqual(result.ok ? result.value.name : result.problems.join("; "), "Prune - old");
+  });
+
   it("asks as free text a question whose options do not fit a row", () => {
     // Arrange
     const answer = specWithOptions(["No", "y".repeat(121)]);

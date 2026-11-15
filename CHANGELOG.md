@@ -29,6 +29,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   a data row whose source or importance was a word outside the template's lists, and a question's option longer
   than a row holds or carrying `;` or `|`. The prompt now says both, and code repairs what still comes: the column
   is left empty, the separators become commas, and a question whose options do not fit is asked as free text.
+- The spec's prompt now lists every limit of form the code checks (lengths of a name, a rule's statement and a
+  question, one line per field, the counts), and the reviewer is told a question holds 300 characters: an answer
+  was refused for limits it had never been told. A long dash in a spec's name becomes a hyphen.
 - The log says why an answer was refused and asked again (`dev-spec: answer refused, asked again: …`, the same for
   `/dev-plan` and the reviewer's extraction).
 

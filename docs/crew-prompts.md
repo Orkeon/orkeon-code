@@ -152,6 +152,8 @@ Every system prompt below ends with the runtime's `## File system` section when 
 - Each rule is one yes-or-no statement with its origin and severity, applied to use cases that exist.
 - A fact the code index answers is stated, never asked.
 - The model answers in JSON and code writes the file.
+- The prompt says every limit of form code checks (the length of a name, of a rule's statement, of a question, one
+  line per field, the counts), so that none is met first as a refusal; a long dash in the name becomes a hyphen.
 - A data row's source and importance come from two short lists the prompt gives; a word outside them is left empty
   by code. An option fits one line of 120 characters without `;` nor `|`: code turns the separators into commas, and
   a question whose options still do not fit a row is asked as free text. Neither costs a second call.
@@ -177,7 +179,7 @@ Every system prompt below ends with the runtime's `## File system` section when 
 
 - The reviewer hunts for the gaps the author left open and only looks: it changes no file and runs no command, and
   code records what it reports.
-- Each finding is one sentence ending in a question that a yes, a no or a choice among listed options settles, and
+- Each finding is one sentence of 300 characters at most ending in a question that a yes, a no or a choice among listed options settles, and
   it cites a `path:line` it opened or a section of the files. Code asks again once for an uncited finding; one still
   uncited after that is kept, its evidence marked `(no citation)`, so that one row never drops the whole review.
 - Blocking when any answer would reshape a use case, a rule, the data, a state, the scope or a design choice, Major
