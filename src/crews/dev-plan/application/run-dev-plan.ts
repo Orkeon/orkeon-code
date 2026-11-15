@@ -14,6 +14,7 @@ import { GIT_TOPLEVEL } from "../../../shared/application/dev/resolve-work-folde
 import { readPlanSource, resolvePlanSource } from "../../../shared/application/dev/plan-source.ts";
 import type { ResolvedSource } from "../../../shared/application/dev/plan-source.ts";
 import { runSubAgent } from "../../../shared/application/agents/run-sub-agent.ts";
+import { PhaseTimer } from "../../../shared/application/dev/phase-timer.ts";
 import { classifyArtefact, compareBatchIds } from "../../../shared/domain/dev/artefacts.ts";
 import { blockingStop } from "../../../shared/domain/dev/spec-format.ts";
 import type { PlanSource } from "../../../shared/domain/dev/spec-format.ts";
@@ -191,14 +192,14 @@ interface Planned { answer: PlanAnswer; rendered: RenderedPlan }
 
 async function askPlan(
   deps: DevPlanDeps, promptInput: PlanPromptInput, checkCtx: PlanCheckContext, render: (a: PlanAnswer) => RenderedPlan,
-  sourceIds: readonly string[],
+  sourceIds: readonly string[], timer: PhaseTimer,
 ): Promise<{ ok: true; planned: Planned } | { ok: false; problems: string[] }> {
   let problems: string[] = [];
   const listings: AnchorListings = new Map();   // one listing per folder for the run, not per attempt
   for (let attempt = 1; attempt <= 2; attempt++) {
     let value: unknown;
     try {
-      value = await deps.llm.extract(buildPlanPrompt(promptInput, problems), PLAN_ANSWER_SCHEMA);
+      value = await timer.time("draft", () => deps.llm.extract(buildPlanPrompt(promptInput, problems), PLAN_ANSWER_SCHEMA));
     } catch (e) {
       problems = [answerDidNotParse(errorText(e))];
       continue;
@@ -305,13 +306,14 @@ export async function runDevPlan(input: DevPlanInputs, deps: DevPlanDeps): Promi
   if (!existing.ok) return existing.text;
 
   // 8. Inventory.
+  const timer = new PhaseTimer(deps.clock);
   const pack = ctx.pack;
-  const built = await buildInventory(deps.index, deps.anchors, {
+  const built = await timer.time("inventory", () => buildInventory(deps.index, deps.anchors, {
     titles: parsed.ids.map((i) => ({ id: i.id, title: i.title })),
     workShown: ctx.work.folder,
     layout: pack?.pack.layout ?? null,
     buildOutputs: pack?.pack.layout.buildOutputs ?? [],
-  }, deps.log);
+  }, deps.log));
   if (!built.ok) return built.text;
   const inventory = built.inventory;
 
@@ -355,7 +357,7 @@ export async function runDevPlan(input: DevPlanInputs, deps: DevPlanDeps): Promi
     kind: source.kind, ...(parsed.changeKind === undefined ? {} : { changeKind: parsed.changeKind }),
     pinned, unpinned: unpinned.map((u) => u.key), workFolder: ctx.work.folder,
   };
-  const asked = await askPlan(deps, promptInput, checkCtx, (a) => renderPlan(renderInput(a, null)), sourceIds);
+  const asked = await askPlan(deps, promptInput, checkCtx, (a) => renderPlan(renderInput(a, null)), sourceIds, timer);
   if (!asked.ok) {
     return [REFUSED_TWICE, ...problemLines(asked.problems)].join("\n");
   }
@@ -371,9 +373,11 @@ export async function runDevPlan(input: DevPlanInputs, deps: DevPlanDeps): Promi
   // 11. Write.
   const generated = deps.clock();
   try {
-    await writeOne(deps.files, place, rendered.plan.name, rendered.plan.text);
-    for (const s of rendered.sheets) await writeOne(deps.files, place, s.name, s.text);
-    await writeOne(deps.files, place, PLAN_JSON, planJson(generated, source, inventory, answer, null));
+    await timer.time("write", async () => {
+      await writeOne(deps.files, place, rendered.plan.name, rendered.plan.text);
+      for (const s of rendered.sheets) await writeOne(deps.files, place, s.name, s.text);
+      await writeOne(deps.files, place, PLAN_JSON, planJson(generated, source, inventory, answer, null));
+    }, "pass");
   } catch (e) {
     const shown = e instanceof WriteFailure ? e.shown : "a file";
     return planFileNotWritten(shown, firstLine(e));
@@ -385,7 +389,7 @@ export async function runDevPlan(input: DevPlanInputs, deps: DevPlanDeps): Promi
   const warnings = [...ctx.warnings, ...inventory.warnings, ...absentWarning(repo.absent, rendered.plan.name, source.code)];
   if (deps.llm.permissionGateEnabled() === false) warnings.push(GATE_OFF);
   const targets = ["plan", ...answer.batches.map((_, k) => `F${k + 1}`)];
-  const outcome = await runSubAgent(deps.llm, {
+  const outcome = await timer.time("review", () => runSubAgent(timer.timedExtract(deps.llm, "review extract"), {
     charter: REVIEWER_CHARTER,
     system: reviewSystem("plan"),
     brief: buildReviewBrief({
@@ -396,7 +400,7 @@ export async function runDevPlan(input: DevPlanInputs, deps: DevPlanDeps): Promi
     schema: REVIEW_ANSWER_SCHEMA,
     answerPrompt: (reply, problems) => buildReviewAnswerPrompt(reply, problems, targets),
     ...reviewChecks(targets),
-  }, deps.route);
+  }, deps.route));
 
   // 13. Review rows into the files; the review is never run again.
   let review: ReviewAnswer | null = null;
@@ -404,27 +408,32 @@ export async function runDevPlan(input: DevPlanInputs, deps: DevPlanDeps): Promi
   if (!outcome.ok) {
     reviewText = [reviewNotRunWithCause(outcome.reason, outcome.problems[0] ?? "no detail")];
   } else {
-    review = outcome.value;
-    reviewText = reviewLines(review);
+    const answered = outcome.value;
+    review = answered;
+    reviewText = reviewLines(answered);
     try {
-      if (review.rows.length > 0) {
-        const reviewed = renderPlan(renderInput(answer, review));
-        const self = planSelfCheck({ plan: reviewed.plan, sheets: reviewed.sheets, sourceIds });
-        if (!self.ok) {
-          return [
-            REVIEWED_FAILS_SELF_CHECK,
-            ...problemLines(self.problems),
-            ROWS_NOT_WRITTEN,
-            ...review.rows.map((r) => `  ${r.severity} ${r.target} — ${r.question} (${r.evidence})`),
-          ].join("\n");
+      const stop = await timer.time("write", async (): Promise<string | null> => {
+        if (answered.rows.length > 0) {
+          const reviewed = renderPlan(renderInput(answer, answered));
+          const self = planSelfCheck({ plan: reviewed.plan, sheets: reviewed.sheets, sourceIds });
+          if (!self.ok) {
+            return [
+              REVIEWED_FAILS_SELF_CHECK,
+              ...problemLines(self.problems),
+              ROWS_NOT_WRITTEN,
+              ...answered.rows.map((r) => `  ${r.severity} ${r.target} — ${r.question} (${r.evidence})`),
+            ].join("\n");
+          }
+          if (reviewed.plan.text !== rendered.plan.text) await writeOne(deps.files, place, reviewed.plan.name, reviewed.plan.text);
+          for (const [k, s] of reviewed.sheets.entries()) {
+            if (s.text !== rendered.sheets[k].text) await writeOne(deps.files, place, s.name, s.text);
+          }
+          rendered = reviewed;
         }
-        if (reviewed.plan.text !== rendered.plan.text) await writeOne(deps.files, place, reviewed.plan.name, reviewed.plan.text);
-        for (const [k, s] of reviewed.sheets.entries()) {
-          if (s.text !== rendered.sheets[k].text) await writeOne(deps.files, place, s.name, s.text);
-        }
-        rendered = reviewed;
-      }
-      await writeOne(deps.files, place, PLAN_JSON, planJson(generated, source, inventory, answer, review));
+        await writeOne(deps.files, place, PLAN_JSON, planJson(generated, source, inventory, answer, answered));
+        return null;
+      }, "pass");
+      if (stop !== null) return stop;
     } catch (e) {
       const shown = e instanceof WriteFailure ? e.shown : "a file";
       return planFileNotWritten(shown, firstLine(e));
@@ -453,6 +462,11 @@ export async function runDevPlan(input: DevPlanInputs, deps: DevPlanDeps): Promi
     lines.push(unreviewed(source.code));
   } else {
     lines.push(nextCommand(answer, planShown, source.code));
+  }
+  const timing = timer.line();
+  if (timing !== "") {
+    deps.log.info(timing);
+    lines.push(timing);
   }
   return lines.join("\n");
 }

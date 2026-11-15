@@ -1,6 +1,7 @@
 // The checkout, the fakes and the scripted person runDevSpec is tested over.
 import { readFileSync } from "node:fs";
 
+import { FakeClock } from "../../../support/doubles/fake-clock.ts";
 import { FakeCodeIndex } from "../../../support/doubles/fake-code-index.ts";
 import { FakeFiles } from "../../../support/doubles/fake-files.ts";
 import { FakeHumanInput } from "../../../support/doubles/fake-human-input.ts";
@@ -53,6 +54,19 @@ export function devSpecSetup(script: Array<string | null> = []) {
   return { files, shell, llm, log, person, deps };
 }
 export type Setup = ReturnType<typeof devSpecSetup>;
+
+/** `devSpecSetup(script)` on a clock moving 30 s at each read: each timed phase takes a known time. */
+export function timedSetup(script: Array<string | null>): Setup {
+  const f = devSpecSetup(script);
+  const clock = new FakeClock();
+  clock.tickMs = 30_000;
+  return { ...f, deps: { ...f.deps, clock: clock.now } };
+}
+
+/** The timing line of a timed new spec, one question decided, reviewed CLEAR: the person's round apart from the
+ *  model's fold, the review's extraction apart from its act. */
+export const SPEC_TIMING = "timing: inventory 30 s · draft 30 s · questions 1 min 0 s · fold 30 s · review 1 min 0 s · " +
+  "review extract 30 s · other 3 min 0 s — total 7 min 0 s";
 
 /** Runs runDevSpec on `input` over the setup's deps. */
 export const run = (f: Setup, input: DevSpecInputs = { code: "prune", request: REQUEST }) => runDevSpec(input, f.deps);

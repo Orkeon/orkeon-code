@@ -12,13 +12,25 @@ import { runDevSpec } from "../../../../src/crews/dev-spec/application/run-dev-s
 import { DEV_SPEC_NEXT } from "../../../../src/crews/dev-spec/application/messages.ts";
 import { FakePrecedents, PRECEDENTS_SAMPLE } from "../../../support/doubles/fake-precedents.ts";
 import {
-  ANSWER, CLEAR, CODE, GAPS_REVIEW, REQUEST, SPEC, devSpecSetup, folded, run, specWithQ1Decided,
+  ANSWER, CLEAR, CODE, GAPS_REVIEW, REQUEST, SPEC, SPEC_TIMING, devSpecSetup, folded, run, specWithQ1Decided, timedSetup,
 } from "./run-dev-spec.fixtures.ts";
 import { assertAllMention, assertHasLines, assertNoPromptMentions } from "./run-dev-spec.assertions.ts";
 import { assertAllUnder } from "../../../support/assertions/paths.ts";
 import { WORKSPACE } from "../../../../src/shared/domain/vfs.ts";
 
 describe("runDevSpec — a new spec settled with the person", () => {
+  it("ends its summary on the time each phase took, the person's questions apart from the model's fold", async () => {
+    // Arrange
+    const f = timedSetup(["No", "Leave it open"]);
+    f.llm.extractions = [ANSWER, folded(), CLEAR];
+
+    // Act
+    const text = await run(f);
+
+    // Assert
+    strictEqual(text.split("\n").at(-1), SPEC_TIMING);
+  });
+
   it("runs the reviewer's act on the profile its route answers", async () => {
     // Arrange
     const f = devSpecSetup(["No", "Leave it open"]);

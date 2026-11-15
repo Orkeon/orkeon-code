@@ -3,6 +3,7 @@
 // reviews the model gives, and the texts longer than a line it ends on.
 import { readFileSync } from "node:fs";
 
+import { FakeClock } from "../../../support/doubles/fake-clock.ts";
 import { FakeCodeIndex } from "../../../support/doubles/fake-code-index.ts";
 import { FakeFiles } from "../../../support/doubles/fake-files.ts";
 import { FakeLlm } from "../../../support/doubles/fake-llm.ts";
@@ -128,6 +129,18 @@ export function setup(source = "SPEC-prune.md") {
   return { files, shell, llm, index, anchors, log, deps };
 }
 export type Setup = ReturnType<typeof setup>;
+
+/** The setup on a clock moving 30 s at each read: each timed phase takes a known time. */
+export function timedSetup(): Setup {
+  const f = setup();
+  const clock = new FakeClock();
+  clock.tickMs = 30_000;
+  return { ...f, deps: { ...f.deps, clock: clock.now } };
+}
+
+/** The timing line a timed setup's plan, reviewed CLEAR, ends on: one tick per phase, the review's extraction apart. */
+export const PLAN_TIMING =
+  "timing: inventory 30 s · draft 30 s · write 1 min 0 s (2 passes) · review 1 min 0 s · review extract 30 s · other 4 min 0 s — total 7 min 30 s";
 
 /** The paths written, in order. */
 export const written = (f: Setup): string[] => f.files.writes.map((w) => w.path);

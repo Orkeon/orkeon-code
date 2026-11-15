@@ -7,6 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added — `/dev-spec` and `/dev-plan` say where the time went
+
+- The summary of `/dev-spec` and `/dev-plan` ends on a `timing:` line, also logged, with the time of each phase
+  that ran and the total (`timing: inventory 3 s · draft 58 s (2 attempts) · questions 40 s · fold 31 s · review
+  6 min 12 s · review extract 9 s · other 4 s — total 8 min 37 s`). `other` is what the run spent outside every
+  phase, so the total is the run's own. The person's time to answer the questions is a phase of its
+  own, apart from the model's fold; the reviewer's act (`review`) apart from the extraction of its answer
+  (`review extract`). Nothing else of the runs changes: the same model calls, the same files.
+
 ### Added — `/effort` reads what the model takes
 
 - `/effort show` lists the effort levels the session's model takes (`glm-5.3 takes low, high, max`), and says

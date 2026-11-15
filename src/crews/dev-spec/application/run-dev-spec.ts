@@ -13,6 +13,7 @@ import { briefInventory, briefInventoryLine, briefPhrases, renderBriefInventory 
 import { questionRound } from "../../../shared/application/dev/question-round.ts";
 import type { Folded, RoundState } from "../../../shared/application/dev/question-round.ts";
 import { reviewLine, reviewSource } from "../../../shared/application/dev/source-review.ts";
+import { PhaseTimer } from "../../../shared/application/dev/phase-timer.ts";
 import type { SourceReviewOutcome } from "../../../shared/application/dev/source-review.ts";
 import {
   codeFolder, dateOf, firstLine, inputCode, inputText, openLine, plural, problemLines, readRequest, sourceSelfCheck,
@@ -50,15 +51,18 @@ const HEADINGS = { questions: SPEC_QUESTIONS_SECTION, decisions: SPEC_DECISIONS_
 
 interface Drafted { answer: SpecAnswer; text: string; open: Question[] }
 
-/** One extract, re-asked once with the problems; the text is rendered and read back before it is accepted. */
+/** One extract, re-asked once with the problems; the text is rendered and read back before it is accepted. Each
+ *  extract is timed as a "draft" attempt when `timer` is given (the fold is timed whole by its caller). */
 async function askSpec(
   deps: DevSpecDeps, prompt: SpecPromptInput, open: (a: SpecAnswer) => Question[], decisions: readonly Decision[],
+  timer: PhaseTimer | null,
 ): Promise<{ ok: true; drafted: Drafted } | { ok: false; problems: string[] }> {
   let problems: string[] = [];
   for (let attempt = 1; attempt <= 2; attempt++) {
     let value: unknown;
     try {
-      value = await deps.llm.extract(buildSpecPrompt(prompt, problems), SPEC_ANSWER_SCHEMA);
+      const ask = () => deps.llm.extract(buildSpecPrompt(prompt, problems), SPEC_ANSWER_SCHEMA);
+      value = await (timer === null ? ask() : timer.time("draft", ask));
     } catch (e) {
       problems = [answerDidNotParse(errorText(e))];
       continue;
@@ -112,11 +116,12 @@ export async function runDevSpec(input: DevSpecInputs, deps: DevSpecDeps): Promi
   }
 
   // 3. Inventory by code.
+  const timer = new PhaseTimer(deps.clock);
   const shownPhrase = existing === null ? request.text : `${parsePlanSource(existing, "spec").name ?? ""}\n${request.text}`;
-  const inventory = await briefInventory(deps.index, {
+  const inventory = await timer.time("inventory", () => briefInventory(deps.index, {
     phrases: briefPhrases(code, shownPhrase),
     excluded: [ctx.work.folder, ...(ctx.pack?.pack.layout.buildOutputs ?? [])],
-  });
+  }));
   const inventoryText = renderBriefInventory(inventory);
   const warnings = [...ctx.warnings, ...inventory.warnings];
   // T1: the decisions and methods of earlier work on the same topic, before the draft; the same block in every ask.
@@ -138,7 +143,7 @@ export async function runDevSpec(input: DevSpecInputs, deps: DevSpecDeps): Promi
       const drafted = await askSpec(deps, {
         mode: existing === null ? "draft" : "revision", code, request: request.text, current: existing ?? "",
         decisions: decisions0, fresh: [], inventory: inventoryText, precedents: recalled.block,
-      }, (a) => numberQuestions(a.questions, decisions0, open0), decisions0);
+      }, (a) => numberQuestions(a.questions, decisions0, open0), decisions0, timer);
       if (!drafted.ok) {
         return [refusedTwice(STEP), ...problemLines(drafted.problems)].join("\n");
       }
@@ -149,15 +154,16 @@ export async function runDevSpec(input: DevSpecInputs, deps: DevSpecDeps): Promi
     }
 
     // 5. The questions, Blocking first, each answer written before the next one; then one fold.
-    const fold = async (st: RoundState, fresh: readonly Decision[]): Promise<Folded> => {
+    // The person's time is the "questions" phase, the model's fold its own.
+    const fold = (st: RoundState, fresh: readonly Decision[]): Promise<Folded> => timer.time("fold", async () => {
       const r = await askSpec(deps, {
         mode: "fold", code, request: "", current: st.text, decisions: st.decisions, fresh, inventory: inventoryText,
         precedents: recalled.block,
-      }, (a) => numberQuestions(a.questions, st.decisions, st.open), st.decisions);
+      }, (a) => numberQuestions(a.questions, st.decisions, st.open), st.decisions, null);
       return r.ok ? { ok: true, text: r.drafted.text, open: r.drafted.open } : { ok: false, problems: r.problems };
-    };
+    }, "round");
     const round = { human: deps.human, today, label: `${STEP} ${code}`, headings: HEADINGS, write, fold };
-    const first = await questionRound(state, round);
+    const first = await timer.time("questions", () => questionRound(state, round), "round");
     state = first.state;
     warnings.push(...first.warnings);
     const made = [...first.made];
@@ -167,15 +173,16 @@ export async function runDevSpec(input: DevSpecInputs, deps: DevSpecDeps): Promi
     let review: SourceReviewOutcome | null = null;
     if (!blocked) {
       const ids = parsePlanSource(state.text, "spec").ids.map((i) => i.id);
-      review = await reviewSource(deps.llm, state, {
+      review = await timer.time("review", () => reviewSource(timer.timedExtract(deps.llm, "review extract"), state, {
         mode: "spec", whole: "spec", folder: folder.shown, fileShown: spec.shown, origin: request.from,
         inventory: inventoryText, ids, headings: HEADINGS,
-      }, write, deps.route);
+      }, write, deps.route));
       if (deps.llm.permissionGateEnabled() === false) warnings.push(PERMISSION_GATE_OFF);
       if (review.ran && review.added.length > 0) {
         state = review.state;
         const added = new Set(review.added);
-        const second = await questionRound(state, round, (q) => added.has(q.id) && q.severity === "Blocking");
+        const which = (q: Question): boolean => added.has(q.id) && q.severity === "Blocking";
+        const second = await timer.time("questions", () => questionRound(state, round, which), "round");
         state = second.state;
         warnings.push(...second.warnings);
         made.push(...second.made);
@@ -205,6 +212,11 @@ export async function runDevSpec(input: DevSpecInputs, deps: DevSpecDeps): Promi
       lines.push(stillBlocking(blockingLeft.map((q) => q.id).join(", "), code));
     } else {
       lines.push(DEV_SPEC_NEXT.replace("{code}", code));
+    }
+    const timing = timer.line();
+    if (timing !== "") {
+      deps.log.info(timing);
+      lines.push(timing);
     }
     return lines.join("\n");
   } catch (e) {
