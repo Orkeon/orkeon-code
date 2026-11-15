@@ -127,6 +127,9 @@ leurs droits, l'endroit où se résolvent les chemins relatifs.
   refusé faute d'élément se voit dire de faire l'un ou l'autre.
 - Un refus dit quoi changer : pour une longueur, il donne la longueur trouvée à côté de la limite ; pour une
   signature qui contient un corps, il la cite à partir de son `{`. Une expansion shell `${…}` n'est pas un corps.
+- Un fichier de test ou de doublure ancré comme existant et absent du dépôt est planifié par le code comme fichier
+  à créer, avec un avertissement dans le résumé, au lieu d'un second appel ; un fichier de production donné comme
+  existant et absent est refusé.
 - Un ancrage refusé dit pourquoi et quoi ancrer à la place : un dossier des réglages propres aux outils (`.claude/`,
   `.orkeon/` : le code que l'étape change, le réglage dit dans la note de l'étape), le dossier de travail (le chemin
   auquel le changement appartient), ou un chemin qui n'est pas écrit depuis la racine du dépôt avec `/`. Un refus

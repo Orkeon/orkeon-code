@@ -40,6 +40,8 @@ export const nameTooLong = (at: string, length: number, max: number): string =>
   `${at}: the name is ${length} characters, longer than ${max}`;
 export const projectEmpty = (at: string): string => `${at}: the project is empty`;
 export const notUnpinnedRow = (at: string, row: string): string => `${at}: ${row} is not an unpinned row`;
+export const anchorKindSetRight = (path: string): string =>
+  `anchor ${path}: a test file given as existing is not there, planned as a file to create`;
 export const namesNoId = (at: string): string => `${at}: names no id`;
 export const memberIsNot = (at: string, ref: string | undefined, member: string, name: string): string =>
   `${at}: anchor ${ref}: member "${member}" is not ${name}; leave member out to add a member to it`;

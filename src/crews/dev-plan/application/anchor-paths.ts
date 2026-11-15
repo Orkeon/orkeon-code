@@ -6,7 +6,7 @@
 import type { Files } from "../../../shared/application/ports.ts";
 import { stepLabel } from "../domain/plan-answer.ts";
 import type { AnchorRef, PlanAnswer } from "../domain/plan-answer.ts";
-import { anchorPathColon, doesNotExist, existsAnchorIt, notCheckedEntries, notCheckedFolders } from "../domain/messages.ts";
+import { anchorKindSetRight, anchorPathColon, doesNotExist, existsAnchorIt, notCheckedEntries, notCheckedFolders } from "../domain/messages.ts";
 import { WORKSPACE } from "../../../shared/domain/vfs.ts";
 
 export const MAX_ANCHOR_FOLDERS = 40;
@@ -22,6 +22,55 @@ const folderOf = (path: string): string => {
 };
 const nameOf = (path: string): string => path.slice(path.lastIndexOf("/") + 1);
 
+/** The names of `folder`, listed once per run; null past MAX_ANCHOR_FOLDERS folders. A listing that throws is empty. */
+async function listingOf(files: Pick<Files, "list">, listings: AnchorListings, folder: string): Promise<ReadonlySet<string> | null> {
+  const known = listings.get(folder);
+  if (known !== undefined) return known;
+  if (listings.size >= MAX_ANCHOR_FOLDERS) return null;
+  let names: string[];
+  try {
+    names = await files.list(folder === "" ? WORKSPACE : `${WORKSPACE}/${folder}`, LIST_CAP);
+  } catch {
+    names = [];
+  }
+  const set = new Set(names.map((n) => n.replace(/\/+$/, "")));
+  listings.set(folder, set);
+  return set;
+}
+
+/**
+ * The anchor kind code knows better than the model, set right in `answer` instead of costing a second call: a test
+ * or double file given as existing that a whole listing does not hold becomes a file to create. A production file
+ * given as existing and absent stays for checkAnchorPaths to refuse (the step meant to change code that is not
+ * there), as does a file to create that exists (the plan did not see it). Returns one line per anchor set right.
+ */
+export async function repairAnchorKinds(
+  files: Pick<Files, "list">, answer: PlanAnswer, listings: AnchorListings = new Map(),
+): Promise<string[]> {
+  const repaired: string[] = [];
+  for (const batch of answer.batches) {
+    for (const step of batch.steps) {
+      const anchors: Array<[AnchorRef, boolean]> = [
+        ...step.anchors.tests.map((a): [AnchorRef, boolean] => [a, true]),
+        ...step.anchors.doubles.map((a): [AnchorRef, boolean] => [a, true]),
+        ...step.anchors.production.map((a): [AnchorRef, boolean] => [a, false]),
+      ];
+      for (const [a, testSide] of anchors) {
+        if (!testSide || a.kind !== "existing" || a.path === undefined) continue;
+        const path = a.path.replace(/^\.\//, "");
+        if (path.includes(":")) continue;
+        const names = await listingOf(files, listings, folderOf(path));
+        if (names === null) continue;
+        if (a.kind === "existing" && !names.has(nameOf(path)) && names.size < LIST_CAP) {
+          a.kind = "create";
+          repaired.push(anchorKindSetRight(path));
+        }
+      }
+    }
+  }
+  return [...new Set(repaired)];
+}
+
 /**
  * `<step>: <path> does not exist` / `<step>: <path> exists: …` / `<step>: anchor "<path>" not checked: …`, the step
  * labelled as the answer check labels it (`F1 "<name>" S2 "<title>"`),
@@ -30,20 +79,7 @@ const nameOf = (path: string): string => path.slice(path.lastIndexOf("/") + 1);
 export async function checkAnchorPaths(
   files: Pick<Files, "list">, answer: PlanAnswer, listings: AnchorListings = new Map(),
 ): Promise<string[]> {
-  const listing = async (folder: string): Promise<ReadonlySet<string> | null> => {
-    const known = listings.get(folder);
-    if (known !== undefined) return known;
-    if (listings.size >= MAX_ANCHOR_FOLDERS) return null;
-    let names: string[];
-    try {
-      names = await files.list(folder === "" ? WORKSPACE : `${WORKSPACE}/${folder}`, LIST_CAP);
-    } catch {
-      names = [];
-    }
-    const set = new Set(names.map((n) => n.replace(/\/+$/, "")));
-    listings.set(folder, set);
-    return set;
-  };
+  const listing = (folder: string) => listingOf(files, listings, folder);
   const problems: string[] = [];
   const seen = new Set<string>();
   for (const [k, batch] of answer.batches.entries()) {

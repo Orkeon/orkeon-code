@@ -34,6 +34,18 @@ export function answerWithExisting(paths: readonly string[]): PlanAnswer {
   };
 }
 
+/** The golden answer cut to its first step, whose one test anchor gives `path` as existing. */
+export function answerWithExistingTest(path: string): PlanAnswer {
+  const step = ANSWER.batches[0].steps[0];
+  return {
+    ...ANSWER,
+    batches: [{
+      ...ANSWER.batches[0],
+      steps: [{ ...step, anchors: { tests: [{ kind: "existing" as const, path }], doubles: [], production: [] } }],
+    }],
+  };
+}
+
 /** 45 existing anchors, each in a folder of its own. */
 export const FORTY_FIVE_FOLDERS: readonly string[] = Array.from({ length: 45 }, (_, i) => `d${i}/f.md`);
 

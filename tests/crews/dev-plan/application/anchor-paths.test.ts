@@ -4,13 +4,14 @@
 import { describe, it } from "node:test";
 import { deepStrictEqual, ok, strictEqual } from "node:assert";
 
-import { LIST_CAP, MAX_ANCHOR_FOLDERS, checkAnchorPaths } from "../../../../src/crews/dev-plan/application/anchor-paths.ts";
+import { LIST_CAP, MAX_ANCHOR_FOLDERS, checkAnchorPaths, repairAnchorKinds } from "../../../../src/crews/dev-plan/application/anchor-paths.ts";
 import type { AnchorListings } from "../../../../src/crews/dev-plan/application/anchor-paths.ts";
 import { FakeFiles } from "../../../support/doubles/fake-files.ts";
 import {
   ANSWER, B1S1, B2S1, CREATE_ANCHORS_PRESENT_PROBLEMS, FORTY_FIVE_FOLDERS, answerWithExisting, repository,
 } from "./anchor-paths.fixtures.ts";
 import { WORKSPACE } from "../../../../src/shared/domain/vfs.ts";
+import { answerWithExistingTest } from "./anchor-paths.fixtures.ts";
 
 describe("checkAnchorPaths", () => {
   it("accepts the golden answer: files to create absent, existing files present", async () => {
@@ -106,5 +107,32 @@ describe("checkAnchorPaths", () => {
     strictEqual(problems.length, 45);
     strictEqual(problems.filter((p) => p.endsWith("does not exist")).length, MAX_ANCHOR_FOLDERS);
     deepStrictEqual(problems.slice(MAX_ANCHOR_FOLDERS), [40, 41, 42, 43, 44].map((i) => `${B1S1}: anchor "d${i}/f.md" not checked: more than 40 folders`));
+  });
+});
+
+describe("repairAnchorKinds", () => {
+  it("plans as a file to create a test file given as existing that is not there, and says so", async () => {
+    // Arrange
+    const answer = answerWithExistingTest("tests/prune/absent.test.ts");
+
+    // Act
+    const repaired = await repairAnchorKinds(repository(), answer);
+
+    // Assert
+    deepStrictEqual(
+      [repaired, answer.batches[0].steps[0].anchors.tests.map((a) => a.kind)],
+      [["anchor tests/prune/absent.test.ts: a test file given as existing is not there, planned as a file to create"], ["create"]],
+    );
+  });
+
+  it("leaves a production file given as existing and absent for the check to refuse", async () => {
+    // Arrange
+    const answer = answerWithExisting(["src/shared/domain/absent.ts"]);
+
+    // Act
+    const repaired = await repairAnchorKinds(repository(), answer);
+
+    // Assert
+    deepStrictEqual(repaired, []);
   });
 });

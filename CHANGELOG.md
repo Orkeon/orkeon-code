@@ -34,6 +34,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   was refused for limits it had never been told. A long dash in a spec's name becomes a hyphen.
 - A plan refused for a batch mixing documentation and code is asked again with the paths of each kind and what
   to do with them; the second attempt, which never sees the refused answer, could not tell which path was meant.
+- A plan that anchors as existing a test file that is not there is no longer refused: code plans the file as one to
+  create and says so in a warning of the summary. A production file given as existing and absent is still refused.
 - The log says why an answer was refused and asked again (`dev-spec: answer refused, asked again: …`, the same for
   `/dev-plan` and the reviewer's extraction).
 

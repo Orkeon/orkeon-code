@@ -36,7 +36,7 @@ import type { PlanPromptInput } from "./plan-prompt-fit.ts";
 import { buildInventory } from "./inventory.ts";
 import { noPrecedents, precedentsLine, recallQuery } from "../../../shared/application/dev/step-precedents.ts";
 import type { StepPrecedents } from "../../../shared/application/dev/step-precedents.ts";
-import { checkAnchorPaths } from "./anchor-paths.ts";
+import { checkAnchorPaths, repairAnchorKinds } from "./anchor-paths.ts";
 import type { AnchorListings } from "./anchor-paths.ts";
 import { BAD_INPUT_REPLACE, BAD_INPUT_SOURCE, BOTH_LINES, COMMANDS_LINE, END_LINE, REFUSED_TWICE, REVIEWED_FAILS_SELF_CHECK, ROWS_NOT_WRITTEN, SETTLE_CHANGE, SETTLE_SPEC, answerThenReplan, batchIsDone, planCannotBeReadNothingReplaced, planFileNotWritten, everyBatch, fewerBatches, inventoryFromTitles, namesNoTraceableId, noRoomForInventory, notInPack, planBlocked, planExists, planWritten, recordsWorkDone, planRendererDefect, reviewHead, reviewNotRunWithCause, planRunFromCheckout, stepIsTicked, tddLineTicked, planTitleNamesNoKind, titleReadsDone, unreviewed } from "./messages.ts";
 import { PERMISSION_GATE_OFF as GATE_OFF } from "../../../shared/application/dev/messages.ts";
@@ -188,7 +188,7 @@ async function existingPlan(files: Files, place: Place, source: ResolvedSource, 
 
 // ---- the plan ----------------------------------------------------------------------
 
-interface Planned { answer: PlanAnswer; rendered: RenderedPlan }
+interface Planned { answer: PlanAnswer; rendered: RenderedPlan; repairs: string[] }
 
 async function askPlan(
   deps: DevPlanDeps, promptInput: PlanPromptInput, checkCtx: PlanCheckContext, render: (a: PlanAnswer) => RenderedPlan,
@@ -211,6 +211,7 @@ async function askPlan(
       deps.log.info(answerAskedAgain("dev-plan", problems));
       continue;
     }
+    const repairs = await repairAnchorKinds(deps.files, checked.value, listings);
     const paths = await checkAnchorPaths(deps.files, checked.value, listings);
     if (paths.length > 0) {
       problems = paths;
@@ -224,7 +225,7 @@ async function askPlan(
       problems = self.problems;
       continue;
     }
-    return { ok: true, planned: { answer: checked.value, rendered } };
+    return { ok: true, planned: { answer: checked.value, rendered, repairs } };
   }
   return { ok: false, problems };
 }
@@ -396,6 +397,7 @@ export async function runDevPlan(input: DevPlanInputs, deps: DevPlanDeps): Promi
 
   // 12. Review.
   const warnings = [...ctx.warnings, ...inventory.warnings, ...absentWarning(repo.absent, rendered.plan.name, source.code)];
+  warnings.push(...asked.planned.repairs);
   if (deps.llm.permissionGateEnabled() === false) warnings.push(GATE_OFF);
   const targets = ["plan", ...answer.batches.map((_, k) => `F${k + 1}`)];
   const outcome = await timer.time("review", () => runSubAgent(timer.timedExtract(deps.llm, "review extract"), {
