@@ -127,6 +127,8 @@ leurs droits, l'endroit où se résolvent les chemins relatifs.
   refusé faute d'élément se voit dire de faire l'un ou l'autre.
 - Un refus dit quoi changer : pour une longueur, il donne la longueur trouvée à côté de la limite ; pour une
   signature qui contient un corps, il la cite à partir de son `{`. Une expansion shell `${…}` n'est pas un corps.
+- Le test d'une étape de documentation peut ne nommer aucun identifiant de la source : c'est la commande de
+  documentation du dépôt.
 - Un fichier de test ou de doublure ancré comme existant et absent du dépôt est planifié par le code comme fichier
   à créer, avec un avertissement dans le résumé, au lieu d'un second appel ; un fichier de production donné comme
   existant et absent est refusé.

@@ -572,7 +572,8 @@ function stepProblems(b: PlanBatch, k: number, ctx: PlanCheckContext, inventoryP
       if (t.project === "") out.push(projectEmpty(here));
       for (const id of t.ids) if (!ctx.sourceIds.includes(id)) out.push(notSourceId(here, id));
       for (const u of t.covers) if (!ctx.unpinned.includes(u)) out.push(notUnpinnedRow(here, u));
-      if (t.ids.length === 0 && t.covers.length === 0) out.push(namesNoId(here));
+      // A documentation step's test is the repository's documentation command: it proves no id of the source.
+      if (!b.documentation && t.ids.length === 0 && t.covers.length === 0) out.push(namesNoId(here));
     });
     // 13, 14, 26: each anchor.
     for (const a of allAnchors(s)) out.push(...anchorProblems(a, at, ctx, inventoryPaths));

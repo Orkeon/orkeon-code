@@ -36,6 +36,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   to do with them; the second attempt, which never sees the refused answer, could not tell which path was meant.
 - A plan that anchors as existing a test file that is not there is no longer refused: code plans the file as one to
   create and says so in a warning of the summary. A production file given as existing and absent is still refused.
+- A documentation batch's test (the repository's documentation command) may name no id: a plan was refused, and
+  drafted again whole (three minutes), because the changelog step's check proved no rule of the spec.
 - The log says why an answer was refused and asked again (`dev-spec: answer refused, asked again: …`, the same for
   `/dev-plan` and the reviewer's extraction).
 

@@ -115,6 +115,7 @@ Every system prompt below ends with the runtime's `## File system` section when 
   told to do one or the other.
 - A refusal says what to change: one for a length gives the length found beside the limit, one for a signature that
   holds a body quotes it from its `{`. A shell expansion `${…}` is not a body.
+- A documentation step's test may name no id of the source: it is the repository's documentation command.
 - A test or double file anchored as existing that is not there is planned by code as a file to create, with a
   warning in the summary, instead of a second call; a production file given as existing and absent is refused.
 - An anchor refused says why and what to anchor instead: a folder of the tools' own settings (`.claude/`, `.orkeon/`:
