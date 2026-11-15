@@ -22,7 +22,7 @@ import {
   orkeonSessionIo,
   orkeonShell,
 } from "../../shared/infrastructure/orkeon/wiring.ts";
-import { createLlm } from "../../shared/infrastructure/orkeon/llm.ts";
+import { agentLlm } from "../../shared/infrastructure/orkeon/llm.ts";
 import { runCodeReview } from "./application/run-code-review.ts";
 import { REVIEWER_GOAL, REVIEWER_ROLE } from "./application/prompts.ts";
 
@@ -40,7 +40,7 @@ const reviewer = orkeonAgent()
   .goal(REVIEWER_GOAL)
   .tools(["shell_command", "file_read"])
   .body(async (_input: any, ctx: any) =>
-    await runCodeReview(inputs(), { ...ports, llm: createLlm(ctx.llm), log: ctx.log }))
+    await runCodeReview(inputs(), { ...ports, llm: agentLlm(ctx), log: ctx.log }))
   .build();
 
 publishCrew(

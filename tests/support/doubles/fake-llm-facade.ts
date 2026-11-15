@@ -3,11 +3,13 @@
 // src/shared/infrastructure/orkeon/llm.ts. `actResult` is what act() resolves to,
 // of any shape (the adapter reads whatever a host hands back); `completion` and
 // `extraction` are what complete() (and chat(), as its content) and extract()
-// resolve to. An Error is thrown.
+// resolve to. An Error is thrown. `reasoningReport` is what reasoning() answers, of any shape too; an Error is
+// thrown.
 // Every call lands in `calls` with the arguments it received.
-type Method = "act" | "complete" | "extract" | "chat";
+type Method = "act" | "complete" | "extract" | "chat" | "reasoning";
 
 export class FakeLlmFacade implements Pick<LlmFacade, Method> {
+  reasoningReport: unknown = null;
   actResult: unknown = { output: "", iterations: 1 };
   completion: string | Error = "";
   extraction: unknown = {};
@@ -29,7 +31,11 @@ export class FakeLlmFacade implements Pick<LlmFacade, Method> {
 
   async chat(messages: readonly Message[], opts?: LlmCallOptions): Promise<ChatResponse> {
     const content = this.answer("chat", [messages, opts], this.completion) as string;
-    return { content, tokensUsed: 0, model: "" };
+    return { content, tokensUsed: 0, model: "", reasoning: null };
+  }
+
+  reasoning(opts?: LlmCallOptions): LlmReasoning | null {
+    return this.answer("reasoning", [opts], this.reasoningReport) as LlmReasoning | null;
   }
 
   async extract<T>(prompt: string, schema: JsonSchema, opts?: LlmCallOptions): Promise<T> {

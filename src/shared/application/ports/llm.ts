@@ -1,5 +1,7 @@
 // The model port: the agentic call, the completion and the extraction, with their per-call settings.
 // Types only, re-exported by ../ports.ts.
+import type { EffortLevel } from "../../domain/agent-policy/behavior-flags.ts";
+import type { EffortReport, ReasoningCapabilities, ReasoningTarget } from "../../domain/agent-policy/reasoning.ts";
 import type { ContextPressure, PressureSettings, PruneVerdict } from "../../domain/context-prune.ts";
 
 /** What one model call may change, for that call only. */
@@ -32,9 +34,10 @@ export interface ActRequest extends ModelOverride {
   maxIterations?: number;
   /** The mode the host's permission gate applies to each tool call. */
   permissionMode?: string;
-  /** The provider's thinking at this level (`act({effort})`); none when absent. A provider whose field does
-   *  not know the level receives the highest it knows below it, with a warning in the runtime's log. */
-  effort?: "low" | "medium" | "high" | "xhigh" | "max";
+  /** The provider's thinking at this level (`act({effort})`); none when absent. A level the provider or the model
+   *  does not take is sent as another one (the highest it takes below, else the lowest it takes) or dropped by the
+   *  runtime, with a warning in its log: `Llm.effortSent` says which. */
+  effort?: EffortLevel;
   /** The agent's tools offered for this call (a role's subset); all of them when absent. */
   tools?: readonly string[];
   /** Asked by the runtime before a model turn once the loop's messages pass `contextPressure.thresholdTokens`
@@ -61,4 +64,20 @@ export interface Llm {
   /** Whether the host's permission gate checks the tool calls of `act`: false, the mode and the
    *  session's rules check nothing; undefined when the facade does not say (a test's). */
   permissionGateEnabled(): boolean | undefined;
+  /** What an act with this request sends for its effort (Orkeon #360), judged on the running agent's provider and
+   *  model, the request's profile and model over them; places no call. A request and a crew that ask for no effort
+   *  give what the host's own configuration sends. Null when nothing asks for an effort, or the host cannot tell.
+   *  Null too for a request naming a profile the host does not declare: its act is the one that fails. */
+  effortSent(request: Pick<ActRequest, "effort" | "model" | "profile">): EffortReport | null;
+}
+
+/** What the host's models take for reasoning, read by a command before any call (Orkeon #359, #360): the runtime's
+ *  own judgement, the host's `Llm:ModelCapabilities` included. Both answer null when the host cannot tell (no `llm`
+ *  namespace, no provider), and for a target on a profile the host does not declare (Orkeon #364). */
+export interface ReasoningReader {
+  /** What the model of `target` takes. */
+  capabilities(target: ReasoningTarget): ReasoningCapabilities | null;
+  /** What a call on `target` asking for `level` sends; with no level, what the host's own configuration sends
+   *  (`Llm:Thinking:Effort`), null when it asks for none. */
+  effort(target: ReasoningTarget, level: EffortLevel | null): EffortReport | null;
 }

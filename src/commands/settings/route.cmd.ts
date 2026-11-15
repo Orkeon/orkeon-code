@@ -4,7 +4,7 @@
 import { rawTokens } from "../_lib/args.ts";
 import { runRoute } from "../_lib/settings/route.ts";
 import { showView } from "../_lib/view.ts";
-import { orkeonConfigStore, orkeonDecisionModel, orkeonSessionIo } from "../../shared/infrastructure/orkeon/wiring.ts";
+import { orkeonConfigStore, orkeonDecisionModel, orkeonReasoning, orkeonSessionIo } from "../../shared/infrastructure/orkeon/wiring.ts";
 
 const session = orkeonSessionIo();
 
@@ -12,5 +12,5 @@ defineCommand({
   name: "route",
   description: "Show, turn on or off the routing of crews to the cheapest LLM profile that fits (why: the last choices).",
   handler: async (args, ctx) =>
-    showView(ctx, await runRoute(rawTokens(args), { config: orkeonConfigStore(), session, decision: orkeonDecisionModel() })),
+    showView(ctx, await runRoute(rawTokens(args), { config: orkeonConfigStore(), session, decision: orkeonDecisionModel(), reasoning: orkeonReasoning() })),
 });

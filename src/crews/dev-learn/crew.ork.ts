@@ -28,7 +28,7 @@ import {
   orkeonHumanInput,
   orkeonShell,
 } from "../../shared/infrastructure/orkeon/wiring.ts";
-import { createLlm } from "../../shared/infrastructure/orkeon/llm.ts";
+import { agentLlm } from "../../shared/infrastructure/orkeon/llm.ts";
 import { runDevLearn } from "./application/run-dev-learn.ts";
 import { LEARNER_GOAL } from "./application/messages.ts";
 
@@ -41,7 +41,7 @@ const learner = orkeonAgent()
   .tools([])
   .goal(LEARNER_GOAL)
   .body(async (_input: any, ctx: any) =>
-    await runDevLearn(inputs(), { ...ports, llm: createLlm(ctx.llm), log: ctx.log, clock: orkeonClock() }))
+    await runDevLearn(inputs(), { ...ports, llm: agentLlm(ctx), log: ctx.log, clock: orkeonClock() }))
   .build();
 
 publishCrew(

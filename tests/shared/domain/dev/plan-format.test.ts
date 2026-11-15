@@ -79,6 +79,18 @@ describe("parseGlobalPlan inline", () => {
     deepStrictEqual(plan.problems, [{ line: 3, message: "unknown batch line '### Batch F4 — X — in progress'" }]);
   });
 
+  it("reads a batch the review marked blocked as a state, with no problem", () => {
+    // Arrange
+    const text = "# X-PLAN — Y\n\n### Batch F1 — Trim by age — blocked\n- [ ] 1. a\n";
+
+    // Act
+    const plan = parseGlobalPlan(text);
+
+    // Assert
+    deepStrictEqual([plan.batches.map((b) => [b.id, b.name, b.state]), plan.problems],
+      [[["F1", "Trim by age", { kind: "other", text: "blocked" }]], []]);
+  });
+
   it("reports a batch line without a state", () => {
     // Arrange
     const text = "### Batch F5 — Name\n";

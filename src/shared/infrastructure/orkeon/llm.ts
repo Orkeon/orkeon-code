@@ -1,7 +1,7 @@
 /// <reference path="../../../crews/.orkeon/orkeon.d.ts" />
 // Llm adapter over the running agent's `ctx.llm` facade. The facade belongs to
 // the context the runtime hands each agent body, not to a global, so the entry
-// point passes it in (`createLlm(ctx.llm)`) rather than wiring.ts binding it.
+// point passes its context in (`agentLlm(ctx)`) rather than wiring.ts binding it.
 // This is the one place that turns the port's settings into the runtime's call
 // options, and the one place that reads an act() result. A call the provider
 // failed comes back as the host's failure marker: it is thrown as an LlmFailure,
@@ -15,15 +15,20 @@
 // (shared/application/dev/tool-callbacks.ts) as the second argument: each act then carries the
 // onToolCall/onToolResult built for its own mode. The request's `effort` is the runtime's
 // `act({effort})` as it is; the crew's own level, when it has one, fills a request that names none.
+// `effortSent` asks the facade what such an act sends for its effort (`ctx.llm.reasoning`, Orkeon #360), without a call.
 // The request's `context` is the runtime's `act({context})` (Orkeon #276), a blank one left out.
 // Every act's callbacks, the crew's or none, sit inside the host's (hostCallbacks): under a host whose paths have
 // another spelling, or with path lists, a call's paths come back to the VFS and are judged before the crew's
 // callbacks see them, and every result's disk spellings come back before the model reads them. The host's context
 // is this run's (orkeon/host-context.ts), read at the first act; a test hands its own in the defaults.
+// An act that carries a system prompt ends it with the runtime's `## File system` section (`ctx.fileSystem.prompt`,
+// Orkeon #378): the paths this agent may touch, their rights and where relative paths resolve, read at each act and
+// left out when the runtime gives none. The entry points build the adapter from the agent's context (`agentLlm(ctx)`).
 
 import type { ActRequest, CompleteRequest, Llm, ModelOverride } from "../../application/ports.ts";
 import type { PermissionMode } from "../../domain/permission-modes.ts";
 import { budgetExhaustedAnswer, llmFailureOf } from "../../domain/llm-failure.ts";
+import { effortReportOf } from "../../domain/agent-policy/reasoning.ts";
 import { hostCallbacks } from "../../application/dev/tool-callbacks.ts";
 import type { ActCallbacks, ToolCallbacks } from "../../application/dev/tool-callbacks.ts";
 import type { HostSource } from "../../application/host-context.ts";
@@ -72,8 +77,17 @@ function answerOrThrow(text: string): string {
   return text;
 }
 
-/** What the adapter adds to every act: the crew's effort, and the host's context (this run's when none is given). */
-export type LlmDefaults = Pick<ActRequest, "effort"> & { host?: HostSource };
+/** What the adapter adds to every act: the crew's effort, the host's context (this run's when none is given), and
+ *  the agent's file-system section, read from the runtime at each act. */
+export type LlmDefaults = Pick<ActRequest, "effort"> & { host?: HostSource; fileSystem?: Pick<AgentFileSystem, "prompt"> };
+
+/** The request with the runtime's file-system section closing its system prompt; as given without a system prompt
+ *  or when the runtime gives no section (no path visible, no file-system tool, `announceMounts(false)`). */
+function withFileSystem(request: ActRequest, fileSystem: Pick<AgentFileSystem, "prompt"> | undefined): ActRequest {
+  if (request.system === undefined || fileSystem === undefined) return request;
+  const section = fileSystem.prompt.trim();
+  return section.length === 0 ? request : { ...request, system: `${request.system.trimEnd()}\n\n${section}` };
+}
 
 /** The request the runtime receives: as given, a blank context left out. */
 function withContext(request: ActRequest): ActRequest {
@@ -81,8 +95,11 @@ function withContext(request: ActRequest): ActRequest {
   return context === undefined || context.trim().length === 0 ? rest : request;
 }
 
+/** The part of the runtime's `ctx.llm` the adapter reads; a test's facade may lack the gate and the reasoning. */
+type Facade = Pick<LlmFacade, "act" | "complete" | "extract" | "chat"> & Partial<Pick<LlmFacade, "permissionGate" | "reasoning">>;
+
 export function createLlm(
-  llm: Pick<LlmFacade, "act" | "complete" | "extract" | "chat"> & Partial<Pick<LlmFacade, "permissionGate">>,
+  llm: Facade,
   callbacks?: Pick<ToolCallbacks, "forAct">,
   defaults: LlmDefaults = {},
 ): Llm {
@@ -94,6 +111,17 @@ export function createLlm(
   const host = defaults.host ?? orkeonHostContext;
   return {
     permissionGateEnabled,
+    effortSent(request) {
+      const effort = request.effort ?? defaults.effort;
+      // A facade without it (a test's, a runtime before #360) cannot say. With no effort asked, the runtime reports
+      // what the host's own configuration sends, or nothing.
+      if (llm.reasoning === undefined) return null;
+      try {
+        return effortReportOf(llm.reasoning({ ...(effort === undefined ? {} : { effort }), ...callOptions(request) }));
+      } catch {
+        return null;
+      }
+    },
     async act(prompt, request) {
       // The crew's effort (/effort, handed as an input) when the request names none.
       const effort = request.effort ?? defaults.effort;
@@ -102,7 +130,8 @@ export function createLlm(
       // inside the host's.
       const own = callbacks?.forAct(request.permissionMode ?? "default", permissionGateEnabled());
       const acts = hostCallbacks(own, await host());
-      return answerOrThrow(answerOf(await llm.act(prompt, actOptions(withContext(withEffort), acts))));
+      const sent = withFileSystem(withContext(withEffort), defaults.fileSystem);
+      return answerOrThrow(answerOf(await llm.act(prompt, actOptions(sent, acts))));
     },
     async complete(prompt, request?: CompleteRequest) {
       // A system message needs the message-array call: `complete` takes a prompt only.
@@ -117,4 +146,14 @@ export function createLlm(
     },
     extract: (prompt, schema) => llm.extract<unknown>(prompt, schema as JsonSchema),
   };
+}
+
+/** The Llm of a running agent, from the context the runtime hands its body: its `llm` facade, and its file-system
+ *  section for every act's system prompt. */
+export function agentLlm(
+  ctx: { llm: Facade; fileSystem: Pick<AgentFileSystem, "prompt"> },
+  callbacks?: Pick<ToolCallbacks, "forAct">,
+  defaults: Omit<LlmDefaults, "fileSystem"> = {},
+): Llm {
+  return createLlm(ctx.llm, callbacks, { ...defaults, fileSystem: ctx.fileSystem });
 }

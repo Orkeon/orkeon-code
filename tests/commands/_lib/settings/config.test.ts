@@ -6,6 +6,8 @@ import { strictEqual, deepStrictEqual, ok } from "node:assert";
 
 import { CONFIG_USAGE } from "../../../../src/commands/_lib/settings/messages.ts";
 import { CONFIG_FILE_PATH } from "../../../../src/shared/application/config-store.ts";
+import { EFFORT_STATE_KEY } from "../../../../src/shared/domain/session-keys.ts";
+import { GLM_TAKES, MEDIUM_AS_ASKED, MEDIUM_LOWERED } from "../../../support/fixtures/reasoning.ts";
 import { CONFIG_KEYS, configKeySpec, knownConfigKeys } from "../../../../src/shared/domain/config-schema.ts";
 import {
   BYPASS_IGNORED,
@@ -16,6 +18,8 @@ import {
   NARROW_USER_SETTINGS,
   NESTED_WARNING,
   NOT_JSON,
+  PROFILE_SET_LOWERED_TEXT,
+  PROFILE_UNSET_LOWERED_TEXT,
   SET_REFUSAL_CASES,
   UNLISTED_TOOL_NOTE,
   UNNARROWED_SET_CASES,
@@ -348,5 +352,76 @@ describe("/config — anything else", () => {
 
     // Assert
     deepStrictEqual(view, { text: CONFIG_USAGE });
+  });
+});
+
+describe("/config and the effort /effort stored", () => {
+  it("warns when the profile set for the session lowers the stored effort", async () => {
+    // Arrange
+    const { run, store, reasoning } = configHarness();
+    store.state.set(EFFORT_STATE_KEY, "medium");
+    reasoning.byProfile = { large: { capabilities: GLM_TAKES, reports: { medium: MEDIUM_LOWERED } } };
+
+    // Act
+    const view = await run("set", "--session", "llm.profile", "large");
+
+    // Assert
+    deepStrictEqual(view, { text: PROFILE_SET_LOWERED_TEXT });
+  });
+
+  it("says nothing of the effort when the profile set takes the stored level", async () => {
+    // Arrange
+    const { run, store, reasoning } = configHarness();
+    store.state.set(EFFORT_STATE_KEY, "medium");
+    reasoning.byProfile = {
+      large: { capabilities: GLM_TAKES, reports: { medium: MEDIUM_LOWERED } },
+      small: { capabilities: null, reports: { medium: MEDIUM_AS_ASKED } },
+    };
+
+    // Act
+    const view = await run("set", "--session", "llm.profile", "small");
+
+    // Assert
+    deepStrictEqual(view, { text: "llm.profile = small [session] — overrides the file until /clear." });
+  });
+
+  it("warns when unsetting the profile brings back a model that lowers the stored effort", async () => {
+    // Arrange
+    const { run, store, reasoning } = configHarness({ session: { "llm.profile": "small" } });
+    store.state.set(EFFORT_STATE_KEY, "medium");
+    reasoning.capabilitiesAnswer = GLM_TAKES;
+    reasoning.reports = { medium: MEDIUM_LOWERED };
+    reasoning.byProfile = { small: { capabilities: null, reports: {} } };
+
+    // Act
+    const view = await run("unset", "--session", "llm.profile");
+
+    // Assert
+    deepStrictEqual(view, { text: PROFILE_UNSET_LOWERED_TEXT });
+  });
+
+  it("says nothing of the effort when the profile set is the one already in force", async () => {
+    // Arrange
+    const { run, store, reasoning } = configHarness({ session: { "llm.profile": "large" } });
+    store.state.set(EFFORT_STATE_KEY, "medium");
+    reasoning.byProfile = { large: { capabilities: GLM_TAKES, reports: { medium: MEDIUM_LOWERED } } };
+
+    // Act
+    const view = await run("set", "--session", "llm.profile", "large");
+
+    // Assert
+    deepStrictEqual(view, { text: "llm.profile = large [session] — overrides the file until /clear." });
+  });
+
+  it("does not judge the effort when another key is set", async () => {
+    // Arrange
+    const { run, store, reasoning } = configHarness();
+    store.state.set(EFFORT_STATE_KEY, "medium");
+
+    // Act
+    await run("set", "--session", "route.agents", "on");
+
+    // Assert
+    deepStrictEqual(reasoning.targets, []);
   });
 });

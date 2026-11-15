@@ -32,7 +32,7 @@ import {
   orkeonPullRequestOpener,
   orkeonShell,
 } from "../../shared/infrastructure/orkeon/wiring.ts";
-import { createLlm } from "../../shared/infrastructure/orkeon/llm.ts";
+import { agentLlm } from "../../shared/infrastructure/orkeon/llm.ts";
 import { memoryDirOf } from "../../shared/application/shared-memory/memory-settings.ts";
 import { harvestAfterGaps } from "../../shared/application/shared-memory/harvest-after-gaps.ts";
 import { devToolCallbacks } from "../../shared/application/dev/tool-callbacks.ts";
@@ -107,7 +107,7 @@ const builder = orkeonAgent()
       ...ports, log: ctx.log, clock, route: orkeonActRoute(ctx.log, ctx.tools),
       // These callbacks, then the host's gate on the input they return: the dev rule sets again and the run's /hooks (a chained run
       // reads them from its record, as it does the /effort). The reviewer only reads: the plan step's guard fits it.
-      reviewerFor: (c) => createLlm(ctx.llm, devToolCallbacks({ step: "dev-plan", hooks: c.hooks }, { shell: ports.shell, log: ctx.log, memoryDir: memoryDirOf(ports.config) }),
+      reviewerFor: (c) => agentLlm(ctx, devToolCallbacks({ step: "dev-plan", hooks: c.hooks }, { shell: ports.shell, log: ctx.log, memoryDir: memoryDirOf(ports.config) }),
         { effort: providerEffort(c.effort ?? undefined) }),
       openerFor: (c) => orkeonPullRequestOpener({ mode: c.permissionMode, rules: parseSessionRules(c.permissionRules), asked: false }, ctx.tools),
       // A parallel wave: each batch in its own agent under its worktree and its own budget (batches-budget.ts).

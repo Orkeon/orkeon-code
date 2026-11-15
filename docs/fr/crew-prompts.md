@@ -6,6 +6,10 @@ ci-dessous, dans les mots de ce projet, et un test fixe une phrase-marqueur par 
 ([ADR 0003](../adr/0003-prompts-from-a-behaviour-specification.md), en anglais). Un changement de prompt commence
 ici : le comportement d'abord, puis le texte, puis son marqueur.
 
+Chaque prompt système ci-dessous se termine par la section `## File system` du runtime quand le runtime en donne
+une pour l'agent ([Le déroulement d'un tour](turn.md#lassemblage-du-prompt)) : les chemins qu'il peut toucher,
+leurs droits, l'endroit où se résolvent les chemins relatifs.
+
 ## Revue (`code-review`)
 
 - Chaque angle dit ce qu'il cherche et ce qu'il laisse aux autres.

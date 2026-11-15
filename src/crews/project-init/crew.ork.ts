@@ -8,7 +8,7 @@
 
 import { CrewBuilder, publishCrew } from "../../shared/infrastructure/globals.ts";
 import { orkeonAgent, orkeonCodeIndex, orkeonFiles } from "../../shared/infrastructure/orkeon/wiring.ts";
-import { createLlm } from "../../shared/infrastructure/orkeon/llm.ts";
+import { agentLlm } from "../../shared/infrastructure/orkeon/llm.ts";
 import { runProjectInit } from "./application/run-project-init.ts";
 import { SCANNER_GOAL, SCANNER_ROLE } from "./application/prompts.ts";
 
@@ -24,7 +24,7 @@ const scanner = orkeonAgent()
   // through the Files and CodeIndex adapters, not the agent catalogue.
   .tools([])
   .body(async (_input: any, ctx: any) =>
-    await runProjectInit({ files, index, llm: createLlm(ctx.llm), log: ctx.log }))
+    await runProjectInit({ files, index, llm: agentLlm(ctx), log: ctx.log }))
   .build();
 
 publishCrew(

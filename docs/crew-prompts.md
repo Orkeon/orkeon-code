@@ -5,6 +5,9 @@ This page is the behaviour specification of every crew's prompt but the main loo
 words, and a marker phrase per rule is pinned by a test ([ADR 0003](adr/0003-prompts-from-a-behaviour-specification.md)).
 A prompt change starts here: the behaviour first, then the text, then its marker.
 
+Every system prompt below ends with the runtime's `## File system` section when the runtime gives one for the agent
+([How a turn runs](turn.md#prompt-assembly)): the paths it may touch, their rights, where relative paths resolve.
+
 ## Review (`code-review`)
 
 - Each lens says what it looks for and what it leaves to the others.

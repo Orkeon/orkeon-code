@@ -6,12 +6,14 @@
 import { rawTokens } from "../_lib/args.ts";
 import { runConfig } from "../_lib/settings/config.ts";
 import { showView } from "../_lib/view.ts";
-import { orkeonConfigStore } from "../../shared/infrastructure/orkeon/wiring.ts";
+import { orkeonConfigStore, orkeonReasoning, orkeonSessionIo } from "../../shared/infrastructure/orkeon/wiring.ts";
 
 const config = orkeonConfigStore();
+const session = orkeonSessionIo();
+const reasoning = orkeonReasoning();
 
 defineCommand({
   name: "config",
   description: "List, get, set or unset settings over the declared key space (file + session layers).",
-  handler: async (args, ctx) => showView(ctx, await runConfig(rawTokens(args), { config })),
+  handler: async (args, ctx) => showView(ctx, await runConfig(rawTokens(args), { config, session, reasoning })),
 });

@@ -44,6 +44,17 @@ export function stopCheckRetryFailed(guard: string, error: string): string {
   return `stop check '${guard}': the retry failed (${error}); the first answer stands`;
 }
 
+/** The log line of the effort an act was given, and what the provider receives when it is not that level. */
+export function actEffort(level: string, maxIterations: number, sent: string): string {
+  return `act — effort: ${level}${sent}, maxIterations: ${maxIterations}`;
+}
+/** The same line when the session stored no level and the host's own configuration asks for one. */
+export function actHostEffort(level: string, maxIterations: number, sent: string): string {
+  return `act — effort: none stored, the host asks for ${level}${sent}, maxIterations: ${maxIterations}`;
+}
+export const effortSentAs = (sent: string, model: string): string => ` (sent as '${sent}' to ${model})`;
+export const effortNotSent = (model: string): string => ` (none sent to ${model})`;
+
 /** The warning when a /model override is dropped under an `llm.profile`. */
 export function modelOverrideIgnored(model: string, profile: string): string {
   return `/model override '${model}' ignored: llm.profile ${profile} is active`;

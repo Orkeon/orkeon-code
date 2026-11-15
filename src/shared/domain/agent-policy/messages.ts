@@ -26,7 +26,7 @@ export const hasNoArgument = (tool: string, argument: string, known: readonly st
 // ── Behaviour flags, extra tools ────────────────────────────────────────
 
 export const effortFlag = (effort: string, maxIterations: number, thinking: string): string =>
-  `effort=${effort} (act maxIterations=${maxIterations}, provider thinking ${thinking})`;
+  `effort=${effort} (act maxIterations=${maxIterations}, provider thinking asked at ${thinking})`;
 
 /** What an entry must be, for messages. */
 export const EXTRA_TOOL_ENTRY_RULE = "each entry is <name>[:read|:write], a tool that is not built in, named once";

@@ -77,6 +77,12 @@ le fichier d'instructions du projet. Il ne contient aucun nombre et aucune donn�
 octets restent identiques d'un tour à l'autre pour un mode donné et que les fournisseurs peuvent le mettre en cache ;
 `MAX_STATIC_HEADER_CHARS` plafonne la partie rédigée.
 
+**La section du système de fichiers**, qui clôt le message système : le texte `## File system` du runtime
+(`ctx.fileSystem.prompt`), qui liste les chemins virtuels que l'agent peut toucher, leurs droits et l'endroit où
+se résolvent les chemins relatifs. L'adaptateur Llm l'ajoute à chaque acte qui porte un prompt système, celui de la
+boucle principale comme celui de chaque crew, et l'omet quand le runtime n'en donne pas. Les mêmes montages donnent
+le même texte, si bien que le préfixe mis en cache tient.
+
 **Le contexte**, envoyé comme un message utilisateur à part après le message système (`ActOptions.context`), dans un ordre fixe du bloc le plus stable au plus volatil, pour que le cache de préfixe d'un fournisseur s'y
 enfonce aussi loin qu'il le peut : les préférences de session, les skills attachées, la mémoire, les hooks déclarés,
 la fenêtre d'historique sans la requête courante, l'environnement (répertoire de travail, date, statut git), la jauge
@@ -314,7 +320,8 @@ décision sur le runtime, ce profil est choisi à chaque lancement de `/dev-spec
   - Le choix est fait avant le lancement, un lancement que le runtime refuse ensuite (un crew déjà en cours) a donc
     quand même interrogé le modèle et figure dans la liste.
   - `/route on|off` règle `route.agents` pour la session.
-  - Nu, il dit où en est le routage.
+  - Nu, il dit où en est le routage, puis ce que le modèle de chaque échelon prend pour le raisonnement, ou ce que
+    l'effort enregistré par `/effort` y devient.
 
 ## Suggérer des skills pour un tour
 

@@ -25,7 +25,7 @@
 // be built from LlmConfig.Default() and REPLACE the provider's config wholesale,
 // which dropped the API key. Patched in Orkeon.Scripting (JsLlmFacade.ConfigFrom).
 
-import type { Chooser, Logger, SessionMetadata, SessionStore, Telemetry } from "../../../shared/application/ports.ts";
+import type { Chooser, Logger, ReasoningReader, SessionMetadata, SessionStore, Telemetry } from "../../../shared/application/ports.ts";
 import { DEFAULT_EFFORT, EFFORT_LEVELS, providerEffort } from "../../../shared/domain/agent-policy/behavior-flags.ts";
 import { EFFORT_STATE_KEY, MODEL_PREFERENCE_STATE_KEY } from "../../../shared/domain/session-keys.ts";
 import type { ConfigStore } from "../../../shared/application/config-store.ts";
@@ -34,7 +34,7 @@ import { judgeModelChoice, renderModelList } from "../../../shared/domain/model-
 import { NO_CATALOGUE_NOTE } from "../../../shared/domain/messages.ts";
 import type { CommandView } from "../view.ts";
 import { optionsOf } from "./choices.ts";
-import { runEffort } from "./effort.ts";
+import { runEffort, storedEffortWarning } from "./effort.ts";
 import {
   MODEL_CHOICE, MODEL_UNCHANGED, NO_EFFECTIVE_MODEL, OVERRIDE_CLEARED_NO_BOOT, declaredCatalogue, modelSet,
   modelSetUndeclared, modelSetWarned, modelShown, overrideCleared, overrideNotSent, profileNamesModel,
@@ -49,6 +49,14 @@ export interface ModelDeps {
   log: Pick<Logger, "warn">;
   /** Where a bare /model opens a panel, when it can and there is something to pick. */
   chooser?: Chooser;
+  /** What the model switched to makes of the effort /effort stored; absent: nothing is said of it. */
+  reasoning?: ReasoningReader;
+}
+
+/** `text`, then the warning when the stored effort does not go as asked on the model the turns now run on. */
+async function withEffortWarning(text: string, deps: ModelDeps): Promise<string> {
+  const warning = await storedEffortWarning(deps);
+  return warning === "" ? text : `${text}\n${warning}`;
 }
 
 /**
@@ -102,9 +110,7 @@ export async function runModel(tokens: string[], deps: ModelDeps): Promise<Comma
   if (first === "reset" || first === "clear") {
     await session.writeState(MODEL_PREFERENCE_STATE_KEY, "");
     const { boot } = await readHostModels(telemetry);
-    return {
-      text: boot ? overrideCleared(boot) : OVERRIDE_CLEARED_NO_BOOT,
-    };
+    return { text: await withEffortWarning(boot ? overrideCleared(boot) : OVERRIDE_CLEARED_NO_BOOT, deps) };
   }
 
   const requested = tokens.join(" ").trim();
@@ -127,9 +133,9 @@ export async function runModel(tokens: string[], deps: ModelDeps): Promise<Comma
     // Terse inline, full reason in the log: in the split-pane console the two land
     // in different panes, and repeating four lines verbatim next to themselves
     // trains the eye to skip them.
-    return { text: modelSetUndeclared(requested, declared) };
+    return { text: await withEffortWarning(modelSetUndeclared(requested, declared), deps) };
   }
-  return { text: modelSet(requested) };
+  return { text: await withEffortWarning(modelSet(requested), deps) };
 }
 
 /** The panel of a bare /model: the declared models, the effective one when the host does not declare it (Enter must
@@ -155,11 +161,15 @@ async function pickModel(
   if (!answer) return { text: MODEL_UNCHANGED };
 
   const texts: string[] = [];
+  const newEffort = answer.control !== undefined && answer.control !== null && answer.control !== "" && answer.control !== effort;
   if (answer.value.toLowerCase() !== effective.toLowerCase()) {
-    texts.push((await runModel([answer.value], { ...deps, chooser: undefined })).text ?? "");
+    // With a new effort too, the level still stored is about to be replaced: the effort's own answer judges the
+    // new one on the new model.
+    const reasoning = newEffort ? undefined : deps.reasoning;
+    texts.push((await runModel([answer.value], { ...deps, chooser: undefined, reasoning })).text ?? "");
   }
-  if (answer.control && answer.control !== effort) {
-    texts.push((await runEffort([answer.control], { session: deps.session })).text ?? "");
+  if (answer.control && newEffort) {
+    texts.push((await runEffort([answer.control], { session: deps.session, config: deps.config, reasoning: deps.reasoning })).text ?? "");
   }
   return { text: texts.length > 0 ? texts.join("\n") : MODEL_UNCHANGED };
 }

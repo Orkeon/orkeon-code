@@ -20,7 +20,7 @@
 
 import { CrewBuilder, publishCrew } from "../../shared/infrastructure/globals.ts";
 import { orkeonAgent, orkeonConfigStore, orkeonSessionIo } from "../../shared/infrastructure/orkeon/wiring.ts";
-import { createLlm } from "../../shared/infrastructure/orkeon/llm.ts";
+import { agentLlm } from "../../shared/infrastructure/orkeon/llm.ts";
 import { runAdvisor } from "./application/run-advisor.ts";
 import { ADVISOR_GOAL, ADVISOR_ROLE } from "./application/prompts.ts";
 
@@ -32,7 +32,7 @@ const advisor = orkeonAgent()
   .goal(ADVISOR_GOAL)
   .maxIterations(1)
   .body(async (_input: any, ctx: any) =>
-    await runAdvisor({ ...ports, llm: createLlm(ctx.llm), log: ctx.log }))
+    await runAdvisor({ ...ports, llm: agentLlm(ctx), log: ctx.log }))
   .build();
 
 publishCrew(

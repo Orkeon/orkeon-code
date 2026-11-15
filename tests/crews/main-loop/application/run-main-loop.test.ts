@@ -20,6 +20,7 @@ import {
   BARE_TURN_CONTEXT, BLOCKED_ANSWER, blockedRequest, DEFAULT_LOADED, DENYING_CHAINS, DICTATION, EXPLICIT_PLAN, EXTRAS, EXTRA_RULES, EXTRA_TOOLS_INPUT, PARSED_RULES,
   REQUEST_WITH_TRANSCRIPT, RULED_CATALOGUE, SCRIPT_TOOLS_CASES, SESSION_START, SILENT_GATES, SPEAK, SPEAKER_FAILURE,
   attachSkill, PRUNING, pruneBinding, STORED_RULES, suggestBinding, TRANSCRIPT, TRANSCRIPTION_PRELUDE, turnSetup, PROFILED_INPUT, PROFILE_OVERRIDE_WARNING,
+  EFFORT_LOG_CASES,
 } from "./run-main-loop.fixtures.ts";
 import {
   assertGateWarningBefore, assertLogged, assertSuggestedApart, assertLoggedLike, assertPromptEndsWith, assertToolTraceMessage,
@@ -462,6 +463,56 @@ describe("runMainLoop — the turn", () => {
     strictEqual(llm.acts[0].request.effort, "low");
     strictEqual(llm.acts[0].request.maxIterations, 10);
     assertLogged(log.lines, "info: act — effort: low, maxIterations: 10");
+  });
+
+  for (const c of EFFORT_LOG_CASES) {
+    it(c.name, async () => {
+      // Arrange
+      const { store, llm, log, deps } = turnSetup();
+      if (c.stored !== undefined) store.state.set(EFFORT_STATE_KEY, c.stored);
+      llm.effortReport = c.report;
+
+      // Act
+      await runMainLoop({ prompt: "go", permissionMode: "plan" }, EXPLICIT_PLAN, deps);
+
+      // Assert
+      assertLogged(log.lines, c.line);
+    });
+  }
+
+  it("logs no effort when none is stored and the host asks for none", async () => {
+    // Arrange
+    const { log, deps } = turnSetup();
+
+    // Act
+    await runMainLoop({ prompt: "go", permissionMode: "plan" }, EXPLICIT_PLAN, deps);
+
+    // Assert
+    deepStrictEqual(log.lines.filter((line) => line.startsWith("info: act — effort")), []);
+  });
+
+  it("asks what the act sends with no effort when none is stored", async () => {
+    // Arrange
+    const { llm, deps } = turnSetup();
+
+    // Act
+    await runMainLoop({ prompt: "go", permissionMode: "plan" }, EXPLICIT_PLAN, deps);
+
+    // Assert
+    deepStrictEqual(llm.effortsAsked.map((request) => request.effort), [undefined]);
+  });
+
+  it("asks what the act sends with the effort stored and the /model override", async () => {
+    // Arrange
+    const { store, llm, deps } = turnSetup();
+    store.state.set(EFFORT_STATE_KEY, "medium");
+    store.state.set(MODEL_PREFERENCE_STATE_KEY, "glm-5.3");
+
+    // Act
+    await runMainLoop({ prompt: "go", permissionMode: "plan" }, EXPLICIT_PLAN, deps);
+
+    // Assert
+    deepStrictEqual(llm.effortsAsked, [{ effort: "medium", model: "glm-5.3" }]);
   });
 
   it("forwards no effort when no level is set", async () => {

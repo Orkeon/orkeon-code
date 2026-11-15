@@ -23,7 +23,7 @@ import {
   orkeonShell,
 } from "../../shared/infrastructure/orkeon/wiring.ts";
 import { createCrewMemory } from "../../shared/infrastructure/orkeon/crew-memory.ts";
-import { createLlm } from "../../shared/infrastructure/orkeon/llm.ts";
+import { agentLlm } from "../../shared/infrastructure/orkeon/llm.ts";
 import { runGitCommit } from "./application/run-git-commit.ts";
 import { COMMITTER_GOAL, COMMITTER_ROLE } from "./application/prompts.ts";
 
@@ -37,7 +37,7 @@ const committer = orkeonAgent()
   .body(async (_input: any, ctx: any) =>
     await runGitCommit(inputs(), {
       ...ports,
-      llm: createLlm(ctx.llm),
+      llm: agentLlm(ctx),
       memory: createCrewMemory(ctx),
       log: ctx.log,
       openerFor: (policy) => orkeonPullRequestOpener(policy),

@@ -37,7 +37,7 @@ export function context() {
     chat: async (messages: unknown, options: any) => { asked.push({ call: "chat", prompt: messages, options }); return { content: "done" }; },
     extract: async (prompt: string) => { asked.push({ call: "extract", prompt, options: undefined }); return { ok: true }; },
   };
-  return { ctx: { tools: tools as unknown as OrkeonTools, llm: llm as any, log: new FakeLogger() }, tools, asked };
+  return { ctx: { tools: tools as unknown as OrkeonTools, llm: llm as any, fileSystem: { prompt: "" }, log: new FakeLogger() }, tools, asked };
 }
 
 /** A brief quoting a /workspace constant and a fenced diff, and the same brief sent under ROOT. */

@@ -22,7 +22,7 @@ import type { DevVerifyDeps } from "../../../crews/dev-verify/application/run-de
 import { reportingWrites } from "../../../crews/dev-implement/application/report-writes.ts";
 import { AUDITOR_CHARTER } from "../../../crews/dev-verify/domain/auditor-charter.ts";
 import { charterCatalogue } from "../../domain/agents/charter.ts";
-import { createLlm } from "./llm.ts";
+import { agentLlm } from "./llm.ts";
 import { memoryReadTools, memoryRecallTools } from "./memory-tools.ts";
 import type { MemoryToolPorts } from "./memory-tools.ts";
 import { RUN_VALIDATION, runBuildTool, runTestsTool, runValidationTool, scriptToolSlot } from "./script-tools.ts";
@@ -38,10 +38,11 @@ import {
   orkeonPullRequestOpener, orkeonSharedMemory, orkeonShell, orkeonShellJobs,
 } from "./wiring.ts";
 
-/** What an agent body hands its deps: its own tools, model and log. */
+/** What an agent body hands its deps: its own tools, model, file-system section and log. */
 export interface BodyContext {
   tools: OrkeonTools;
   llm: Pick<LlmFacade, "act" | "complete" | "extract" | "chat"> & Partial<Pick<LlmFacade, "permissionGate">>;
+  fileSystem: Pick<AgentFileSystem, "prompt">;
   log: Logger;
 }
 
@@ -111,7 +112,7 @@ interface DevOptions {
   spend?: Spend;
 }
 
-function portsOf(ctx: BodyContext, root: string | undefined) {
+function portsOf(ctx: Pick<BodyContext, "tools">, root: string | undefined) {
   return {
     shell: orkeonShell(ctx.tools, root), files: orkeonFiles(ctx.tools, root), config: orkeonConfigStore(ctx.tools, root),
   };
@@ -134,7 +135,7 @@ export function implementDeps(
     // Each role's act runs under its own callbacks, then the host's gate: the step's rule sets, the role's
     // roots and the /hooks the command passed. `wrote` hears each write that ran, from its result; `writable`:
     // the test author's stubs, which its own root denies leave open; `files`: the rewrite rule reads a write's path.
-    roleLlm: (role, layout, wrote, writable) => rootedLlm(createLlm(ctx.llm, callbacks(
+    roleLlm: (role, layout, wrote, writable) => rootedLlm(agentLlm(ctx, callbacks(
       { step: "dev-implement", role, layout, writable, hooks: opts.hooks, readTools: memoryReadTools(opts.memoryOn) }, wrote,
     ), { effort: opts.effort }), opts.root),
   };
@@ -143,7 +144,7 @@ export function implementDeps(
 /** dev-verify's callbacks over the body's context: the step's rule sets again and the /hooks the command passed;
  *  run_validation and memory_recall, declared `read`, let through on a host without a gate. */
 export function verifyCallbacks(ctx: Pick<BodyContext, "tools" | "log">, opts: DevOptions): ToolCallbacks {
-  const ports = portsOf({ ...ctx, llm: undefined as never }, opts.root);
+  const ports = portsOf(ctx, opts.root);
   return spendGuard(rootedCallbacks(devToolCallbacks(
     { step: "dev-verify", hooks: opts.hooks, readTools: [RUN_VALIDATION.name, ...memoryReadTools(opts.memoryOn)] },
     { shell: ports.shell, log: ctx.log, memoryDir: memoryDirOf(ports.config) },
@@ -161,7 +162,7 @@ export function verifyDeps(
   // The audit's act is offered the auditor's tools alone: a batch agent also holds the implementer's, which an act
   // without a subset would offer too - write tools to a read-only auditor, their schemas resent at every turn.
   const auditorTools = [...charterCatalogue(AUDITOR_CHARTER), RUN_VALIDATION.name, ...memoryReadTools(opts.memoryOn)];
-  const rooted = rootedLlm(createLlm(ctx.llm, verifyCallbacks(ctx, opts), { effort: opts.effort }), opts.root);
+  const rooted = rootedLlm(agentLlm(ctx, verifyCallbacks(ctx, opts), { effort: opts.effort }), opts.root);
   const plain: Llm = { ...rooted, act: (prompt, request = {}) => rooted.act(prompt, request.tools === undefined ? { ...request, tools: auditorTools } : request) };
   return {
     ...ports, log: ctx.log, clock, llm: opts.wrapLlm === undefined ? plain : opts.wrapLlm(plain),

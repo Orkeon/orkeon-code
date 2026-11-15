@@ -65,6 +65,11 @@ cannot do, the search playbook when the search tools are offered, and the projec
 number and no per-turn data, so its bytes stay identical from turn to turn for a given mode and providers can cache
 it; `MAX_STATIC_HEADER_CHARS` caps the authored part.
 
+**The file-system section**, closing the system message: the runtime's own `## File system` text
+(`ctx.fileSystem.prompt`), which lists the virtual paths the agent may touch, their rights and where relative paths
+resolve. The Llm adapter adds it to every act that carries a system prompt, the main loop's and each crew's, and
+leaves it out when the runtime gives none. The same mounts give the same text, so the cached prefix holds.
+
 **The context**, sent as a user message of its own after the system message (`ActOptions.context`), in a
 fixed order from the most stable block to the most volatile, so a provider's prefix cache reaches as far into it as
 it can: session preferences, attached skills, memory, declared hooks, the history window without the current
@@ -280,7 +285,8 @@ is picked at each launch of `/dev-spec` (and its alias `/dev-change`), `/dev-pla
   leave the session's profile. Each routed launch writes a log line with the profile and why, and the last 5 are
   kept in the session for `/route why`; the choice is made before the launch, so a launch the host then refuses (a
   crew already running) has still asked the model and is listed. `/route on|off` sets `route.agents` for the session; bare, it says where the
-  routing stands.
+  routing stands, then what the model of each rung takes for reasoning, or what the effort `/effort` stored becomes
+  on it.
 
 ## Suggesting skills for a turn
 
