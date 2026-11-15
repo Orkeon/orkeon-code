@@ -15,7 +15,7 @@ import {
 import {
   AUTOCOMPACT_BREAKER_STATE_KEY, DEFAULT_MODE_STATE_KEY, EFFORT_STATE_KEY, FAST_MODE_STATE_KEY, MODEL_PREFERENCE_STATE_KEY,
 } from "../../../../src/shared/domain/session-keys.ts";
-import { budgetExhaustedAnswer, llmFailureOf } from "../../../../src/shared/domain/llm-failure.ts";
+import { budgetExhaustedAnswer, iterationsExhausted, llmFailureOf } from "../../../../src/shared/domain/llm-failure.ts";
 import {
   BARE_TURN_CONTEXT, BLOCKED_ANSWER, blockedRequest, DEFAULT_LOADED, DENYING_CHAINS, DICTATION, EXPLICIT_PLAN, EXTRAS, EXTRA_RULES, EXTRA_TOOLS_INPUT, PARSED_RULES,
   REQUEST_WITH_TRANSCRIPT, RULED_CATALOGUE, SCRIPT_TOOLS_CASES, SESSION_START, SILENT_GATES, SPEAK, SPEAKER_FAILURE,
@@ -276,6 +276,19 @@ describe("runMainLoop — the turn", () => {
     strictEqual(answer, `partial\n\n${BUDGET_EXHAUSTED_LINE}`);
     deepStrictEqual([store.messages.at(-1), llm.acts.length], [{ role: "assistant", content: "partial" }, 1]);
     assertLoggedLike(log.lines, "the token budget ran out");
+  });
+
+  it("answers the runtime's notice of an act stopped at its iteration cap, with a warning, and asks no second act", async () => {
+    // Arrange
+    const { llm, log, deps } = turnSetup();
+    llm.answers = [iterationsExhausted(50, "(max tool-call iterations reached without a final answer)")];
+
+    // Act
+    const answer = await runMainLoop({ prompt: "fix the parser", permissionMode: "plan" }, EXPLICIT_PLAN, deps);
+
+    // Assert
+    deepStrictEqual([answer, llm.acts.length], ["(max tool-call iterations reached without a final answer)", 1]);
+    assertLoggedLike(log.lines, "the turn stopped without a final answer");
   });
 
   it("appends the user and the assistant messages and answers", async () => {

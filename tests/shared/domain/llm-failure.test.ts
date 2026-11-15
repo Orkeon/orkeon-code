@@ -4,7 +4,8 @@ import { describe, it } from "node:test";
 import { deepStrictEqual, strictEqual, ok } from "node:assert";
 
 import {
-  budgetExhaustedAnswer, budgetExhaustedAnswerOf, decisionBlockOf, decisionBlockText, llmFailureOf,
+  budgetExhaustedAnswer, budgetExhaustedAnswerOf, decisionBlockOf, decisionBlockText, iterationsExhausted,
+  iterationsExhaustedOf, llmFailureOf,
 } from "../../../src/shared/domain/llm-failure.ts";
 import { readBudgetExhausted } from "../../../src/shared/domain/dev/step-budget.ts";
 import {
@@ -97,6 +98,59 @@ describe("budgetExhaustedAnswer", () => {
     // Assert
     strictEqual(dimension, "tokens");
   });
+});
+
+describe("iterationsExhausted", () => {
+  it("says the turns the act used and keeps the runtime's notice apart from its message", () => {
+    // Arrange
+    const notice = "(max tool-call iterations reached without a final answer)";
+
+    // Act
+    const failure = iterationsExhausted(20, notice);
+
+    // Assert
+    deepStrictEqual(
+      [failure.name, failure.iterations, failure.notice, failure.message],
+      ["IterationsExhausted", 20, notice, "the act used its 20 tool-call turns without a final answer"],
+    );
+  });
+
+  it("names no count when the runtime gave none", () => {
+    // Arrange
+    const iterations = undefined;
+
+    // Act
+    const failure = iterationsExhausted(iterations, "notice");
+
+    // Assert
+    deepStrictEqual([failure.iterations, failure.message], [null, "the act used its tool-call turns without a final answer"]);
+  });
+});
+
+describe("iterationsExhaustedOf", () => {
+  it("gives the failure back", () => {
+    // Arrange
+    const failure = iterationsExhausted(20, "notice");
+
+    // Act
+    const read = iterationsExhaustedOf(failure);
+
+    // Assert
+    strictEqual(read, failure);
+  });
+
+  for (const c of NOT_WRAP_UPS) {
+    it(`is null for ${c.name}`, () => {
+      // Arrange
+      const { failure } = c;
+
+      // Act
+      const read = iterationsExhaustedOf(failure);
+
+      // Assert
+      strictEqual(read, null);
+    });
+  }
 });
 
 describe("budgetExhaustedAnswerOf", () => {

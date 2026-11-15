@@ -7,6 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed — a review that ran out of turns no longer reads `CLEAR`
+
+- An agent stopped at its iteration cap gave the runtime's notice in place of an answer, and that notice was
+  parsed as one: a reviewer of `/dev-spec`, `/dev-change`, `/dev-plan` or `/dev-batches` that used its 20 turns
+  without concluding was reported `review: CLEAR`. Such an act is now a failure: the summary reads
+  `review: not run (model-failed: the act used its 20 tool-call turns without a final answer)`, a role of
+  `/dev-implement` and the auditor of `/dev-verify` stop on the same reason, and `/agent` fails with it. The main
+  loop still shows the runtime's notice as the turn's answer, with a warning in the log.
+
 ### Changed — `/dev-spec` rewrites the spec with the answers once
 
 - `/dev-spec` no longer has the model rewrite the whole spec after each round of questions (about two minutes a

@@ -34,6 +34,11 @@ export function budgetRanOut(error: string): string {
   return `the token budget ran out: the model's wrap-up is the answer (${error})`;
 }
 
+/** The warning when the act stopped at its iteration cap. */
+export function turnsRanOut(error: string): string {
+  return `the turn stopped without a final answer: ${error}`;
+}
+
 /** The log line of a stop check that sends the answer back. */
 export function stopCheckSendsBack(guard: string, reason: string): string {
   return `stop check '${guard}': the answer goes back once (${reason})`;

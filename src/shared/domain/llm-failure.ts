@@ -8,10 +8,16 @@
 // last call without tools and resolved with that answer): the answer rides on the
 // error, so no caller reads a cut-short wrap-up as a finished answer, and the
 // readers of a spent budget (shared/domain/dev/step-budget.ts) see the `tokens`
-// dimension as they did when the runtime rejected. A call a decision stage of
+// dimension as they did when the runtime rejected. An act that resolves with
+// `exhausted` (its `maxIterations` reached, no final answer: its output is the
+// runtime's own notice, not the model's words) is thrown as an IterationsExhausted,
+// so that no caller parses that notice as an answer - a review read as CLEAR, an
+// audit as a verdict. A call a decision stage of
 // the host blocked is no failure of the provider: the runtime rejects it with a
 // DecisionBlockedError (Orkeon #269), which decisionBlockOf reads. Pure, no IO.
-import { BUDGET_EXHAUSTED_MESSAGE, blockedByDecisionProfile, matchesTheRisk, modelCallFailed } from "./messages.ts";
+import {
+  BUDGET_EXHAUSTED_MESSAGE, blockedByDecisionProfile, iterationsExhaustedMessage, matchesTheRisk, modelCallFailed,
+} from "./messages.ts";
 
 const MARKER = /^<undefined-llm:([\s\S]*)>$/;
 
@@ -101,4 +107,28 @@ export function budgetExhaustedAnswerOf(failure: unknown): BudgetExhaustedAnswer
   if (!(failure instanceof Error) || failure.name !== "BudgetExhaustedError") return null;
   const answer = (failure as { answer?: unknown }).answer;
   return typeof answer === "string" ? failure as BudgetExhaustedAnswer : null;
+}
+
+/** The error an act stopped at its iteration cap throws: the model never gave a final answer. */
+export interface IterationsExhausted extends Error {
+  name: "IterationsExhausted";
+  /** The tool-call turns the act ran; null when the runtime did not say. */
+  iterations: number | null;
+  /** What the runtime resolved with in place of an answer: its notice, never the model's words. */
+  notice: string;
+}
+
+/** The error of an act that resolved with `exhausted` after `iterations` turns, `notice` its output. */
+export function iterationsExhausted(iterations: unknown, notice: string): IterationsExhausted {
+  const turns = typeof iterations === "number" && Number.isInteger(iterations) && iterations > 0 ? iterations : null;
+  const failure = new Error(iterationsExhaustedMessage(turns)) as IterationsExhausted;
+  failure.name = "IterationsExhausted";
+  failure.iterations = turns;
+  failure.notice = notice;
+  return failure;
+}
+
+/** The failure as an IterationsExhausted, or null for any other value. */
+export function iterationsExhaustedOf(failure: unknown): IterationsExhausted | null {
+  return failure instanceof Error && failure.name === "IterationsExhausted" ? failure as IterationsExhausted : null;
 }

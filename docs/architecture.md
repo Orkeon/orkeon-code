@@ -62,6 +62,10 @@ The runtime runs the sources under rules that shape everything below:
   without being named.
 - **A budget stops `act` with a typed error.** A `toolCalls` budget stops `act` with a typed
   `BudgetExhaustedException`.
+- **An act stopped at its iteration cap is a failure, never an answer.** The runtime resolves such an act with
+  `exhausted: true` and a notice in place of the model's words; the `Llm` adapter throws it as an
+  `IterationsExhausted`. A reviewer or an auditor that never concluded then reads `not run`, with the turns it used,
+  instead of a notice parsed as `CLEAR`; the main loop shows the notice as the turn's answer.
 
 So each entry point is its own composition root: it builds the adapters it needs and hands them to a use case that
 takes its dependencies as parameters. The ports are interfaces, erased from every bundle, and a test imports a use

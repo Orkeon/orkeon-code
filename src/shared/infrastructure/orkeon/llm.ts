@@ -11,7 +11,10 @@
 // port's `act` keeps resolving to a finished answer alone, every caller that reads a
 // spent budget off a rejection (runSubAgent, the dev roles, the auditor) keeps doing
 // so under the `tokens` dimension, and the one caller that shows the wrap-up (the
-// main loop) reads it off the error. A crew that guards its tool calls hands its callbacks
+// main loop) reads it off the error. An act stopped at its `maxIterations` resolves with
+// `exhausted: true` and the runtime's notice as output: it is thrown as an IterationsExhausted,
+// so a reviewer or an auditor that never concluded is a failure of its act, never an answer to
+// parse; the main loop shows the notice. A crew that guards its tool calls hands its callbacks
 // (shared/application/dev/tool-callbacks.ts) as the second argument: each act then carries the
 // onToolCall/onToolResult built for its own mode. The request's `effort` is the runtime's
 // `act({effort})` as it is; the crew's own level, when it has one, fills a request that names none.
@@ -27,7 +30,7 @@
 
 import type { ActRequest, CompleteRequest, Llm, ModelOverride } from "../../application/ports.ts";
 import type { PermissionMode } from "../../domain/permission-modes.ts";
-import { budgetExhaustedAnswer, llmFailureOf } from "../../domain/llm-failure.ts";
+import { budgetExhaustedAnswer, iterationsExhausted, llmFailureOf } from "../../domain/llm-failure.ts";
 import { effortReportOf } from "../../domain/agent-policy/reasoning.ts";
 import { hostCallbacks } from "../../application/dev/tool-callbacks.ts";
 import type { ActCallbacks, ToolCallbacks } from "../../application/dev/tool-callbacks.ts";
@@ -62,11 +65,13 @@ function actOptions(request: ActRequest, callbacks: ActCallbacks | undefined): A
 
 /** The answer text of an act() result: its `output`; the result itself when it
  *  carries none (a host resolving to a bare string); empty when nothing came back.
- *  A result flagged `budgetExhausted` is thrown with its output as a BudgetExhaustedAnswer. */
+ *  A result flagged `budgetExhausted` is thrown with its output as a BudgetExhaustedAnswer, one flagged `exhausted`
+ *  (the iteration cap reached, its output the runtime's notice) as an IterationsExhausted. */
 function answerOf(result: unknown): string {
-  const r = result as { output?: unknown; budgetExhausted?: unknown } | null | undefined;
+  const r = result as { output?: unknown; budgetExhausted?: unknown; exhausted?: unknown; iterations?: unknown } | null | undefined;
   const text = String(r?.output ?? r ?? "");
   if (r?.budgetExhausted === true) throw budgetExhaustedAnswer(text);
+  if (r?.exhausted === true) throw iterationsExhausted(r.iterations, text);
   return text;
 }
 

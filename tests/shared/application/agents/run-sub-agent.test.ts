@@ -5,7 +5,7 @@ import { deepStrictEqual, ok, strictEqual } from "node:assert";
 
 import { runSubAgent } from "../../../../src/shared/application/agents/run-sub-agent.ts";
 import { FakeLlm } from "../../../support/doubles/fake-llm.ts";
-import { budgetExhaustedAnswer } from "../../../../src/shared/domain/llm-failure.ts";
+import { budgetExhaustedAnswer, iterationsExhausted } from "../../../../src/shared/domain/llm-failure.ts";
 import { CANCELLED_ACTS, CHARTER, FINAL_EXTRACTION_FAILURES, ROUTES, acceptsNine, call } from "./run-sub-agent.fixtures.ts";
 
 describe("runSubAgent", () => {
@@ -140,6 +140,21 @@ describe("runSubAgent", () => {
 
     // Assert
     deepStrictEqual([outcome.ok, (outcome as { reason: string }).reason, llm.extracts.length], [false, "model-failed", 0]);
+  });
+
+  it("reports an act stopped at its iteration cap as model-failed with its turns, without extracting the notice", async () => {
+    // Arrange
+    const llm = new FakeLlm();
+    llm.answers = [iterationsExhausted(20, "(max tool-call iterations reached without a final answer)")];
+
+    // Act
+    const outcome = await runSubAgent(llm, call());
+
+    // Assert
+    deepStrictEqual(
+      [outcome.ok, (outcome as { reason: string }).reason, (outcome as { problems: string[] }).problems, llm.extracts.length],
+      [false, "model-failed", ["the act used its 20 tool-call turns without a final answer"], 0],
+    );
   });
 
   for (const c of CANCELLED_ACTS) {

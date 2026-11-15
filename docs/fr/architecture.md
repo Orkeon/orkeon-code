@@ -66,6 +66,11 @@ Le runtime exécute les sources sous des règles qui façonnent tout ce qui suit
   bout, les langages étant détectés sans être nommés.
 - **Un budget arrête `act` par une erreur typée.** Un budget `toolCalls` arrête `act` par une
   `BudgetExhaustedException` typée.
+- **Un acte arrêté à son plafond d'itérations est un échec, jamais une réponse.** Le runtime résout un tel acte avec
+  `exhausted: true` et un avis à la place des mots du modèle ; l'adaptateur `Llm` le lève comme une
+  `IterationsExhausted`. Un relecteur ou un auditeur qui n'a jamais conclu se lit alors `not run`, avec les tours
+  qu'il a utilisés, au lieu d'un avis interprété comme `CLEAR` ; la boucle principale montre l'avis comme réponse du
+  tour.
 
 Chaque point d'entrée est donc sa propre racine de composition : il construit les adaptateurs dont il a besoin et les
 remet à un cas d'usage qui reçoit ses dépendances en paramètres. Les ports sont des interfaces, effacées de chaque
