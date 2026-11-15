@@ -206,3 +206,33 @@ export const CONTEXT_CASES: readonly ContextCase[] = [
   { name: "passes the context as act's own option", context: "CTX", args: ["p", { context: "CTX" }] },
   { name: "sends no context option for a blank context", context: "  ", args: ["p", {}] },
 ];
+
+/** The runtime's section as `ctx.fileSystem.prompt` gives it (Orkeon #378): no line break around it. */
+export const FILE_SYSTEM_SECTION = "## File system\n\nOnly these virtual paths exist; any other path is refused:\n- /workspace (read-write)";
+
+export interface FileSystemCase {
+  name: string;
+  /** What the runtime gives for the agent. */
+  section: string;
+  request: { system?: string };
+  /** The prompt and options the facade's act receives. */
+  args: unknown[];
+}
+
+/** An act's system prompt and the agent's file-system section. */
+export const FILE_SYSTEM_CASES: readonly FileSystemCase[] = [
+  {
+    name: "closes an act's system prompt with the agent's file-system section",
+    section: FILE_SYSTEM_SECTION, request: { system: "RULES\n" },
+    args: ["p", { system: `RULES\n\n${FILE_SYSTEM_SECTION}` }],
+  },
+  {
+    name: "leaves the system prompt as given when the runtime gives no section",
+    section: "", request: { system: "RULES" }, args: ["p", { system: "RULES" }],
+  },
+  {
+    name: "sends no system prompt for an act that carries none, whatever the section",
+    section: FILE_SYSTEM_SECTION, request: {}, args: ["p", {}],
+  },
+];
+

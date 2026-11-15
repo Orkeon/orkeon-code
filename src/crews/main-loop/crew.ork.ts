@@ -49,7 +49,7 @@ import {
   orkeonToolCalls,
 } from "../../shared/infrastructure/orkeon/wiring.ts";
 import { memoryTools } from "../../shared/infrastructure/orkeon/memory-tools.ts";
-import { createLlm } from "../../shared/infrastructure/orkeon/llm.ts";
+import { agentLlm } from "../../shared/infrastructure/orkeon/llm.ts";
 import { memoryGuardCallbacks } from "../../shared/application/dev/tool-callbacks.ts";
 import { createToolTrace, tracedCallbacks } from "../../shared/application/dev/tool-trace-recorder.ts";
 import { memoryDirOf } from "../../shared/application/shared-memory/memory-settings.ts";
@@ -86,7 +86,7 @@ const coder = orkeonAgent()
     // path in another case, a shell cd into the folder) is refused here (shared-memory/layout memoryWriteRefusal).
     // Each result is recorded on the way (tool-trace-recorder): the turn stores its calls as a [tools] message.
     const trace = createToolTrace();
-    const llm = createLlm(ctx.llm, tracedCallbacks(memoryGuardCallbacks(memoryDirOf(ports.config)), trace));
+    const llm = agentLlm(ctx, tracedCallbacks(memoryGuardCallbacks(memoryDirOf(ports.config)), trace));
     const log = ctx.log;
     return await runMainLoop(inputs(), loaded, {
       ...ports,

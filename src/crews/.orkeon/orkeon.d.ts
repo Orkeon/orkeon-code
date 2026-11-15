@@ -259,7 +259,8 @@ declare global {
         /**
          * YAML parity `announce_mounts:` (#348) — whether the agent's declarative turns list its
          * virtual paths (its `.filesystem([...])`, else the run's mounts) and its working root in the
-         * system prompt, when it has a file-system tool. On by default.
+         * system prompt, when it has a file-system tool. On by default. A body places that section itself,
+         * from `ctx.fileSystem.prompt`, which is `""` when this is off.
          */
         announceMounts(value: boolean): this;
         concurrency(n: number): this;
@@ -828,6 +829,29 @@ declare global {
          * refuses a call when they do not: call `ctx.tools` from a body that runs beside others.
          */
         readonly tools: OrkeonTools;
+        /**
+         * The `## File system` section a declarative turn of this agent holds in its system prompt, for the
+         * body to place in the prompt it gives `ctx.llm.act`: nothing is added to that prompt behind its back.
+         */
+        readonly fileSystem: AgentFileSystem;
+    }
+
+    /** `ctx.fileSystem`: the file-system section of an agent body (#378). */
+    interface AgentFileSystem {
+        /**
+         * The section, from its `## File system` heading to its last line, with no line break around it: the
+         * agent's `.filesystem([...])` scope, else the host's agent-facing mounts, sorted by virtual path, each
+         * with its rights; its working root, else the directory relative paths resolve against; the note on
+         * read-write paths. Read from the mounts at each access, so the same mounts give the same text. `""`
+         * when no path is visible, when none of the agent's `.tools([...])` and `withAutonomousTool(s)` uses
+         * the file system, or when the agent sets `announceMounts(false)`.
+         *
+         * ```ts
+         * const system = `${MY_PROMPT}\n\n${ctx.fileSystem.prompt}`;
+         * return (await ctx.llm.act(String(input), { system })).output;
+         * ```
+         */
+        readonly prompt: string;
     }
 
     /** `ctx.log`: extra arguments are joined to the message by a space, objects as JSON. */

@@ -22,7 +22,7 @@ import {
   orkeonShell,
 } from "../../shared/infrastructure/orkeon/wiring.ts";
 import { memoryReadTools, memoryRecallOn, memoryRecallTools } from "../../shared/infrastructure/orkeon/memory-tools.ts";
-import { createLlm } from "../../shared/infrastructure/orkeon/llm.ts";
+import { agentLlm } from "../../shared/infrastructure/orkeon/llm.ts";
 import { devToolCallbacks } from "../../shared/application/dev/tool-callbacks.ts";
 import { memoryDirOf } from "../../shared/application/shared-memory/memory-settings.ts";
 import { charterCatalogue } from "../../shared/domain/agents/charter.ts";
@@ -54,7 +54,7 @@ const builder = orkeonAgent()
   .body(async (_input: any, ctx: any) => {
     // The callbacks of the charter's step, then the host's gate on their input: its rule sets and the /hooks /tasks passed.
     const callbacks = devToolCallbacks({ step, hooks: inputs().hooks, readTools: memoryReadTools(memoryOn) }, { shell, log: ctx.log, memoryDir: memoryDirOf(orkeonConfigStore()) });
-    return await runAgentRun(inputs(), { llm: createLlm(ctx.llm, callbacks, { effort }), log: ctx.log, charters: CHARTERS });
+    return await runAgentRun(inputs(), { llm: agentLlm(ctx, callbacks, { effort }), log: ctx.log, charters: CHARTERS });
   });
 
 publishCrew(

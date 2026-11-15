@@ -39,7 +39,7 @@ import {
   orkeonShell,
 } from "../../shared/infrastructure/orkeon/wiring.ts";
 import { memoryReadTools, memoryRecallOn, memoryRecallTools } from "../../shared/infrastructure/orkeon/memory-tools.ts";
-import { createLlm } from "../../shared/infrastructure/orkeon/llm.ts";
+import { agentLlm } from "../../shared/infrastructure/orkeon/llm.ts";
 import { providerEffort } from "../../shared/domain/agent-policy/behavior-flags.ts";
 import { memoryDirOf } from "../../shared/application/shared-memory/memory-settings.ts";
 import { devToolCallbacks } from "../../shared/application/dev/tool-callbacks.ts";
@@ -87,7 +87,7 @@ const builder = orkeonAgent()
   .body(async (_input: any, ctx: any) => {
     const clock = orkeonClock();
     const child = openChildAct(
-      createLlm(ctx.llm, callbacksFor(ctx), { effort }), ctx, crew, { state: session, clock, log: ctx.log, effort },
+      agentLlm(ctx, callbacksFor(ctx), { effort }), ctx, crew, { state: session, clock, log: ctx.log, effort },
       { crew: "dev-change", step: "dev-change" },
       { agent: REVIEWER_CHARTER.name, charter: REVIEWER_CHARTER.name, task: BRIEF_REVIEW_TASK, builder: reviewer },
     );

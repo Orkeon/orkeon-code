@@ -11,7 +11,7 @@
 
 import { CrewBuilder, publishCrew } from "../../shared/infrastructure/globals.ts";
 import { orkeonAgent, orkeonFiles } from "../../shared/infrastructure/orkeon/wiring.ts";
-import { createLlm } from "../../shared/infrastructure/orkeon/llm.ts";
+import { agentLlm } from "../../shared/infrastructure/orkeon/llm.ts";
 import { runInitVerifiers } from "./application/run-init-verifiers.ts";
 import { AUTHOR_GOAL, AUTHOR_ROLE } from "./application/prompts.ts";
 
@@ -23,7 +23,7 @@ const author = orkeonAgent()
   .goal(AUTHOR_GOAL)
   .tools([])
   .body(async (_input: any, ctx: any) =>
-    await runInitVerifiers({ files, llm: createLlm(ctx.llm), log: ctx.log }))
+    await runInitVerifiers({ files, llm: agentLlm(ctx), log: ctx.log }))
   .build();
 
 publishCrew(

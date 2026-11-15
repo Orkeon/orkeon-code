@@ -10,7 +10,7 @@
 import type { ActRequest, ChildRuntime, Llm, Logger } from "../../application/ports.ts";
 import { createChildBoard, instanceKey, parseChildInput, runChildAct } from "../../application/agents/child-agent.ts";
 import type { BoardDeps, ChildBoard } from "../../application/agents/child-agent.ts";
-import { createLlm } from "./llm.ts";
+import { agentLlm } from "./llm.ts";
 import type { ToolCallbacks } from "../../application/dev/tool-callbacks.ts";
 import { CHILD_INPUT_NOT_A_CALL } from "./messages.ts";
 
@@ -58,7 +58,7 @@ export function childAgentBody(
     // The parent cannot match the runtime's rows by agent name (they hold the agent's id): say which instance this is.
     if (typeof ctx.instanceId === "string") await ctx.memory.crew.store(instanceKey(call.key), ctx.instanceId).catch(() => undefined);
     try {
-      const reply = await createLlm(ctx.llm, callbacksFor(ctx)).act(call.prompt, call.request);
+      const reply = await agentLlm(ctx, callbacksFor(ctx)).act(call.prompt, call.request);
       await ctx.memory.crew.store(call.key, { ok: true, reply });
       return reply;
     } catch (error) {
@@ -93,7 +93,7 @@ export function withChildAct(
         { runtime, board: deps.board, clock: deps.clock, log: deps.log },
         {
           agent: spec.agent, charter: spec.charter, task: spec.task, prompt,
-          // The crew's effort when the request names none, as createLlm fills it for an inline act.
+          // The crew's effort when the request names none, as the Llm adapter fills it for an inline act.
           request: request.effort === undefined && deps.effort !== undefined ? { ...request, effort: deps.effort } : request,
         },
       );

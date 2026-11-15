@@ -14,7 +14,7 @@
 
 import { CrewBuilder, publishCrew, inputs } from "../../shared/infrastructure/globals.ts";
 import { orkeonAgent, orkeonCodeIndex, orkeonProgress } from "../../shared/infrastructure/orkeon/wiring.ts";
-import { createLlm } from "../../shared/infrastructure/orkeon/llm.ts";
+import { agentLlm } from "../../shared/infrastructure/orkeon/llm.ts";
 import { runAnalyze } from "./application/run-analyze.ts";
 import { ANALYST_GOAL, ANALYST_ROLE } from "./application/prompts.ts";
 
@@ -29,7 +29,7 @@ const analyst = orkeonAgent()
   .tools([])
   .goal(ANALYST_GOAL)
   .body(async (_input: any, ctx: any) =>
-    await runAnalyze(inputs(), { ...ports, llm: createLlm(ctx.llm), log: ctx.log }))
+    await runAnalyze(inputs(), { ...ports, llm: agentLlm(ctx), log: ctx.log }))
   .build();
 
 publishCrew(

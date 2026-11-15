@@ -3,11 +3,11 @@
 import { describe, it } from "node:test";
 import { strictEqual, deepStrictEqual, rejects } from "node:assert";
 
-import { createLlm } from "../../../../src/shared/infrastructure/orkeon/llm.ts";
+import { agentLlm, createLlm } from "../../../../src/shared/infrastructure/orkeon/llm.ts";
 import { FakeLlmFacade } from "../../../support/doubles/fake-llm-facade.ts";
 import {
-  ACT_ANSWERS, ACT_FAILURE_MARKERS, COMPLETIONS, CONTEXT_CASES, DISK_READ, EFFORTS, EFFORTS_SENT, GATES, REQUESTS, SCHEMA, VIRTUAL_READ, actCallbacksOf,
-  llmWithCallbacks,
+  ACT_ANSWERS, ACT_FAILURE_MARKERS, COMPLETIONS, CONTEXT_CASES, DISK_READ, EFFORTS, EFFORTS_SENT, FILE_SYSTEM_CASES, FILE_SYSTEM_SECTION, GATES,
+  REQUESTS, SCHEMA, VIRTUAL_READ, actCallbacksOf, llmWithCallbacks,
 } from "./llm.fixtures.ts";
 import { windowsHost } from "../../../support/fixtures/host-context.ts";
 
@@ -183,6 +183,36 @@ describe("createLlm — act with a context", () => {
       deepStrictEqual(facade.calls.map((call) => call.args), [c.args]);
     });
   }
+});
+
+describe("createLlm — act with the agent's file-system section (Orkeon #378)", () => {
+  for (const c of FILE_SYSTEM_CASES) {
+    it(c.name, async () => {
+      // Arrange
+      const facade = new FakeLlmFacade();
+      const llm = createLlm(facade, undefined, { fileSystem: { prompt: c.section } });
+
+      // Act
+      await llm.act("p", c.request);
+
+      // Assert
+      deepStrictEqual(facade.calls.map((call) => call.args), [c.args]);
+    });
+  }
+});
+
+describe("agentLlm", () => {
+  it("builds the adapter over the context's facade, with the context's file-system section", async () => {
+    // Arrange
+    const facade = new FakeLlmFacade();
+    const llm = agentLlm({ llm: facade, fileSystem: { prompt: FILE_SYSTEM_SECTION } });
+
+    // Act
+    await llm.act("p", { system: "RULES" });
+
+    // Assert
+    deepStrictEqual(facade.calls.map((call) => call.args), [["p", { system: `RULES\n\n${FILE_SYSTEM_SECTION}` }]]);
+  });
 });
 
 describe("createLlm — complete and extract", () => {

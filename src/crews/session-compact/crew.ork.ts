@@ -23,7 +23,7 @@ import {
   orkeonSessionIo,
   orkeonShell,
 } from "../../shared/infrastructure/orkeon/wiring.ts";
-import { createLlm } from "../../shared/infrastructure/orkeon/llm.ts";
+import { agentLlm } from "../../shared/infrastructure/orkeon/llm.ts";
 import { compactSession, snipBuffer } from "../../shared/application/compaction/compact-session.ts";
 import { formatOutcome } from "../../shared/domain/compact-outcome.ts";
 import { COMPACTOR_GOAL, COMPACTOR_ROLE } from "./application/prompts.ts";
@@ -35,7 +35,7 @@ const compactor = orkeonAgent()
   // file_read: after a compaction, the files the conversation was working on are read back.
   .tools(["session_store", "session_snip", "token_budget", "memory_store", "file_read"])
   .body(async (_input: any, ctx: any) => {
-    const deps = orkeonCompactionDeps({ llm: createLlm(ctx.llm), log: ctx.log }, {
+    const deps = orkeonCompactionDeps({ llm: agentLlm(ctx), log: ctx.log }, {
       progress: orkeonProgress(), session: orkeonSessionIo(), files: orkeonFiles(), memory: orkeonMemoryStore(),
       shell: orkeonShell(), config: orkeonConfigStore(),
     }, orkeonClock());

@@ -42,13 +42,25 @@ returned no row and a success, and the crew reported figures of its own (#372, o
 #373 (`070a58e`, merged on `main` on 2026-11-14) makes every tool that reads a result limit refuse a value that
 returns nothing, in a message naming the field and its default, and say so in the field's description.
 
+The `## File system` section of #363 is written in the system prompt the runtime composes for a declarative turn.
+Every agent of this project runs a body whose `act` sends this project's own system prompt, so none received it: a
+main-loop request captured at `ff69e76` on a local server held the eleven sections of `docs/turn.md` and no such
+section. This project asked for the text (#378), and #377 (`3a6a0d9`, the commit of Orkeon 1.1.0, merged on `main`
+on 2026-11-14) delivered it: `ctx.fileSystem.prompt`, the section as a declarative turn holds it, empty when no
+path is visible, when the agent has no file-system tool or when it sets `announceMounts(false)`.
+
 ## Decision
 
-- **The pin moves to `98799c6`, then to `2fb47b8`** (#365), **to `791760e`** (#371), **to `070a58e`** (#373), **then to `ff69e76`**
-  (#374, a test of Orkeon alone), the newest merge commit of Orkeon `main`. The esbuild of the runtime (`0.25.12`) and its .NET SDK (`10.0.300`) do
+- **The pin moves to `98799c6`, then to `2fb47b8`** (#365), **to `791760e`** (#371), **to `070a58e`** (#373), **to `ff69e76`**
+  (#374, a test of Orkeon alone), **then to `3a6a0d9`** (#377), the newest merge commit of Orkeon `main`. The esbuild of the runtime (`0.25.12`) and its .NET SDK (`10.0.300`) do
   not change; the typings gain `EffortLevel`, `LlmCapabilities` and `LlmReasoning`, then `llm.profiles`,
   `.filesystem(...)` and `.announceMounts(...)`, then `InvalidScriptError`, then the minimum of each limit in its
   description.
+- **The Llm adapter closes every act's system prompt with the runtime's section.** `agentLlm(ctx)` builds the
+  adapter from the context the runtime hands a body, and each act that carries a system prompt ends with
+  `ctx.fileSystem.prompt`, read at that act. One place, so the main loop, the crews, the dev roles and the
+  background children all carry it, and no prompt of this project copies the runtime's wording. An act without a
+  system prompt and a run where the runtime gives no text are sent as before.
 - **No limit of this project changes at #373.** The adapters pass constants above 0 (`max_length`, `max_entries`,
   `max_nodes`, `top_k`, `max_lines`, `max_depth`, `max_results`), so no call of a script is refused. A model that
   sends `0` for a limit now reads the tool's refusal and its default instead of an empty result. `memory_recall`,
@@ -95,11 +107,9 @@ returns nothing, in a message naming the field and its default, and say so in th
   did, and say nothing of the model's levels, until Orkeon's next release.
 - On a runtime between #361 and #365 no profile is read: `llm.profiles` is absent there, and the reader answers
   nothing.
-- The runtime's `## File system` section does not reach this project's prompts. The runtime writes it in the system
-  prompt it composes for a declarative turn; every agent here runs a body whose `act` sends this project's own
-  system prompt. Checked at `ff69e76` by pointing the host at a local server that keeps the request: one main-loop
-  turn, a system message of 10 794 characters, the eleven sections of `docs/turn.md` and no `## File system`. The
-  cached prefix is the one it was.
+- The system prompt of every act grows by the runtime's `## File system` section, a few lines after this project's
+  own text that do not change while the mounts do not: the cached prefix stays stable. On Orkeon 1.0.0 there is no
+  `ctx.fileSystem` and the prompt is sent as before.
 - The older `try … catch` around `llm.profile` (an agent routed to a rung the host does not declare stays on the
   crew's profile, `llm-profile.ts`) could not work before #365. It catches the runtime's `InvalidScriptError` alone
   (#366), read from the globals and handed over as `AgentFactories.refusal`: any other failure of `llm.profile` is
@@ -127,3 +137,7 @@ returns nothing, in a message naming the field and its default, and say so in th
 - Checks at `070a58e`: `npm run check` green, the three smokes in source mode and the package installed in a
   scratch prefix, which names the pin. No model was called. The same at `ff69e76`, whose typings are those of
   `070a58e`.
+- Checks at `3a6a0d9`: `npm run check` green, the smokes in source mode and on the 1.0.0 image and tool, the package
+  installed in a scratch prefix. One main-loop request captured on a local server (no model called): the system
+  message ends with `## File system`, the nine mounts of the session with their rights, `Relative paths resolve
+  against /workspace.` and the note on read-write paths, after this project's eleven sections.
