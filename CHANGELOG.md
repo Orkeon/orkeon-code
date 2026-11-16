@@ -88,10 +88,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - All of it is the runtime's own judgement, read through Orkeon #359 and #360 (the host's `Llm:ModelCapabilities`
   included): on Orkeon 1.0.0 (the tool and docker modes) nothing is said of the model's levels.
 
-### Changed — the pin moves to Orkeon main after #380
+### Changed — the pin moves to Orkeon main after #391
 
-- `.orkeon-version` names `322ffb9`, Orkeon `main` after #380 (the date of Orkeon 1.1.0 in its changelog, nothing
-  of the runtime), itself after #351-#354, #356, #358 (the reasoning modes of
+- `.orkeon-version` names `a318f7f`, Orkeon `main` after #386, #389 and #391 (fixes after Orkeon 1.1.0: the forge,
+  `orkeon rag`, `orkeon doctor`, the crew task loop, a price for each paid provider's default model; same typings,
+  nothing to adopt), itself after #380 (the date of Orkeon 1.1.0 in its changelog, nothing of the runtime), #351-#354, #356, #358 (the reasoning modes of
   `orkeon llm probe`), #362 (Z.AI takes `xhigh`; GLM-5.3 keeps `low`, `high` and `max`), #361 (a script reads a
   model's reasoning capabilities and the effort sent), #363 (an agent's file-system scope, not used here), #365
   (a script lists the host's profiles and catches the runtime's refusals), #371 (a refusal is an
