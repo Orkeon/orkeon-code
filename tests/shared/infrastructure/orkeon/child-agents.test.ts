@@ -100,6 +100,21 @@ describe("childAgentBody", () => {
     deepStrictEqual(facade.calls[0].args, ["review", { system: "S", effort: "high" }]);
   });
 
+  it("acts on the Llm its caller dressed", async () => {
+    // Arrange
+    const run = fakeRun();
+    const dressed = base();
+    const body = childAgentBody(() => undefined, () => dressed);
+    const input = JSON.stringify({ key: "k1", prompt: "review", request: { system: "S" } });
+
+    // Act
+    const reply = await body(input, { ...run.ctx, llm: new FakeLlmFacade() });
+
+    // Assert
+    strictEqual(reply, "inline");
+    deepStrictEqual(dressed.acts, [{ prompt: "review", request: { system: "S" } }]);
+  });
+
   it("leaves the failure under its key and rethrows", async () => {
     // Arrange
     const run = fakeRun();

@@ -7,6 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added — the decision model prunes the acts of the dev crews
+
+- `compaction.prune` now also covers the acts of the dev crews: the reviewer of `/dev-spec`, `/dev-change`,
+  `/dev-plan` and of the next batch of `/dev-batches`, the test author and the implementer of `/dev-implement`, the
+  auditor of `/dev-verify`. Past 40 % of the context window the host's decision model judges the older results of
+  the read tools, as it does for a turn of the assistant. The setting stays off by default; off, or on a host
+  without a decision model, these commands send the same requests as before
+  ([architecture](docs/turn.md#pruning-the-tool-loop), [ADR 0032](docs/adr/0032-pruning-in-the-dev-acts.md)).
+
 ### Fixed — a review that ran out of turns no longer reads `CLEAR`
 
 - An agent stopped at its iteration cap gave the runtime's notice in place of an answer, and that notice was

@@ -24,7 +24,7 @@ import { CrewBuilder, publishCrew, inputs, ToolBuilder } from "../../shared/infr
 import { runValidationTool, scriptToolSlot } from "../../shared/infrastructure/orkeon/script-tools.ts";
 import type { ValidationCalls } from "../../shared/infrastructure/orkeon/script-tools.ts";
 import { STEP_BUDGETS } from "../../shared/domain/dev/step-budget.ts";
-import { orkeonActRoute, orkeonAgent, orkeonClock, orkeonSessionIo } from "../../shared/infrastructure/orkeon/wiring.ts";
+import { orkeonActRoute, orkeonAgent, orkeonClock, orkeonPrunedLlm, orkeonSessionIo } from "../../shared/infrastructure/orkeon/wiring.ts";
 import { memoryRecallOn, memoryRecallTools } from "../../shared/infrastructure/orkeon/memory-tools.ts";
 import { agentTools, verifyCallbacks, verifyDeps } from "../../shared/infrastructure/orkeon/dev-deps.ts";
 import { childAgentBody, withChildAct } from "../../shared/infrastructure/orkeon/child-agents.ts";
@@ -59,7 +59,7 @@ const auditorChild = () => {
     .withAutonomousTool(runValidationTool(ToolBuilder, validationSlot))
     .withAutonomousTools(memoryRecallTools(ToolBuilder, bodyTools.memoryPorts(), memoryOn))
     .maxIterations(AUDITOR_CHARTER.maxIterations)
-    .body(childAgentBody(callbacksFor));
+    .body(childAgentBody(callbacksFor, (llm, ctx) => orkeonPrunedLlm(llm, ctx.log, ctx.tools)));
   return effort === undefined ? builder : builder.effort(effort);
 };
 

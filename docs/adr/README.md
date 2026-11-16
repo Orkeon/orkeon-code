@@ -49,3 +49,4 @@ changes for Orkeon Code: what is adopted, what is set aside, what is removed.
 | [0029](0029-orkeon-after-333.md) | Orkeon main after #333 and the 1.0.0 release, a sub-agent's act routed to a profile |
 | [0030](0030-orkeon-after-356.md) | Orkeon main after #356, the findings of the release validation fixed in the runtime |
 | [0031](0031-orkeon-after-361.md) | Orkeon main after #361, `/effort` reads what the model takes |
+| [0032](0032-pruning-in-the-dev-acts.md) | The acts of the dev crews carry the pruning of their tool loop |

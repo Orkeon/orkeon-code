@@ -14,7 +14,7 @@ ouverte : sans modèle de décision, ou quand il ne répond pas, Orkeon Code fai
 
 | Quoi | L'allumer | Le modèle de décision décide | Détails |
 |---|---|---|---|
-| Élaguer un long tour | `/config set compaction.prune on` | quels anciens résultats d'outils un tour en cours n'a plus besoin de garder | [architecture](turn.md#compaction-et-mémoire) |
+| Élaguer un long tour | `/config set compaction.prune on` | quels anciens résultats d'outils un tour en cours, ou un act d'un crew dev, n'a plus besoin de garder | [architecture](turn.md#compaction-et-mémoire) |
 | Router un crew | `/route on` | le profil LLM le moins cher qui convient à la commande | [architecture](turn.md#router-un-crew-vers-un-profil) |
 | Suggérer des skills | `/skills suggest on` | les skills du projet qui conviennent à la demande d'un tour | [architecture](turn.md#suggérer-des-skills-pour-un-tour) |
 
@@ -28,6 +28,10 @@ Les résultats d'outils d'un tour en cours restent dans le contexte du modèle j
 compaction ne les atteint. Avec `compaction.prune` à `on`, au-delà de 40 % de la fenêtre de contexte, le modèle de
 décision juge les anciens résultats des outils de lecture : chacun est retiré, coupé à ses 300 premiers caractères
 ou gardé, et une ligne dit comment le retrouver.
+
+Le même réglage élague les acts des crews dev : le relecteur de `/dev-spec`, `/dev-change`, `/dev-plan` et du
+prochain lot de `/dev-batches`, l'auteur de tests et l'implémenteur de `/dev-implement`, l'auditeur de
+`/dev-verify`. Réglage éteint, ou sans modèle de décision, ces commandes tournent comme avant.
 
 ### Mesuré : un tour, avec et sans
 

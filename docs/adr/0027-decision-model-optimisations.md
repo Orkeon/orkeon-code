@@ -69,7 +69,8 @@ names. A script reaches it as a member of the `tools` namespace.
   before the summary, skip the summary when enough was freed (40 % of the window, or 8 000 tokens), a `pruned`
   outcome, `/compact --prune` and `/compact --stats`. The buffer holds no tool result (one line per call), so
   none of that exists: the pruning runs in the loop, and a log line says what each pressure judged, removed and
-  cut. Only the main loop's act carries it; the sub-agents of the dev crews do not.
+  cut. Only the main loop's act carried it then; the acts of the dev crews carry it since
+  [ADR 0032](0032-pruning-in-the-dev-acts.md).
 - Checked live on 2026-11-11 with the hosted Jev and with `kev-0.8b`: `system_one_decide` answers under both
   providers and its probabilities reach the script as numbers. One measured turn saved 73.5 % of its input tokens
   ([decision models](../decision-models.md#measured-one-turn-with-and-without)). Not established:

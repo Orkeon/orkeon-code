@@ -13,7 +13,7 @@ does not answer, Orkeon Code does what it did before.
 
 | What | Turn it on | The decision model decides | Details |
 |---|---|---|---|
-| Pruning a long turn | `/config set compaction.prune on` | which older tool results a turn in progress no longer needs | [architecture](turn.md#compaction-and-memory) |
+| Pruning a long turn | `/config set compaction.prune on` | which older tool results a turn in progress, or an act of a dev crew, no longer needs | [architecture](turn.md#compaction-and-memory) |
 | Routing a crew | `/route on` | the cheapest LLM profile that fits the command | [architecture](turn.md#routing-a-crew-to-a-profile) |
 | Suggesting skills | `/skills suggest on` | the project's skills that fit the request of a turn | [architecture](turn.md#suggesting-skills-for-a-turn) |
 
@@ -26,6 +26,10 @@ Orkeon's sources at the pin. The reasons behind each choice are in
 The tool results of a turn in progress stay in the model's context until the turn ends: no compaction reaches
 them. With `compaction.prune` on, past 40 % of the context window, the decision model judges the older results of
 the read tools: each is removed, cut to its first 300 characters or kept, and a line says how to get it back.
+
+The same setting prunes the acts of the dev crews: the reviewer of `/dev-spec`, `/dev-change`, `/dev-plan` and of
+the next batch of `/dev-batches`, the test author and the implementer of `/dev-implement`, the auditor of
+`/dev-verify`. With the setting off, or without a decision model, these commands run as they did.
 
 ### Measured: one turn, with and without
 

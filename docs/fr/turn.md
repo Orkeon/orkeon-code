@@ -379,7 +379,9 @@ Code : `shared/application/compaction/compact-session.ts`.
 
 ### Élagage de la boucle d'outils
 
-Code : `shared/domain/context-prune.ts`, `shared/application/compaction/prune-context.ts`, [ADR 0027](../adr/0027-decision-model-optimisations.md).
+Code : `shared/domain/context-prune.ts`, `shared/application/compaction/prune-context.ts`,
+`shared/application/compaction/pruned-llm.ts`, [ADR 0027](../adr/0027-decision-model-optimisations.md),
+[ADR 0032](../adr/0032-pruning-in-the-dev-acts.md).
 
 - Les résultats d'outils d'un tour en cours vivent dans la boucle du runtime, jamais dans le tampon de session,
   aucune compaction ne les atteint donc.
@@ -398,6 +400,12 @@ Code : `shared/domain/context-prune.ts`, `shared/application/compaction/prune-co
   est proposé de nouveau : un petit résultat reçoit `keep`, un résultat jugé utile reste sans verdict et est rejugé
   une fois 8 tours de modèle de plus passés.
 - Chaque act a sa propre liaison, celui que demande un contrôle de fin compris.
+- Les acts des crews dev la portent aussi : le relecteur de `/dev-spec`, `/dev-change`, `/dev-plan` et du prochain
+  lot de `/dev-batches`, l'auteur de tests et l'implémenteur de `/dev-implement`, l'auditeur de `/dev-verify`.
+  Leur Llm la lie à chaque act, sur le brief de l'act, dans l'agent qui agit : un relecteur ou un auditeur lancé
+  en enfant lie la sienne. Une extraction n'en porte pas.
+- Dans un act dev la fenêtre est celle de la session, même quand l'act a été routé vers un autre profil, et un
+  résultat que le relecteur doit relire lui coûte une de ses seize recherches.
 - L'élagage échoue ouvert : le réglage éteint ou illisible, pas de modèle de décision (un avertissement) ou un
   modèle qui ne répond pas (un avertissement, et plus aucune question dans cet act) n'élaguent rien.
 - Une ligne du journal dit ce que chaque pression a jugé, retiré et coupé.

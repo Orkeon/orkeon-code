@@ -65,3 +65,5 @@
       href: ../adr/0027-decision-model-optimisations.md
     - name: "ADR 0028 : Le runtime de l'épingle, téléchargé au premier démarrage (en anglais)"
       href: ../adr/0028-runtime-downloaded-at-first-start.md
+    - name: "ADR 0032 : Les acts des crews dev portent l'élagage de leur boucle d'outils (en anglais)"
+      href: ../adr/0032-pruning-in-the-dev-acts.md
