@@ -58,6 +58,20 @@ entier. Net des 0,2 s du modèle de décision, le tour a passé 7,3 s de moins d
 Un second essai, sur le seul dernier fichier du tour, n'a pas de jumeau auquel le comparer : il figure sous
 [Ce que ces mesures ne montrent pas](#ce-que-ces-mesures-ne-montrent-pas).
 
+### Mesuré : les acts des crews dev
+
+Mesuré le 2026-11-16, une exécution, élagage éteint, pour lire jusqu'où ces acts grossissent. Le seuil le plus bas
+est de 51 200 tokens (40 % d'une fenêtre de 128 000).
+
+| Act | Appels au modèle | Plus gros appel, en tokens |
+| --- | ---: | ---: |
+| Les rôles de `/dev-batches calc F1` : un lot d'un projet de trois fichiers, tests verts en 2 min 27 s | 18 | 10 120 |
+| Le relecteur de `/dev-spec`, sur six exécutions dans ce dépôt | 4 à 9 | 43 000 |
+| Le relecteur de `/dev-plan`, sur quatre exécutions | 7 à 10 | 43 000 |
+
+Aucun de ces acts n'atteint le seuil : réglage allumé, rien n'y aurait été élagué. L'élagage d'un act dev est câblé
+et testé, et son effet n'est pas mesuré : il faut un lot dont un rôle lit bien plus que ceux-ci.
+
 ## Router un crew
 
 Les agents d'un crew tournent tous sur un profil LLM du runtime, celui de la session. Avec `route.agents` à `on`, au
@@ -69,7 +83,8 @@ profil de la session. `/route why` montre les cinq derniers choix.
 
 Dans un crew, l'act d'un relecteur (`/dev-spec`, `/dev-change`, `/dev-plan`, le lot suivant de `/dev-batches`) et
 celui de l'auditeur de `/dev-verify` sont routés de la même façon, pour ce seul appel : voir
-[Router un crew vers un profil](turn.md#router-un-crew-vers-un-profil). Ce routage des acts n'est pas mesuré.
+[Router un crew vers un profil](turn.md#router-un-crew-vers-un-profil). Deux exécutions en sont
+[mesurées plus bas](#mesuré--dev-spec-puis-dev-plan-routés-ou-non).
 
 ### Mesuré : douze commandes
 
@@ -93,6 +108,31 @@ de l'auteur sur chaque commande.
 
 Onze sur douze comme attendu. La douzième montre le seuil à l'œuvre : un choix à 0,54 n'est pas suivi, et le
 lancement tourne comme sans routage.
+
+### Mesuré : `/dev-spec` puis `/dev-plan`, routés ou non
+
+Mesuré le 2026-11-16 : la session sur `llm.profile large` (`glm-5.3`), l'échelle `small,large` (`small` est
+`glm-5.3-flashx`), la même demande à chaque fois (une option `--quiet` sur un script de ce dépôt), deux exécutions
+avec `/route off` et deux avec `/route on`.
+
+| | `/dev-spec` | Sa revue | `/dev-plan` | Sa revue |
+|---|---|---|---|---|
+| Éteint, exécution 1 | échec après deux appels au modèle de plus de 600 s | 9 appels, 213 556 tokens | non lancé | |
+| Éteint, exécution 2 | 27 min 14 s | 2 Blocking, 3 Major ; 8 appels, 169 998 tokens | échec : le crew a épuisé son temps | 7 appels, 159 562 tokens, pas de verdict |
+| Allumé, exécution 1 | 4 min 48 s, sur `small` (1,00) | sur `small` (0,80) : 2 Blocking, 1 Major ; 4 appels, 36 723 tokens | 6 min 42 s, sur `small` (0,78) | sur `large` (0,51 pour `small`, non suivi) : 4 Blocking, 3 Major ; 10 appels, 168 726 tokens |
+| Allumé, exécution 2 | 6 min 57 s, sur `small` (0,99) | sur `small` (0,81) : 1 Blocking, 4 Major ; 4 appels, 42 774 tokens | sur `small` (0,80) : le brouillon refusé deux fois, rien d'écrit | non lancé |
+
+- Routées, les deux commandes ont pris 11 min 35 s dans l'exécution où les deux ont abouti. Non routées, aucune
+  exécution n'a mené les deux au bout : ce jour-là `glm-5.3` répondait trop lentement pour le temps dont dispose un
+  crew.
+- Les revues routées vers `small` ont trouvé autant de lignes Blocking que celle qui a tourné sur `large` (2 et 1
+  contre 2), pour un cinquième des tokens.
+- Un plan rédigé sur `small` a été refusé deux fois par les contrôles de sa forme, une fois sur deux exécutions : le
+  défaut qu'une session sur `glm-5.3-flashx` montre déjà de temps en temps. Router une session vers le bas l'amène
+  avec lui.
+- Une troisième exécution, sur un runtime sans modèle de décision avec `route.agents` et `compaction.prune` allumés
+  tous deux, a mené les deux commandes au bout en 12 min 54 s, avec un avertissement par réglage et rien d'autre de
+  changé.
 
 ## Suggérer des skills
 
@@ -164,8 +204,12 @@ requêtes du tour élagué ont pris 0,54 s cumulées et sont parties ensemble (0
 - C'est une exécution par cas, sur des demandes et des commandes écrites pour être claires. Des demandes vagues,
   ou auxquelles deux skills conviennent, n'ont pas été essayées.
 - Les réponses attendues sont le jugement d'une personne.
-- Le routage a été mesuré sur ses seuls choix : ce qu'un crew coûte et ce qu'il vaut sur `small` plutôt que sur
-  `large` n'est pas mesuré.
+- Les exécutions routées de `/dev-spec` et `/dev-plan` sont deux de chaque, sur une demande et un fournisseur, un
+  jour où son plus grand modèle était lent : elles montrent que le routage peut faire la différence entre une
+  exécution qui aboutit et une qui n'aboutit pas, pas de combien il raccourcit une exécution qui aurait abouti. Les
+  autres commandes routées ont été mesurées sur leurs seuls choix.
+- Aucun act dev mesuré n'a atteint le seuil d'élagage : ce que l'élagage y économise, et ce qu'il coûte en
+  résultats relus, n'est pas connu.
 - Pour l'élagage, un modèle qui lit un fichier par appel au lieu de tous d'un coup dépense ses tokens autrement, et
   la demande dit quels fichiers comptent, le cas facile pour le juge. Le même tour interrogé sur son seul dernier
   fichier a vu ses 20 résultats retirés (environ 115 000 tokens) et a répondu juste, en 57 515 tokens d'entrée ;

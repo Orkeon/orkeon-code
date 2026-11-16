@@ -44,5 +44,6 @@ Two facts shaped the change:
 - The reviewer of `/dev-spec`, `/dev-change` and `/dev-plan` has sixteen look-ups: a result removed that it reads
   again costs one. Its context stayed under 49 000 tokens in the measures of 2026-11-15, under the lowest threshold
   (51 200), so the pruning is not expected to run there.
-- Not established when this was written: what the pruning saves, and what it costs in results read again, on a role
-  of `/dev-implement`. [Decision models](../decision-models.md) holds what was measured.
+- Measured on 2026-11-16 with the pruning off: the roles of one small batch stayed under 10,200 tokens a call, the
+  reviewers under 43,000. No dev act reached the threshold, so what the pruning saves there, and what it costs in
+  results read again, is not established ([decision models](../decision-models.md#measured-the-acts-of-the-dev-crews)).
