@@ -30,6 +30,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   the way that works, and [ADR 0028](docs/adr/0028-runtime-downloaded-at-first-start.md) records that a release may
   ship without runtime archives (#114).
 
+### Fixed — `/commit` no longer reads a failed `git status` as a clean tree
+
+- When `git status` failed where the crew runs (no git in the container, no repository), `/commit` answered "Nothing
+  to commit — working tree clean." on a tree that held changes. It now stops with git's reason and commits nothing.
+  The `orkeon` docker image ships without git ([Orkeon #404](https://github.com/Orkeon/orkeon/issues/404)): in docker
+  mode, `/commit` now says so instead of finding nothing.
+
 ## [1.0.0-rc.2] - 2026-11-17
 
 ### Added — the decision model prunes the acts of the dev crews

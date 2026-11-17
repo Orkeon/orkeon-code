@@ -2,6 +2,8 @@
 
 export const commitRefusedLog = (reason: string): string => `git-commit refused: ${reason}`;
 export const NOTHING_TO_COMMIT_CLEAN_TREE = "Nothing to commit — working tree clean.";
+export const statusUnreadable = (reason: string): string =>
+  `✗ the working tree could not be read, nothing was committed: git status failed: ${reason}`;
 export const noChangeUnder = (paths: string): string => `no change under ${paths}`;
 export const notThroughShell = (paths: string): string => `${paths} cannot go through the shell (commit by hand)`;
 export const workFolderLeftOut = (count: number, folder: string): string =>

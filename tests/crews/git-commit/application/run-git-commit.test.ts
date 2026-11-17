@@ -6,7 +6,7 @@ import { deepStrictEqual, strictEqual } from "node:assert";
 import { runGitCommit } from "../../../../src/crews/git-commit/application/run-git-commit.ts";
 import { GIT_STATUS_COMMAND } from "../../../../src/shared/domain/git/close.ts";
 import { AUTHOR_NOTE_HEADING } from "../../../../src/crews/git-commit/application/prompts.ts";
-import { CLEAN, MESSAGE, PR_WITH_TOOL, PUSH, commitInput, world } from "./run-git-commit.fixtures.ts";
+import { CLEAN, MESSAGE, NO_GIT, NO_GIT_ANSWER, PR_WITH_TOOL, PUSH, commitInput, world } from "./run-git-commit.fixtures.ts";
 import { assertCommitted, assertNotCommitted, assertStoppedBeforeDraft } from "./run-git-commit.assertions.ts";
 import { assertMentions, assertOmits } from "../../../support/assertions/text.ts";
 
@@ -42,6 +42,17 @@ describe("runGitCommit: the stops before the commit", () => {
 
     // Assert
     strictEqual(answer, CLEAN);
+  });
+
+  it("stops on a failed git status with git's reason, never answering clean", async () => {
+    // Arrange
+    const w = world({ answers: { [GIT_STATUS_COMMAND]: NO_GIT } });
+
+    // Act
+    const answer = await runGitCommit(commitInput(), w.deps);
+
+    // Assert
+    assertNotCommitted(answer, w, NO_GIT_ANSWER);
   });
 
   it("refuses a secret-like path before any model call", async () => {

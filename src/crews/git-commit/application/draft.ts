@@ -5,7 +5,7 @@ import type { CrewMemory, Files, Llm, Shell } from "../../../shared/application/
 import type { PromptPair } from "../../../shared/domain/types.ts";
 import { normalizeCommitMessage, commitSubject, isCommitPermitted, untrackedPaths } from "../domain/commit.ts";
 import { GIT_STATUS_COMMAND, changedPaths, gitDiffCommand } from "../../../shared/domain/git/close.ts";
-import { commitFiles } from "../../../shared/application/git/commit-files.ts";
+import { commitFiles, gitReason } from "../../../shared/application/git/commit-files.ts";
 import { WORKSPACE } from "../../../shared/domain/vfs.ts";
 import { committed } from "./messages.ts";
 import { refusedLine as refused } from "../../../shared/application/git/messages.ts";
@@ -25,9 +25,14 @@ export interface WorkTree {
   note?: string;
 }
 
+/** The working tree's status, or why git could not give it: a failed `git status` (no git where the
+ *  crew runs, no repository) writes nothing on stdout, which must not read as a clean tree. */
+export type StatusRead = { ok: true; status: string } | { ok: false; reason: string };
+
 /** The working tree's status, as the selection of the commit's files reads it. */
-export async function readStatus(shell: Shell): Promise<string> {
-  return (await shell.run(GIT_STATUS_COMMAND)).stdout;
+export async function readStatus(shell: Shell): Promise<StatusRead> {
+  const r = await shell.run(GIT_STATUS_COMMAND);
+  return r.exitCode > 0 ? { ok: false, reason: gitReason(r) } : { ok: true, status: r.stdout };
 }
 
 /** The lines of `status` that name one of `files` (either side of a rename). */
@@ -57,7 +62,7 @@ export async function inspectWorkTree(
   files?: Pick<Files, "read">,
   scope?: { status: string; files: readonly string[]; note?: string },
 ): Promise<WorkTree> {
-  const status = scope ? statusOf(scope.status, scope.files) : await readStatus(shell);
+  const status = scope ? statusOf(scope.status, scope.files) : (await shell.run(GIT_STATUS_COMMAND)).stdout;
   const diff = (await shell.run(scope ? gitDiffCommand(scope.files) : "git diff HEAD")).stdout;
   const branch = (await shell.run("git branch --show-current")).stdout.trim();
   const recent = (await shell.run("git log --oneline -10")).stdout;
