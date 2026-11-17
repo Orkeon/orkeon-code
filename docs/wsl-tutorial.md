@@ -98,9 +98,9 @@ mkdir -p ~/audio && timeout 20 parecord --channels=1 --rate=16000 --file-format=
 
 ## 3. Orkeon from its apt package
 
-The `stable` channel carries the last release of Orkeon, `1.0.0`: it is behind the commit of Orkeon's `main` Orkeon
-Code is checked against (`.orkeon-version`), so the tool mode runs an older runtime than the pin until Orkeon's next
-release ([Getting started](getting-started.md)). The
+The `stable` channel carries the last release of Orkeon, `1.2.0`: it is the commit of Orkeon's `main` Orkeon
+Code is checked against (`.orkeon-version`) at this writing, so the tool mode runs the pin until the pin moves past
+that release ([Getting started](getting-started.md)). The
 `dev` channel publishes one package per commit of `main` the CI validated, versioned `1.0.1~dev.<n>` (`n` is the
 number of the CI run), the last three builds only: it is for following `main` ahead of the pin, not for this
 tutorial. The package installs `/usr/bin/orkeon-repl` (the REPL, with its
@@ -148,7 +148,7 @@ sudo apt-get update && sudo apt-get install -y orkeon orkeon-archive-keyring
 orkeon --version && command -v orkeon-repl
 ```
 
-Expected: `1.0.0` and `/usr/bin/orkeon-repl`. Later, the next
+Expected: `1.2.0` and `/usr/bin/orkeon-repl`. Later, the next
 release comes with `sudo apt update && sudo apt upgrade`; `apt list -a orkeon` lists the channel's, and
 `/status` says whether the one running is the commit of `.orkeon-version`.
 
@@ -190,8 +190,8 @@ A first REPL, without speech, on the throwaway sample repository (`--demo`), in 
 ./orkeon-code --mode tool --demo
 ```
 
-The banner shows `orkeon-code <version> on Orkeon (tool: a release, the pin is a318f7f)`: the tool mode runs the
-package's release, `1.0.0` (`41f5079`), behind `a318f7f`, the pin of `.orkeon-version`, until Orkeon's next release. Then come the project and the settings file. In the REPL:
+The banner shows `orkeon-code <version> on Orkeon (tool: a release, the pin is a9f3878)`: the tool mode runs the
+package's release, `1.2.0` (`a9f3878`), which is the pin of `.orkeon-version` at this writing. Then come the project and the settings file. In the REPL:
 
 | Command | Expected |
 |---|---|
