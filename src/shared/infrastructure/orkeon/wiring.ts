@@ -33,6 +33,8 @@ import { AgentBuilder, InvalidScript, Llm as HostLlm, Rag, Tools, inputs } from 
 import { declaredRoute, profiledAgent } from "./llm-profile.ts";
 import { createReasoningReader } from "./reasoning.ts";
 import { actRoute } from "../../application/agents/route-agent.ts";
+import { contextPruning } from "../../application/compaction/prune-context.ts";
+import { prunedLlm } from "../../application/compaction/pruned-llm.ts";
 import type { ActRoute } from "../../application/agents/route-agent.ts";
 import { llmProfileOf, llmSessionProfileOf } from "../../domain/llm-profile.ts";
 import type { AgentFactories } from "./llm-profile.ts";
@@ -162,3 +164,11 @@ export const orkeonActRoute = (
   ),
   orkeonAgentFactories(),
 );
+
+/** `llm` with the pruning of its acts' tool loops (`compaction.prune`, shared/application/compaction/pruned-llm.ts):
+ *  the acts of the dev crews' sub-agents and roles. `log`, `tools` and `root` are the body's, as for orkeonActRoute.
+ *  With the setting off or no decision model on the host, the acts leave as they came. */
+export const orkeonPrunedLlm = (llm: Llm, log: Pick<Logger, "info" | "warn">, tools: OrkeonTools = Tools, root?: string): Llm =>
+  prunedLlm(llm, (request) => contextPruning(
+    { config: orkeonConfigStore(tools, root), decision: orkeonDecisionModel(tools), session: orkeonSessionIo(tools), log }, request,
+  ));

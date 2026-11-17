@@ -16,7 +16,7 @@ export const CONSUMERS: Record<string, string> = {
   "voice.reply": "/assistant, /summary, /transcribe --then, /voice send and /voice --go (each answer read aloud)",
   "answer.language": "/assistant, /summary, /transcribe --then, /voice send and /voice --go (the main loop's prompt)",
   "compaction.trigger": "/assistant (the automatic compaction at the head and the tail of a turn), /usage",
-  "compaction.prune": "/assistant, /summary, /transcribe --then, /voice send and /voice --go (the tool results of a turn in progress)",
+  "compaction.prune": "/assistant, /summary, /transcribe --then, /voice send and /voice --go (the tool results of a turn in progress); /dev-spec, /dev-change, /dev-plan, /dev-implement, /dev-verify and /dev-batches (the acts of their reviewer, roles and auditor)",
   "route.agents": "/route, and the commands that launch a crew routed by it (/dev-spec, /dev-change, /dev-plan, /dev-learn, /review, /analyze, /commit, /init, /init-verifiers)",
   "route.ladder": "/route, and the commands route.agents routes",
   "skills.suggest": "/skills suggest, /assistant, /summary, /transcribe --then, /voice send and /voice --go (the turn's attached skills)",

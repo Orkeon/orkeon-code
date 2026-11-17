@@ -25,6 +25,7 @@
 import { CrewBuilder, publishCrew, inputs, ToolBuilder } from "../../shared/infrastructure/globals.ts";
 import {
   orkeonActRoute,
+  orkeonPrunedLlm,
   orkeonAgent,
   orkeonClock,
   orkeonConfigStore,
@@ -107,8 +108,8 @@ const builder = orkeonAgent()
       ...ports, log: ctx.log, clock, route: orkeonActRoute(ctx.log, ctx.tools),
       // These callbacks, then the host's gate on the input they return: the dev rule sets again and the run's /hooks (a chained run
       // reads them from its record, as it does the /effort). The reviewer only reads: the plan step's guard fits it.
-      reviewerFor: (c) => agentLlm(ctx, devToolCallbacks({ step: "dev-plan", hooks: c.hooks }, { shell: ports.shell, log: ctx.log, memoryDir: memoryDirOf(ports.config) }),
-        { effort: providerEffort(c.effort ?? undefined) }),
+      reviewerFor: (c) => orkeonPrunedLlm(agentLlm(ctx, devToolCallbacks({ step: "dev-plan", hooks: c.hooks }, { shell: ports.shell, log: ctx.log, memoryDir: memoryDirOf(ports.config) }),
+        { effort: providerEffort(c.effort ?? undefined) }), ctx.log, ctx.tools),
       openerFor: (c) => orkeonPullRequestOpener({ mode: c.permissionMode, rules: parseSessionRules(c.permissionRules), asked: false }, ctx.tools),
       // A parallel wave: each batch in its own agent under its worktree and its own budget (batches-budget.ts).
       runBatch: async (run, context) => {

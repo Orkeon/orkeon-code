@@ -40,6 +40,14 @@ export function context() {
   return { ctx: { tools: tools as unknown as OrkeonTools, llm: llm as any, fileSystem: { prompt: "" }, log: new FakeLogger() }, tools, asked };
 }
 
+/** A body's context on a host that prunes: `compaction.prune` on in the settings file, and a decision model. */
+export function pruningContext() {
+  const made = context();
+  made.tools.replies.fileRead = { content: JSON.stringify({ "compaction.prune": "on" }), success: true };
+  (made.tools as unknown as Record<string, unknown>).systemOneDecide = async () => ({ success: false });
+  return made;
+}
+
 /** A brief quoting a /workspace constant and a fenced diff, and the same brief sent under ROOT. */
 export const QUOTING_BRIEF = `Step 1 of ${WORKSPACE}/todo/prune/PRUNE-PLAN-F2.md: keep \`const WORKING_DIRECTORY = "${WORKSPACE}";\`\n\`\`\`diff\n+ cd ${WORKSPACE}\n\`\`\``;
 export const QUOTING_BRIEF_ROOTED =

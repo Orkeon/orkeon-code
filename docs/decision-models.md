@@ -13,7 +13,7 @@ does not answer, Orkeon Code does what it did before.
 
 | What | Turn it on | The decision model decides | Details |
 |---|---|---|---|
-| Pruning a long turn | `/config set compaction.prune on` | which older tool results a turn in progress no longer needs | [architecture](turn.md#compaction-and-memory) |
+| Pruning a long turn | `/config set compaction.prune on` | which older tool results a turn in progress, or an act of a dev crew, no longer needs | [architecture](turn.md#compaction-and-memory) |
 | Routing a crew | `/route on` | the cheapest LLM profile that fits the command | [architecture](turn.md#routing-a-crew-to-a-profile) |
 | Suggesting skills | `/skills suggest on` | the project's skills that fit the request of a turn | [architecture](turn.md#suggesting-skills-for-a-turn) |
 
@@ -26,6 +26,10 @@ Orkeon's sources at the pin. The reasons behind each choice are in
 The tool results of a turn in progress stay in the model's context until the turn ends: no compaction reaches
 them. With `compaction.prune` on, past 40 % of the context window, the decision model judges the older results of
 the read tools: each is removed, cut to its first 300 characters or kept, and a line says how to get it back.
+
+The same setting prunes the acts of the dev crews: the reviewer of `/dev-spec`, `/dev-change`, `/dev-plan` and of
+the next batch of `/dev-batches`, the test author and the implementer of `/dev-implement`, the auditor of
+`/dev-verify`. With the setting off, or without a decision model, these commands run as they did.
 
 ### Measured: one turn, with and without
 
@@ -52,6 +56,21 @@ the turn spent 7.3 s less in the model.
 A second run, on the turn's last file alone, has no twin to compare it with: it is under
 [What these measures do not show](#what-these-measures-do-not-show).
 
+### Measured: the acts of the dev crews
+
+Measured on 2026-11-16, one run, pruning off, to read how large these acts grow. The lowest threshold is 51,200
+tokens (40 % of a window of 128,000).
+
+| Act | Model calls | Largest call, in tokens |
+| --- | ---: | ---: |
+| The roles of `/dev-batches calc F1`: one batch of a three-file project, tests green in 2 min 27 s | 18 | 10,120 |
+| The reviewer of `/dev-spec`, over six runs on this repository | 4 to 9 | 43,000 |
+| The reviewer of `/dev-plan`, over four runs | 7 to 10 | 43,000 |
+
+None of these acts reaches the threshold: with the setting on, nothing would have been pruned in them. The pruning
+of a dev act is wired and tested, and its effect is not measured: it needs a batch whose role reads far more than
+these did.
+
 ## Routing a crew
 
 A crew's agents all run on one LLM profile of the host, the session's. With `route.agents` on, at the launch of
@@ -63,7 +82,8 @@ own profile. `/route why` shows the last five choices.
 
 Inside a crew, the act of a reviewer (`/dev-spec`, `/dev-change`, `/dev-plan`, the next batch of `/dev-batches`)
 and of the auditor of `/dev-verify` is routed the same way, for that one call: see
-[Routing a crew to a profile](turn.md#routing-a-crew-to-a-profile). This routing of acts is not measured.
+[Routing a crew to a profile](turn.md#routing-a-crew-to-a-profile). Two runs of it are
+[measured below](#measured-dev-spec-then-dev-plan-routed-and-not).
 
 ### Measured: twelve commands
 
@@ -87,6 +107,28 @@ judgement of each command.
 
 Eleven of twelve as expected. The twelfth is the bar at work: a pick at 0.54 is not followed, and the launch runs
 as it would without routing.
+
+### Measured: `/dev-spec` then `/dev-plan`, routed and not
+
+Measured on 2026-11-16: the session on `llm.profile large` (`glm-5.3`), the ladder `small,large` (`small` is
+`glm-5.3-flashx`), the same request each time (a `--quiet` option on a script of this repository), two runs with
+`/route off` and two with `/route on`.
+
+| | `/dev-spec` | Its review | `/dev-plan` | Its review |
+|---|---|---|---|---|
+| Off, run 1 | failed after two model calls that passed 600 s | 9 calls, 213,556 tokens | not run | |
+| Off, run 2 | 27 min 14 s | 2 Blocking, 3 Major; 8 calls, 169,998 tokens | failed: the crew ran out of time | 7 calls, 159,562 tokens, no verdict |
+| On, run 1 | 4 min 48 s, on `small` (1.00) | on `small` (0.80): 2 Blocking, 1 Major; 4 calls, 36,723 tokens | 6 min 42 s, on `small` (0.78) | on `large` (0.51 for `small`, not followed): 4 Blocking, 3 Major; 10 calls, 168,726 tokens |
+| On, run 2 | 6 min 57 s, on `small` (0.99) | on `small` (0.81): 1 Blocking, 4 Major; 4 calls, 42,774 tokens | on `small` (0.80): the draft refused twice, nothing written | not run |
+
+- Routed, the two commands took 11 min 35 s in the run where both ended. Not routed, neither run ended both: on
+  that day `glm-5.3` answered too slowly for the time a crew has.
+- The reviews routed to `small` found as many Blocking rows as the one that ran on `large` (2 and 1 against 2), in
+  a fifth of the tokens.
+- A plan drafted on `small` was refused twice by the checks of its form, once in two runs: the fault a session on
+  `glm-5.3-flashx` already shows now and then. Routing a session down brings that with it.
+- A third run, on a host without a decision model and with `route.agents` and `compaction.prune` both on, ended both
+  commands in 12 min 54 s with a warning for each setting and nothing else changed.
 
 ## Suggesting skills
 
@@ -155,8 +197,12 @@ answered between 0.42 and 0.69, too close to the 0.5 threshold to trust.
 - It is one run per case, on requests and commands written to be clear. Requests that are vague, or that two
   skills fit, were not tried.
 - The expected answers are one person's judgement.
-- The routing was measured on its choices alone: what a crew costs and how well it does on `small` rather than on
-  `large` is not measured.
+- The routed runs of `/dev-spec` and `/dev-plan` are two of each, on one request and one provider, on a day its
+  larger model was slow: they show that routing can make the difference between a run that ends and one that does
+  not, not by how much it shortens a run that would have ended. The other routed commands were measured on their
+  choices alone.
+- No dev act measured reached the pruning threshold, so what pruning saves there, and what it costs in results
+  read again, is not known.
 - For the pruning, a model that reads one file per call instead of all at once spends its tokens differently, and
   the request says which files matter, the easy case for the judge. The same turn asked about its last file only
   had all 20 results removed (about 115,000 tokens) and answered rightly, in 57,515 input tokens; its twin without

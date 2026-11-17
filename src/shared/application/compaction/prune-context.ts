@@ -3,7 +3,8 @@
 // the small results without asking, has the decision model judge the others by batches, oldest first, and answers
 // the runtime's verdicts; a result judged needed is left unanswered and judged again once it has aged. It fails
 // open at every step: a setting that cannot be read, no decision model, a model that does not answer leave the
-// loop as it is, and a model that failed once is not asked again in that act. One binding serves one act.
+// loop as it is, and a model that failed once is not asked again in that act. One binding serves one act: the main
+// loop binds it itself, the dev crews get it from their Llm (pruned-llm.ts).
 import type { ActRequest, DecisionModel, Logger, SessionStore } from "../ports.ts";
 import type { ConfigStore } from "../config-store.ts";
 import { DEFAULT_CONTEXT_WINDOW } from "../../domain/compaction-thresholds.ts";

@@ -20,7 +20,7 @@
 
 import { CrewBuilder, publishCrew, inputs, ToolBuilder } from "../../shared/infrastructure/globals.ts";
 import {
-  orkeonActRoute,
+  orkeonActRoute, orkeonPrunedLlm,
   orkeonAgent,
   orkeonAnchorIndex,
   orkeonClock,
@@ -70,7 +70,7 @@ const reviewer = () => {
     .tools(charterCatalogue(REVIEWER_CHARTER))
     .withAutonomousTools(memoryRecallTools(ToolBuilder, orkeonMemoryToolPorts, memoryOn))
     .maxIterations(REVIEWER_CHARTER.maxIterations)
-    .body(childAgentBody((ctx: any) => reviewerCallbacks(callbacksFor(ctx))));
+    .body(childAgentBody((ctx: any) => reviewerCallbacks(callbacksFor(ctx)), (llm, ctx) => orkeonPrunedLlm(llm, ctx.log, ctx.tools)));
   return effort === undefined ? builder : builder.effort(effort);
 };
 

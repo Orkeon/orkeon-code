@@ -35,7 +35,7 @@ import { createSpend, spendGuard } from "../../application/dev/spend.ts";
 import type { Spend } from "../../application/dev/spend.ts";
 import {
   orkeonClock, orkeonConfigStore, orkeonCostIndex, orkeonFiles, orkeonHostContext, orkeonMemoryToolPorts,
-  orkeonPullRequestOpener, orkeonSharedMemory, orkeonShell, orkeonShellJobs,
+  orkeonPrunedLlm, orkeonPullRequestOpener, orkeonSharedMemory, orkeonShell, orkeonShellJobs,
 } from "./wiring.ts";
 
 /** What an agent body hands its deps: its own tools, model, file-system section and log. */
@@ -135,9 +135,10 @@ export function implementDeps(
     // Each role's act runs under its own callbacks, then the host's gate: the step's rule sets, the role's
     // roots and the /hooks the command passed. `wrote` hears each write that ran, from its result; `writable`:
     // the test author's stubs, which its own root denies leave open; `files`: the rewrite rule reads a write's path.
-    roleLlm: (role, layout, wrote, writable) => rootedLlm(agentLlm(ctx, callbacks(
+    // Under the rebase of the paths, the pruning of the act's tool loop (compaction.prune): nothing added when off.
+    roleLlm: (role, layout, wrote, writable) => rootedLlm(orkeonPrunedLlm(agentLlm(ctx, callbacks(
       { step: "dev-implement", role, layout, writable, hooks: opts.hooks, readTools: memoryReadTools(opts.memoryOn) }, wrote,
-    ), { effort: opts.effort }), opts.root),
+    ), { effort: opts.effort }), ctx.log, ctx.tools, opts.root), opts.root),
   };
 }
 
@@ -162,7 +163,7 @@ export function verifyDeps(
   // The audit's act is offered the auditor's tools alone: a batch agent also holds the implementer's, which an act
   // without a subset would offer too - write tools to a read-only auditor, their schemas resent at every turn.
   const auditorTools = [...charterCatalogue(AUDITOR_CHARTER), RUN_VALIDATION.name, ...memoryReadTools(opts.memoryOn)];
-  const rooted = rootedLlm(agentLlm(ctx, verifyCallbacks(ctx, opts), { effort: opts.effort }), opts.root);
+  const rooted = rootedLlm(orkeonPrunedLlm(agentLlm(ctx, verifyCallbacks(ctx, opts), { effort: opts.effort }), ctx.log, ctx.tools, opts.root), opts.root);
   const plain: Llm = { ...rooted, act: (prompt, request = {}) => rooted.act(prompt, request.tools === undefined ? { ...request, tools: auditorTools } : request) };
   return {
     ...ports, log: ctx.log, clock, llm: opts.wrapLlm === undefined ? plain : opts.wrapLlm(plain),

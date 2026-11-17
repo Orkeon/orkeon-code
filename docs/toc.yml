@@ -64,3 +64,5 @@
       href: adr/0027-decision-model-optimisations.md
     - name: "ADR 0028: The runtime of the pin, downloaded at the first start"
       href: adr/0028-runtime-downloaded-at-first-start.md
+    - name: "ADR 0032: The acts of the dev crews carry the pruning of their tool loop"
+      href: adr/0032-pruning-in-the-dev-acts.md
