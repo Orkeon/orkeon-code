@@ -40,9 +40,10 @@
 #           dotnet tool), or ORKEON_REPL="<command line>" (e.g. "dotnet /opt/orkeon/Orkeon.ConsoleApp.dll")
 #   docker  ghcr.io/orkeon/orkeon:latest (the last release, not the pin), nothing else to install
 #   source  an Orkeon checkout named by ORKEON_SOURCE, built there with `dotnet build`, run from the project
-# With none of them, an install downloads the runtime of its pin once, after asking, into ~/.orkeon-code/runtime
-# (tool mode from then on): `orkeon-code runtime install` does it without starting, ORKEON_CODE_RUNTIME_DOWNLOAD=1
-# answers yes where there is no terminal, `orkeon-code runtime remove` deletes it.
+# With none of them, an install whose package names a runtime (.orkeon-runtime) downloads it once, after asking,
+# into ~/.orkeon-code/runtime (tool mode from then on): `orkeon-code runtime install` does it without starting,
+# ORKEON_CODE_RUNTIME_DOWNLOAD=1 answers yes where there is no terminal, `orkeon-code runtime remove` deletes it.
+# The packages published so far name none: put the orkeon-repl of an Orkeon release archive on PATH instead.
 #
 # Settings: --settings, else ORKEON_CODE_SETTINGS, else config/appsettings.local.json (a clone),
 # else ~/.orkeon-code/appsettings.json, else ${XDG_CONFIG_HOME:-~/.config}/orkeon-code/appsettings.json
@@ -112,7 +113,10 @@ sha256() { if command -v sha256sum >/dev/null 2>&1; then sha256sum "$1"; else sh
 # and removes the runtimes of earlier packages. Nothing is asked: the callers do.
 download_runtime() {
   local platform sum name work found other
-  [ -n "$RUNTIME_ID" ] || die "this checkout names no runtime to download (.orkeon-runtime): use Docker, orkeon-repl or ORKEON_SOURCE (see docs/getting-started.md)."
+  if [ -z "$RUNTIME_ID" ]; then
+    [ "$KIND" = install ] || die "this checkout names no runtime to download (.orkeon-runtime): use Docker, orkeon-repl or ORKEON_SOURCE (see docs/getting-started.md)."
+    die "this package names no runtime to download (its .orkeon-runtime is empty: its release published none): put the orkeon-repl of an Orkeon release archive on PATH, or use Docker or ORKEON_SOURCE (see docs/getting-started.md)."
+  fi
   platform="$(runtime_platform)" && sum="$(runtime_field "$platform")" && [ -n "$sum" ] \
     || die "no Orkeon runtime is published for this platform ($(uname -s) $(uname -m)): install Docker, or the orkeon-repl tool (see docs/getting-started.md)."
   name="orkeon-runtime-$RUNTIME_ID-$platform.tar.gz"

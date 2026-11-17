@@ -7,6 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed — an install with no runtime to download says so
+
+- `orkeon-code runtime install` in an installed package whose `.orkeon-runtime` is empty said "this checkout names no
+  runtime"; it now says that the package names none, its release having published none, and points at the
+  `orkeon-repl` of Orkeon's release archive. The packages published so far, `1.0.0-rc.2` included, name no runtime:
+  [Getting started](docs/getting-started.md#no-runtime-on-the-machine-the-one-orkeon-code-downloads) says so and gives
+  the way that works, and [ADR 0028](docs/adr/0028-runtime-downloaded-at-first-start.md) records that a release may
+  ship without runtime archives (#114).
+
 ## [1.0.0-rc.2] - 2026-11-17
 
 ### Added — the decision model prunes the acts of the dev crews

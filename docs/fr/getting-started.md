@@ -156,7 +156,13 @@ against the pin.`) et lance quand même.
 
 ### Aucun runtime sur la machine : celui qu'Orkeon Code télécharge
 
-Un paquet dont la release a publié des archives du runtime les nomme dans `.orkeon-runtime` : les sept caractères de
+Aucun paquet publié à ce jour ne nomme de runtime : le `.orkeon-runtime` de chaque release, `1.0.0-rc.2` compris, est
+vide, et sa release ne porte aucune archive du runtime. Sur une machine sans `orkeon-repl`, sans Docker et sans
+`ORKEON_SOURCE`, installez `orkeon-repl` depuis l'archive de release d'Orkeon
+([Mode tool](#mode-tool--orkeon-repl-installé)) ; `orkeon-code --version` dit alors `found: <version> (orkeon-repl,
+…/VERSION)`. `orkeon-code runtime install` dit que le paquet ne nomme aucun runtime à télécharger, et sort avec 1.
+
+La suite décrit ce que fait le lanceur pour un paquet qui en nomme un. Un paquet dont la release a publié des archives du runtime les nomme dans `.orkeon-runtime` : les sept caractères de
 l'épingle dont elles sont construites, leur adresse et un SHA-256 par plateforme (`linux-x64`, `linux-arm64`,
 `osx-x64`, `osx-arm64`). Sans `orkeon-repl`, sans Docker et sans `ORKEON_SOURCE`, le lanceur bash propose alors de
 télécharger ce runtime :
@@ -171,7 +177,7 @@ télécharger ce runtime :
 
 Une fois téléchargé, ce runtime tourne en mode tool et passe avant Docker ; un `orkeon-repl` de votre `PATH` passe
 toujours en premier. Un paquet plus récent télécharge son propre runtime à son premier démarrage et supprime l'ancien.
-Dans un checkout, `.orkeon-runtime` ne nomme rien : utilisez le mode source. `orkeon-code.ps1` ne télécharge pas de
+Dans un checkout non plus, `.orkeon-runtime` ne nomme rien : utilisez le mode source. `orkeon-code.ps1` ne télécharge pas de
 runtime.
 
 ## 4. Première session
