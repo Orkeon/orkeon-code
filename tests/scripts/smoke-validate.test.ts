@@ -10,6 +10,7 @@ import {
   assertExit,
   assertKeylessSettings,
   assertReports,
+  assertOnTheDemo,
   assertValidateOnly,
 } from "./smoke-validate.assertions.ts";
 
@@ -58,6 +59,17 @@ describe("scripts/smoke-validate.sh", () => {
 
     // Assert
     assertValidateOnly(r);
+  });
+
+  it("validates each crew on the demo fixture", () => {
+    // Arrange
+    const plan = `0|${OK_LINE}`;
+
+    // Act
+    const r = run(plan);
+
+    // Assert
+    assertOnTheDemo(r);
   });
 
   it("gives the runner the example settings made keyless", () => {

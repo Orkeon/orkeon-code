@@ -181,7 +181,7 @@ fournisseur. Un résultat d'outil parvient au modèle coupé à 4000 caractères
 | `Orkeon:Security:PermissionGate:Enabled` = `true` | Le runtime confronte chaque appel d'outil du modèle aux règles de `/permissions` et au mode, et vous demande quand le mode le dit ([ce que la garde ne voit pas](permissions.md)) |
 | `Orkeon:Cli:ScriptCommands:Limits:ExecutionTimeout` | Limite de temps réel de chaque moteur de script d'`orkeon-repl` : celui d'une commande, et celui d'un crew, donc d'un tour d'`/assistant` |
 | `Orkeon:Cli:ScriptCommands:Limits:MemoryLimitBytes` | Limite de mémoire de ces moteurs : 64 Mo par défaut, l'exemple met 2 Gio |
-| `Orkeon:Scripting:Limits:ExecutionTimeout`, `Orkeon:Scripting:Limits:MemoryLimitBytes` | Les mêmes limites pour `orkeon run`, l'outil avec lequel `scripts/run-crew.sh` lance un crew (30 secondes et 100 Mo par défaut ; l'exemple met 30 minutes et 2 Gio). `orkeon-repl` ne les lit pas |
+| `Orkeon:Scripting:Limits:ExecutionTimeout`, `Orkeon:Scripting:Limits:MemoryLimitBytes` | Les mêmes limites pour `orkeon run`, l'outil avec lequel `orkeon-code run` lance un crew (30 secondes et 100 Mo par défaut ; l'exemple met 30 minutes et 2 Gio). `orkeon-repl` ne les lit pas |
 | `Orkeon:Tools:Shell:AllowInterpreters` | Laisse `shell_command` lancer des interpréteurs (`node`, `dotnet`, `npm`...), nécessaire pour construire et tester la plupart des projets |
 | `Orkeon:Tools:Shell:ExtraAllowedCommands` | Commandes ajoutées à la liste blanche du shell (`make`, `cargo`...) |
 | `Orkeon:Tools:Shell:WindowsPaths:<chemin virtuel>` | Sous WSL, l'écriture Windows d'un montage (`"/workspace": "C:\\proj"`) |
@@ -548,7 +548,7 @@ continue. L'historique de l'éditeur de ligne (la flèche du haut) n'est pas gar
 - Le lanceur fixe `RootDirectory` à `/memory`, le dossier `memory/` à côté des sessions, hors du projet, que ni git
   ni les outils de fichiers ne voient donc.
 - `/clear` et une nouvelle session laissent la mémoire en place, et `/memory delete` retire une entrée.
-- Sans le lanceur (`orkeon run`, `scripts/run-crew.sh`), les settings d'exemple nomment
+- Sans le REPL (`orkeon run`, `orkeon-code run`), les settings d'exemple nomment
   `/workspace/.orkeon/typed-memory` : le défaut du runtime, `/workspace/.orkeon/memory`, est le dossier de la
   [mémoire partagée](shared-memory.md), où la mémoire typée ne doit pas entrer.
 

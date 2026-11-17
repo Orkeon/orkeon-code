@@ -7,6 +7,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added — `orkeon-code run`, one crew headless from a clone or an install
+
+- `orkeon-code run <crew> [--inputs JSON] [--workspace DIR | --demo] [--trust] [-- orkeon run args]` runs one crew
+  through `orkeon run` with the REPL's project, trust question, settings file and mounts, `/user-config` included: the
+  `orkeonCode` block of your settings now applies to a standalone run. `<crew>` is a name of `src/crews` or the path of
+  a `crew.ork.ts`. The runner is found as the REPL's runtime is: `ORKEON_CLI`, `orkeon` on PATH, the downloaded
+  runtime's `bin/orkeon`, a clone's dotnet tool, the `orkeon` image, then the source mode.
+- stdout carries the crew's result alone: the launcher sends the runner's log lines to stderr, where a plain
+  `orkeon run` writes them on stdout before the JSON. The exit code is the runner's.
+- `scripts/run-crew.sh` is gone: `scripts/smoke-crew.sh`, `scripts/smoke-validate.sh`,
+  `scripts/check-shared-memory.sh` and `scripts/dev-run.sh` run their crews through `orkeon-code run`, and the
+  packages now ship `scripts/dev-run.sh` ([Autonomous and embedded runs](docs/headless.md#one-shot-from-a-shell)).
+  `orkeon-code.ps1` has no `run` yet (#115).
+
 ### Fixed — an install with no runtime to download says so
 
 - `orkeon-code runtime install` in an installed package whose `.orkeon-runtime` is empty said "this checkout names no

@@ -176,6 +176,10 @@ export interface LaunchOptions {
   projectName?: string;
   /** The folders of PATH after the stand-ins (`/usr/bin:/bin` by default): one without Docker, for instance. */
   systemPath?: string;
+  /** The words before the --settings and --workspace a launch gives: a subcommand (`run <crew>`). */
+  before?: string[];
+  /** Each `<checkout>` in `args` becomes the path of the launch's checkout, which only the launch knows. */
+  checkoutInArgs?: boolean;
 }
 
 /** Runs a copy of ./orkeon-code (or of ./orkeon-code.ps1, `shell: "pwsh"`, whose `args` are its own) with the given
@@ -212,7 +216,8 @@ export function launch(opts: LaunchOptions): Run {
     : opts.shell === "pwsh" ? ["-Settings", settings, "-Workspace", project] : ["--settings", settings, "--workspace", project];
   const [command, args] = opts.shell === "pwsh"
     ? [PWSH, ["-NoProfile", "-File", join(root, "orkeon-code.ps1"), ...given, ...opts.args]]
-    : ["bash", [join(root, "orkeon-code"), ...given, ...opts.args]];
+    : ["bash", [join(root, "orkeon-code"), ...(opts.before ?? []), ...given,
+      ...opts.args.map((a) => (opts.checkoutInArgs ? a.replace("<checkout>", root) : a))]];
   const [file, argv] = opts.tty === undefined ? [command, args] : ["script", ["-qec", [command, ...args].map(shq).join(" "), "/dev/null"]];
   const run = spawnSync(file, argv, {
     cwd: opts.bare ? project : base,
@@ -510,56 +515,6 @@ export const bashOf = (r: Run, ...args: string[]) =>
 /** The CI workflow's lines that start the REPL through the npm shim. */
 export const ciStarts = () =>
   readFileSync(fileURLToPath(new URL("../../.github/workflows/ci.yml", import.meta.url)), "utf-8").split("\n").filter((l) => /orkeon-code --mode tool /.test(l));
-
-// ── scripts/run-crew.sh ─────────────────────────────────────────────────────
-
-/** Runs a copy of scripts/run-crew.sh on a crew, from a scratch clone, dotnet a stand-in unless `noDotnet`. */
-/** Where `npm ci` leaves esbuild's binary in a checkout, relative to its root. */
-export const RUN_CREW_ESBUILD = "node_modules/@esbuild/linux-x64/bin/esbuild";
-
-export function runCrew(extra: string[], opts: { trusted?: boolean; noDotnet?: boolean; noEsbuild?: boolean; env?: Record<string, string> } = {}) {
-  const base = scratchDir("orkeon-code-run-crew-");
-  const root = join(base, "checkout");
-  for (const dir of ["scripts", "config", ".git", "src", "bin", "record"].map((d) => (d === "bin" || d === "record" ? join(base, d) : join(root, d)))) mkdirSync(dir, { recursive: true });
-  mkdirSync(join(base, "project"));
-  for (const file of ["orkeon-code", ".orkeon-version", "package.json", "scripts/run-crew.sh", "scripts/setup-fixture.sh"]) {
-    copyFileSync(fileURLToPath(new URL(`../../${file}`, import.meta.url)), join(root, file));
-  }
-  writeFileSync(join(root, "config/appsettings.local.json"), SETTINGS_TEXT);
-  writeFileSync(join(root, "src/crew.ork.ts"), "");
-  if (!opts.noEsbuild) {
-    mkdirSync(join(root, RUN_CREW_ESBUILD, ".."), { recursive: true });
-    writeFileSync(join(root, RUN_CREW_ESBUILD), "#!/bin/sh\n");
-  }
-  if (!opts.noDotnet) {
-    writeFileSync(join(base, "bin/dotnet"), DOTNET);
-    chmodSync(join(base, "bin/dotnet"), 0o755);
-  }
-  if (opts.trusted) {
-    mkdirSync(join(base, ".orkeon-code"));
-    writeFileSync(join(base, ".orkeon-code/trusted-folders.json"), trustStore([join(base, "project")]));
-  }
-  const r = spawnSync("bash", [join(root, "scripts/run-crew.sh"), join(root, "src/crew.ork.ts"), ...extra], {
-    encoding: "utf-8", cwd: base,
-    env: { PATH: `${join(base, "bin")}:/usr/bin:/bin`, HOME: base, RECORD: join(base, "record"), ORKEON_CODE_WORKSPACE: join(base, "project"), ...opts.env },
-  });
-  let calls: string[] = [];
-  try { calls = readFileSync(join(base, "record/calls"), "utf-8").split("\n").filter(Boolean); } catch { /* never called */ }
-  let env = "";
-  try { env = readFileSync(join(base, "record/env"), "utf-8"); } catch { /* never called */ }
-  let esbuild: string | null = null;
-  try { esbuild = readFileSync(join(base, "record/esbuild"), "utf-8"); } catch { /* never called */ }
-  let fingerprint: string | null = null;
-  try { fingerprint = readFileSync(join(base, "record/fingerprint"), "utf-8"); } catch { /* never called */ }
-  return { ...r, calls, env, esbuild, fingerprint, project: join(base, "project"), base, root };
-}
-
-/** An Orkeon checkout holding the scripting CLI's project, as run-crew.sh's source mode reads it. */
-export function crewSource(): string {
-  const source = scratchDir("orkeon-code-run-crew-source-");
-  mkdirSync(join(source, "src/scripting/Orkeon.Scripting.Cli"), { recursive: true });
-  return source;
-}
 
 // ── setup ───────────────────────────────────────────────────────────────────
 

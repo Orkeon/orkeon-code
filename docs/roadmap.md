@@ -11,7 +11,8 @@ What Orkeon Code does not do yet, in the order we expect to address it. Items ma
 ## Next
 
 - **One-shot launcher.** `orkeon-code --run "<request>"`: an unattended turn with the modes, settings and mounts of a
-  session, from the launcher itself rather than `scripts/run-crew.sh` ([Autonomous and embedded runs](headless.md)).
+  session, rather than `orkeon-code run main-loop`, whose inputs name the request and the mode by hand
+  ([Autonomous and embedded runs](headless.md)).
 - **In-process embedding.** Orkeon ships its scripting layer as the `Orkeon.Scripting` package: a .NET
   application runs a `crew.ork.ts` through `ICrewScriptRunner` without starting a process. What remains is ours: a
   host example that runs the crews of Orkeon Code that way, and the crews exercised under the `orkeon-host` daemon.

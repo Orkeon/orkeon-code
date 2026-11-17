@@ -73,7 +73,7 @@ export const archiveEntries = () => run("tar", ["-tzvf", archive()]).stdout.spli
 
 /** What runs, each path from the archive's root folder. */
 export const RUNNABLE_FILES = ["orkeon-code", "orkeon-code.ps1", ".orkeon-version", ".orkeon-runtime", "package.json", "LICENSE.md", "NOTICE.md",
-  "config/appsettings.example.json", "scripts/setup-fixture.sh", "scripts/install.sh", "scripts/install.ps1",
+  "config/appsettings.example.json", "scripts/setup-fixture.sh", "scripts/dev-run.sh", "scripts/install.sh", "scripts/install.ps1",
   "src/commands/status/doctor.cmd.ts", "mcp/whisper/whisper_mcp.py"];
 
 /** A path the archive never holds: a test, a fixture, the documentation, a work folder, a dependency. */

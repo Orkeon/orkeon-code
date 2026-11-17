@@ -661,7 +661,7 @@ que git exécute les hooks du dossier par le shell. Rien du dossier n'est lu ni 
 - `n`, ou pas de réponse, sort avec le code 0 : rien n'a démarré.
 - Le dossier est vérifié par son chemin réel : un lien symbolique mène au dossier qu'il nomme, celui qui est
   demandé, enregistré et monté.
-- Sans terminal (un tube, un job de CI, `scripts/run-crew.sh` dans un script), un dossier sans confiance est refusé
+- Sans terminal (un tube, un job de CI, `orkeon-code run` dans un script), un dossier sans confiance est refusé
   avec le code 3. `--trust` le démarre pour cette fois seulement, et `ORKEON_CODE_TRUST=1` fait de même quand
   `CI=true` ; aucun des deux n'enregistre rien. `--demo` fait confiance à la fixture que le lanceur prépare.
 - `orkeon-code trust list` montre le registre, `orkeon-code trust add <dossier>` et `orkeon-code trust remove

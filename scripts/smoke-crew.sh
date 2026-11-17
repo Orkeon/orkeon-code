@@ -11,15 +11,16 @@
 #   bash scripts/smoke-crew.sh
 #   ORKEON_CODE_MODE=source ORKEON_SOURCE=<an Orkeon checkout at the pin> bash scripts/smoke-crew.sh
 #
-# The runtime is the one scripts/run-crew.sh picks (the tool, the source mode, or the image),
-# with the example settings made keyless as scripts/smoke-runtime.sh does. Nothing of the
-# checkout is written: the fixture, the settings and the crew's output live in a temporary
-# folder. SMOKE_CREW_RUNNER names another runner (the tests give a fake one).
+# The runtime is the one `orkeon-code run` picks (the tool, the image, or the source mode), with
+# the example settings made keyless as scripts/smoke-runtime.sh does. Nothing of the checkout is
+# written: the fixture, the settings and the crew's output live in a temporary folder.
+# SMOKE_CREW_RUNNER names another runner (the tests give a fake one), given the crew and the
+# arguments of `orkeon-code run`, with ORKEON_CODE_WORKSPACE, ORKEON_CODE_SETTINGS and ORKEON_CODE_STATE.
 set -euo pipefail
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 CREW="$ROOT/src/crews/git-commit/crew.ork.ts"
 MOCK="$ROOT/tests/fixtures/llm-mock/git-commit.jsonl"
-RUNNER="${SMOKE_CREW_RUNNER:-$ROOT/scripts/run-crew.sh}"
+if [ -n "${SMOKE_CREW_RUNNER:-}" ]; then RUNNER=(bash "$SMOKE_CREW_RUNNER"); else RUNNER=(bash "$ROOT/orkeon-code" run); fi
 
 work="$(mktemp -d)"
 log="$work/run.log"
@@ -51,7 +52,7 @@ printf '\nThe crew smoke commits this line through the mock model.\n' >> "$fixtu
 echo "smoke-crew: git-commit under --llm-mock on $fixture"
 set +e
 ORKEON_CODE_SETTINGS="$settings" ORKEON_CODE_WORKSPACE="$fixture" ORKEON_CODE_STATE="$work/state" \
-  timeout 900 bash "$RUNNER" "$CREW" --trust \
+  timeout 900 "${RUNNER[@]}" "$CREW" --workspace "$fixture" --trust \
   --inputs '{"permissionMode":"bypassPermissions"}' --llm-mock "$MOCK" >"$log" 2>&1
 status=$?
 set -e

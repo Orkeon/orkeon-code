@@ -12,7 +12,7 @@
 //                              memoryRecall?: false (a session rule denies it), step?: the instance's run step }
 //        (the step: the instance's run's - dev-plan, dev-verify, dev-spec, dev-change -, else the charter's)
 // Budget: repairBudget(step), the step's own, so that a repaired audit or review stops where the original would.
-// Run standalone:  bash scripts/run-crew.sh src/crews/agent-run/crew.ork.ts --inputs '{"charter":"dev-reviewer","brief":"…"}'
+// Run standalone:  ./orkeon-code run agent-run --inputs '{"charter":"dev-reviewer","brief":"…"}'
 
 import { CrewBuilder, publishCrew, inputs, ToolBuilder } from "../../shared/infrastructure/globals.ts";
 import {

@@ -58,7 +58,7 @@ régénère [docs/fr/commands.md](commands.md). La recette : [Ajouter une comman
   l'agent, sous `.budget(...)`.
 
 Un dossier qui commence par `_` est une sonde de développement, jamais listée aux utilisateurs. Lancez n'importe quel
-crew seul avec `bash scripts/run-crew.sh src/crews/<name>/crew.ork.ts --inputs '{...}'`
+crew seul avec `./orkeon-code run <name> --inputs '{...}'`
 ([Exécutions autonomes et embarquées](headless.md)) ; la vérification de bundle (`npm run bundle:check`) prouve qu'il
 bundle avec les options du runtime et sans aucune API Node. La recette :
 [Ajouter un crew](recipes.md#ajouter-un-crew).

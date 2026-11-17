@@ -11,7 +11,7 @@ demandent d'abord un changement dans [Orkeon](https://github.com/Orkeon/orkeon).
 ## Ensuite
 
 - **Lanceur en un coup.** `orkeon-code --run "<request>"` : un tour sans opérateur avec les modes, les settings et
-  les montages d'une session, depuis le lanceur lui-même plutôt que `scripts/run-crew.sh`
+  les montages d'une session, plutôt qu'`orkeon-code run main-loop`, dont les entrées nomment la requête et le mode à la main
   ([Exécutions autonomes et embarquées](headless.md)).
 - **Intégration en processus.** Orkeon livre sa couche de scripting en paquet `Orkeon.Scripting` : une
   application .NET exécute un `crew.ork.ts` par `ICrewScriptRunner` sans lancer un processus. Ce qui reste est à nous :

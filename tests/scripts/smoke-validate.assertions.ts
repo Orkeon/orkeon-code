@@ -13,6 +13,12 @@ export function assertEveryCrew(r: RunResult, crews: string[]): void {
   deepStrictEqual(asked, crews, `the crews validated differ from src/crews/: ${r.calls.join("\n")}`);
 }
 
+/** Every call named the demo fixture as the project: a validation reads no project of the user. */
+export function assertOnTheDemo(r: RunResult): void {
+  ok(r.calls.length > 0, "the runner was never called");
+  for (const call of r.calls) ok(call.split(" ").includes("--demo"), `not on the demo fixture: ${call}`);
+}
+
 /** Every call asked for a dry run and brought no model answers. */
 export function assertValidateOnly(r: RunResult): void {
   ok(r.calls.length > 0, "the runner was never called");

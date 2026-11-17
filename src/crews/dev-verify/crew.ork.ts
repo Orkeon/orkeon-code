@@ -15,7 +15,7 @@
 // Input (globalThis.inputs): { batch: "F<n>", plan?: string | null, mode?: "fast" | "full" | "resume", gateOnly?: boolean,
 //                              hooks?: the /hooks registry, effort?: "low" | "medium" | "high" | "xhigh" | "max" | null,
 //                              concurrency?: number, maxInstances?: number, memoryRecall?: false (a session rule denies it) }
-// Run standalone:  bash scripts/run-crew.sh src/crews/dev-verify/crew.ork.ts --inputs '{"batch":"F1","gateOnly":true}'
+// Run standalone:  ./orkeon-code run dev-verify --inputs '{"batch":"F1","gateOnly":true}'
 //
 // Budget: under full, the build (900 s), the whole suite (900 s) and three validations
 // (300 s each) can all run, plus the model's own time: one hour of wall time.

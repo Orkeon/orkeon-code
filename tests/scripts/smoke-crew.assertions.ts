@@ -15,6 +15,11 @@ export function assertRunnerCall(r: RunResult): void {
   ok(r.args.includes("--trust"), `an untrusted workspace is refused without a terminal: ${r.args}`);
 }
 
+/** The runner was given the fixture as the project (--workspace), the folder the smoke then checks. */
+export function assertFixtureIsTheWorkspace(r: RunResult): void {
+  ok(/--workspace \S*\/sample-repo( |$)/.test(r.args), `the fixture is not the project: ${r.args}`);
+}
+
 /** The settings carry the keyless Llm section of the REPL smoke, no key from the environment. */
 export function assertKeylessSettings(r: RunResult): void {
   strictEqual(r.llm.Model, "smoke", `Llm.Model: ${JSON.stringify(r.llm)}`);

@@ -5,7 +5,7 @@
 // A one-shot second opinion on the session's last exchange, from a DIFFERENT model.
 //
 // Input (globalThis.inputs): {} — the subject is the session buffer.
-// Run standalone:  bash scripts/run-crew.sh src/crews/advisor/crew.ork.ts
+// Run standalone:  ./orkeon-code run advisor
 //
 // No tools: an advisor reads the exchange and judges it. Handing it file or shell
 // access would let it go re-verify the work, which is a different (and much more

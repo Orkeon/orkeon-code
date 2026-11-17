@@ -564,15 +564,15 @@ l'étape 2 compte les appels à Kev comme les fait Orkeon à `3860e9d`, où une 
    http://127.0.0.1:8009/v1`, et le tour continue, 6 secondes plus lent par étape. Sur `strict`, l'appel est bloqué :
    `the decision stage failed and the profile is fail-closed`.
 
-Les mêmes vérifications tournent sans le REPL, un crew à la fois, par `scripts/run-crew.sh`
+Les mêmes vérifications tournent sans le REPL, un crew à la fois, par `orkeon-code run`
 ([Exécutions autonomes et embarquées](headless.md)) : `llmProfile` dans les entrées du crew joue
-`/config set llm.profile`, et `--trust` vient après le chemin du crew.
+`/config set llm.profile`, et `--trust` fait confiance au projet de travail pour cette exécution.
 
 ```bash
 mkdir -p /tmp/kev-ws && echo 'export const cutName = (s: string) => s.slice(0, 120);' > /tmp/kev-ws/text.ts
 ORKEON_CODE_MODE=source ORKEON_SOURCE=~/src/orkeon \
-ORKEON_CODE_SETTINGS=config/appsettings.local.json ORKEON_CODE_WORKSPACE=/tmp/kev-ws \
-  bash scripts/run-crew.sh src/crews/main-loop/crew.ork.ts --trust \
+ORKEON_CODE_SETTINGS=config/appsettings.local.json \
+  ./orkeon-code run main-loop --workspace /tmp/kev-ws --trust \
   --inputs '{"prompt": "What does the function in text.ts do? Answer in one sentence.",
              "permissionMode": "plan", "llmProfile": "guarded"}' 2>&1 | grep -E "Decision|decision\.|finalOutput"
 ```

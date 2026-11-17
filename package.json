@@ -23,6 +23,7 @@
     "src/",
     "config/*.example.json",
     "scripts/setup-fixture.sh",
+    "scripts/dev-run.sh",
     "scripts/session-start.sh",
     "scripts/session-start.ork.ts",
     "scripts/install.sh",

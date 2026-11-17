@@ -21,7 +21,7 @@ on:
       - 'scripts/smoke-runtime.sh'
       - 'scripts/smoke-crew.sh'
       - 'scripts/smoke-validate.sh'
-      - 'scripts/run-crew.sh'
+      - 'scripts/dev-run.sh'
       - 'scripts/setup-fixture.sh'
       - 'tests/fixtures/llm-mock/**'
       - 'src/commands/**'

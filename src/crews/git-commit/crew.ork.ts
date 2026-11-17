@@ -4,7 +4,7 @@
 // GitCommit crew (/commit) — exp 07 SPEC §4.3. Composition root of
 // application/run-git-commit: it wires the ports and delegates the whole flow.
 //
-// Run standalone:  bash scripts/run-crew.sh src/crews/git-commit/crew.ork.ts
+// Run standalone:  ./orkeon-code run git-commit
 // Via REPL:        /commit  →  script-host.runCrewAsync("git-commit", {})
 //
 // Input (threaded by /commit, commands/_lib/git/commit.ts):

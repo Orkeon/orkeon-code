@@ -26,7 +26,7 @@ fait. Les règles du code sont dans [CONTRIBUTING.md](../../CONTRIBUTING.md) (en
   les tests, le contrôle de types, la vérification de bundle, la garde de provenance, les deux pages des commandes à
   jour, la parité de la documentation et les modes de fichiers (soit `npm run check` plus les modes de fichiers).
 - `runtime-smoke.yml` lance les trois smokes chaque lundi, à la demande (`workflow_dispatch`), et sur une pull
-  request qui touche `.orkeon-version`, `orkeon-code`, un script de smoke ou ce qu'il lance (`scripts/run-crew.sh`,
+  request qui touche `.orkeon-version`, `orkeon-code`, un script de smoke ou ce qu'il lance (`scripts/dev-run.sh`,
   `scripts/setup-fixture.sh`, les réponses simulées sous `tests/fixtures/llm-mock/`), `src/commands/**`,
   `src/crews/**`, `src/shared/**` ou le workflow.
 - Le job extrait les sources d'Orkeon à l'épingle lue dans `.orkeon-version`, construit le REPL et l'outil `orkeon`
@@ -44,16 +44,18 @@ fait. Les règles du code sont dans [CONTRIBUTING.md](../../CONTRIBUTING.md) (en
 ## Lancer un crew seul
 
 ```bash
-bash scripts/run-crew.sh src/crews/git-commit/crew.ork.ts
-ORKEON_CODE_WORKSPACE=~/src/app bash scripts/run-crew.sh src/crews/project-init/crew.ork.ts
+./orkeon-code run git-commit --demo
+./orkeon-code run project-init --workspace ~/src/app
+./orkeon-code run src/crews/_probe-shared-memory/probe.ork.ts --workspace <scratch> --trust   # a probe, by its path
 ```
 
-Le script utilise l'outil `orkeon` (`Orkeon.Scripting.Cli`, nuget.org, nommé par `.config/dotnet-tools.json` ; le
+`orkeon-code run` ([Exécutions autonomes et embarquées](headless.md)) trouve `orkeon run` comme le REPL trouve son
+runtime ; dans un clone qui n'en a pas sur le PATH, il utilise l'outil `orkeon` (`Orkeon.Scripting.Cli`, nuget.org, nommé par `.config/dotnet-tools.json` ; le
 SDK .NET qui le restaure et le lance est épinglé par `global.json`, comme celui d'Orkeon : `10.0.300` avec
-`rollForward: latestFeature`) ou l'image `orkeon`, sur la fixture de démonstration sauf si
-`ORKEON_CODE_WORKSPACE` en décide autrement. Les deux sont une release : l'outil est sur nuget.org en
+`rollForward: latestFeature`) ou l'image `orkeon`, sur le dossier courant sauf si `--workspace` ou `--demo` en
+décide autrement. Les deux sont une release : l'outil est sur nuget.org en
 `1.2.0`, l'image est `ghcr.io/orkeon/orkeon:latest` (`1.2.0`), toutes deux à l'épingle à ce jour ; l'outil ne porte pas
-d'esbuild, le script prend celui que `npm ci` a installé ; `ORKEON_CODE_MODE=source ORKEON_SOURCE=<checkout à l'épingle>` le
+d'esbuild, le lanceur prend celui que `npm ci` a installé ; `ORKEON_CODE_MODE=source ORKEON_SOURCE=<checkout à l'épingle>` le
 lance depuis un checkout d'Orkeon, construit sur place. Cet outil lit ses limites de script dans `Orkeon:Scripting:Limits`, pas dans
 le `Orkeon:Cli:ScriptCommands:Limits` du REPL
 ([Configuration](configuration.md#les-settings-dont-orkeon-code-dépend)).
@@ -87,7 +89,7 @@ vit en quatre endroits qui doivent concorder (`tests/repository/version.test.ts`
    le contrôle).
 
 `.config/dotnet-tools.json` nomme la dernière release de `orkeon.scripting.cli`, pour le repli sur l'outil des typings
-et de `scripts/run-crew.sh` : il ne suit pas l'épingle. Puis :
+et d'`orkeon-code run` : il ne suit pas l'épingle. Puis :
 
 ```bash
 export ORKEON_SOURCE=<an Orkeon checkout at the pin>

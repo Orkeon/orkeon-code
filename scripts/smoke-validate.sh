@@ -9,12 +9,12 @@
 #   bash scripts/smoke-validate.sh
 #   ORKEON_CODE_MODE=source ORKEON_SOURCE=<an Orkeon checkout at the pin> bash scripts/smoke-validate.sh
 #
-# The runtime is the one scripts/run-crew.sh picks (the tool, the source mode, or the image), with
-# the example settings made keyless as the other smokes do. SMOKE_VALIDATE_RUNNER names another
-# runner (the tests give a fake one).
+# The runtime is the one `orkeon-code run` picks (the tool, the image, or the source mode), on the
+# demo fixture, with the example settings made keyless as the other smokes do. SMOKE_VALIDATE_RUNNER
+# names another runner (the tests give a fake one), given the crew and the arguments of `orkeon-code run`.
 set -euo pipefail
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
-RUNNER="${SMOKE_VALIDATE_RUNNER:-$ROOT/scripts/run-crew.sh}"
+if [ -n "${SMOKE_VALIDATE_RUNNER:-}" ]; then RUNNER=(bash "$SMOKE_VALIDATE_RUNNER"); else RUNNER=(bash "$ROOT/orkeon-code" run); fi
 
 work="$(mktemp -d)"
 settings="$work/settings.json"
@@ -43,7 +43,7 @@ for crew in "${crews[@]}"; do
   log="$work/$name.log"
   set +e
   ORKEON_CODE_SETTINGS="$settings" ORKEON_CODE_STATE="$work/state" \
-    timeout 600 bash "$RUNNER" "$crew" --validate >"$log" 2>&1
+    timeout 600 "${RUNNER[@]}" "$crew" --demo --validate >"$log" 2>&1
   status=$?
   set -e
   verdict="$(grep -o 'VALIDATION [A-Z]*.*' "$log" | tail -n 1 || true)"
