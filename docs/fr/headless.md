@@ -99,7 +99,9 @@ orkeon-code run main-loop --workspace ~/src/app \
 - Le runner imprime le résultat du crew en JSON sur stdout, seul : le lanceur envoie ses lignes de journal sur
   stderr (`Logging__Console__LogToStandardErrorThreshold=Trace` ; un `orkeon run` nu les écrit sur stdout, avant le
   JSON).
-- Le lanceur sort avec le code du runner : `0` quand le script s'est terminé, `1` sur
+- Avant que le runner ne démarre, le lanceur s'arrête seul : `3` pour un projet non fiable sans terminal où demander
+  ni `--trust`, `0` sans rien lancer quand la question de confiance reçoit un non, `1` sur une erreur d'usage.
+- Ensuite il sort avec le code du runner : `0` quand le script s'est terminé, `1` sur
   une erreur de script, `2` sur une erreur du runtime, `130` quand il est annulé, `75` quand
   `Orkeon:Checkpointing:Enabled` est posé et que l'exécution s'est arrêtée sur une question (`run.finished` dit
   `waiting_for_input` avec un `requestId` ; `orkeon run --resume <id d'exécution> --input '<réponse>'` la poursuit,

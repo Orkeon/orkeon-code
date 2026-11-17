@@ -6,9 +6,9 @@ import { deepStrictEqual, ok, strictEqual } from "node:assert";
 import { spawnSync } from "node:child_process";
 import {
   BAD_ARGS, BAD_INVOCATIONS, CLOSED, CLOSED_READINGS, CREW_EXITS, F1_LAUNCHED, HUMAN_DECISIONS, LOG_OPTION, NOTHING,
-  run, runUntrusted, RUNTIME_ERRORS, SCRIPT,
+  run, runThroughLauncher, runUntrusted, RUNTIME_ERRORS, SCRIPT,
 } from "./dev-run.fixtures.ts";
-import { assertExit } from "./dev-run.assertions.ts";
+import { assertExit, assertRanThroughLauncher } from "./dev-run.assertions.ts";
 
 describe("scripts/dev-run.sh", () => {
   it("parses as bash", () => {
@@ -88,6 +88,17 @@ describe("scripts/dev-run.sh", () => {
     ok(r.stderr.includes(`trust ${r.project} first`), r.stderr);
     ok(!r.ranStep, "no step ran");
     ok(!r.createdOrkeon, "nothing is created in an untrusted project");
+  });
+
+  it("without DEV_RUN_RUNNER, runs each step through orkeon-code run, on the project, with the crew and its inputs", () => {
+    // Arrange
+    const start = runThroughLauncher;
+
+    // Act
+    const r = start();
+
+    // Assert
+    assertRanThroughLauncher(r);
   });
 
   it("passes the inputs given", () => {
