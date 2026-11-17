@@ -8,7 +8,7 @@
 //
 // Input (globalThis.inputs): { admit: { id, sha1 }[] } — the candidates the command confirmed, with the sha1 of the
 // file text shown: a file changed since is not admitted.
-// Run standalone:  bash scripts/run-crew.sh src/crews/shared-memory-admit/crew.ork.ts --inputs '{"admit":[{"id":"<id>","sha1":"<sha1 of its file>"}]}'
+// Run standalone:  ./orkeon-code run shared-memory-admit --inputs '{"admit":[{"id":"<id>","sha1":"<sha1 of its file>"}]}'
 //
 // No tool callbacks: the admitter has no tool and makes no model call, so there is no tool call to guard.
 

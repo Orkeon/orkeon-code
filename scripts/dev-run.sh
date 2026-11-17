@@ -6,12 +6,12 @@
 #   ORKEON_CODE_WORKSPACE=~/src/app bash scripts/dev-run.sh dev-verify demo --inputs '{"batch":"F2","plan":"demo"}' \
 #     --log workbench/demo/DEMO-BATCHES-STATE.md
 #
-# Each step runs `bash scripts/run-crew.sh src/crews/<crew>/crew.ork.ts --inputs <json>`;
+# Each step runs `orkeon-code run <crew> --workspace <project> --inputs <json>`;
 # the inputs are the crew's own (its crew.ork.ts header names them), required. A crew run
 # this way gets none of what its command does first: /dev-verify's check that the gate is
-# on and its rule sets are not applied. run-crew.sh passes the settings, the model and the
-# mounts (ORKEON_CODE_SETTINGS, ORKEON_CODE_MODEL; ORKEON_CODE_MODE=source with ORKEON_SOURCE
-# runs the tool from an Orkeon checkout while it is not on NuGet). DEV_RUN_RUNNER names another
+# on and its rule sets are not applied. The launcher passes the settings, the model and the
+# mounts, as for the REPL (ORKEON_CODE_SETTINGS, ORKEON_CODE_MODEL; ORKEON_CODE_MODE=source with
+# ORKEON_SOURCE runs the tool from an Orkeon checkout). DEV_RUN_RUNNER names another
 # command, given the crew and --inputs alone (a fake in the tests): it passes its own `-s` and
 # `-m`, or the crew runs on no settings and no mount. A step's output goes to <project>/.orkeon/dev/<code>/runs/<crew>-<n>.log, never
 # whole to the terminal: its last line is shown. <project> is ORKEON_CODE_WORKSPACE, else
@@ -81,7 +81,7 @@ run_once() {
   if [ -n "${DEV_RUN_RUNNER:-}" ]; then
     $DEV_RUN_RUNNER "$crew_file" --inputs "$inputs" </dev/null >"$log" 2>&1 || rc=$?
   else
-    bash "$ROOT/scripts/run-crew.sh" "$crew_file" --inputs "$inputs" </dev/null >"$log" 2>&1 || rc=$?
+    bash "$ROOT/orkeon-code" run "$crew_file" --workspace "$project" --inputs "$inputs" </dev/null >"$log" 2>&1 || rc=$?
   fi
   return "$rc"
 }

@@ -11,7 +11,7 @@
 //   commit — review that commit instead of the staged changes
 //   lenses — the lenses of this run, outranking review.lenses (/review --lens, /security-review)
 //   passes — the rounds of this run, outranking the session's /passes (/review --passes)
-// Run standalone:  bash scripts/run-crew.sh src/crews/code-review/crew.ork.ts
+// Run standalone:  ./orkeon-code run code-review
 
 import { CrewBuilder, publishCrew, inputs } from "../../shared/infrastructure/globals.ts";
 import {

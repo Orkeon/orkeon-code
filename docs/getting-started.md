@@ -155,7 +155,13 @@ pin, or `ORKEON_SOURCE_FOLLOW_PIN=0`) it leaves the checkout alone, warns (`orke
 
 ### No runtime on the machine: the one Orkeon Code downloads
 
-A package whose release published runtime archives names them in `.orkeon-runtime`: the seven characters of the pin
+No package published so far names a runtime: the `.orkeon-runtime` of every release, `1.0.0-rc.2` included, is
+empty, and its release carries no runtime archive. On a machine with neither `orkeon-repl`, Docker nor
+`ORKEON_SOURCE`, install `orkeon-repl` from Orkeon's release archive
+([Tool mode](#tool-mode-orkeon-repl-installed)); `orkeon-code --version` then says `found: <version> (orkeon-repl,
+…/VERSION)`. `orkeon-code runtime install` says the package names no runtime to download, and exits 1.
+
+What follows is what the launcher does for a package that names one. A package whose release published runtime archives names them in `.orkeon-runtime`: the seven characters of the pin
 they were built from, their address and one SHA-256 per platform (`linux-x64`, `linux-arm64`, `osx-x64`,
 `osx-arm64`). With neither `orkeon-repl`, Docker nor `ORKEON_SOURCE`, the bash launcher then offers to download that
 runtime:
@@ -170,7 +176,7 @@ runtime:
 
 Once downloaded, this runtime runs in tool mode and comes before Docker; an `orkeon-repl` on your `PATH` still comes
 first. A newer package downloads its own runtime at its first start and removes the older one. In a checkout
-`.orkeon-runtime` names nothing: use the source mode. `orkeon-code.ps1` does not download a runtime.
+`.orkeon-runtime` names nothing either: use the source mode. `orkeon-code.ps1` does not download a runtime.
 
 ## 4. First session
 

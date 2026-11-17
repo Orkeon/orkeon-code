@@ -12,7 +12,7 @@
 // the backlog per axis: no model call, no question, no write.
 //
 // Input (globalThis.inputs): { axis?: string | null, list?: boolean }
-// Run standalone:  bash scripts/run-crew.sh src/crews/dev-learn/crew.ork.ts --inputs '{"list":true}'
+// Run standalone:  ./orkeon-code run dev-learn --inputs '{"list":true}'
 //
 // No tool callbacks (shared/application/dev/tool-callbacks.ts): the learner has no tool and makes no act
 // call, so there is no tool call to guard; the question goes through the human_input port (orkeonHumanInput),

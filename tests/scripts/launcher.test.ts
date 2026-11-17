@@ -22,9 +22,9 @@ import {
   PS1_SETTINGS, PS1_SLUG, PS1_SPEECH, PS1_STORE_LAYOUT, PS1_SUBCOMMANDS, PS1_TRUST_CHECK, PS1_TRUST_REFUSAL, PS1_USER_SETTINGS,
   PS1_VERSION_LINES, PTY, PWSH, RESTORED_IN_FINALLY, RESTORED_NAMES, ROOTS, RUNTIME_SETTINGS, RUNTIME_SLUGS, RUNTIME_PIN, RUNTIME_REF,
   SERVER_CASES, SERVER_LEFT_OUT, FINGERPRINT, FINGERPRINT_PATH, MEMORY_DIR, SESSIONS_DIR, SETTINGS_TEXT, SETTINGS_WITH_BLOCK, SLUG_PATHS, SPEECH_TOOL, START_SCRIPT, TOOL_REPL,
-  TOOL_START, USER_SETTINGS, WHISPER, audioEnv, bashOf, checkoutHead, ciStarts, corruptHome, crewSource, fullHistory, gitAt, launch, launchWithNode, orkeonCheckoutAtAnotherCommit, orkeonCheckoutBehindThePin,
+  TOOL_START, USER_SETTINGS, WHISPER, audioEnv, bashOf, checkoutHead, ciStarts, corruptHome, fullHistory, gitAt, launch, launchWithNode, orkeonCheckoutAtAnotherCommit, orkeonCheckoutBehindThePin,
   leftBeside, linkedFolder, modeStart, mostWhisperArgs, mountOf, mountRoots, namedProjectStart, nestedTrust, orkeonCheckout,
-  pwshOf, read, recorder, removeScratch, RUN_CREW_ESBUILD, runCrew, runPs1ThenPrint, scratchDir, scratchFolder, serverArgs, serverOf,
+  pwshOf, read, recorder, removeScratch, runPs1ThenPrint, scratchDir, scratchFolder, serverArgs, serverOf,
   sessionScene, slugOf, sourceModeCalls, sourceModeCallsRestoring, staleLock, startAgain, storeOf, storedFolders, tokenVarsForwarded, toolModeArgs, trustCli, trustOf, twoSessions,
   untrustedStart, upTo, userFile, variablesSaved, variablesSet, whisperArgNames, whisperArgs, whisperEnv, writtenSettings, historyIds,
   FAKE_AUTOMOUNT, FAKE_WSLPATH, HOST_WSLPATH, ON_PLAIN_LINUX, POSIX_LAUNCHES, PS1_LAUNCH_FILE, QUOTED_PROJECT, WSL_LAUNCHES,
@@ -1729,126 +1729,6 @@ describe("the CI's npm-shim step starts the REPL without a terminal", () => {
 
     // Assert
     assertEveryLineHolds(starts, option, "the step is there");
-  });
-});
-
-describe("scripts/run-crew.sh checks the folder as the launcher does", () => {
-  it("refuses an untrusted project without a terminal, before dotnet runs", () => {
-    // Arrange
-    const extra: string[] = [];
-
-    // Act
-    const r = runCrew(extra);
-
-    // Assert
-    strictEqual(r.status, 3, r.stderr);
-    ok(r.stderr.includes("is not a trusted folder"), r.stderr);
-    deepStrictEqual(r.calls, []);
-  });
-
-  it("runs a trusted project", () => {
-    // Arrange
-    const extra = ["--inputs", "{}"];
-
-    // Act
-    const t = runCrew(extra, { trusted: true });
-
-    // Assert
-    strictEqual(t.status, 0, t.stderr);
-    ok(t.calls.some((c) => c.includes("tool run orkeon run") && c.includes(`${t.project}:${WORKSPACE}:rw`)), t.calls.join("\n"));
-  });
-
-  it("gives the dotnet tool the esbuild npm ci installed, since the tool carries none", () => {
-    // Arrange
-    const extra = ["--inputs", "{}"];
-
-    // Act
-    const t = runCrew(extra, { trusted: true });
-
-    // Assert
-    strictEqual(t.status, 0, t.stderr);
-    strictEqual(t.esbuild, join(t.root, RUN_CREW_ESBUILD));
-  });
-
-  it("points the dotnet tool's embedding fingerprint at /output, outside the project", () => {
-    // Arrange
-    const extra = ["--inputs", "{}"];
-
-    // Act
-    const t = runCrew(extra, { trusted: true });
-
-    // Assert
-    strictEqual(t.status, 0, t.stderr);
-    strictEqual(t.fingerprint, FINGERPRINT_PATH);
-  });
-
-  it("stops before the dotnet tool runs when no esbuild is installed", () => {
-    // Arrange
-    const extra = ["--inputs", "{}"];
-
-    // Act
-    const t = runCrew(extra, { trusted: true, noEsbuild: true });
-
-    // Assert
-    strictEqual(t.status, 1);
-    ok(t.stderr.includes("esbuild not found: run 'npm ci'"), t.stderr);
-    deepStrictEqual(t.calls, []);
-  });
-
-  it("runs an untrusted project with --trust for one run, never forwarded to orkeon run", () => {
-    // Arrange
-    const extra = ["--trust", "--inputs", "{}"];
-
-    // Act
-    const once = runCrew(extra);
-
-    // Assert
-    strictEqual(once.status, 0, once.stderr);
-    const run = once.calls.find((c) => c.includes("tool run orkeon run")) ?? "";
-    ok(run.includes("--inputs {}") && !run.includes("--trust"), run);
-  });
-
-  it("passes the settings, the mounts and ORKEON_CODE_MODEL to the tool built from ORKEON_SOURCE in the source mode", () => {
-    // Arrange
-    const source = crewSource();
-
-    // Act
-    const r = runCrew(["--inputs", "{}"], { trusted: true, env: { ORKEON_CODE_MODE: "source", ORKEON_SOURCE: source, ORKEON_CODE_MODEL: "m-live" } });
-
-    // Assert
-    strictEqual(r.status, 0, r.stderr);
-    ok(r.calls.some((c) => c.includes(`build ${source}/src/scripting/Orkeon.Scripting.Cli -c Debug`)), r.calls.join("\n"));
-    const run = r.calls.find((c) => c.includes(" run --no-build --project ")) ?? "";
-    ok(run.includes(`run --no-build --project ${source}/src/scripting/Orkeon.Scripting.Cli -- run ${r.root}/src/crew.ork.ts`), r.calls.join("\n"));
-    assertSays(run, [`-s ${r.root}/config/appsettings.local.json`, `-m ${r.project}:${WORKSPACE}:rw`]);
-    ok(run.endsWith("--inputs {}"), run);
-    ok(r.env.split("\n").includes("ORKEON_Llm__Model=m-live"), r.env);
-  });
-
-  it("stops the source mode when ORKEON_SOURCE names no Orkeon checkout, running nothing", () => {
-    // Arrange
-    const source = crewSource();
-
-    // Act
-    const missing = runCrew([], { trusted: true, env: { ORKEON_CODE_MODE: "source", ORKEON_SOURCE: join(source, "nowhere") } });
-
-    // Assert
-    strictEqual(missing.status, 1);
-    ok(missing.stderr.includes("ORKEON_CODE_MODE=source needs ORKEON_SOURCE"), missing.stderr);
-    deepStrictEqual(missing.calls, []);
-  });
-
-  it("says the source mode needs dotnet when it is not on PATH, building nothing", { skip: existsSync("/usr/bin/dotnet") || existsSync("/bin/dotnet") }, () => {
-    // Arrange
-    const source = crewSource();
-
-    // Act
-    const r = runCrew([], { trusted: true, noDotnet: true, env: { ORKEON_CODE_MODE: "source", ORKEON_SOURCE: source } });
-
-    // Assert
-    strictEqual(r.status, 1, r.stderr);
-    ok(r.stderr.includes("needs the .NET SDK: dotnet is not on PATH"), r.stderr);
-    deepStrictEqual(r.calls, []);
   });
 });
 

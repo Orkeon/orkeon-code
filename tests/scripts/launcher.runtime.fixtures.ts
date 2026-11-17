@@ -39,6 +39,11 @@ export const manifest = (opts: { id?: string; sum?: string } = {}) =>
 
 export const WRONG_SUM = "0".repeat(64);
 
+/** The .orkeon-runtime every package published so far carries: the fields, all blank. */
+export const EMPTY_MANIFEST = "# test\nid=\nurl=\nlinux-x64=\n";
+export const PACKAGE_NAMES_NONE = ["this package names no runtime to download", "its release published none", "orkeon-repl of an Orkeon release archive"];
+export const CHECKOUT_NAMES_NONE = ["this checkout names no runtime to download"];
+
 /** curl, serving the archive whatever the URL, which it records. */
 const CURL = '#!/bin/sh\nfor a in "$@"; do url="$a"; done\necho "curl $url" >> "$RECORD/calls"\n'
   + 'while [ $# -gt 1 ]; do if [ "$1" = -o ]; then out="$2"; fi; shift; done\ncp "$RUNTIME_ARCHIVE" "$out"\n';

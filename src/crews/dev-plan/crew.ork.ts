@@ -10,7 +10,7 @@
 //
 // Input (globalThis.inputs): { source: string | null, replace?: boolean, hooks?: the /hooks registry,
 //                              effort?: "low" | "medium" | "high" | "xhigh" | "max" | null, concurrency?: number, maxInstances?: number }
-// Run standalone:  bash scripts/run-crew.sh src/crews/dev-plan/crew.ork.ts --inputs '{"source":"prune"}'
+// Run standalone:  ./orkeon-code run dev-plan --inputs '{"source":"prune"}'
 //
 // Budget: up to 59 index and batch_anchors calls by code, at most 40 folder listings for the anchors (one per folder for the run,
 // both attempts sharing them), about 30 other file and git calls, two extract calls and one review of 20

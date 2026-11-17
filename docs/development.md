@@ -25,7 +25,7 @@ runtime's typings come from, how the pin on Orkeon moves, and how a release is c
   type check, the bundle check, the provenance gate, the two command pages up to date, the documentation parity and
   the file modes (that is `npm run check` plus the file modes).
 - `runtime-smoke.yml` runs the three smokes every Monday, on demand (`workflow_dispatch`), and on a pull request
-  that touches `.orkeon-version`, `orkeon-code`, a smoke script or what it runs (`scripts/run-crew.sh`,
+  that touches `.orkeon-version`, `orkeon-code`, a smoke script or what it runs (`scripts/dev-run.sh`,
   `scripts/setup-fixture.sh`, the mock answers under `tests/fixtures/llm-mock/`), `src/commands/**`, `src/crews/**`,
   `src/shared/**` or the workflow.
 - The job checks Orkeon's sources out at the pin read from `.orkeon-version`, builds the REPL and the `orkeon` tool
@@ -42,15 +42,17 @@ runtime's typings come from, how the pin on Orkeon moves, and how a release is c
 ## Running a crew alone
 
 ```bash
-bash scripts/run-crew.sh src/crews/git-commit/crew.ork.ts
-ORKEON_CODE_WORKSPACE=~/src/app bash scripts/run-crew.sh src/crews/project-init/crew.ork.ts
+./orkeon-code run git-commit --demo
+./orkeon-code run project-init --workspace ~/src/app
+./orkeon-code run src/crews/_probe-shared-memory/probe.ork.ts --workspace <scratch> --trust   # a probe, by its path
 ```
 
-It uses the `orkeon` tool (`Orkeon.Scripting.Cli`, nuget.org, named by `.config/dotnet-tools.json`; the .NET SDK
+`orkeon-code run` ([Autonomous and embedded runs](headless.md)) finds `orkeon run` as the REPL finds its runtime; in a
+clone without one on PATH it uses the `orkeon` tool (`Orkeon.Scripting.Cli`, nuget.org, named by `.config/dotnet-tools.json`; the .NET SDK
 that restores and runs it is pinned by `global.json`, like Orkeon's: `10.0.300` with `rollForward: latestFeature`) or the
-`orkeon` image, on the demo fixture unless `ORKEON_CODE_WORKSPACE` says otherwise. Both are a release:
+`orkeon` image, on the current folder unless `--workspace` or `--demo` says otherwise. Both are a release:
 the tool is on nuget.org at `1.2.0`, the image is `ghcr.io/orkeon/orkeon:latest` (`1.2.0`), both the pin at this writing;
-the tool carries no esbuild, the script takes the one `npm ci` installed;
+the tool carries no esbuild, the launcher takes the one `npm ci` installed;
 `ORKEON_CODE_MODE=source ORKEON_SOURCE=<checkout at the pin>` runs it from an Orkeon checkout, built on the spot. That tool reads its script limits from
 `Orkeon:Scripting:Limits`, not from the REPL's `Orkeon:Cli:ScriptCommands:Limits`
 ([Configuration](configuration.md#settings-orkeon-code-relies-on)).
@@ -83,7 +85,7 @@ four places that must agree (`tests/repository/version.test.ts` checks the first
    checks it).
 
 `.config/dotnet-tools.json` names the last release of `orkeon.scripting.cli`, for the tool fallback of the typings and
-of `scripts/run-crew.sh`: it does not follow the pin. Then:
+of `orkeon-code run`: it does not follow the pin. Then:
 
 ```bash
 export ORKEON_SOURCE=<an Orkeon checkout at the pin>

@@ -7,7 +7,7 @@
 // No tools: the body reads through the Files port and calls extract and complete,
 // which take none.
 //
-// Run standalone:  bash scripts/run-crew.sh src/crews/init-verifiers/crew.ork.ts
+// Run standalone:  ./orkeon-code run init-verifiers
 
 import { CrewBuilder, publishCrew } from "../../shared/infrastructure/globals.ts";
 import { orkeonAgent, orkeonFiles } from "../../shared/infrastructure/orkeon/wiring.ts";

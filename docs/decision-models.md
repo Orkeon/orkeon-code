@@ -215,8 +215,8 @@ For the pruning, with settings that name a model and a decision provider, in a p
 `.orkeon/config.json` holds `{ "compaction.prune": "on" }` (then `"off"`):
 
 ```bash
-ORKEON_CODE_MODE=source ORKEON_SOURCE=~/src/orkeon ORKEON_CODE_WORKSPACE=<the project> \
-  bash scripts/run-crew.sh src/crews/main-loop/crew.ork.ts --trust \
+ORKEON_CODE_MODE=source ORKEON_SOURCE=~/src/orkeon \
+  ./orkeon-code run main-loop --workspace "<the project>" --trust \
   --inputs '{"prompt": "<a request that reads many large files>", "permissionMode": "plan"}' > run.log 2>&1
 grep -o "context pruning: [^\"]*\|call used [0-9]* tokens\|HttpClient\.[A-Za-z]*\.LogicalHandler\[101\] End[^-]*ms" run.log
 ```

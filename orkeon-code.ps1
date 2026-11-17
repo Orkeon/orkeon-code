@@ -35,6 +35,11 @@ param(
 $ErrorActionPreference = 'Stop'
 
 # A subcommand of ./orkeon-code (trust, setup) is the first argument, and takes the rest as its own.
+# `run` (one crew, headless) is the bash launcher's alone for now.
+if ($Extra.Count -gt 0 -and $Extra[0] -ceq 'run') {
+  [Console]::Error.WriteLine("orkeon-code: 'run' is not available in orkeon-code.ps1 yet: run the bash launcher (./orkeon-code run <crew>) from Git Bash or WSL (docs/headless.md).")
+  exit 1
+}
 $Sub = $null
 $SubArgs = @()
 if ($Extra.Count -gt 0 -and $Extra[0] -cin @('trust', 'setup')) {

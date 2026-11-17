@@ -94,7 +94,7 @@ export interface LoadedCatalogue {
  * The catalogue, decided at load time — module scope is synchronous — from the
  * inputs alone: the launching command resolved the mode (the session's too) and
  * the extra tools before the crew loads, so the catalogue, the act call and the
- * host gate all run in the same mode. Launched without a mode (scripts/run-crew.sh),
+ * host gate all run in the same mode. Launched without a mode (orkeon-code run),
  * the turn runs in `default`. That run is headless: no operator to ask and no
  * session rules, so a gate turned on (the example settings do) REFUSES each call
  * the mode would ask about — every write, every command, every network read — and

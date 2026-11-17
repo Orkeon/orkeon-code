@@ -26,7 +26,7 @@ jusqu'au bout sans poser de question :
 - Donnez à une exécution sans opérateur un mode qui ne demande jamais : `bypassPermissions`, ou `plan` et `dontAsk`
   pour un travail en lecture seule ([Permissions](permissions.md)).
 
-Sous `orkeon run` (`scripts/run-crew.sh`), la garde n'a personne à qui demander, et décide chaque appel par le seul
+Sous `orkeon run` (`orkeon-code run`), la garde n'a personne à qui demander, et décide chaque appel par le seul
 mode :
 
 | Mode | Sous `orkeon run` |
@@ -45,10 +45,11 @@ Ce qui borne un tour, quel que soit le mode :
 - le budget du crew `main-loop` : 200 appels d'outils, 30 minutes, 700k tokens de contexte (le contexte compté une
   fois), 40 itérations de la boucle ;
 - le délai d'exécution des scripts dans les settings : `Orkeon:Cli:ScriptCommands:Limits` pour le REPL,
-  `Orkeon:Scripting:Limits` pour l'outil `orkeon` d'une exécution indépendante (30 minutes chacun dans l'exemple) ;
+  `Orkeon:Scripting:Limits` pour l'`orkeon run` d'une exécution indépendante (30 minutes chacun dans l'exemple) ;
 - la garde du runtime (`Orkeon:Security:PermissionGate:Enabled`), qui confronte chaque appel au mode derrière le
   catalogue ;
-- les montages : le projet sur `/workspace`, les montages de travail `/output` et `/tmp`, rien d'autre ;
+- les montages : le projet sur `/workspace`, les montages de travail `/output` et `/tmp`, votre bloc `orkeonCode`
+  sur `/user-config` (en lecture seule), rien d'autre ;
 - la liste blanche du shell dans les settings.
 
 Préférez le mode docker pour un tour `bypassPermissions` sans opérateur : le shell tourne alors dans le conteneur, et
@@ -56,15 +57,21 @@ le projet est le seul dossier de votre machine qu'il peut écrire ([SECURITY.md]
 
 ## En un coup depuis un shell
 
-- `scripts/run-crew.sh` lance un crew hors du REPL : avec l'outil `orkeon` (`Orkeon.Scripting.Cli` de nuget.org,
-  nommé par `.config/dotnet-tools.json`, qui demande le SDK .NET 10) ou, sans SDK, avec l'image `orkeon` (`ghcr.io/orkeon/orkeon`).
-- Les deux exécutent la dernière release publiée : `1.2.0` pour l'outil, l'épingle à ce jour, et la dernière
-  image pour Docker.
-- `ORKEON_CODE_MODE=source ORKEON_SOURCE=<checkout à l'épingle>` le lance à la place depuis un checkout d'Orkeon
-  ([Développement](development.md)).
-- Il lit le fichier de settings que nomme `ORKEON_CODE_SETTINGS`, sinon `config/appsettings.local.json`, et ne monte
-  pas `/user-config` : ni `~/.orkeon-code/appsettings.json` ni le bloc `orkeonCode` de vos réglages d'utilisateur ne
-  s'appliquent à un crew lancé ainsi.
+- `orkeon-code run <crew>` lance un crew hors du REPL, depuis un clone ou une installation : `<crew>` est un nom de
+  `src/crews` (`main-loop`, `git-commit`, `code-review`…) ou le chemin d'un `crew.ork.ts`.
+- Le projet, la question de confiance, le fichier de settings et les montages sont ceux du REPL : `--workspace`
+  (sinon le dossier courant) ou `--demo`, `--trust` pour une exécution, `--settings` ou le fichier de settings que le
+  REPL lirait, le projet sur `/workspace`, les `/output` et `/tmp` de l'état, et le bloc `orkeonCode` de vos réglages
+  sur `/user-config`.
+- Le runner est `orkeon run` (`Orkeon.Scripting.Cli`), cherché dans cet ordre : la ligne de commande que nomme
+  `ORKEON_CLI`, `orkeon` sur le PATH, le `bin/orkeon` du runtime que le lanceur a téléchargé, l'outil `orkeon` du
+  `.config/dotnet-tools.json` d'un clone (le SDK .NET 10 et nuget.org), puis l'image `orkeon`
+  (`ghcr.io/orkeon/orkeon`), puis le mode source (`ORKEON_SOURCE`, [Développement](development.md)).
+  `--mode docker|tool|source` en choisit un.
+- En mode docker, le checkout est le `/work/agent` du conteneur, en lecture seule : un chemin dessous donné après
+  `--` (un fichier `--llm-mock`) y est nommé ; un crew hors du checkout est refusé.
+- Ce qui suit `--` va tel quel à `orkeon run` (`-- --validate`, `-- --llm-mock answers.jsonl`, `-- -v 2`).
+- `orkeon-code.ps1` n'a pas encore de `run` : prenez le lanceur bash (Git Bash ou WSL sous Windows).
 - Le crew lit son entrée dans le JSON de `--inputs`.
 - Pour `main-loop`, c'est ce que `/assistant` lui passe : la requête et le mode.
 - `permissionRules` (les règles de la session, telles que `/permissions` les liste : `deny http_api`, `allow
@@ -75,22 +82,24 @@ le projet est le seul dossier de votre machine qu'il peut écrire ([SECURITY.md]
 - Aucune règle de session n'existe hors du REPL : `permissionRules` ne fait que façonner le catalogue (une règle
   deny sur un outil entier le retire), et une règle allow n'épargne aucune question.
 - Aucune option d'`orkeon run` ne fixe le mode.
-- Il appartient aux entrées du crew (`--inputs '{"prompt":"…","permissionMode":"acceptEdits"}'`), et la garde
-  demande `Orkeon:Security:PermissionGate:Enabled: true` dans le fichier de settings.
+- Il appartient aux entrées du crew (`--inputs '{"prompt":"…","permissionMode":"acceptEdits"}'`) ; le lanceur
+  allume la garde, comme pour le REPL (`Orkeon__Security__PermissionGate__Enabled`, sauf si votre environnement la
+  fixe).
 - `orkeon run` n'enregistre les outils d'analyse (`node_*`, `edit_batch`, `structural_rewrite`, `batch_anchors`,
   `structural_search`…) que tant que `RaggableTree:Enabled` n'est pas `false`.
 - S'il vaut `false`, un act qui reçoit le catalogue de `main-loop` échoue avec `UnknownToolError`.
 
 ```bash
 export DEEPSEEK_API_KEY=...                       # the variable named by Llm:ApiKeyEnvVar
-ORKEON_CODE_WORKSPACE=~/src/app bash scripts/run-crew.sh src/crews/main-loop/crew.ork.ts \
+orkeon-code run main-loop --workspace ~/src/app \
   --inputs '{"prompt": "add a --json flag to the report command, with a test",
-             "permissionMode": "bypassPermissions"}'
+             "permissionMode": "bypassPermissions"}' > result.json
 ```
 
-- Le script monte le projet en lecture-écriture sur `/workspace` et un dossier de travail sur `/output`, comme le
-  REPL.
-- Le runner imprime le résultat du crew en JSON sur stdout et sort avec `0` quand le script s'est terminé, `1` sur
+- Le runner imprime le résultat du crew en JSON sur stdout, seul : le lanceur envoie ses lignes de journal sur
+  stderr (`Logging__Console__LogToStandardErrorThreshold=Trace` ; un `orkeon run` nu les écrit sur stdout, avant le
+  JSON).
+- Le lanceur sort avec le code du runner : `0` quand le script s'est terminé, `1` sur
   une erreur de script, `2` sur une erreur du runtime, `130` quand il est annulé, `75` quand
   `Orkeon:Checkpointing:Enabled` est posé et que l'exécution s'est arrêtée sur une question (`run.finished` dit
   `waiting_for_input` avec un `requestId` ; `orkeon run --resume <id d'exécution> --input '<réponse>'` la poursuit,
@@ -113,9 +122,10 @@ tour sans opérateur de `main-loop` face à un modèle s'éprouve à la main, pa
 ## Un crew de dev, étape après étape
 
 - `scripts/dev-run.sh` enchaîne les étapes d'un crew de dev sans personne au clavier : un `orkeon run` neuf par
-  étape, via `scripts/run-crew.sh`, qui passe les réglages, le modèle et les montages (`ORKEON_CODE_SETTINGS`,
+  étape, via `orkeon-code run`, qui passe les réglages, le modèle et les montages (`ORKEON_CODE_SETTINGS`,
   `ORKEON_CODE_MODEL` ; avec `ORKEON_CODE_MODE=source` et `ORKEON_SOURCE`, l'outil construit depuis ce checkout
-  d'Orkeon au lieu de celui que sert nuget.org).
+  d'Orkeon).
+- Les paquets le livrent : depuis une installation, lancez le `scripts/dev-run.sh` voisin de son `orkeon-code`.
 - La variable `DEV_RUN_RUNNER` nomme une autre commande, qui ne reçoit que le crew et `--inputs` : elle passe ses
   propres `-s` et `-m`, sinon le crew tourne sans réglages ni montage.
 - La sortie de chaque étape va dans `.orkeon/dev/<code>/runs/<crew>-<n>.log` dans le projet, jamais en entier au
@@ -159,9 +169,9 @@ l'exécution un fichier de settings dont vous avez choisi la garde et les règle
 ## Planifié, dans un job de CI
 
 La commande ci-dessus est une ligne d'une table cron, d'un timer systemd ou d'une tâche planifiée Windows. Dans un job
-de CI, la voie par l'image de `scripts/run-crew.sh` demande Docker et la clé d'API dans l'environnement du job, tirée
-d'un secret du job ; le fichier de settings est lu depuis `ORKEON_CODE_SETTINGS`, et le projet à traiter depuis
-`ORKEON_CODE_WORKSPACE`. Relisez le diff que l'exécution laisse avant que quoi que ce soit ne le fusionne : l'agent est
+de CI, la voie par l'image d'`orkeon-code run` demande Docker et la clé d'API dans l'environnement du job, tirée
+d'un secret du job ; le fichier de settings est lu depuis `ORKEON_CODE_SETTINGS` (ou `--settings`), le projet à
+traiter est `--workspace`, et `--trust` lui fait confiance pour cette exécution, faute de terminal où demander. Relisez le diff que l'exécution laisse avant que quoi que ce soit ne le fusionne : l'agent est
 un opérateur avec les droits de son mode, pas le relecteur de son propre travail.
 
 ## Depuis votre application
@@ -169,9 +179,9 @@ un opérateur avec les droits de son mode, pas le relecteur de son propre travai
 Trois voies, de la plus simple :
 
 1. **Comme un processus, depuis n'importe quel langage.** Lancez `orkeon run <crew.ork.ts> --inputs <json>` avec
-   l'outil `orkeon` ou l'image `orkeon`, avec les montages et les settings que `scripts/run-crew.sh` passe, et
-   lisez le JSON sur stdout. Le script est la référence pour la ligne de commande ; le code de sortie dit si le
-   résultat en est un. Avec `Orkeon:RunHistory:Enabled` (éteint pour `orkeon run` par défaut), les
+   l'outil `orkeon` ou l'image `orkeon`, avec les montages et les settings que passe `orkeon-code run`, et
+   lisez le JSON sur stdout, ou lancez `orkeon-code run` lui-même. Son `run_crew` est la référence pour la ligne de
+   commande ; le code de sortie dit si le résultat en est un. Avec `Orkeon:RunHistory:Enabled` (éteint pour `orkeon run` par défaut), les
    événements de chaque exécution sont gardés sous `/runs` (`Store` jsonl ou sqlite, `RetentionDays` 30), que
    `orkeon runs list`, `show` et `tail` lisent.
 2. **Comme un service.** Le démon `orkeon-host` de l'archive de release d'Orkeon (une unité systemd, un service Windows

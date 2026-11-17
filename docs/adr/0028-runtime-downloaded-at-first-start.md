@@ -41,6 +41,14 @@ runs from the folder it is extracted in: its `bin/orkeon-repl` finds `libexec/` 
   script is published alone with each release and reads no file beside it.
 - Until the release workflow builds the archives, `.orkeon-runtime` names nothing in any package and the behaviour
   is unchanged for every user.
+- **Amended 2026-11-17 (#114)**: no release builds them yet, and none is required to. `1.0.0-rc.2` shipped an empty
+  `.orkeon-runtime` and no runtime asset, and later releases may too: the download stays the mechanism the launcher
+  runs for a package that names a runtime, not a promise of every package. Without one, an install takes the
+  `orkeon-repl` of Orkeon's own release archive, Docker or `ORKEON_SOURCE`, and `orkeon-code runtime install` says
+  that the package names no runtime (a checkout says the checkout does). Building the archives would take one job per
+  platform running Orkeon's `scripts/package-installers.sh --rids <rid>` at the pin (the `cli` set carries
+  `orkeon-repl` on Linux only, so macOS needs the `full` set), cross-built on Linux, about 120 MB each, and a filled
+  `.orkeon-runtime` in both the archive and the npm package.
 - `orkeon-code.ps1` does not download a runtime yet. On Windows only Orkeon's full archive carries `orkeon-repl`
   (570 MB); the PowerShell twin waits for a smaller one.
 - Set aside: an npm `postinstall` (scripts are often disabled, and the archive install would not gain it), and one

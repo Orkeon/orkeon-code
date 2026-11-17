@@ -5,7 +5,7 @@ import { describe, it } from "node:test";
 import { spawnSync } from "node:child_process";
 import { strictEqual } from "node:assert";
 import { EXITS, MOCK_SUBJECT, run, SCRIPT } from "./smoke-crew.fixtures.ts";
-import { assertExit, assertKeylessSettings, assertReports, assertRunnerCall } from "./smoke-crew.assertions.ts";
+import { assertExit, assertFixtureIsTheWorkspace, assertKeylessSettings, assertReports, assertRunnerCall } from "./smoke-crew.assertions.ts";
 
 describe("scripts/smoke-crew.sh", () => {
   it("parses as bash", () => {
@@ -41,6 +41,17 @@ describe("scripts/smoke-crew.sh", () => {
 
     // Assert
     assertRunnerCall(r);
+  });
+
+  it("names the fixture as the project of the run", () => {
+    // Arrange
+    const plan = `0|${MOCK_SUBJECT}`;
+
+    // Act
+    const r = run(plan);
+
+    // Assert
+    assertFixtureIsTheWorkspace(r);
   });
 
   it("gives the runner a fresh fixture whose one change is the README", () => {

@@ -547,15 +547,15 @@ counts the calls to Kev the way Orkeon makes them at `3860e9d`, where a step tha
    http://127.0.0.1:8009/v1`, and the turn goes on, 6 seconds slower per stage. On `strict`, the call is blocked:
    `the decision stage failed and the profile is fail-closed`.
 
-The same checks run without the REPL, one crew at a time, through `scripts/run-crew.sh`
+The same checks run without the REPL, one crew at a time, through `orkeon-code run`
 ([Autonomous and embedded runs](headless.md)): `llmProfile` in the crew's inputs plays `/config set llm.profile`, and
-`--trust` comes after the crew's path.
+`--trust` trusts the scratch project for that run.
 
 ```bash
 mkdir -p /tmp/kev-ws && echo 'export const cutName = (s: string) => s.slice(0, 120);' > /tmp/kev-ws/text.ts
 ORKEON_CODE_MODE=source ORKEON_SOURCE=~/src/orkeon \
-ORKEON_CODE_SETTINGS=config/appsettings.local.json ORKEON_CODE_WORKSPACE=/tmp/kev-ws \
-  bash scripts/run-crew.sh src/crews/main-loop/crew.ork.ts --trust \
+ORKEON_CODE_SETTINGS=config/appsettings.local.json \
+  ./orkeon-code run main-loop --workspace /tmp/kev-ws --trust \
   --inputs '{"prompt": "What does the function in text.ts do? Answer in one sentence.",
              "permissionMode": "plan", "llmProfile": "guarded"}' 2>&1 | grep -E "Decision|decision\.|finalOutput"
 ```

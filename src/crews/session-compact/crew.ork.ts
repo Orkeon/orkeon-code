@@ -9,7 +9,7 @@
 // writes the state file of the dev batch in progress (.orkeon/dev/<code>/
 // state-F<n>.md) when a step command named one (session state workflow_active).
 //
-// Run standalone:  bash scripts/run-crew.sh src/crews/session-compact/crew.ork.ts
+// Run standalone:  ./orkeon-code run session-compact
 
 import { CrewBuilder, inputs, publishCrew } from "../../shared/infrastructure/globals.ts";
 import {

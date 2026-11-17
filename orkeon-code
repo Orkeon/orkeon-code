@@ -11,6 +11,8 @@
 #   ./orkeon-code --resume [<n> | <id>]    # list the saved sessions of this project and pick one
 #   ./orkeon-code trust list | add <path> | remove <path> | check <path> [--trust]   # check: exit 0, 3 or 4
 #   ./orkeon-code setup                    # write ~/.orkeon-code/appsettings.json (never the key)
+#   ./orkeon-code run <crew> [--inputs JSON] [--workspace DIR | --demo] [--trust] [-- orkeon run args]
+#                                          # one crew headless, through `orkeon run` (docs/headless.md)
 #
 # Folder trust: the first start in a folder asks whether you trust it, before anything of it is read
 # or mounted; `y` stores it in ~/.orkeon-code/trusted-folders.json, and every folder below it starts
@@ -40,9 +42,10 @@
 #           dotnet tool), or ORKEON_REPL="<command line>" (e.g. "dotnet /opt/orkeon/Orkeon.ConsoleApp.dll")
 #   docker  ghcr.io/orkeon/orkeon:latest (the last release, not the pin), nothing else to install
 #   source  an Orkeon checkout named by ORKEON_SOURCE, built there with `dotnet build`, run from the project
-# With none of them, an install downloads the runtime of its pin once, after asking, into ~/.orkeon-code/runtime
-# (tool mode from then on): `orkeon-code runtime install` does it without starting, ORKEON_CODE_RUNTIME_DOWNLOAD=1
-# answers yes where there is no terminal, `orkeon-code runtime remove` deletes it.
+# With none of them, an install whose package names a runtime (.orkeon-runtime) downloads it once, after asking,
+# into ~/.orkeon-code/runtime (tool mode from then on): `orkeon-code runtime install` does it without starting,
+# ORKEON_CODE_RUNTIME_DOWNLOAD=1 answers yes where there is no terminal, `orkeon-code runtime remove` deletes it.
+# The packages published so far name none: put the orkeon-repl of an Orkeon release archive on PATH instead.
 #
 # Settings: --settings, else ORKEON_CODE_SETTINGS, else config/appsettings.local.json (a clone),
 # else ~/.orkeon-code/appsettings.json, else ${XDG_CONFIG_HOME:-~/.config}/orkeon-code/appsettings.json
@@ -55,6 +58,13 @@
 # mounted on /audio (read-only), <state>/transcripts on /transcripts (read-only), and the
 # Whisper MCP server of mcp/whisper is declared to the REPL, run by uv (mcp/whisper/README.md).
 # ORKEON_CODE_VOICE=1 also opens the microphone (/voice) and the speaker (/say, voice.reply).
+#
+# run: <crew> is a name of src/crews (main-loop, git-commit...) or the path of a crew.ork.ts. The project, the trust,
+# the settings and the mounts are the REPL's (/workspace, /output, /tmp, /user-config); the runner is `orkeon run`:
+# tool mode ORKEON_CLI="<command line>", else orkeon on PATH, else the downloaded runtime's bin/orkeon, else in a
+# clone the dotnet tool of .config/dotnet-tools.json; then docker (the image's orkeon entry point); then source
+# (Orkeon.Scripting.Cli of ORKEON_SOURCE); then the runtime the package names, downloaded as for the REPL. The log
+# lines go to stderr, the crew's result to stdout; the exit code is the runner's (0, 1, 2, 130, 75).
 set -euo pipefail
 # A CDPATH from the caller would make cd print the folder it enters, into the paths read from it.
 unset CDPATH
@@ -112,7 +122,10 @@ sha256() { if command -v sha256sum >/dev/null 2>&1; then sha256sum "$1"; else sh
 # and removes the runtimes of earlier packages. Nothing is asked: the callers do.
 download_runtime() {
   local platform sum name work found other
-  [ -n "$RUNTIME_ID" ] || die "this checkout names no runtime to download (.orkeon-runtime): use Docker, orkeon-repl or ORKEON_SOURCE (see docs/getting-started.md)."
+  if [ -z "$RUNTIME_ID" ]; then
+    [ "$KIND" = install ] || die "this checkout names no runtime to download (.orkeon-runtime): use Docker, orkeon-repl or ORKEON_SOURCE (see docs/getting-started.md)."
+    die "this package names no runtime to download (its .orkeon-runtime is empty: its release published none): put the orkeon-repl of an Orkeon release archive on PATH, or use Docker or ORKEON_SOURCE (see docs/getting-started.md)."
+  fi
   platform="$(runtime_platform)" && sum="$(runtime_field "$platform")" && [ -n "$sum" ] \
     || die "no Orkeon runtime is published for this platform ($(uname -s) $(uname -m)): install Docker, or the orkeon-repl tool (see docs/getting-started.md)."
   name="orkeon-runtime-$RUNTIME_ID-$platform.tar.gz"
@@ -450,7 +463,7 @@ if [ "${1:-}" = trust ]; then
         die "$target is not a trusted folder."
       fi
       printf '%s\n' "$kept" | write_trust_store; echo "orkeon-code: $target is no longer trusted."; exit 0 ;;
-    check) # 0: it may start; 3: refused, no terminal; 4: declined in the terminal (scripts/run-crew.sh).
+    check) # 0: it may start; 3: refused, no terminal; 4: declined in the terminal (scripts/dev-run.sh).
       DECLINED=4
       folder="$(canonical_dir "${2:?trust check needs a folder}")" || die "not a folder: $2"
       ensure_trusted "$folder" "$([ "${3:-}" = --trust ] && echo 1 || echo 0)"; exit 0 ;;
@@ -577,6 +590,35 @@ if [ "${1:-}" = setup ]; then
   exit 0
 fi
 
+# ── run: one crew, headless ────────────────────────────────────────────────
+# The crew's script: a name of src/crews, or the path of a crew.ork.ts (a probe of a clone). The start then goes
+# through the project, the trust and the settings as for the REPL, and `run_crew` execs `orkeon run` at the mode.
+RUN_CREW=""
+RUN_INPUTS=""
+RUN_USAGE="usage: orkeon-code run <crew | path/to/crew.ork.ts> [--inputs JSON] [--workspace DIR | --demo] [--trust] [--settings FILE] [--mode docker|tool|source] [-- orkeon run args]"
+crew_names() {
+  local f n out=""
+  for f in "$ROOT"/src/crews/*/crew.ork.ts; do
+    n="${f%/crew.ork.ts}"; n="${n##*/}"
+    case "$n" in _*|'*') ;; *) out="${out:+$out, }$n" ;; esac
+  done
+  printf '%s' "$out"
+}
+if [ "${1:-}" = run ]; then
+  case "${2:-}" in ''|-*) die "$RUN_USAGE" ;; esac
+  case "$2" in
+    */*|*.ts)
+      [ -f "$2" ] || die "crew not found: $2"
+      RUN_CREW="$(cd "$(dirname "$2")" && pwd -P)/$(basename "$2")" ;;
+    *)
+      name_ok=1
+      case "$2" in *[!a-z0-9_-]*) name_ok=0 ;; esac
+      if [ "$name_ok" = 1 ] && [ -f "$ROOT/src/crews/$2/crew.ork.ts" ]; then RUN_CREW="$ROOT/src/crews/$2/crew.ork.ts"
+      else die "no crew '$2' in $ROOT/src/crews (the crews: $(crew_names))."; fi ;;
+  esac
+  shift 2
+fi
+
 MODE="${ORKEON_CODE_MODE:-}"
 WORKSPACE=""
 SETTINGS="${ORKEON_CODE_SETTINGS:-}"
@@ -598,17 +640,24 @@ while [ $# -gt 0 ]; do
     --demo) DEMO=1; shift ;;
     --version) VERSION_ONLY=1; shift ;;
     --trust) TRUST_FLAG=1; shift ;;
+    --inputs) RUN_INPUTS="${2:?--inputs needs a JSON object}"; shift 2 ;;
+    --inputs=*) RUN_INPUTS="${1#*=}"; shift ;;
     -c|--continue) CONTINUE=1; shift ;;
     --resume=*) RESUME=1; RESUME_CHOICE="${1#*=}"; shift ;;
     --resume)
       RESUME=1; shift
       case "${1:-}" in ''|-*) ;; *) RESUME_CHOICE="$1"; shift ;; esac ;;
     -h|--help) awk 'NR > 1 && /^set -euo pipefail/ { exit } NR > 1' "$SELF" | sed 's/^# \{0,1\}//'; exit 0 ;;
-    --) shift; EXTRA=("$@"); break ;;
+    --) shift; EXTRA+=("$@"); break ;;
     *) EXTRA+=("$1"); shift ;;
   esac
 done
 
+if [ -n "$RUN_CREW" ]; then
+  [ "$CONTINUE" = 0 ] && [ "$RESUME" = 0 ] && [ "$VERSION_ONLY" = 0 ] \
+    || die "--continue, --resume and --version are the REPL's: a run is one turn, with no session ($RUN_USAGE)."
+elif [ -n "$RUN_INPUTS" ]; then die "--inputs belongs to 'orkeon-code run <crew>': the REPL reads no inputs."
+fi
 if [ "$CONTINUE" = 1 ] && [ "$RESUME" = 1 ]; then die "--continue and --resume do not go together: one brings the last session back, the other the one you pick."; fi
 
 if [ "$VERSION_ONLY" = 1 ]; then
@@ -668,6 +717,159 @@ if [ -n "${ORKEON_CODE_MODEL:-}" ]; then export ORKEON_Llm__Model="$ORKEON_CODE_
 # is checked. On by default here; a settings file can still turn it off.
 export Orkeon__Security__PermissionGate__Enabled="${Orkeon__Security__PermissionGate__Enabled:-true}"
 
+# ── What the REPL and run share: the state, the user's settings, esbuild, the source build ──
+# Sets SLUG, STATE, PROJECT_REL and PROJECT_STATE, and makes STATE's output/ and tmp/.
+project_state() {
+  SLUG="$(project_slug "$WORKSPACE")"
+  if [ -n "${ORKEON_CODE_STATE:-}" ]; then STATE="$ORKEON_CODE_STATE"; PROJECT_REL="projects/$SLUG"
+  elif [ "$KIND" = clone ]; then STATE="$ROOT/.crew-output"; PROJECT_REL="projects/$SLUG"
+  else STATE="$CODE_HOME/projects/$SLUG"; PROJECT_REL=""; fi
+  mkdir -p "$STATE/output" "$STATE/tmp"
+  STATE="$(cd "$STATE" && pwd)"
+  PROJECT_STATE="$STATE${PROJECT_REL:+/$PROJECT_REL}"
+}
+
+# The user's orkeonCode block, handed to the scripts as a read-only file: they read no settings and no
+# environment (V-04). Written afresh at each start; no block, or no node to read it (said), leaves the
+# folder empty, and no user setting applies. The key is matched case for case, as in the .ps1. Sets USER_CONFIG_DIR.
+write_user_config() {
+  USER_CONFIG_DIR="$STATE/user-config"
+  mkdir -p "$USER_CONFIG_DIR"
+  rm -f "$USER_CONFIG_DIR/config.json"
+  if command -v node >/dev/null 2>&1; then
+    node -e 'const fs=require("fs");const s=JSON.parse(fs.readFileSync(process.argv[1],"utf8"));if(s&&typeof s.orkeonCode==="object"&&s.orkeonCode&&!Array.isArray(s.orkeonCode))fs.writeFileSync(process.argv[2],JSON.stringify(s.orkeonCode,null,2)+"\n")' "$SETTINGS" "$USER_CONFIG_DIR/config.json" \
+      || warn "the orkeonCode block of $SETTINGS could not be read: no user setting applies."
+  elif grep -q '"orkeonCode"' "$SETTINGS"; then
+    warn "node is not on PATH: the orkeonCode block of $SETTINGS is not read, no user setting applies."
+  fi
+}
+
+# The runtime bundles each command and crew with esbuild. The Debian package and a release-archive install carry
+# their own: /usr/bin/orkeon-repl (and orkeon) is a script that points the runtime at /usr/lib/orkeon/esbuild-bin,
+# and an archive's wrapper at its libexec/esbuild-bin. The dotnet tool and a source build carry none: for them, use
+# the one npm installed for this checkout (or, for the npm package, beside it). Exports ORKEON_ESBUILD_PATH then.
+use_esbuild() { # <the runtime's program, as on PATH; empty for a source build>
+  local bin bundled="" found
+  if [ -n "$1" ] && bin="$(command -v "$1")"; then
+    bin="$(resolve_links "$bin")"
+    if [ -x "$(dirname "$(dirname "$bin")")/libexec/esbuild-bin/esbuild" ]; then bundled=1
+    # A launcher script that sets ORKEON_ESBUILD_PATH itself (the Debian package's).
+    elif [ "$(head -c 2 "$bin" 2>/dev/null)" = '#!' ] && grep -q ORKEON_ESBUILD_PATH "$bin" 2>/dev/null; then
+      bundled=1
+    fi
+  fi
+  if [ -z "$bundled" ] && [ -z "${ORKEON_ESBUILD_PATH:-}" ] && ! command -v esbuild >/dev/null 2>&1; then
+    found="$(find "$ROOT/node_modules/@esbuild" -path '*/bin/esbuild' -type f 2>/dev/null | head -n 1 || true)"
+    if [ -z "$found" ] && [ "$KIND" = clone ]; then die "esbuild not found: run 'npm ci' in $ROOT, or set ORKEON_ESBUILD_PATH."; fi
+    [ -n "$found" ] \
+      || die "esbuild not found: install Orkeon from its package or archive (it carries esbuild), or set ORKEON_ESBUILD_PATH."
+    export ORKEON_ESBUILD_PATH="$found"
+  fi
+}
+
+# Builds <project> of the Orkeon checkout ORKEON_SOURCE names and sets BUILT_DLL, its <assembly> in bin/Debug.
+# The checkout should sit at the pin: one behind it is moved there (follow_pin), another commit runs, with a
+# warning, never a refusal. The SDK runs in the Orkeon checkout, under its global.json, never in the project, whose
+# global.json may pin another SDK ("A compatible .NET SDK was not found"). The program then starts as the built
+# assembly: `dotnet <dll>` is a host command, which reads no global.json. A checkout just moved is restored by its
+# build. The build is quiet and takes a minute after a move: say it runs, or it looks stuck.
+build_source() { # <project> <assembly>
+  local restore=--no-restore head
+  [ -n "${ORKEON_SOURCE:-}" ] && [ -d "$ORKEON_SOURCE/$1" ] \
+    || die "ORKEON_SOURCE must name an Orkeon checkout ($1 not found)."
+  ORKEON_SOURCE="$(cd "$ORKEON_SOURCE" && pwd)"
+  if head="$(git -C "$ORKEON_SOURCE" rev-parse HEAD 2>/dev/null)" && [ "$head" != "$ORKEON_REF" ]; then
+    if follow_pin "$head"; then restore=""
+    else warn "ORKEON_SOURCE is at ${head:0:7}, the pin of .orkeon-version is $ORKEON_PIN: the commands were checked against the pin."
+    fi
+  fi
+  echo "orkeon-code: building Orkeon in $ORKEON_SOURCE..." >&2
+  (cd "$ORKEON_SOURCE" && dotnet build "$1" -c Debug ${restore:+"$restore"} -nologo -v quiet) >&2 \
+    || die "building $1 in $ORKEON_SOURCE failed (restore it once: dotnet restore Orkeon.sln)."
+  BUILT_DLL="$ORKEON_SOURCE/$1/bin/Debug/net10.0/$2"
+  [ -f "$BUILT_DLL" ] || die "$BUILT_DLL not found after the build."
+}
+
+# ── run: the crew through `orkeon run` ─────────────────────────────────────
+# The orkeon tool of the clone's .config/dotnet-tools.json (Orkeon.Scripting.Cli from nuget.org), with dotnet.
+clone_tool() { [ "$KIND" = clone ] && [ -f "$ROOT/.config/dotnet-tools.json" ] && command -v dotnet >/dev/null 2>&1; }
+
+# Runs RUN_CREW on the project with the REPL's settings and mounts, in the mode found as the header says; never
+# returns. A plain `orkeon run` writes its log lines on stdout, before the result: the console logger is sent to
+# stderr, so that stdout carries the crew's result alone.
+run_crew() {
+  local mode="$MODE" cli=() own="$RUNTIME_HOME/${RUNTIME_ID:-none}/bin/orkeon" rel v env_args user_args extra=()
+  if [ -z "$mode" ]; then
+    if [ -n "${ORKEON_CLI:-}" ] || command -v orkeon >/dev/null 2>&1 || [ -x "$own" ] || clone_tool; then mode=tool
+    elif command -v docker >/dev/null 2>&1; then mode=docker
+    elif [ -n "${ORKEON_SOURCE:-}" ]; then mode=source
+    elif [ -n "$RUNTIME_ID" ]; then mode=tool
+    else die "no Orkeon runtime found to run a crew: install the orkeon tool or Docker, or set ORKEON_SOURCE (see docs/headless.md)."
+    fi
+  fi
+  export Orkeon__Embeddings__FingerprintPath="${Orkeon__Embeddings__FingerprintPath:-/output/rag/embedding-fingerprint.json}"
+  export Logging__Console__LogToStandardErrorThreshold="${Logging__Console__LogToStandardErrorThreshold:-Trace}"
+  case "$mode" in
+    tool)
+      if [ -n "${ORKEON_CLI:-}" ]; then read -r -a cli <<< "$ORKEON_CLI"
+      elif command -v orkeon >/dev/null 2>&1; then cli=(orkeon)
+      elif [ -x "$own" ]; then cli=("$own")
+      elif clone_tool; then cli=(dotnet tool run orkeon)
+      elif [ -n "$RUNTIME_ID" ]; then
+        ensure_runtime
+        [ -x "$own" ] || die "the runtime in $RUNTIME_HOME/$RUNTIME_ID carries no bin/orkeon: install the orkeon tool, or use Docker."
+        cli=("$own")
+      else die "orkeon not found: set ORKEON_CLI, or install the orkeon tool (see docs/headless.md)."
+      fi
+      command -v "${cli[0]}" >/dev/null 2>&1 || die "${cli[0]} not found (see docs/headless.md)."
+      if [ "${cli[*]}" = "dotnet tool run orkeon" ]; then
+        use_esbuild ""
+        (cd "$ROOT" && dotnet tool restore) >&2 || die "dotnet tool restore failed in $ROOT (.config/dotnet-tools.json)."
+      else use_esbuild "${cli[0]}"; fi ;;
+    source)
+      build_source src/scripting/Orkeon.Scripting.Cli orkeon.dll
+      cli=(dotnet "$BUILT_DLL")
+      use_esbuild "" ;;
+    docker)
+      command -v docker >/dev/null 2>&1 || die "docker not found."
+      docker version --format '{{.Server.Version}}' >/dev/null 2>&1 \
+        || die "the Docker engine does not answer: start Docker Desktop or the Docker service, then run orkeon-code again. Without Docker, install the orkeon tool (docs/headless.md)."
+      rel="${RUN_CREW#"$ROOT"/}"
+      [ "$rel" != "$RUN_CREW" ] || die "in docker mode the crew must lie under $ROOT, the folder the container sees: $RUN_CREW"
+      ;;
+    *) die "unknown mode '$mode' (expected docker, tool or source)" ;;
+  esac
+  project_state
+  write_user_config
+  if [ "$mode" = docker ]; then
+    env_args=(-e ORKEON_ENTRYPOINT=orkeon -e HOME=/tmp -e DOTNET_CLI_HOME=/tmp
+      -e "Orkeon__Security__PermissionGate__Enabled=$Orkeon__Security__PermissionGate__Enabled"
+      -e "Orkeon__Embeddings__FingerprintPath=$Orkeon__Embeddings__FingerprintPath"
+      -e "Logging__Console__LogToStandardErrorThreshold=$Logging__Console__LogToStandardErrorThreshold")
+    for v in ORKEON_Llm__ApiKey ORKEON_Llm__Model "$KEY_VAR" GITHUB_TOKEN GH_TOKEN \
+             Orkeon__Tools__GitHub__TokenVariable "${Orkeon__Tools__GitHub__TokenVariable:-}"; do
+      if [ -n "$v" ] && [ -n "${!v:-}" ]; then env_args+=(-e "$v"); fi
+    done
+    user_args=()
+    if [ "$(uname -s)" = Linux ]; then user_args=(--user "$(id -u):$(id -g)"); fi
+    # The checkout is the container's /work/agent: a path under it given after -- (an --llm-mock file) is named there.
+    for v in ${EXTRA[@]+"${EXTRA[@]}"}; do
+      case "$v" in "$ROOT"/*) extra+=("/work/agent/${v#"$ROOT"/}") ;; *) extra+=("$v") ;; esac
+    done
+    exec docker run --rm -i ${user_args[@]+"${user_args[@]}"} "${env_args[@]}" -w /work \
+      -v "$WORKSPACE:/work/project" -v "$ROOT:/work/agent:ro" -v "$SETTINGS:/work/settings.json:ro" -v "$STATE:/work/state" \
+      "$IMAGE" run "/work/agent/$rel" -s /work/settings.json \
+      -m /work/project:/workspace:rw /work/state/output:/output:rw /work/state/tmp:/tmp:rw /work/state/user-config:/user-config:ro \
+      --allow-external-mounts ${RUN_INPUTS:+--inputs "$RUN_INPUTS"} ${extra[@]+"${extra[@]}"}
+  fi
+  # The dotnet tool of the clone is found from its manifest, in the clone; every other runner runs from the project.
+  if [ "${cli[*]}" = "dotnet tool run orkeon" ]; then cd "$ROOT"; else cd "$WORKSPACE"; fi
+  exec "${cli[@]}" run "$RUN_CREW" -s "$SETTINGS" \
+    -m "$WORKSPACE:/workspace:rw" "$STATE/output:/output:rw" "$STATE/tmp:/tmp:rw" "$USER_CONFIG_DIR:/user-config:ro" \
+    --allow-external-mounts ${RUN_INPUTS:+--inputs "$RUN_INPUTS"} ${EXTRA[@]+"${EXTRA[@]}"}
+}
+if [ -n "$RUN_CREW" ]; then run_crew; fi
+
 # ── Mode ───────────────────────────────────────────────────────────────────
 if [ -z "$MODE" ]; then
   if [ -n "${ORKEON_REPL:-}" ] || command -v orkeon-repl >/dev/null 2>&1 || runtime_downloaded; then MODE=tool
@@ -689,13 +891,7 @@ fi
 # An install keeps one folder per project, ~/.orkeon-code/projects/<slug>; a clone's .crew-output and an
 # ORKEON_CODE_STATE may serve several projects, so their per-project part goes under projects/<slug>.
 # Either way PROJECT_STATE lies inside STATE, which docker mode mounts on /work/state.
-SLUG="$(project_slug "$WORKSPACE")"
-if [ -n "${ORKEON_CODE_STATE:-}" ]; then STATE="$ORKEON_CODE_STATE"; PROJECT_REL="projects/$SLUG"
-elif [ "$KIND" = clone ]; then STATE="$ROOT/.crew-output"; PROJECT_REL="projects/$SLUG"
-else STATE="$CODE_HOME/projects/$SLUG"; PROJECT_REL=""; fi
-mkdir -p "$STATE/output" "$STATE/tmp"
-STATE="$(cd "$STATE" && pwd)"
-PROJECT_STATE="$STATE${PROJECT_REL:+/$PROJECT_REL}"
+project_state
 # The runtime saves the session in <SessionsDirectory>/<its slug of the project>/last.json when the REPL ends
 # (FileSessionBufferService), and reloads it at the next start. The folder is the launcher's /sessions mount,
 # outside the project; the launcher keeps its own files beside it: history/ and project.json.
@@ -880,18 +1076,8 @@ if [ -n "$AUDIO" ]; then
   echo "  audio    : $AUDIO -> /audio (transcripts: $STATE/transcripts, model $model$([ "$(lowered "${WHISPER_DEVICE:-}")" = cuda ] && echo ' on the GPU')$([ "${ORKEON_CODE_VOICE:-}" = 1 ] && echo ', microphone and speaker on'))"
 fi
 
-# The user's orkeonCode block, handed to the scripts as a read-only file: they read no settings and no
-# environment (V-04). Written afresh at each start; no block, or no node to read it (said), leaves the
-# folder empty, and no user setting applies. The key is matched case for case, as in the .ps1.
-USER_CONFIG_DIR="$STATE/user-config"
-mkdir -p "$USER_CONFIG_DIR"
-rm -f "$USER_CONFIG_DIR/config.json"
-if command -v node >/dev/null 2>&1; then
-  node -e 'const fs=require("fs");const s=JSON.parse(fs.readFileSync(process.argv[1],"utf8"));if(s&&typeof s.orkeonCode==="object"&&s.orkeonCode&&!Array.isArray(s.orkeonCode))fs.writeFileSync(process.argv[2],JSON.stringify(s.orkeonCode,null,2)+"\n")' "$SETTINGS" "$USER_CONFIG_DIR/config.json" \
-    || warn "the orkeonCode block of $SETTINGS could not be read: no user setting applies."
-elif grep -q '"orkeonCode"' "$SETTINGS"; then
-  warn "node is not on PATH: the orkeonCode block of $SETTINGS is not read, no user setting applies."
-fi
+# The user's orkeonCode block on /user-config (write_user_config).
+write_user_config
 
 # Sets ARGS. A function filling an array rather than mapfile: macOS ships bash 3.2.
 # An empty <settings> passes none: the REPL then reads Orkeon's own file.
@@ -1030,51 +1216,11 @@ case "$MODE" in
       else REPL=(orkeon-repl); fi
       command -v "${REPL[0]}" >/dev/null 2>&1 || die "${REPL[0]} not found (see docs/getting-started.md, 'Tool mode')."
     else
-      [ -n "${ORKEON_SOURCE:-}" ] && [ -d "$ORKEON_SOURCE/src/apps/Orkeon.ConsoleApp" ] \
-        || die "ORKEON_SOURCE must name an Orkeon checkout (src/apps/Orkeon.ConsoleApp not found)."
-      ORKEON_SOURCE="$(cd "$ORKEON_SOURCE" && pwd)"
-      # The checkout should sit at the pin: one behind it is moved there (follow_pin), another commit runs, with a
-      # warning, never a refusal.
-      restore=--no-restore
-      if head="$(git -C "$ORKEON_SOURCE" rev-parse HEAD 2>/dev/null)" && [ "$head" != "$ORKEON_REF" ]; then
-        if follow_pin "$head"; then restore=""
-        else warn "ORKEON_SOURCE is at ${head:0:7}, the pin of .orkeon-version is $ORKEON_PIN: the commands were checked against the pin."
-        fi
-      fi
-      # The SDK runs in the Orkeon checkout, under its global.json, never in the
-      # project, whose global.json may pin another SDK ("A compatible .NET SDK was
-      # not found"). The REPL then starts as the built assembly: `dotnet <dll>`
-      # is a host command, which reads no global.json. A checkout just moved is restored by its build.
-      # The build is quiet and takes a minute after a move: say it runs, or it looks stuck.
-      echo "orkeon-code: building Orkeon in $ORKEON_SOURCE..." >&2
-      (cd "$ORKEON_SOURCE" && dotnet build src/apps/Orkeon.ConsoleApp -c Debug ${restore:+"$restore"} -nologo -v quiet) >&2 \
-        || die "building src/apps/Orkeon.ConsoleApp in $ORKEON_SOURCE failed (restore it once: dotnet restore Orkeon.sln)."
-      dll="$ORKEON_SOURCE/src/apps/Orkeon.ConsoleApp/bin/Debug/net10.0/Orkeon.ConsoleApp.dll"
-      [ -f "$dll" ] || die "$dll not found after the build."
-      REPL=(dotnet "$dll")
+      build_source src/apps/Orkeon.ConsoleApp Orkeon.ConsoleApp.dll
+      REPL=(dotnet "$BUILT_DLL")
     fi
-    # The runtime bundles each command and crew with esbuild. The Debian package
-    # and a release-archive install carry their own: /usr/bin/orkeon-repl is a
-    # script that points the runtime at /usr/lib/orkeon/esbuild-bin, and an
-    # archive's wrapper at its libexec/esbuild-bin. The dotnet tool and a source
-    # build carry none: for them, use the one npm installed for this checkout (or, for
-    # the npm package, beside it).
-    bundled=""
-    if [ "$MODE" = tool ] && repl_bin="$(command -v "${REPL[0]}")"; then
-      repl_bin="$(resolve_links "$repl_bin")"
-      if [ -x "$(dirname "$(dirname "$repl_bin")")/libexec/esbuild-bin/esbuild" ]; then bundled=1
-      # A launcher script that sets ORKEON_ESBUILD_PATH itself (the Debian package's).
-      elif [ "$(head -c 2 "$repl_bin" 2>/dev/null)" = '#!' ] && grep -q ORKEON_ESBUILD_PATH "$repl_bin" 2>/dev/null; then
-        bundled=1
-      fi
-    fi
-    if [ -z "$bundled" ] && [ -z "${ORKEON_ESBUILD_PATH:-}" ] && ! command -v esbuild >/dev/null 2>&1; then
-      found="$(find "$ROOT/node_modules/@esbuild" -path '*/bin/esbuild' -type f 2>/dev/null | head -n 1 || true)"
-      if [ -z "$found" ] && [ "$KIND" = clone ]; then die "esbuild not found: run 'npm ci' in $ROOT, or set ORKEON_ESBUILD_PATH."; fi
-      [ -n "$found" ] \
-        || die "esbuild not found: install Orkeon from its package or archive (it carries esbuild), or set ORKEON_ESBUILD_PATH."
-      export ORKEON_ESBUILD_PATH="$found"
-    fi
+    # The esbuild the runtime bundles with: its own, else the one npm installed (use_esbuild).
+    use_esbuild "$([ "$MODE" = tool ] && printf '%s' "${REPL[0]}")"
     # The REPL runs from the project. It reads its --commands-dir and --crews-dir
     # wherever they are, and a --mount outside its working directory (here /output,
     # /tmp, /user-config, /sessions, /session-history and /memory, in the state directory,

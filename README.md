@@ -101,7 +101,7 @@ The REPL is one way to run the crews, not the only one.
 - **Interactive**: `./orkeon-code` on your project. `plan:` to ask, `acceptEdits:` to let it edit, `/mode` for the
   session; in `default` mode the runtime asks you before an edit, a command or a network call.
 - **Autonomous**: in `bypassPermissions` the loop runs a task to the end without a question, under a budget (200 tool
-  calls, 30 minutes, 700k context tokens) and the host gate. `scripts/run-crew.sh` runs the same crew in one shot from a shell, a
+  calls, 30 minutes, 700k context tokens) and the host gate. `orkeon-code run main-loop` runs the same crew in one shot from a shell, a
   cron line or a CI job, and prints its result as JSON.
 - **Embedded**: an application starts the `orkeon` tool (nuget.org) or the `orkeon` image on a crew and reads
   the JSON; Orkeon's `orkeon-host` daemon can host the crews behind a chat channel or an A2A endpoint. In-process

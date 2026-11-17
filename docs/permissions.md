@@ -628,7 +628,7 @@ runs the folder's hooks through the shell. Nothing of the folder is read or moun
 - `n`, or no answer, exits with code 0: nothing started.
 - The folder is checked by its real path: a symbolic link leads to the folder it names, which is the one asked about,
   stored and mounted.
-- Without a terminal (a pipe, a CI job, `scripts/run-crew.sh` in a script) an untrusted folder is refused with exit
+- Without a terminal (a pipe, a CI job, `orkeon-code run` in a script) an untrusted folder is refused with exit
   code 3. `--trust` starts it for that run only, and `ORKEON_CODE_TRUST=1` does the same when `CI=true`; neither
   stores anything. `--demo` trusts the fixture the launcher seeds.
 - `orkeon-code trust list` shows the store, `orkeon-code trust add <folder>` and `orkeon-code trust remove <folder>`

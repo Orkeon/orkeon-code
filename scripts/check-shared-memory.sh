@@ -17,9 +17,8 @@
 # for rag_eval. q13 holds only when the settings set a retrieval score floor
 # (Orkeon:Rag:Retrieval:MinScore); without one every query returns passages.
 #
-# Runner: scripts/run-crew.sh (the pinned tool, else the orkeon image). When that runtime
-# version cannot run, ORKEON_SOURCE names an Orkeon checkout and the probe runs from its sources:
-#   dotnet run --project "$ORKEON_SOURCE/src/scripting/Orkeon.Scripting.Cli" -- run <probe> ...
+# Runner: `orkeon-code run` (the tool, else the orkeon image). When that runtime version cannot
+# run, ORKEON_SOURCE names an Orkeon checkout and the probe runs from its sources (--mode source).
 set -euo pipefail
 unset CDPATH
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
@@ -34,21 +33,11 @@ mkdir -p "$workspace/.orkeon/memory"
 cp -R "$fixture/entries" "$fixture/eval" "$workspace/.orkeon/memory/"
 
 set +e
-if [ -n "${ORKEON_SOURCE:-}" ]; then
-  if [ ! -d "$ORKEON_SOURCE/src/scripting/Orkeon.Scripting.Cli" ]; then
-    echo "check-shared-memory: ORKEON_SOURCE must name an Orkeon checkout (src/scripting/Orkeon.Scripting.Cli not found)." >&2
-    exit 2
-  fi
-  settings="${ORKEON_CODE_SETTINGS:-$ROOT/config/appsettings.local.json}"
-  [ -f "$settings" ] || { echo "check-shared-memory: settings not found: $settings" >&2; exit 2; }
-  output="$state/output"
-  mkdir -p "$output"
-  dotnet run --project "$ORKEON_SOURCE/src/scripting/Orkeon.Scripting.Cli" -- run "$probe" -s "$settings" \
-    -m "$workspace:/workspace:rw" "$output:/output:rw" --allow-external-mounts -v 2 2>&1 | tee "$log"
-else
-  # The scratch workspace is this script's own copy of the fixture: trusted for this run only.
-  ORKEON_CODE_WORKSPACE="$workspace" bash "$ROOT/scripts/run-crew.sh" "$probe" --trust 2>&1 | tee "$log"
-fi
+mode=()
+if [ -n "${ORKEON_SOURCE:-}" ]; then mode=(--mode source); fi
+# The scratch workspace is this script's own copy of the fixture: trusted for this run only.
+bash "$ROOT/orkeon-code" run "$probe" --workspace "$workspace" --trust ${mode[@]+"${mode[@]}"} -- -v 2 2>&1 | tee "$log"
+
 status=${PIPESTATUS[0]}
 set -e
 

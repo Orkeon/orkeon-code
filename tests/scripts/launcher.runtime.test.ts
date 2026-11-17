@@ -7,7 +7,7 @@ import { existsSync } from "node:fs";
 import { PTY, RUNTIME_PIN, launch, removeScratch } from "./launcher.fixtures.ts";
 import { assertSays } from "./launcher.assertions.ts";
 import {
-  AGREED, DOCKER, NO_TERMINAL, QUESTION, RUNTIME_ID, TOOL, WRONG_SUM,
+  AGREED, CHECKOUT_NAMES_NONE, DOCKER, EMPTY_MANIFEST, NO_TERMINAL, PACKAGE_NAMES_NONE, QUESTION, RUNTIME_ID, TOOL, WRONG_SUM,
   homeWithRuntime, installStart, manifest, runtimeHome,
 } from "./launcher.runtime.fixtures.ts";
 import {
@@ -150,7 +150,7 @@ describe("orkeon-code, the runtime downloaded at the first start", () => {
     assertOwnReplStarted(r);
   });
 
-  it("keeps the no-runtime error in a checkout, whose .orkeon-runtime names no archive", () => {
+  it("keeps the no-runtime error at a start of a package whose .orkeon-runtime names no archive", () => {
     // Arrange
     const start = installStart({ env: AGREED, manifest: manifest({ id: "" }) });
 
@@ -160,6 +160,32 @@ describe("orkeon-code, the runtime downloaded at the first start", () => {
     // Assert
     strictEqual(r.status, 1, r.stderr);
     assertSays(r.stderr, ["no Orkeon runtime found: install Docker, or the orkeon-repl tool, or set ORKEON_SOURCE"]);
+    assertNothingDownloaded(r, runtimeHome(r));
+  });
+
+  it("says the package names no runtime when runtime install runs in an install with an empty .orkeon-runtime", () => {
+    // Arrange
+    const start = installStart({ args: ["runtime", "install"], bare: true, manifest: EMPTY_MANIFEST });
+
+    // Act
+    const r = launch(start);
+
+    // Assert
+    strictEqual(r.status, 1, r.stderr);
+    assertSays(r.stderr, PACKAGE_NAMES_NONE);
+    assertNothingDownloaded(r, runtimeHome(r));
+  });
+
+  it("says the checkout names no runtime when runtime install runs in a clone", () => {
+    // Arrange
+    const start = { ...installStart({ args: ["runtime", "install"], bare: true, manifest: EMPTY_MANIFEST }), install: false };
+
+    // Act
+    const r = launch(start);
+
+    // Assert
+    strictEqual(r.status, 1, r.stderr);
+    assertSays(r.stderr, CHECKOUT_NAMES_NONE);
     assertNothingDownloaded(r, runtimeHome(r));
   });
 

@@ -58,7 +58,7 @@ Logic worth testing goes to `src/commands/_lib/<group>/<name>.ts`, the folder of
   `.budget(...)`.
 
 A folder starting with `_` is a development probe, never listed to users. Run any crew alone with
-`bash scripts/run-crew.sh src/crews/<name>/crew.ork.ts --inputs '{...}'`
+`./orkeon-code run <name> --inputs '{...}'`
 ([Autonomous and embedded runs](headless.md)); the bundle check (`npm run bundle:check`) proves it bundles with the
 runtime's flags and without any Node API. The recipe: [Add a crew](recipes.md#add-a-crew).
 

@@ -170,7 +170,7 @@ others one after the other, each call through the permission gate, and sends the
 | `Orkeon:Security:PermissionGate:Enabled` = `true` | The host checks every tool call the model makes against the `/permissions` rules and the mode, and asks you when the mode says so ([what it does not see](permissions.md)) |
 | `Orkeon:Cli:ScriptCommands:Limits:ExecutionTimeout` | Wall-clock limit of each script engine of `orkeon-repl`: a command's, and a crew's, so an `/assistant` turn's |
 | `Orkeon:Cli:ScriptCommands:Limits:MemoryLimitBytes` | Memory limit of those engines: 64 MB by default, the example sets 2 GiB |
-| `Orkeon:Scripting:Limits:ExecutionTimeout`, `Orkeon:Scripting:Limits:MemoryLimitBytes` | The same limits for `orkeon run`, the tool `scripts/run-crew.sh` runs a crew with (30 seconds and 100 MB by default; the example sets 30 minutes and 2 GiB). `orkeon-repl` does not read them |
+| `Orkeon:Scripting:Limits:ExecutionTimeout`, `Orkeon:Scripting:Limits:MemoryLimitBytes` | The same limits for `orkeon run`, the tool `orkeon-code run` runs a crew with (30 seconds and 100 MB by default; the example sets 30 minutes and 2 GiB). `orkeon-repl` does not read them |
 | `Orkeon:Tools:Shell:AllowInterpreters` | Lets `shell_command` run interpreters (`node`, `dotnet`, `npm`...), needed to build and test most projects |
 | `Orkeon:Tools:Shell:ExtraAllowedCommands` | Commands added to the shell allow-list (`make`, `cargo`...) |
 | `Orkeon:Tools:Shell:WindowsPaths:<virtual path>` | Under WSL, the Windows spelling of a mount (`"/workspace": "C:\\proj"`): a Windows program (`cmd.exe`, `code.exe`, `git.exe` of Git for Windows) run by `shell_command` gets its arguments and results in that spelling, where a Linux program gets `/mnt/c/proj` |
@@ -522,7 +522,7 @@ settings), and the launcher keeps it outside the project: in `~/.orkeon-code/pro
 - The launcher sets `RootDirectory` to `/memory`, the `memory/` folder beside the sessions, outside the project, so
   neither git nor the file tools see it.
 - `/clear` and a new session leave the memory in place, and `/memory delete` removes an entry.
-- Without the launcher (`orkeon run`, `scripts/run-crew.sh`), the example settings name
+- Without the REPL (`orkeon run`, `orkeon-code run`), the example settings name
   `/workspace/.orkeon/typed-memory`: the runtime's default, `/workspace/.orkeon/memory`, is the folder of the
   [shared memory](shared-memory.md), which the typed memory must not enter.
 

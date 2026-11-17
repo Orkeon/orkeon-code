@@ -4,7 +4,7 @@
 // ProjectInit crew (/init) — exp 07 SPEC §4.1. Composition root of application/run-project-init.
 // Scans the workspace, detects build/test/lint conventions, writes AGENTS.md.
 //
-// Run standalone:  bash scripts/run-crew.sh src/crews/project-init/crew.ork.ts
+// Run standalone:  ./orkeon-code run project-init
 
 import { CrewBuilder, publishCrew } from "../../shared/infrastructure/globals.ts";
 import { orkeonAgent, orkeonCodeIndex, orkeonFiles } from "../../shared/infrastructure/orkeon/wiring.ts";
