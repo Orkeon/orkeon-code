@@ -47,10 +47,12 @@ export function createChildRuntime(ctx: ChildContext, crew: ChildCrew): ChildRun
 
 /**
  * The body of a child agent: it acts on the call its input carries, under the callbacks of its
- * step, and leaves the outcome in the crew's memory for the parent before it returns.
+ * step, and leaves the outcome in the crew's memory for the parent before it returns. `wrap` dresses the Llm
+ * the child acts on: what a request cannot carry from the parent, a callback (the pruning of the act's tool loop).
  */
 export function childAgentBody(
   callbacksFor: (ctx: AgentContext) => ToolCallbacks | undefined,
+  wrap: (llm: Llm, ctx: AgentContext) => Llm = (llm) => llm,
 ): (input: unknown, ctx: AgentContext) => Promise<string> {
   return async (input, ctx) => {
     const call = parseChildInput(input);
@@ -58,7 +60,7 @@ export function childAgentBody(
     // The parent cannot match the runtime's rows by agent name (they hold the agent's id): say which instance this is.
     if (typeof ctx.instanceId === "string") await ctx.memory.crew.store(instanceKey(call.key), ctx.instanceId).catch(() => undefined);
     try {
-      const reply = await agentLlm(ctx, callbacksFor(ctx)).act(call.prompt, call.request);
+      const reply = await wrap(agentLlm(ctx, callbacksFor(ctx)), ctx).act(call.prompt, call.request);
       await ctx.memory.crew.store(call.key, { ok: true, reply });
       return reply;
     } catch (error) {

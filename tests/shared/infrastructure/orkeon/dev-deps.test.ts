@@ -7,7 +7,7 @@ import { deepStrictEqual, ok, strictEqual } from "node:assert";
 
 import {
   AUDITOR_TOOLS, LAYOUT, QUOTING_BRIEF, QUOTING_BRIEF_ROOTED, ROOT, ROOTED_WRITE, context,
-  loadDevDeps, rootedImplementerCallbacks, toolNames, twoBatchParts, validationTool,
+  loadDevDeps, pruningContext, rootedImplementerCallbacks, toolNames, twoBatchParts, validationTool,
 } from "./dev-deps.fixtures.ts";
 import { assertAskedNames, assertRootPathsOnly } from "./dev-deps.assertions.ts";
 import { WORKSPACE } from "../../../../src/shared/domain/vfs.ts";
@@ -195,6 +195,59 @@ describe("implementDeps and verifyDeps", () => {
 
     // Assert
     deepStrictEqual(wrote, [`${WORKSPACE}/src/a.ts`]);
+  });
+
+  it("send a role's act the pruning of its tool loop when compaction.prune is on and the host has a decision model", async () => {
+    // Arrange
+    const m = await loadDevDeps();
+    const { ctx, asked } = pruningContext();
+    const deps = m.implementDeps(ctx, { hooks: [], effort: undefined, memoryOn: false, toolSlot: undefined, root: undefined });
+
+    // Act
+    await deps.roleLlm("implementer", LAYOUT, () => undefined, []).act("go", {});
+
+    // Assert
+    strictEqual(typeof asked[0].options.onContextPressure, "function");
+  });
+
+  it("send the audit's act the pruning of its tool loop when compaction.prune is on and the host has a decision model", async () => {
+    // Arrange
+    const m = await loadDevDeps();
+    const { ctx, asked } = pruningContext();
+    const verify = m.verifyDeps(ctx, { hooks: [], effort: undefined, memoryOn: false, validationSlot: undefined, root: undefined });
+
+    // Act
+    await verify.llm.act("Audit F2", {});
+
+    // Assert
+    strictEqual(typeof asked[0].options.onContextPressure, "function");
+  });
+
+  it("send a role's act no pruning when compaction.prune is not set", async () => {
+    // Arrange
+    const m = await loadDevDeps();
+    const { ctx, asked } = context();
+    const deps = m.implementDeps(ctx, { hooks: [], effort: undefined, memoryOn: false, toolSlot: undefined, root: undefined });
+
+    // Act
+    await deps.roleLlm("implementer", LAYOUT, () => undefined, []).act("go", {});
+
+    // Assert
+    strictEqual("onContextPressure" in asked[0].options, false);
+  });
+
+  it("send a role's act no pruning when the host has no decision model", async () => {
+    // Arrange
+    const m = await loadDevDeps();
+    const { ctx, asked, tools } = pruningContext();
+    delete (tools as unknown as Record<string, unknown>).systemOneDecide;
+    const deps = m.implementDeps(ctx, { hooks: [], effort: undefined, memoryOn: false, toolSlot: undefined, root: undefined });
+
+    // Act
+    await deps.roleLlm("implementer", LAYOUT, () => undefined, []).act("go", {});
+
+    // Assert
+    strictEqual("onContextPressure" in asked[0].options, false);
   });
 
   it("verifyDeps offers the audit's act the auditor's tools alone, never the batch agent's write tools", async () => {

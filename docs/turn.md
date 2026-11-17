@@ -341,7 +341,9 @@ Code: `shared/application/compaction/compact-session.ts`.
 
 ### Pruning the tool loop
 
-Code: `shared/domain/context-prune.ts`, `shared/application/compaction/prune-context.ts`, [ADR 0027](adr/0027-decision-model-optimisations.md).
+Code: `shared/domain/context-prune.ts`, `shared/application/compaction/prune-context.ts`,
+`shared/application/compaction/pruned-llm.ts`, [ADR 0027](adr/0027-decision-model-optimisations.md),
+[ADR 0032](adr/0032-pruning-in-the-dev-acts.md).
 
 - The tool results of a turn in progress live in the runtime's loop, never in the session buffer, so no compaction
   reaches them.
@@ -360,6 +362,12 @@ Code: `shared/domain/context-prune.ts`, `shared/application/compaction/prune-con
   is offered again: a small result is answered `keep`, a result judged needed is left unanswered and judged again
   once 8 more model turns have passed.
 - Each act has its own binding, the act a stop check asks for included.
+- The acts of the dev crews carry it too: the reviewer of `/dev-spec`, `/dev-change`, `/dev-plan` and of the next
+  batch of `/dev-batches`, the test author and the implementer of `/dev-implement`, the auditor of `/dev-verify`.
+  Their Llm binds it at each act, on the act's brief, in the agent that acts: a reviewer or an auditor run as a
+  child binds its own. An extraction carries none.
+- In a dev act the window is the session's, also when the act was routed to another profile, and a result the
+  reviewer has to read again costs one of its sixteen look-ups.
 - It fails open: the setting off or unreadable, no decision model (a warning) or a model that does not answer (a
   warning, and no more question in that act) prune nothing.
 - A log line says what each pressure judged, removed and cut.
