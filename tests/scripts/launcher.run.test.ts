@@ -4,7 +4,7 @@ import { after, describe, it } from "node:test";
 import { deepStrictEqual, strictEqual } from "node:assert";
 import { existsSync, readFileSync } from "node:fs";
 import { join } from "node:path";
-import { FINGERPRINT, FINGERPRINT_PATH, launch, removeScratch } from "./launcher.fixtures.ts";
+import { FINGERPRINT, FINGERPRINT_PATH, launch, launchWithNode, removeScratch } from "./launcher.fixtures.ts";
 import { assertLacks, assertSays } from "./launcher.assertions.ts";
 import {
   DOCKER_CREW, DOCKER_OUTSIDE_SRC, DOTNET_BIN, DOWNLOADED_RAN, ELSEWHERE, MOCK_IN_CONTAINER, MOCK_ON_HOST, INPUTS, INPUTS_ARE_RUNS, LOG_TO_STDERR, NAMED_RUNTIME, NO_SESSION,
@@ -196,7 +196,7 @@ describe("orkeon-code run, the start", () => {
     const start = runStart({ settings: { Llm: { Model: "m" }, orkeonCode: { language: "fr" } } });
 
     // Act
-    const r = launch(start);
+    const r = launchWithNode(start);
 
     // Assert
     deepStrictEqual(JSON.parse(readFileSync(join(r.state, "user-config", "config.json"), "utf-8")), { language: "fr" });
