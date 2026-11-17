@@ -17,6 +17,9 @@ export const MESSAGE = "fix(api): handle null";
 export const PUSH = "git push -u origin 'feat/x'";
 export const COMMIT = "git --literal-pathspecs commit -F .git/ORKEON_COMMITMSG -- 'a.ts'";
 export const CLEAN = "Nothing to commit — working tree clean.";
+/** A `git status` where the crew runs has no git (the shell's own error, exit 127), and what /commit answers. */
+export const NO_GIT: Partial<ShellResult> = { stdout: "", stderr: "sh: 1: git: not found\n", exitCode: 127 };
+export const NO_GIT_ANSWER = "✗ the working tree could not be read, nothing was committed: git status failed: sh: 1: git: not found";
 
 /** A tree on feat/x with one modified file, a.ts, git's identity set and origin/HEAD on main. */
 export const TREE_ANSWERS: Record<string, Partial<ShellResult>> = {
