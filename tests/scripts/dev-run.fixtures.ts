@@ -1,7 +1,7 @@
 // scripts/dev-run.sh over a fake runner: the runner, the run that drives it, and the step plans the tests give it.
 // A plan line is `<rc>|<line appended to batches-state.md or empty>|<output>`.
 import { spawnSync } from "node:child_process";
-import { existsSync, mkdtempSync, readFileSync, readdirSync, rmSync, writeFileSync } from "node:fs";
+import { existsSync, mkdtempSync, readFileSync, readdirSync, realpathSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -163,3 +163,51 @@ export const BAD_INVOCATIONS: readonly { name: string; argv: readonly string[] }
   { name: "refuses a work code that climbs out of the project with 64", argv: ["dev-verify", "../x"] },
   { name: "refuses a crew that does not exist with 64", argv: ["no-such-crew", "demo", "--inputs", "{}"] },
 ];
+
+// An `orkeon` on PATH standing for the runner `orkeon-code run` finds first: it records its arguments and its working
+// folder, then closes the batches, so that the chain ends after one step.
+const ORKEON = `#!/usr/bin/env bash
+printf '%s\\n' "$*" > "$FAKE_DIR/orkeon-args"
+pwd -P > "$FAKE_DIR/orkeon-cwd"
+mkdir -p .orkeon/dev/demo && printf '%s\\n' "- 2026-10-24 09:30 closed" >> .orkeon/dev/demo/batches-state.md
+`;
+
+export interface LauncherRun {
+  status: number | null;
+  output: string;
+  /** What `orkeon` was given, and the folder it ran from. */
+  orkeonArgs: string;
+  orkeonCwd: string;
+  project: string;
+  settings: string;
+  crew: string;
+}
+
+/** Runs dev-run.sh without DEV_RUN_RUNNER, on a trusted project (CI), through the launcher and an `orkeon` stand-in. */
+export function runThroughLauncher(): LauncherRun {
+  const dir = mkdtempSync(join(tmpdir(), "dev-run-launcher-"));
+  try {
+    const project = join(dir, "project");
+    const bin = join(dir, "bin");
+    spawnSync("mkdir", ["-p", project, bin]);
+    writeFileSync(join(bin, "orkeon"), ORKEON, { mode: 0o755 });
+    const settings = join(dir, "settings.json");
+    writeFileSync(settings, '{ "Llm": { "Model": "m" } }\n');
+    const env: NodeJS.ProcessEnv = {
+      ...process.env, PATH: `${bin}:${process.env.PATH}`, FAKE_DIR: dir, ORKEON_CODE_WORKSPACE: project,
+      ORKEON_CODE_SETTINGS: settings, ORKEON_CODE_STATE: join(dir, "state"), ORKEON_CODE_HOME: join(dir, "home"),
+      ORKEON_CODE_TRUST: "1", CI: "true",
+    };
+    for (const k of ["DEV_RUN_RUNNER", "ORKEON_CLI", "ORKEON_CODE_MODE"]) delete env[k];
+    const r = spawnSync("bash", [SCRIPT, "dev-verify", "demo", "--wait", "0", "--inputs", '{"code":"demo"}'], { encoding: "utf-8", env });
+    const read = (f: string) => (existsSync(join(dir, f)) ? readFileSync(join(dir, f), "utf-8").trim() : "");
+    const logs = join(project, ".orkeon/dev/demo/runs");
+    const stepLog = existsSync(logs) ? readdirSync(logs).map((f) => readFileSync(join(logs, f), "utf-8")).join("\n") : "";
+    return {
+      status: r.status, output: `${r.stdout}${r.stderr}\n${stepLog}`, orkeonArgs: read("orkeon-args"), orkeonCwd: read("orkeon-cwd"),
+      project: realpathSync(project), settings, crew: fileURLToPath(new URL("../../src/crews/dev-verify/crew.ork.ts", import.meta.url)),
+    };
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
+}

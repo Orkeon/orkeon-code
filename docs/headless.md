@@ -92,7 +92,9 @@ orkeon-code run main-loop --workspace ~/src/app \
 - The runner prints the crew's result as JSON on stdout, alone: the launcher sends its log lines to stderr
   (`Logging__Console__LogToStandardErrorThreshold=Trace`; a plain `orkeon run` writes them on stdout, before the
   JSON).
-- The launcher ends with the runner's exit code: `0` when the script completed, `1` on a `0` when the script completed, `1` on a
+- Before the runner starts, the launcher ends alone: `3` for an untrusted project with no terminal to ask in and no
+  `--trust`, `0` with nothing run when the trust question is answered no, `1` on a usage error.
+- Then it ends with the runner's exit code: `0` when the script completed, `1` on a
   script error, `2` on a runtime error, `130` when cancelled, `75` when `Orkeon:Checkpointing:Enabled` is set and
   the run stopped on a question (`run.finished` says `waiting_for_input` with a `requestId`; `orkeon run --resume
   <run id> --input '<answer>'` continues it, and `/state` and `/runs` are the runtime's own mounts, never yours).
