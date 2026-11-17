@@ -79,28 +79,28 @@ with the bash launcher ([WSL tutorial](wsl-tutorial.md)). On both, a path spelle
 model's calls and in what a command prints ([architecture](architecture.md#the-vfs-and-the-host-platform));
 under WSL a Windows program is reachable without confinement only, and still receives `/mnt/c/…` paths.
 
-- Orkeon Code is checked against Orkeon's sources at the commit in `.orkeon-version` (`a318f7f`, `main` after
-  Orkeon/orkeon#391, 2026-11-16): the [source mode](#source-mode-an-orkeon-checkout) runs that commit, the reference
+- Orkeon Code is checked against Orkeon's sources at the commit in `.orkeon-version` (`a9f3878`, `main` after
+  Orkeon/orkeon#394, the commit of Orkeon `1.2.0`, 2026-11-16): the [source mode](#source-mode-an-orkeon-checkout) runs that commit, the reference
   runtime.
 - The [tool mode](#tool-mode-orkeon-repl-installed) (the Debian package on the apt `stable` channel, the release
-  archives) runs Orkeon's last release, `1.0.0` (`41f5079`), and the
+  archives) runs Orkeon's last release, `1.2.0` (`a9f3878`), and the
   [docker mode](#docker-mode-nothing-to-install-but-docker) its image, `ghcr.io/orkeon/orkeon:latest`: both are
-  behind the pin until Orkeon's next release, and `/status` says so ([ADR 0013](adr/0013-pin-on-orkeon-commit.md)).
-  What they lack is listed in [ADR 0030](adr/0030-orkeon-after-356.md) and
-  [ADR 0031](adr/0031-orkeon-after-361.md).
+  at the pin at this writing, and behind it once the pin moves past that release: `/status` says which
+  ([ADR 0013](adr/0013-pin-on-orkeon-commit.md)). What an older release lacks is listed in
+  [ADR 0030](adr/0030-orkeon-after-356.md) and [ADR 0031](adr/0031-orkeon-after-361.md).
 - The typings are those of the pin ([Development](development.md#typings)).
 
 The launcher picks the first available mode, in this order, unless `--mode` says otherwise.
 
 ### Tool mode: `orkeon-repl` installed
 
-The REPL is `orkeon-repl` (`Orkeon.ConsoleApp`) of the last release, `1.0.0`, behind the pin at this writing. The
+The REPL is `orkeon-repl` (`Orkeon.ConsoleApp`) of the last release, `1.2.0`, the pin at this writing. The
 Debian package and the
 release archives carry it self-contained, with its own esbuild: no .NET to install.
 
 **Debian and Ubuntu** (amd64, arm64): the `orkeon` package installs `/usr/bin/orkeon-repl`. Add Orkeon's apt source
 once, as [Install with apt](https://github.com/Orkeon/orkeon/blob/main/docs/guides/install-with-apt.md) describes,
-then `sudo apt install orkeon`. `1.0.0` is on the `stable` channel; a release candidate is published on the `rc`
+then `sudo apt install orkeon`. `1.2.0` is on the `stable` channel; a release candidate is published on the `rc`
 channel (`Suites: raw/apt/rc/`).
 
 **Other systems**: the **full archive** of the [Orkeon release](https://github.com/Orkeon/orkeon/releases) for your
@@ -112,7 +112,7 @@ extract it and run `./install.sh`: it installs into `~/.local/lib/orkeon` and li
 folder to your user `PATH`.
 
 ```bash
-v=1.0.0; rid=linux-x64       # the last release; or linux-arm64, osx-x64, osx-arm64
+v=1.2.0; rid=linux-x64       # the last release; or linux-arm64, osx-x64, osx-arm64
 curl -fLO "https://github.com/Orkeon/orkeon/releases/download/v$v/orkeon-$v-$rid.tar.gz"
 curl -fLO "https://github.com/Orkeon/orkeon/releases/download/v$v/SHA256SUMS"
 sha256sum --check --ignore-missing SHA256SUMS
@@ -129,8 +129,8 @@ overrides it).
 
 ### Docker mode: nothing to install but Docker
 
-The launcher runs `ghcr.io/orkeon/orkeon:latest`, the image of the last release (`1.0.0` at this writing, behind
-the pin; `ORKEON_CODE_IMAGE` names another image), which carries the
+The launcher runs `ghcr.io/orkeon/orkeon:latest`, the image of the last release (`1.2.0` at this writing, the
+pin; `ORKEON_CODE_IMAGE` names another image), which carries the
 REPL and esbuild; the image is built for `linux/amd64` and `linux/arm64`, and Docker pulls the one of your machine. The project is mounted in the
 container; on Linux the container runs with your uid, so the files the agent writes belong to you. The shell tool
 runs inside the container.
@@ -149,9 +149,9 @@ whose `global.json` pins another SDK still works. It needs the .NET 10 SDK, the 
 The checkout should sit at the commit of `.orkeon-version`, the one the commands were checked against. The launcher
 moves it there itself when nothing of yours is in the way: no tracked file changed, on `main` or detached, and behind
 the pin (fetched from `origin main` when missing). It then says `orkeon-code: ORKEON_SOURCE moved from <sha7> to the pin
-a318f7f.` and the build restores the solution. Otherwise (a branch of your own, uncommitted work, commits ahead of the
+a9f3878.` and the build restores the solution. Otherwise (a branch of your own, uncommitted work, commits ahead of the
 pin, or `ORKEON_SOURCE_FOLLOW_PIN=0`) it leaves the checkout alone, warns (`orkeon-code: warning: ORKEON_SOURCE is at
-<sha7>, the pin of .orkeon-version is a318f7f: the commands were checked against the pin.`) and runs anyway.
+<sha7>, the pin of .orkeon-version is a9f3878: the commands were checked against the pin.`) and runs anyway.
 
 ### No runtime on the machine: the one Orkeon Code downloads
 

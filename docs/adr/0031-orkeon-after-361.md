@@ -52,7 +52,7 @@ path is visible, when the agent has no file-system tool or when it sets `announc
 ## Decision
 
 - **The pin moves to `98799c6`, then to `2fb47b8`** (#365), **to `791760e`** (#371), **to `070a58e`** (#373), **to `ff69e76`**
-  (#374, a test of Orkeon alone), **to `3a6a0d9`** (#377), **to `322ffb9`** (#380, the date of Orkeon 1.1.0 in its changelog alone), **then to `a318f7f`** (#386, #389 and #391, fixes after Orkeon 1.1.0), the newest merge commit of Orkeon `main`. The esbuild of the runtime (`0.25.12`) and its .NET SDK (`10.0.300`) do
+  (#374, a test of Orkeon alone), **to `3a6a0d9`** (#377), **to `322ffb9`** (#380, the date of Orkeon 1.1.0 in its changelog alone), **to `a318f7f`** (#386, #389 and #391, fixes after Orkeon 1.1.0), **then to `a9f3878`** (#393 and #394, the commit of Orkeon 1.2.0), the newest merge commit of Orkeon `main`. The esbuild of the runtime (`0.25.12`) and its .NET SDK (`10.0.300`) do
   not change; the typings gain `EffortLevel`, `LlmCapabilities` and `LlmReasoning`, then `llm.profiles`,
   `.filesystem(...)` and `.announceMounts(...)`, then `InvalidScriptError`, then the minimum of each limit in its
   description.
@@ -144,6 +144,11 @@ path is visible, when the agent has no file-system tool or when it sets `announc
   keeps its `exhausted` result) or only reads (a price for each paid provider's default model, Z.AI included, so a
   cost that read as unpriced may now show). `npm run check` green and the three smokes in source mode; no model
   was called.
+- At `a9f3878`: the pin is the commit Orkeon tagged `v1.2.0`, so the tool and docker modes, which run the last
+  release, run the pin until it moves again; `.config/dotnet-tools.json` names `1.2.0`. The typings change in their
+  comments only (the tool-free last turn of an agent at its cap, the sources of a deliverable). #393 reports a
+  `tool_call` deliverable that no agent of its task can write, at load and at completion: no crew of this project
+  declares a deliverable, nothing is adopted.
 - Checks at `3a6a0d9`: `npm run check` green, the smokes in source mode and on the 1.0.0 image and tool, the package
   installed in a scratch prefix. One main-loop request captured on a local server (no model called): the system
   message ends with `## File system`, the nine mounts of the session with their rights, `Relative paths resolve

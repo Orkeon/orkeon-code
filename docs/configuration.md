@@ -383,7 +383,7 @@ running agent: `act — effort: medium (sent as 'low' to glm-5.3), maxIterations
 effort: none stored, the host asks for medium (sent as 'low' to glm-5.3), maxIterations: 40`.
 
 A role or a routed crew may run on another model again: the warnings speak of the session's targets only. On a
-runtime before Orkeon #361 (the tool and docker modes on 1.0.0), nothing is said of the model's levels; before
+runtime before Orkeon #361 (an Orkeon release `1.0.0` in the tool or docker mode), nothing is said of the model's levels; before
 #365, nothing of a profile's.
 
 ### What the user settings narrow

@@ -405,7 +405,7 @@ maxIterations: 40`, ou sans niveau enregistré, `act — effort: none stored, th
 to glm-5.3), maxIterations: 40`.
 
 Un rôle ou un crew routé peut encore s'exécuter sur un autre modèle : les avertissements ne parlent que des cibles de
-la session. Sur un runtime antérieur à Orkeon #361 (les modes tool et docker en 1.0.0), rien n'est dit des niveaux du
+la session. Sur un runtime antérieur à Orkeon #361 (une release `1.0.0` d'Orkeon en mode tool ou docker), rien n'est dit des niveaux du
 modèle ; avant #365, rien de ceux d'un profil.
 
 ### Ce que les réglages de l'utilisateur restreignent

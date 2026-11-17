@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.0.0-rc.2] - 2026-11-17
+
 ### Added — the decision model prunes the acts of the dev crews
 
 - `compaction.prune` now also covers the acts of the dev crews: the reviewer of `/dev-spec`, `/dev-change`,
@@ -95,11 +97,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   (`provider thinking asked at medium`), as the answer of `/effort <level>` does (`asks the provider for thinking`), and the panel confirmed on the level
   marked with none stored (`the session asks the provider for no thinking`).
 - All of it is the runtime's own judgement, read through Orkeon #359 and #360 (the host's `Llm:ModelCapabilities`
-  included): on Orkeon 1.0.0 (the tool and docker modes) nothing is said of the model's levels.
+  included): on Orkeon 1.0.0 (an older release in the tool or docker mode) nothing is said of the model's levels.
 
-### Changed — the pin moves to Orkeon main after #391
+### Changed — the pin moves to Orkeon 1.2.0
 
-- `.orkeon-version` names `a318f7f`, Orkeon `main` after #386, #389 and #391 (fixes after Orkeon 1.1.0: the forge,
+- `.orkeon-version` names `a9f3878`, Orkeon `main` after #394: the commit of Orkeon 1.2.0. It follows #393 (a
+  `tool_call` deliverable no agent of its task can write is reported when the crew loads and when the task ends; no
+  crew of this project declares a deliverable, and the typings change in their comments only), #386, #389 and #391
+  (fixes after Orkeon 1.1.0: the forge,
   `orkeon rag`, `orkeon doctor`, the crew task loop, a price for each paid provider's default model; same typings,
   nothing to adopt), itself after #380 (the date of Orkeon 1.1.0 in its changelog, nothing of the runtime), #351-#354, #356, #358 (the reasoning modes of
   `orkeon llm probe`), #362 (Z.AI takes `xhigh`; GLM-5.3 keeps `low`, `high` and `max`), #361 (a script reads a
@@ -109,14 +114,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   project returns a text), #373 (a tool refuses a result limit below 1, such as `max_length: 0` on `file_read`
   or `top_k: 0` on `codebase_search`, where it gave nothing or one hit before; every limit this project passes is
   a constant above 0), #374 (a test of Orkeon alone) and #377 (the commit of Orkeon 1.1.0, with `ctx.fileSystem`,
-  #378), ahead of the 1.0.0 release: the tool
-  and docker modes run 1.0.0 until Orkeon's next release ([ADR 0030](docs/adr/0030-orkeon-after-356.md),
+  #378). The tool and docker modes run Orkeon's last release, which is now that commit: the Debian package, the
+  release archives, the image and the `orkeon` tool of `.config/dotnet-tools.json` are at 1.2.0, no longer behind
+  the pin ([ADR 0030](docs/adr/0030-orkeon-after-356.md),
   [ADR 0031](docs/adr/0031-orkeon-after-361.md)).
 - Every system prompt ends with the runtime's `## File system` section (Orkeon #348: the paths the agent may touch,
   their rights and where relative paths resolve). The runtime writes it for a declarative turn only, and every agent
   of this project runs a body with a prompt of its own, so none carried it; this project asked for its text (#378)
   and the Llm adapter now adds `ctx.fileSystem.prompt` to each act that has a system prompt, the main loop's and
-  every crew's. On Orkeon 1.0.0 (the tool and docker modes) there is no such text and the prompts are as before. No
+  every crew's. On Orkeon 1.0.0 (an older release in the tool or docker mode) there is no such text and the prompts are as before. No
   agent declares a file-system scope (#349).
 - A sub-agent routed to a rung the host does not declare stays on the crew's profile, as documented: the runtime's
   refusal used to end the crew past the `catch` meant for it (Orkeon #364). Only that refusal, an
@@ -1797,6 +1803,7 @@ First release as a standalone project, on Orkeon `1.0.0-rc.5`.
 - Checks: unit tests on Node's native type stripping, type check, bundle check with the runtime's esbuild flags,
   provenance gate, runtime smoke.
 
-[Unreleased]: https://github.com/Orkeon/orkeon-code/compare/v1.0.0-rc.1...HEAD
+[Unreleased]: https://github.com/Orkeon/orkeon-code/compare/v1.0.0-rc.2...HEAD
+[1.0.0-rc.2]: https://github.com/Orkeon/orkeon-code/releases/tag/v1.0.0-rc.2
 [1.0.0-rc.1]: https://github.com/Orkeon/orkeon-code/releases/tag/v1.0.0-rc.1
 [0.1.0-alpha.1]: https://github.com/Orkeon/orkeon-code/releases/tag/v0.1.0-alpha.1

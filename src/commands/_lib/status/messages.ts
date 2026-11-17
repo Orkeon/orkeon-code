@@ -78,7 +78,7 @@ export const noToolCallHolds = (text: string): string => `no tool call holds '${
 export const RELEASE_NOTES = [
   `${CLI_NAME} ${CLI_VERSION} (${CLI_BUILD})`,
   "",
-  `First release candidate of 1.0.0, on Orkeon main ${ORKEON_RUNTIME_PIN}.`,
+  `Second release candidate of 1.0.0, on Orkeon 1.2.0 (main ${ORKEON_RUNTIME_PIN}).`,
   "",
   "Crews: main-loop (the interactive loop behind /assistant), code-review, git-commit,",
   "       project-init, init-verifiers, session-compact, advisor, analyze, speech,",
@@ -92,6 +92,9 @@ export const RELEASE_NOTES = [
   "Speech: the MCP server of mcp/whisper, /transcribe [--then], /voice (dictation), /say (read aloud).",
   "Context: automatic compaction with a persistent breaker, snip-first /compact,",
   "         file restore after compaction, context pressure tiers.",
-  "Models: /model switches the model per turn; /model list offers Llm:AvailableModels.",
+  "Models: /model switches the model per turn; /model list offers Llm:AvailableModels;",
+  "        /effort sets the reasoning effort among the levels the model takes.",
+  "Decision model (off by default): /route runs a crew on the cheapest profile that fits,",
+  "        /skills suggest offers the skills that fit a turn, compaction.prune drops stale tool results.",
   "Code intelligence: index, maps, dependency graph and symbol tools of the Orkeon runtime.",
 ].join("\n");
