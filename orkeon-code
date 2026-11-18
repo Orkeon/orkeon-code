@@ -38,8 +38,9 @@
 # /resume lists them inside the REPL. A bare --llm-log after -- goes to <state>/llm-logs.
 #
 # Modes (auto-detected in this order, or forced with --mode / ORKEON_CODE_MODE):
-#   tool    orkeon-repl on PATH (from the orkeon Debian package, the full Orkeon release archive, or the
-#           dotnet tool), or ORKEON_REPL="<command line>" (e.g. "dotnet /opt/orkeon/Orkeon.ConsoleApp.dll")
+#   tool    orkeon-repl on PATH (from the orkeon Debian package or the full Orkeon release archive: the dotnet
+#           tool installs `orkeon` alone, which `run` uses), or ORKEON_REPL="<command line>"
+#           (e.g. "dotnet /opt/orkeon/Orkeon.ConsoleApp.dll")
 #   docker  ghcr.io/orkeon/orkeon:latest (the last release, not the pin), nothing else to install
 #   source  an Orkeon checkout named by ORKEON_SOURCE, built there with `dotnet build`, run from the project
 # With none of them, an install whose package names a runtime (.orkeon-runtime) downloads it once, after asking,

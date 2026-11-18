@@ -14,8 +14,8 @@
   .\orkeon-code.ps1 setup                        # write %USERPROFILE%\.orkeon-code\appsettings.json (never the key)
 
 .NOTES
-  Modes: tool (orkeon-repl on PATH, from the full Orkeon release .zip (the .msi has no orkeon-repl), the
-  Debian package or the dotnet tool, or $env:ORKEON_REPL) and docker
+  Modes: tool (orkeon-repl on PATH, from the full Orkeon release .zip (the .msi has no orkeon-repl, the
+  dotnet tool installs orkeon alone) or the Debian package, or $env:ORKEON_REPL) and docker
   (ghcr.io/orkeon/orkeon:latest, the last release, not the pin). The source mode is only in the
   bash launcher. Folder trust, per-project state, sessions, settings, API key, model and $env:ORKEON_CODE_AUDIO_DIR (speech-to-text,
   tool mode): see the header of ./orkeon-code.

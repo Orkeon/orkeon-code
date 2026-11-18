@@ -155,8 +155,9 @@ path is visible, when the agent has no file-system tool or when it sets `announc
   Python file in the code index (#406), the version Orkeon announces (#418), adds `examples: true` to `orkeon forge` (#400, a command of Orkeon this
   project does not run), and gives the image git and
   `shell_command` the four identity variables of a commit (#404), which `/commit` reads through `git var` as before.
-  `npm run check` green and the three smokes in source mode; no model was called, and neither the tool nor the
-  docker mode was run, `1.3.0` being on Orkeon's `main` but not yet published that day.
+  `npm run check` green and the three smokes in the three modes: source, docker on the `1.3.0` image (the crew
+  smoke commits there with the identity the launcher hands over, #404), tool with the dotnet tool `1.3.0` for `run`
+  and the `orkeon-repl` of the full `1.3.0` archive for the REPL; no model was called.
 - Checks at `3a6a0d9`: `npm run check` green, the smokes in source mode and on the 1.0.0 image and tool, the package
   installed in a scratch prefix. One main-loop request captured on a local server (no model called): the system
   message ends with `## File system`, the nine mounts of the session with their rights, `Relative paths resolve
