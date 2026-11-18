@@ -11,10 +11,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed — the pin moves to Orkeon 1.3.0
 
-- The pin moves to Orkeon `main` `1b480bd` (Orkeon #412), the commit of Orkeon `1.3.0`: the tool and docker modes,
+- The pin moves to Orkeon `main` `d81bfab` (Orkeon #412, #419, #420, #421), the commit of Orkeon `1.3.0`: the tool and docker modes,
   which run Orkeon's last release, run the pin again, and `.config/dotnet-tools.json` names `1.3.0`. The typings
   change in one place, the `sources` of `rag_ingest` are strings, and nothing is adopted
-  ([ADR 0031](docs/adr/0031-orkeon-after-361.md)).
+  ([ADR 0031](docs/adr/0031-orkeon-after-361.md)). Every provider now sends the whole JSON Schema of a tool (its
+  object properties, array items and bounds, Orkeon #420), and a replay cassette recorded before is still found.
 - What a session sees of the release: the `orkeon` image carries git and reads a mounted repository whoever owns it,
   so `/commit` reads the tree in docker mode (Orkeon #404); a command run by `shell_command` receives
   `GIT_AUTHOR_NAME`, `GIT_AUTHOR_EMAIL`, `GIT_COMMITTER_NAME` and `GIT_COMMITTER_EMAIL` from the session, under every

@@ -79,11 +79,11 @@ with the bash launcher ([WSL tutorial](wsl-tutorial.md)). On both, a path spelle
 model's calls and in what a command prints ([architecture](architecture.md#the-vfs-and-the-host-platform));
 under WSL a Windows program is reachable without confinement only, and still receives `/mnt/c/…` paths.
 
-- Orkeon Code is checked against Orkeon's sources at the commit in `.orkeon-version` (`1b480bd`, `main` after
+- Orkeon Code is checked against Orkeon's sources at the commit in `.orkeon-version` (`d81bfab`, `main` after
   Orkeon/orkeon#412, the commit of Orkeon `1.3.0`, 2026-11-18): the [source mode](#source-mode-an-orkeon-checkout) runs that commit, the reference
   runtime.
 - The [tool mode](#tool-mode-orkeon-repl-installed) (the Debian package on the apt `stable` channel, the release
-  archives) runs Orkeon's last release, `1.3.0` (`1b480bd`), and the
+  archives) runs Orkeon's last release, `1.3.0` (`d81bfab`), and the
   [docker mode](#docker-mode-nothing-to-install-but-docker) its image, `ghcr.io/orkeon/orkeon:latest`: both are
   at the pin at this writing, and behind it once the pin moves past that release: `/status` says which
   ([ADR 0013](adr/0013-pin-on-orkeon-commit.md)). What an older release lacks is listed in
@@ -157,9 +157,9 @@ whose `global.json` pins another SDK still works. It needs the .NET 10 SDK, the 
 The checkout should sit at the commit of `.orkeon-version`, the one the commands were checked against. The launcher
 moves it there itself when nothing of yours is in the way: no tracked file changed, on `main` or detached, and behind
 the pin (fetched from `origin main` when missing). It then says `orkeon-code: ORKEON_SOURCE moved from <sha7> to the pin
-1b480bd.` and the build restores the solution. Otherwise (a branch of your own, uncommitted work, commits ahead of the
+d81bfab.` and the build restores the solution. Otherwise (a branch of your own, uncommitted work, commits ahead of the
 pin, or `ORKEON_SOURCE_FOLLOW_PIN=0`) it leaves the checkout alone, warns (`orkeon-code: warning: ORKEON_SOURCE is at
-<sha7>, the pin of .orkeon-version is 1b480bd: the commands were checked against the pin.`) and runs anyway.
+<sha7>, the pin of .orkeon-version is d81bfab: the commands were checked against the pin.`) and runs anyway.
 
 ### No runtime on the machine: the one Orkeon Code downloads
 

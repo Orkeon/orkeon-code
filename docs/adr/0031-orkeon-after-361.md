@@ -52,7 +52,7 @@ path is visible, when the agent has no file-system tool or when it sets `announc
 ## Decision
 
 - **The pin moves to `98799c6`, then to `2fb47b8`** (#365), **to `791760e`** (#371), **to `070a58e`** (#373), **to `ff69e76`**
-  (#374, a test of Orkeon alone), **to `3a6a0d9`** (#377), **to `322ffb9`** (#380, the date of Orkeon 1.1.0 in its changelog alone), **to `a318f7f`** (#386, #389 and #391, fixes after Orkeon 1.1.0), **to `a9f3878`** (#393 and #394, the commit of Orkeon 1.2.0), **then to `1b480bd`** (#396 to #418, merged by #412, the commit of Orkeon 1.3.0), the newest merge commit of Orkeon `main`. The esbuild of the runtime (`0.25.12`) and its .NET SDK (`10.0.300`) do
+  (#374, a test of Orkeon alone), **to `3a6a0d9`** (#377), **to `322ffb9`** (#380, the date of Orkeon 1.1.0 in its changelog alone), **to `a318f7f`** (#386, #389 and #391, fixes after Orkeon 1.1.0), **to `a9f3878`** (#393 and #394, the commit of Orkeon 1.2.0), **then to `d81bfab`** (#396 to #418, merged by #412, the commit of Orkeon 1.3.0), the newest merge commit of Orkeon `main`. The esbuild of the runtime (`0.25.12`) and its .NET SDK (`10.0.300`) do
   not change; the typings gain `EffortLevel`, `LlmCapabilities` and `LlmReasoning`, then `llm.profiles`,
   `.filesystem(...)` and `.announceMounts(...)`, then `InvalidScriptError`, then the minimum of each limit in its
   description, then the `sources` of `rag_ingest` as strings (`readonly string[]`).
@@ -149,7 +149,7 @@ path is visible, when the agent has no file-system tool or when it sets `announc
   comments only (the tool-free last turn of an agent at its cap, the sources of a deliverable). #393 reports a
   `tool_call` deliverable that no agent of its task can write, at load and at completion: no crew of this project
   declares a deliverable, nothing is adopted.
-- At `1b480bd`: the pin is the commit of Orkeon `1.3.0` (#412), and `.config/dotnet-tools.json` names `1.3.0`. The
+- At `d81bfab`: the pin is the commit of Orkeon `1.3.0` (#412, then #419 to #421, merged before the tag), and `.config/dotnet-tools.json` names `1.3.0`. The
   typings change in one place: the `sources` of `rag_ingest` are strings. Nothing is adopted: the release fixes the
   MCP server and client (#402, #405, #413 to #417), the price of a call by its provider (#396), the imports of a
   Python file in the code index (#406), the version Orkeon announces (#418), adds `examples: true` to `orkeon forge` (#400, a command of Orkeon this
