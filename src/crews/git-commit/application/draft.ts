@@ -32,7 +32,8 @@ export type StatusRead = { ok: true; status: string } | { ok: false; reason: str
 /** The working tree's status, as the selection of the commit's files reads it. */
 export async function readStatus(shell: Shell): Promise<StatusRead> {
   const r = await runGit(shell, GIT_STATUS_COMMAND);
-  return r.exitCode !== 0 || r.timedOut === true ? { ok: false, reason: gitReason(r) } : { ok: true, status: r.stdout };
+  // A timeout or a denial of the runtime ends with exit -1, git's reason on stderr (`[Command timed out]`).
+  return r.exitCode !== 0 ? { ok: false, reason: gitReason(r) } : { ok: true, status: r.stdout };
 }
 
 /** The lines of `status` that name one of `files` (either side of a rename). */
@@ -52,29 +53,27 @@ function cut(text: string, max: number, what: string): string {
 }
 
 /**
- * Snapshot the working tree (mode B — shell, and the files for the new ones).
- * With a `scope`, the snapshot shows the selected files alone: their status lines
- * and their diff, which is what the commit will hold, and carries the author's note
- * when it holds a non-blank one.
+ * Snapshot the working tree (mode B — shell, and the files for the new ones) for the
+ * selected files alone: their lines of the status readStatus gave, and their diff,
+ * which is what the commit will hold, with the author's note when it holds a
+ * non-blank one. The status is never read here again.
  */
 export async function inspectWorkTree(
   shell: Shell,
-  files?: Pick<Files, "read">,
-  scope?: { status: string; files: readonly string[]; note?: string },
+  files: Pick<Files, "read">,
+  scope: { status: string; files: readonly string[]; note?: string },
 ): Promise<WorkTree> {
-  const status = scope ? statusOf(scope.status, scope.files) : (await shell.run(GIT_STATUS_COMMAND)).stdout;
-  const diff = (await shell.run(scope ? gitDiffCommand(scope.files) : "git diff HEAD")).stdout;
+  const status = statusOf(scope.status, scope.files);
+  const diff = (await shell.run(gitDiffCommand(scope.files))).stdout;
   const branch = (await shell.run("git branch --show-current")).stdout.trim();
   const recent = (await shell.run("git log --oneline -10")).stdout;
   const untracked: WorkTree["untracked"] = [];
-  if (files) {
-    for (const path of untrackedPaths(status).slice(0, MAX_NEW_FILES)) {
-      try {
-        untracked.push({ path, content: await files.read(`${WORKSPACE}/${path}`, MAX_NEW_FILE_CHARS + 1) });
-      } catch { /* unreadable (binary, gone): the status still names it */ }
-    }
+  for (const path of untrackedPaths(status).slice(0, MAX_NEW_FILES)) {
+    try {
+      untracked.push({ path, content: await files.read(`${WORKSPACE}/${path}`, MAX_NEW_FILE_CHARS + 1) });
+    } catch { /* unreadable (binary, gone): the status still names it */ }
   }
-  const note = (scope?.note ?? "").trim();
+  const note = (scope.note ?? "").trim();
   return { status, diff, branch, recent, untracked, ...(note.length > 0 ? { note } : {}) };
 }
 

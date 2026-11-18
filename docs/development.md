@@ -103,8 +103,8 @@ hand, with `.nvmrc`.
 1. Move the `[Unreleased]` entries of `CHANGELOG.md` under `## [x.y.z] - YYYY-MM-DD`.
 2. Bump `package.json` `version` and `CLI_VERSION` in `src/commands/_lib/status/meta.ts` (the test keeps them equal), and
    the release notes (`RELEASE_NOTES`) in `src/commands/_lib/status/messages.ts`.
-3. Run `ORKEON_SOURCE=<an Orkeon checkout at the pin> bash scripts/check-shared-memory.sh` in a terminal (it asks for
-   `rag_eval`; it runs the probe through `orkeon-code run`, from the pin's sources with `ORKEON_SOURCE`, else on the
+3. Run `ORKEON_SOURCE=<an Orkeon checkout at the pin> bash scripts/check-shared-memory.sh` (the probe calls
+   `rag_eval` from its code, outside the permission gate, so nothing is asked in any mode; it runs the probe through `orkeon-code run`, from the pin's sources with `ORKEON_SOURCE`, else on the
    runner `orkeon-code run` finds, in the order of [Autonomous and embedded runs](headless.md#one-shot-from-a-shell)): the shared memory's recall on
    its reference set must end on `check-shared-memory: thresholds met` (recall@5 >= 0.85, MRR >= 0.70). The question
    with no answer (q13) passes only when the runtime's settings give `Orkeon:Rag:Retrieval:MinScore`: without that

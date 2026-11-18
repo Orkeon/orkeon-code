@@ -36,6 +36,8 @@ mode :
 | `plan`, `dontAsk` | Lectures seulement |
 | `bypassPermissions` | Tout |
 
+La garde ne juge que les appels d'outils d'un act : les appels `tools.*` qu'un crew fait depuis son code ne passent pas par elle.
+
 Un act sans `permissionMode` tourne en `default`. Un hook `onToolCall` tourne avant la garde, qui juge ensuite
 l'entrée qu'il renvoie ; un `"ask"` qu'il renvoie est jugé comme une modification en `default` une fois l'appel admis par
 le mode de l'act, donc refusé ici (les callbacks d'Orkeon Code ne demandent jamais).
@@ -69,12 +71,16 @@ le projet est le seul dossier de votre machine qu'il peut écrire ([SECURITY.md]
   (`ghcr.io/orkeon/orkeon`), puis le mode source (`ORKEON_SOURCE`, [Développement](development.md)), puis le runtime
   que nomme le paquet, téléchargé comme pour le REPL ([Premiers pas](getting-started.md) ; aucun paquet publié à ce
   jour n'en nomme). `--mode docker|tool|source` en choisit un.
-- En mode docker, le checkout est le `/work/agent` du conteneur, en lecture seule : un chemin dessous donné après
-  `--` (un fichier `--llm-mock`) y est nommé ; un crew hors du checkout est refusé.
-- Ce qui suit `--` va tel quel à `orkeon run` (`-- --validate`, `-- --llm-mock answers.jsonl`, `-- -v 2`), sauf un
-  chemin relatif qui nomme un fichier ou un dossier de votre dossier courant : le runner démarre ailleurs (dans le
-  projet, le clone ou le conteneur), alors le lanceur transmet ce chemin en absolu, résolu depuis le dossier d'où
-  vous avez lancé `orkeon-code`.
+- En mode docker, le checkout est le `/work/agent` du conteneur, en lecture seule, et le projet son
+  `/work/project` : un chemin sous l'un d'eux donné après `--` (un fichier `--llm-mock`) y est nommé. Un fichier
+  donné après `--` hors des deux arrête l'exécution, puisque le conteneur ne le voit pas : mettez-le sous le projet.
+  Un crew hors du checkout est refusé.
+- Ce qui suit `--` va tel quel à `orkeon run` (`-- --validate`, `-- --llm-mock answers.jsonl`, `-- -v 2`), sauf la
+  valeur d'une option d'`orkeon run` qui prend un chemin (`--llm-mock`, `--llm-record`, `--llm-replay`,
+  `--llm-log-path`, `--inputs-file`, écrite `--llm-mock FICHIER` ou `--llm-mock=FICHIER`) quand elle est relative et
+  nomme un fichier ou un dossier de votre dossier courant : le runner démarre ailleurs (dans le projet, le clone ou
+  le conteneur), alors le lanceur transmet ce chemin en absolu, résolu depuis le dossier d'où vous avez lancé
+  `orkeon-code`.
 - `orkeon-code run --help` imprime l'usage de `run` sur stdout et sort avec `0`.
 - `orkeon-code.ps1` n'a pas encore de `run` : prenez le lanceur bash (Git Bash ou WSL sous Windows).
 - Le crew lit son entrée dans le JSON de `--inputs`.

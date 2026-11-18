@@ -21,9 +21,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   confinement, so a commit keeps the identity the caller exported; the code index records the imports of a Python
   file, and `dependency_graph` and `package_summary` answer with them once the index is rebuilt (`/analyze
   --rebuild`, Orkeon #406); the HTTP tools send `User-Agent: Orkeon/<version>` where they sent `Orkeon/1.0` (Orkeon
-  #418). The fixes of the MCP client (#415, #417, and the client halves of #405 and #416) change what a remote MCP
-  server of `MCP:Servers` offers to `tools.extra`: an array parameter keeps its `items`, and one unreadable tool no
-  longer takes its server's other tools away.
+  #418). The fixes of the MCP client (#415, #417) change what a remote MCP server of `MCP:Servers` offers to
+  `tools.extra`: an array parameter keeps its `items`, and one unreadable tool no longer takes its server's other
+  tools away; the client halves of #405 and #416 change only what the client sends to the server.
 
 ### Fixed — a commit in docker mode has an identity
 
@@ -32,25 +32,33 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `GIT_AUTHOR_EMAIL`, `GIT_COMMITTER_NAME` and `GIT_COMMITTER_EMAIL`: each one you exported is kept, an unset one
   takes the `user.name` or `user.email` your git gives for the project
   ([Getting started](docs/getting-started.md#docker-mode-nothing-to-install-but-docker)).
-- When git has no identity, the stop now also gives the four variables to export, the way that works where git reads
-  no `~/.gitconfig` (a confined session, a container), after the two `git config --global` commands.
+- When git has no identity, the stop now also gives the four variables to export, in a POSIX shell and in
+  PowerShell, after the two `git config --global` commands: the way that works where git reads no `~/.gitconfig`
+  (a confined session, a container).
+- Docker mode runs the local `ghcr.io/orkeon/orkeon:latest` and never pulls it again: the identity needs an image of
+  Orkeon 1.3.0 or later, and `docker pull ghcr.io/orkeon/orkeon:latest` updates it.
 
 ### Fixed — `/commit` stops on every failed `git status`
 
 - A `git status` the runtime ended (exit `-1`), that timed out, or that the runtime refused read as a clean tree, or
   threw: `/commit` now stops on any of them with the reason and commits nothing.
+- `/dev-batches` preflight says `git status failed: <reason>` where it skipped the tree check without a word.
 
 ### Fixed — `orkeon-code run` reads a relative path where you are
 
-- A relative path after `--` (`-- --llm-mock answers.jsonl`) was read from the project, the clone or the container,
-  where the runner starts: one that names a file or a folder of the folder you started from is now handed over
-  absolute, and in docker mode under the project as the container sees it. `orkeon-code run --help` prints the
-  usage and ends with `0`.
-- `orkeon-code runtime install` with no runtime named but an `orkeon-repl` already on PATH (or `ORKEON_REPL`) says
-  that runtime is the one used and ends with `0`, where it failed; the no-runtime messages of `orkeon-code run` point
-  at the full Orkeon release archive, as `runtime install` does.
+- The file of a path option of `orkeon run` after `--` (`--llm-mock`, `--llm-record`, `--llm-replay`,
+  `--llm-log-path`, `--inputs-file`, as `--opt FILE` or `--opt=FILE`) was read from the project, the clone or the
+  container, where the runner starts: one that names a file of the folder you started from is now handed over
+  absolute, and in docker mode under the project or the clone as the container sees them; a file outside both stops
+  the run in docker mode with exit `1`, the container not seeing it. Other words and option values pass unchanged.
+- `orkeon-code run --help` and `orkeon-code run <crew> --help` print the run's usage and end with `0`.
+- `orkeon-code runtime install` with no runtime named but an `orkeon-repl` found on PATH (or the program of
+  `ORKEON_REPL`) says that runtime is the one used and ends with `0`, where it failed; one `ORKEON_REPL` names but
+  cannot reach still stops with `1`. The no-runtime messages of `orkeon-code run` point at the full Orkeon release
+  archive, as `runtime install` does.
 - `orkeon-code.ps1 runtime install` was handed to the REPL: the PowerShell launcher now refuses `runtime` as it
-  refuses `run`, both being the bash launcher's alone for now.
+  refuses `run`, both being the bash launcher's alone for now; and it restores the four `GIT_*` variables it sets for
+  the container at the end, where it left them in your PowerShell session.
 
 ### Fixed — `/dev-learn` names no file of the harness's removed dev pack
 
@@ -61,11 +69,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   the design rules, the gate, the auditor's and the reviewer's charters. Like a harness file it is never edited
   here: accepting it prints the patch to apply in the orkeon-code repository (#117).
 - An adversarial review of the change tightened it: `--accept` on a `proposals.json` written before it says that a
-  harness owner which is no rule of a repository pack is a file the harness removed, and prints no patch; a harness owner
+  harness owner which is no rule of a repository pack is not a file `/dev-learn` patches, and prints no patch, as it
+  does for an Orkeon Code motif off the list, not `new`, or removing a line; a harness owner
   is exactly `.devcontainer/harness/packs/repo-<name>/claude/rules/<file>`; a motif owned by an Orkeon Code file takes
-  the status `new` alone, that file not being read here, and its proposal says so instead of "owner absent"; the plan's
-  and the spec's renderers (`plan-render.ts`, `spec-render.ts`) join the Orkeon Code owners, and an accepted one
-  reminds you of the French twin and of ADR 0003.
+  the status `new` alone and removes no line, that file not being read here, and its proposal says so instead of
+  "owner absent"; the renderers of the plan, the spec and the change brief and the shared dev markers join the Orkeon
+  Code owners, and an accepted one reminds you of the French twin and of ADR 0003. On an answer mixing both kinds of
+  owner, the retry keeps the harness owner's lines it used to lose.
 
 ### Added — `orkeon-code run`, one crew headless from a clone or an install
 
@@ -73,13 +83,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   through `orkeon run` with the REPL's project, trust question, settings file and mounts, `/user-config` included: the
   `orkeonCode` block of your settings now applies to a standalone run. `<crew>` is a name of `src/crews` or the path of
   a `crew.ork.ts`. The runner is found as the REPL's runtime is: `ORKEON_CLI`, `orkeon` on PATH, the downloaded
-  runtime's `bin/orkeon`, a clone's dotnet tool, the `orkeon` image, then the source mode.
+  runtime's `bin/orkeon`, a clone's dotnet tool, the `orkeon` image, the source mode, then the runtime the package
+  names, downloaded after asking.
 - stdout carries the crew's result alone: the launcher sends the runner's log lines to stderr, where a plain
   `orkeon run` writes them on stdout before the JSON. The exit code is the runner's.
 - `scripts/run-crew.sh` is gone: `scripts/smoke-crew.sh`, `scripts/smoke-validate.sh`,
   `scripts/check-shared-memory.sh` and `scripts/dev-run.sh` run their crews through `orkeon-code run`, and the
   packages now ship `scripts/dev-run.sh` ([Autonomous and embedded runs](docs/headless.md#one-shot-from-a-shell)).
-  `orkeon-code.ps1` has no `run` yet (#115).
+  `orkeon-code.ps1` has no `run` yet: on Windows, run the bash launcher from Git Bash or WSL; #115 delivered the
+  bash side only.
 
 ### Fixed — an install with no runtime to download says so
 

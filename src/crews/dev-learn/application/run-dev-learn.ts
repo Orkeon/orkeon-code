@@ -28,7 +28,7 @@ import {
 } from "../../../shared/domain/dev/learn-proposals.ts";
 import type { AxisProposal, DroppedMotif, Motif, ProposalsFile } from "../../../shared/domain/dev/learn-proposals.ts";
 import { sha1Hex } from "../../../shared/domain/sha1.ts";
-import { LEARN_ANSWER_SCHEMA, checkLearnAnswer, motifLabel } from "../domain/learn-answer.ts";
+import { LEARN_ANSWER_SCHEMA, checkForOwnerReview, checkLearnAnswer, motifLabel } from "../domain/learn-answer.ts";
 import type { AnswerMotif, LearnAnswer } from "../domain/learn-answer.ts";
 import { matchOwner, reviewOwner } from "../domain/owner-lines.ts";
 import type { OwnerLinesBlock, OwnerReview } from "../domain/owner-lines.ts";
@@ -247,9 +247,9 @@ function unchangedSince(previous: ProposalsFile | null, axis: string, shown: rea
 /** What the owner files say against a checked answer: the problems of a re-ask and the owner lines shown with them. */
 interface OwnerFindings { problems: string[]; blocks: OwnerLinesBlock[] }
 
-/** Two attempts. A first answer refused on shape spends the second on its problems, as before; when its only fault
- *  is a status other than new, given before any owner line was shown, the second attempt also shows the owner
- *  lines of its motifs. A first answer that passes is reviewed against its owners; when they raise problems, the
+/** Two attempts. A first answer refused on shape spends the second on its problems, as before; when its only faults
+ *  are a status other than new given before any owner line was shown, or the status or removed lines of an Orkeon
+ *  Code motif, the second attempt also shows the owner lines of its motifs. A first answer that passes is reviewed against its owners; when they raise problems, the
  *  second attempt shows them with the owner lines, and a second answer that fails its check leaves the first one
  *  standing. */
 async function ask(
@@ -272,7 +272,7 @@ async function ask(
     if (!checked.ok) {
       if (first !== null) return { ok: true, answer: first };
       problems = checked.problems;
-      const seen = attempt === 0 ? checkLearnAnswer(value, shownIds, true) : null;
+      const seen = attempt === 0 ? checkForOwnerReview(value, shownIds) : null;
       if (seen?.ok) {
         const findings = await review(seen.value);
         problems = [...problems, ...findings.problems];

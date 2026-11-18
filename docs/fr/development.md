@@ -109,8 +109,8 @@ montées mineures et de correctif ; la majeure se monte à la main, avec `.nvmrc
 1. Déplacez les entrées `[Unreleased]` de `CHANGELOG.md` sous `## [x.y.z] - YYYY-MM-DD`.
 2. Montez `version` dans `package.json` et `CLI_VERSION` dans `src/commands/_lib/status/meta.ts` (le test les garde
    égaux), ainsi que les notes de release (`RELEASE_NOTES`) dans `src/commands/_lib/status/messages.ts`.
-3. Lancez `ORKEON_SOURCE=<un checkout d'Orkeon à l'épingle> bash scripts/check-shared-memory.sh` dans un terminal (il demande
-   `rag_eval` ; il lance la sonde par `orkeon-code run`, depuis les sources de l'épingle avec `ORKEON_SOURCE`, sinon
+3. Lancez `ORKEON_SOURCE=<un checkout d'Orkeon à l'épingle> bash scripts/check-shared-memory.sh` (la sonde appelle
+   `rag_eval` depuis son code, hors de la garde des permissions, donc rien n'est demandé, quel que soit le mode ; il lance la sonde par `orkeon-code run`, depuis les sources de l'épingle avec `ORKEON_SOURCE`, sinon
    sur le runner que trouve `orkeon-code run`, dans l'ordre des [Exécutions autonomes et embarquées](headless.md#en-un-coup-depuis-un-shell)) : le rappel de la mémoire
    partagée sur son jeu de référence doit finir sur `check-shared-memory: thresholds met` (recall@5 >= 0.85, MRR >= 0.70).
    La question sans réponse (q13) ne passe que si les réglages du runtime donnent `Orkeon:Rag:Retrieval:MinScore` :

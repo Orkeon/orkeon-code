@@ -16,6 +16,11 @@ export const IDENTITY_ENV_COMMANDS = [
   "export GIT_AUTHOR_EMAIL=<your email> GIT_COMMITTER_EMAIL=<your email>",
 ];
 
+export const IDENTITY_PS_COMMANDS = [
+  "$env:GIT_AUTHOR_NAME = \"<your name>\"; $env:GIT_COMMITTER_NAME = \"<your name>\"",
+  "$env:GIT_AUTHOR_EMAIL = \"<your email>\"; $env:GIT_COMMITTER_EMAIL = \"<your email>\"",
+];
+
 export const RENAME_STATUS = " M a.ts\nR  old.ts -> new.ts\n?? \"with space.md\"\n D gone.ts\nMM a.ts\n";
 
 export const MERGE_FAILURES: ReadonlyArray<{ name: string; stderr: string; notFastForward: boolean }> = [

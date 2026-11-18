@@ -20,8 +20,8 @@ runs from the folder it is extracted in: its `bin/orkeon-repl` finds `libexec/` 
   characters of the pin the archives were built from), the address of `orkeon-runtime-<id>-<platform>.tar.gz` and
   one SHA-256 per platform. The release workflow of Orkeon Code builds these archives from Orkeon at the pin and
   fills the file before it publishes (*amended 2026-11-17, #114: no release builds them yet, see Consequences*). An
-  empty id, in a checkout or in a package whose release published none, downloads nothing: a checkout runs the source
-  mode, an install the other runtimes it finds.
+  empty id, in a checkout or in a package whose release published none, downloads nothing: either one runs the other
+  runtimes it finds.
 - **The launcher downloads it when nothing else is found**: no `ORKEON_REPL`, no `orkeon-repl` on `PATH`, no Docker,
   no `ORKEON_SOURCE`, or `--mode tool` with no `orkeon-repl`. Docker keeps its place when present, so a setup that
   works does not change by itself.
@@ -45,8 +45,9 @@ runs from the folder it is extracted in: its `bin/orkeon-repl` finds `libexec/` 
 - **Amended 2026-11-17 (#114)**: no release builds them yet, and none is required to. `1.0.0-rc.2` shipped an empty
   `.orkeon-runtime` and no runtime asset, and later releases may too: the download stays the mechanism the launcher
   runs for a package that names a runtime, not a promise of every package. Without one, an install takes the
-  `orkeon-repl` of Orkeon's own release archive, Docker or `ORKEON_SOURCE`, and `orkeon-code runtime install` says
-  that the package names no runtime (a checkout says the checkout does). Building the archives would take one job per
+  `orkeon-repl` of Orkeon's own release archive, Docker or `ORKEON_SOURCE`. With no `orkeon-repl` found, `orkeon-code
+  runtime install` says that the package names no runtime (a checkout says the checkout does) and exits 1; with one, it
+  says there is nothing to download, names the runtime used, and exits 0. Building the archives would take one job per
   platform running Orkeon's `scripts/package-installers.sh --rids <rid>` at the pin (the `cli` set carries
   `orkeon-repl` on Linux only, so macOS needs the `full` set), cross-built on Linux, about 120 MB each, and a filled
   `.orkeon-runtime` in both the archive and the npm package.

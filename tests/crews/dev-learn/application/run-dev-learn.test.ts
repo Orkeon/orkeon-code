@@ -14,7 +14,7 @@ import {
   THREE, badThenGoodAnswer, diskFull, earlierRunKeptNoMotif, motifsDroppedByCode, motifsRemovingAKeptLine,
   motifsWithAbsentOwners, newMotifFoundInOwner, noAxisOverThree, oneMotifProposed, ownerLinesThenBadAnswer, recorded,
   removedLineNotInOwner, setup, twoFailedAnswers, MOTIF_1, ownerLinesThenRefusedAnswer, HARNESS_OWNER_LINES,
-  UNSEEN_REFINES_REASK, harnessOwnerHoldsKeyTerm, orkeonCodeOwnerInCheckout, refinesBeforeOwnerLines, REFUSED_LISTED,
+  UNSEEN_REFINES_REASK, MIXED_REFINES_REASK, mixedRefinesBeforeOwnerLines, harnessOwnerHoldsKeyTerm, orkeonCodeOwnerInCheckout, refinesBeforeOwnerLines, REFUSED_LISTED,
 } from "./run-dev-learn.fixtures.ts";
 import { assertNoClaudeWrite, writtenTestAxis } from "./run-dev-learn.assertions.ts";
 import { assertMentions } from "../../../support/assertions/text.ts";
@@ -366,6 +366,17 @@ describe("runDevLearn — the owner lines", () => {
     // Assert
     const [m] = writtenTestAxis(f.files).motifs;
     deepStrictEqual([m.status, m.linesRemoved], ["refines", ["A refusal is part of a command's contract."]]);
+  });
+
+  it("still shows a motif's owner lines on the re-ask when an Orkeon Code motif beside it is refused for its status", async () => {
+    // Arrange
+    const f = mixedRefinesBeforeOwnerLines();
+
+    // Act
+    await runDevLearn({}, f.deps);
+
+    // Assert
+    assertMentions(f.llm.extracts[1].prompt, MIXED_REFINES_REASK);
   });
 
   it("asks once when the code drops every motif the owner lines concern", async () => {

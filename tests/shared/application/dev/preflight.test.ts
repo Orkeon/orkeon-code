@@ -6,7 +6,7 @@ import { deepStrictEqual, ok, strictEqual } from "node:assert";
 
 import { preflight } from "../../../../src/shared/application/dev/preflight.ts";
 import {
-  changedTreeShell, gitShell, INPUT, MISSING_SHEET_AND_CYCLE, noIdentityDetachedShell, PASSED_LINES, UNREADABLE_PLANS,
+  changedTreeShell, failedStatusShell, gitShell, INPUT, MISSING_SHEET_AND_CYCLE, noIdentityDetachedShell, PASSED_LINES, UNREADABLE_PLANS,
 } from "./preflight.fixtures.ts";
 import { assertLineStarting, assertLinesStarting } from "./preflight.assertions.ts";
 
@@ -47,6 +47,18 @@ describe("preflight", () => {
     // Assert
     strictEqual(r.ok, true);
     assertLineStarting(r.lines, "preflight ⚠ tree: 1 change(s) outside the work folder (src/a.ts)");
+  });
+
+  it("warns, without failing, on a git status that fails, with git's reason", async () => {
+    // Arrange
+    const shell = failedStatusShell();
+
+    // Act
+    const r = await preflight({ shell }, INPUT);
+
+    // Assert
+    strictEqual(r.ok, true);
+    assertLineStarting(r.lines, "preflight ⚠ tree: git status failed: fatal: not a git repository");
   });
 
   for (const c of UNREADABLE_PLANS) {

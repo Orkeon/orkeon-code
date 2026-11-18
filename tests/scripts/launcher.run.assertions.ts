@@ -14,6 +14,11 @@ export function assertNothingRun(r: Run): void {
   deepStrictEqual(r.args, [], `a runner started: ${r.args.join(" ")}`);
 }
 
+/** No container was run: the docker stand-in was asked at most whether its engine answers. */
+export function assertNoContainerRun(r: Run): void {
+  ok(!r.args.includes("run"), `a container ran: docker ${r.args.join(" ")}`);
+}
+
 /** The words `seq` appear in the runner's arguments, one after the other. */
 export function assertArgsHold(r: Run, seq: readonly string[]): void {
   const at = r.args.findIndex((_, i) => seq.every((w, k) => r.args[i + k] === w));

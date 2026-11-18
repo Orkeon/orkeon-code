@@ -27,6 +27,9 @@ export const orkeonCodeOwnerListed = (at: string, path: string): string =>
 /** Why an Orkeon Code owner takes status new alone: it is never read here, so no line of it was ever shown. */
 export const orkeonCodeNewOnly = (at: string, status: string): string =>
   `${at}: an Orkeon Code owner is never read here, so its motif takes status new, not ${status}`;
+/** Why a new motif of an Orkeon Code owner removes no line: none of that owner was ever shown. */
+export const orkeonCodeRemovesNothing = (at: string): string =>
+  `${at}: an Orkeon Code owner is never read here, so its motif of status new removes no line: leave lines_removed empty`;
 export const checkIsOneOf = (at: string, kinds: string): string => `${at}: check must be one of ${kinds}`;
 export const statusIs = (at: string): string => `${at}: status must be new, refines, replaces or removes`;
 export const atProblem = (at: string, problem: string): string => `${at}: ${problem}`;

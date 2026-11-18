@@ -109,6 +109,36 @@ export const agentMount = (r: Run) => `${r.root}:/work/agent:ro`;
 /** A file of the checkout given after --, as the container names it. */
 export const MOCK_IN_CONTAINER = ["--llm-mock", "/work/agent/tests/answers.jsonl"];
 export const MOCK_ON_HOST = ["--mode", "docker", "--", "--llm-mock", "<checkout>/tests/answers.jsonl"];
+/** A file of the project given after --, relative from the caller's folder, and the name the container reads. */
+export const PROJECT_MOCK = { "project/answers.jsonl": "{}\n" };
+export const PROJECT_MOCK_ON_HOST = ["--mode", "docker", "--", "--llm-mock", "project/answers.jsonl"];
+export const PROJECT_MOCK_IN_CONTAINER = ["--llm-mock", "/work/project/answers.jsonl"];
+/** A file of the caller's folder, outside the project and the checkout: the container does not see it. */
+export const CALLER_MOCK = { "answers.jsonl": "{}\n" };
+export const CALLER_MOCK_IN_DOCKER = ["--mode", "docker", "--", "--llm-mock", "answers.jsonl"];
+export const DOCKER_OUTSIDE_FILE = ["in docker mode the container sees only the project and the checkout", "put it under the project"];
+
+/** The words given to `orkeon run` that the launcher leaves or makes absolute: only the value of a path option of
+ *  `orkeon run` after --, in both spellings, is resolved from the caller's folder. */
+export interface ResolvedCase { name: string; args: string[]; files: Record<string, string>; tail: (r: Run) => string[] }
+export const RESOLVED_CASES: readonly ResolvedCase[] = [
+  {
+    name: "hands the value of --llm-mock=FILE after -- over absolute, as --llm-mock FILE",
+    args: ["--", "--llm-mock=answers.jsonl"], files: CALLER_MOCK, tail: (r) => [`--llm-mock=${callerFile(r, "answers.jsonl")}`],
+  },
+  {
+    name: "hands the value of --inputs-file after -- over absolute, a path option of orkeon run",
+    args: ["--", "--inputs-file", "inputs.json"], files: { "inputs.json": "{}\n" }, tail: (r) => ["--inputs-file", callerFile(r, "inputs.json")],
+  },
+  {
+    name: "passes the value of an option that takes no path as given, though it names a file of the caller's folder",
+    args: ["--", "-v", "2"], files: { "2": "" }, tail: () => ["-v", "2"],
+  },
+  {
+    name: "passes a word given before -- as given, though it names a file of the caller's folder",
+    args: ["answers.jsonl"], files: CALLER_MOCK, tail: () => ["answers.jsonl"],
+  },
+];
 
 /** Where `npm ci` leaves esbuild's binary in a clone, and no esbuild named in the environment. */
 export const NPM_ESBUILD = "node_modules/@esbuild/linux-x64/bin/esbuild";

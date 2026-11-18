@@ -1,8 +1,8 @@
 // The renderer of /dev-plan: a checked PlanAnswer, the inventory behind its anchors and
 // the review become the global plan `<P>-PLAN.md` and one sheet `<P>-PLAN-F<k>.md` per
-// batch. Pure, no IO. It is the only writer of the plan's format literals - headings, table
-// headers, the box and TDD lines - which the harness and L-1 read back by pattern; every
-// other sentence is this project's. It never checks the answer: checkPlanAnswer did.
+// batch. Pure, no IO. It writes the plan's format - headings, table headers, the box and
+// TDD lines - which plan-format.ts and sheet-facts.ts read back by the patterns of
+// shared/domain/dev/markers.ts. It never checks the answer: checkPlanAnswer did.
 
 import { BLOCKED_STATE } from "../../../shared/domain/dev/markers.ts";
 import { DESIGN_RULE_IDS } from "../../../shared/domain/dev/design-rules.ts";

@@ -5,9 +5,10 @@ import { after, describe, it } from "node:test";
 import { ok, strictEqual } from "node:assert";
 import { existsSync } from "node:fs";
 import { PTY, RUNTIME_PIN, launch, removeScratch } from "./launcher.fixtures.ts";
-import { assertSays } from "./launcher.assertions.ts";
+import { assertLacks, assertSays } from "./launcher.assertions.ts";
 import {
-  AGREED, CHECKOUT_NAMES_NONE, DOCKER, EMPTY_MANIFEST, NO_TERMINAL, NOTHING_TO_DOWNLOAD, PACKAGE_NAMES_NONE, QUESTION, RUNTIME_ID, TOOL,
+  AGREED, CHECKOUT_NAMES_NONE, DOCKER, DOTNET_STAND_IN, EMPTY_MANIFEST, NO_TERMINAL, NOTHING_TO_DOWNLOAD, PACKAGE_NAMES_NONE, QUESTION,
+  REPL_NAMES_NONE, REPL_NOT_FOUND_CASES, RUNTIME_ID, TOOL,
   VERSION_NONE, WRONG_SUM, homeWithRuntime, installStart, manifest, runtimeHome,
 } from "./launcher.runtime.fixtures.ts";
 import {
@@ -274,6 +275,22 @@ describe("orkeon-code runtime install and remove", () => {
     assertSays(r.stdout, NOTHING_TO_DOWNLOAD);
     assertNothingDownloaded(r, runtimeHome(r));
   });
+
+  for (const c of REPL_NOT_FOUND_CASES) {
+    it(`install refuses with 1, claiming no runtime, when the package names none and ORKEON_REPL names ${c.name}`, () => {
+      // Arrange
+      const env = { ORKEON_REPL: c.repl };
+      const start = installStart({ args: ["runtime", "install"], bare: true, manifest: EMPTY_MANIFEST, bin: DOTNET_STAND_IN, env });
+
+      // Act
+      const r = launch(start);
+
+      // Assert
+      strictEqual(r.status, 1, r.stdout);
+      assertSays(r.stderr, REPL_NAMES_NONE);
+      assertLacks(r.stdout, ["the runtime used is"], "a runtime ORKEON_REPL does not reach is claimed by nothing");
+    });
+  }
 
   it("remove deletes the downloaded runtime", () => {
     // Arrange

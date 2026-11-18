@@ -138,7 +138,10 @@ runs inside the container.
 The image sets no git identity, and git reads no `~/.gitconfig` there (Orkeon #404), so the launcher hands the
 container `GIT_AUTHOR_NAME`, `GIT_AUTHOR_EMAIL`, `GIT_COMMITTER_NAME` and `GIT_COMMITTER_EMAIL`: each one you export is
 kept, and an unset one is taken from your git's `user.name` or `user.email` for the project (`git config` in the
-workspace). With neither, `/commit` stops at the identity and says which variables to export.
+workspace). With neither, `/commit` stops at the identity and says which variables to export. This needs an image of
+Orkeon `1.3.0` or later: git in the image, and the `GIT_*` variables passed on by `shell_command`. Docker mode runs
+the `ghcr.io/orkeon/orkeon:latest` already on your machine and never pulls it again: `docker pull
+ghcr.io/orkeon/orkeon:latest` updates it.
 
 The launcher checks that the engine answers before it starts the container: when Docker Desktop or the Docker service
 is stopped, it says so and starts nothing.
@@ -164,7 +167,9 @@ No package published so far names a runtime: the `.orkeon-runtime` of every rele
 empty, and its release carries no runtime archive. On a machine with neither `orkeon-repl`, Docker nor
 `ORKEON_SOURCE`, install `orkeon-repl` from Orkeon's release archive
 ([Tool mode](#tool-mode-orkeon-repl-installed)); `orkeon-code --version` then says `found: <version> (orkeon-repl,
-…/VERSION)`. `orkeon-code runtime install` says the package names no runtime to download, and exits 1.
+…/VERSION)`. With no `orkeon-repl` found (on PATH, or the one `ORKEON_REPL` names), `orkeon-code runtime install` says
+the package names no runtime to download, and exits 1; with one, it says there is nothing to download and names the
+`orkeon-repl` used, and exits 0.
 
 What follows is what the launcher does for a package that names one. A package whose release published runtime archives names them in `.orkeon-runtime`: the seven characters of the pin
 they were built from, their address and one SHA-256 per platform (`linux-x64`, `linux-arm64`, `osx-x64`,

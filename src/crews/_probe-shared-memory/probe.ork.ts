@@ -12,9 +12,9 @@
 //   3. runs the repository's own recallEntries on the same collection for q08 (the superseded id is
 //      never kept) and q13 (buildPrecedentsBlock renders no block);
 //   4. prints a PASS/FAIL table and a last line `shared-memory probe: PASS|FAIL`.
-// rag_eval declares an edit (Orkeon #223: it re-ingests the corpus and writes its reports), so the catalogue offers
-// it in the writing modes alone and the gate asks about it in `default`: run the probe in `acceptEdits` or
-// `bypassPermissions`. q13 holds only when the run's settings set a retrieval score floor
+// rag_eval declares an edit (Orkeon #223: it re-ingests the corpus and writes its reports), but the body calls it
+// from code, not through an act: the permission gate judges only an act's tool calls, so the call runs in every
+// mode and nothing is asked. q13 holds only when the run's settings set a retrieval score floor
 // (Orkeon:Rag:Retrieval:MinScore; none by default, then every query returns passages).
 //
 // Run:  bash scripts/check-shared-memory.sh

@@ -252,6 +252,30 @@ export const UNSEEN_REFINES_REASK: readonly string[] = [
   `\nOwner lines found for ${motifLabel(1, "Refusal paths go untested")} (CONTRIBUTING.md):\n${OWNER_LINE}`,
 ];
 
+/** The fixture whose first answer mixes an Orkeon Code motif of status refines, refused for it, with a repository
+ *  motif refining a line of CONTRIBUTING.md it was not shown; the second answer gives the first one status new. */
+export function mixedRefinesBeforeOwnerLines() {
+  const f = setup();
+  const orkeon = {
+    title: "Audits skip the refusal texts", topic: "audit-refusals", rows: [T.ledger1, T.ledger3, T.exports],
+    owner_kind: "orkeon-code", owner_path: "docs/crew-prompts.md", check: "rule",
+  };
+  const refines = motif({ status: "refines", lines_removed: ["A refusal is part of a command's contract."] });
+  f.llm.extractions = [
+    { motifs: [motif({ ...orkeon, status: "refines", lines_removed: ["An old line."] }), refines] },
+    { motifs: [motif(orkeon), refines] },
+  ];
+  return f;
+}
+
+/** What the re-ask of mixedRefinesBeforeOwnerLines shows: the Orkeon Code motif's refusal, then the owner lines of
+ *  the repository motif. */
+export const MIXED_REFINES_REASK: readonly string[] = [
+  `- ${motifLabel(1, "Audits skip the refusal texts")}: an Orkeon Code owner is never read here, so its motif takes ` +
+    "status new, not refines",
+  `\nOwner lines found for ${motifLabel(2, "Refusal paths go untested")} (CONTRIBUTING.md):\n${OWNER_LINE}`,
+];
+
 /** An earlier run of 2026-10-20 that kept no motif for the Test axis's rows. */
 export const EARLIER_NO_MOTIF: ProposalsFile = {
   version: 1, date: "2026-10-20", work: "workbench",

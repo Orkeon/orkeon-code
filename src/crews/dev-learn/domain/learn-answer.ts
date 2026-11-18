@@ -5,7 +5,7 @@ import type { Checked } from "../../../shared/domain/agents/charter.ts";
 import type { CheckKind, MotifStatus, OwnerKind } from "../../../shared/domain/dev/learn-proposals.ts";
 import { isHarnessRule } from "../../../shared/domain/dev/learn-proposals.ts";
 import { MAX_TOPIC_CHARS, TOPIC_PATTERN } from "../../../shared/domain/shared-memory/refused.ts";
-import { MOTIFS_MUST_BE_LIST, SEEN_LINES_ONLY, addsLines, atProblem, checkIsOneOf, deployedCopy, droppedNeeds, harnessOwnerUnder, orkeonCodeNewOnly, orkeonCodeOwnerListed, lineLength, needsRemovedLine, ownerKindIs, ownerPathNotRelative, removesLines, rowNotGiven, rowTwice, rowsEmpty, sameRows, statusIs, titleLength, tooManyMotifs, topicNotSlug } from "./messages.ts";
+import { MOTIFS_MUST_BE_LIST, SEEN_LINES_ONLY, addsLines, atProblem, checkIsOneOf, deployedCopy, droppedNeeds, harnessOwnerUnder, orkeonCodeNewOnly, orkeonCodeOwnerListed, orkeonCodeRemovesNothing, lineLength, needsRemovedLine, ownerKindIs, ownerPathNotRelative, removesLines, rowNotGiven, rowTwice, rowsEmpty, sameRows, statusIs, titleLength, tooManyMotifs, topicNotSlug } from "./messages.ts";
 import { HARNESS_DESTINATIONS, ORKEON_CODE_DESTINATIONS } from "./markers.ts";
 import { ANSWER_NOT_AN_OBJECT as NOT_AN_OBJECT, fieldEmpty } from "../../../shared/domain/dev/messages.ts";
 
@@ -114,8 +114,12 @@ function isRelativePath(raw: unknown): boolean {
   return !p.split("/").includes("..");
 }
 
+/** What a check holds a motif to. ownerLinesShown: whether the prompt that gave the answer showed owner lines.
+ *  orkeonCodeRules: whether an Orkeon Code motif's status and removed lines are checked. */
+interface MotifRules { ownerLinesShown: boolean; orkeonCodeRules: boolean }
+
 function checkMotif(
-  value: unknown, k: number, shownIds: ReadonlySet<string>, ownerLinesShown: boolean, problems: string[],
+  value: unknown, k: number, shownIds: ReadonlySet<string>, rules: MotifRules, problems: string[],
 ): AnswerMotif | undefined {
   const item = isPlainObject(value) ? value : {};
   const before = problems.length;
@@ -159,11 +163,16 @@ function checkMotif(
   if (!CHECK_KINDS.includes(check)) problems.push(checkIsOneOf(at, CHECK_KINDS.join(", ")));
   const status = text(item.status) as MotifStatus;
   if (!STATUSES.includes(status)) problems.push(statusIs(at));
-  else if (status !== "new" && kind === "orkeon-code") problems.push(orkeonCodeNewOnly(at, status));
-  else if (status !== "new" && !ownerLinesShown) problems.push(atProblem(at, SEEN_LINES_ONLY(status)));
+  else if (status !== "new" && kind === "orkeon-code") {
+    if (rules.orkeonCodeRules) problems.push(orkeonCodeNewOnly(at, status));
+  } else if (status !== "new" && !rules.ownerLinesShown) problems.push(atProblem(at, SEEN_LINES_ONLY(status)));
 
   const removed = lines(item.lines_removed);
   const added = lines(item.lines_added);
+  // A new motif of an Orkeon Code owner takes out no line: none of that owner was ever shown, so one would be invented.
+  if (rules.orkeonCodeRules && status === "new" && kind === "orkeon-code" && (removed ?? []).some((l) => l !== "")) {
+    problems.push(orkeonCodeRemovesNothing(at));
+  }
   const linesRule = status === "removes" ? REMOVES_LINES : ADDS_LINES;
   if (added === null || removed === null || removed.length > MAX_LINES_PER_MOTIF) {
     problems.push(`${at}: ${linesRule}`);
@@ -211,11 +220,7 @@ function checkDropped(value: unknown, problems: string[]): AnswerDropped[] {
   return out;
 }
 
-/** shownIds: the ids handed to the model; an id outside them is a problem. ownerLinesShown: whether the prompt that
- *  gave this answer showed owner lines; without them, a status other than new is a problem. */
-export function checkLearnAnswer(
-  value: unknown, shownIds: ReadonlySet<string>, ownerLinesShown: boolean,
-): Checked<LearnAnswer> {
+function checkAnswer(value: unknown, shownIds: ReadonlySet<string>, rules: MotifRules): Checked<LearnAnswer> {
   if (!isPlainObject(value)) return { ok: false, problems: [NOT_AN_OBJECT] };
   if (!Array.isArray(value.motifs)) return { ok: false, problems: [MOTIFS_MUST_BE_LIST] };
   const problems: string[] = [];
@@ -224,7 +229,7 @@ export function checkLearnAnswer(
   // A motif's id hashes its axis and its rows: two motifs of one set of rows would share it, and one decision.
   const rowSets = new Map<string, number>();
   value.motifs.forEach((m, i) => {
-    const motif = checkMotif(m, i + 1, shownIds, ownerLinesShown, problems);
+    const motif = checkMotif(m, i + 1, shownIds, rules, problems);
     if (!motif) return;
     motifs.push(motif);
     const key = [...motif.rows].sort().join(",");
@@ -234,4 +239,20 @@ export function checkLearnAnswer(
   });
   const dropped = checkDropped(value.dropped, problems);
   return problems.length > 0 ? { ok: false, problems } : { ok: true, value: { motifs, dropped } };
+}
+
+/** shownIds: the ids handed to the model; an id outside them is a problem. ownerLinesShown: whether the prompt that
+ *  gave this answer showed owner lines; without them, a status other than new is a problem. */
+export function checkLearnAnswer(
+  value: unknown, shownIds: ReadonlySet<string>, ownerLinesShown: boolean,
+): Checked<LearnAnswer> {
+  return checkAnswer(value, shownIds, { ownerLinesShown, orkeonCodeRules: true });
+}
+
+/** An answer refused only for what its owners would settle, read as the owner review reads it: with the owner lines
+ *  shown, and an Orkeon Code motif's status and removed lines left unchecked, since its owner is never read and so
+ *  shows no line. The refusals of that motif stay with the answer's own check; the other motifs still have their
+ *  owner lines shown on the second try. */
+export function checkForOwnerReview(value: unknown, shownIds: ReadonlySet<string>): Checked<LearnAnswer> {
+  return checkAnswer(value, shownIds, { ownerLinesShown: true, orkeonCodeRules: false });
 }

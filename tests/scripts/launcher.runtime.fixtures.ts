@@ -51,6 +51,14 @@ export const PACKAGE_NAMES_NONE = ["this package names no runtime to download", 
 export const CHECKOUT_NAMES_NONE = ["this checkout names no runtime to download"];
 /** What runtime install says when the package names no runtime and the user's orkeon-repl is on PATH. */
 export const NOTHING_TO_DOWNLOAD = ["nothing to download (.orkeon-runtime names no runtime): the runtime used is", "/orkeon-repl"];
+/** ORKEON_REPL naming no runtime of this machine: a program not found, an assembly not there. */
+export const REPL_NOT_FOUND_CASES: readonly { name: string; repl: string }[] = [
+  { name: "a program that is not found", repl: "no-such-repl" },
+  { name: "an assembly that is not there", repl: "dotnet /no/such/Orkeon.ConsoleApp.dll" },
+];
+export const REPL_NAMES_NONE = ["nothing to download (.orkeon-runtime names no runtime), and ORKEON_REPL names no runtime found here"];
+export const DOTNET_STAND_IN = { dotnet: recorder() };
+
 /** The second line of --version in an install that names no runtime, on a machine with none. */
 export const VERSION_NONE = (pin: string) => `Orkeon ${pin} expected, found: none (see docs/getting-started.md)`;
 

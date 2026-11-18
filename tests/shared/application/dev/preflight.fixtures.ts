@@ -29,6 +29,13 @@ export function changedTreeShell(): FakeShell {
   return shell;
 }
 
+/** gitShell, but git status fails: no repository where the shell runs. */
+export function failedStatusShell(): FakeShell {
+  const shell = gitShell();
+  shell.results[GIT_STATUS_COMMAND] = { exitCode: 128, stderr: "fatal: not a git repository\n" };
+  return shell;
+}
+
 /** A readable plan of three batches, every sheet there, ordered F1 → F2 → F3. */
 export const INPUT: PreflightInput = {
   planShown: "workbench/demo/DEMO-PLAN.md", problems: [], batches: 3, missingSheets: [],

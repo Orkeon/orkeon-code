@@ -138,7 +138,9 @@ L'image ne fixe aucune identité git, et git n'y lit aucun `~/.gitconfig` (Orkeo
 conteneur `GIT_AUTHOR_NAME`, `GIT_AUTHOR_EMAIL`, `GIT_COMMITTER_NAME` et `GIT_COMMITTER_EMAIL`. Chacune que vous
 exportez est gardée, et une absente est prise du `user.name` ou du `user.email` de votre git pour le projet
 (`git config` dans l'espace de travail). Sans l'une ni l'autre, `/commit` s'arrête sur l'identité et dit quelles
-variables exporter.
+variables exporter. Il faut pour cela une image d'Orkeon `1.3.0` ou plus récente : git dans l'image, et les variables
+`GIT_*` transmises par `shell_command`. Le mode docker exécute l'`ghcr.io/orkeon/orkeon:latest` déjà présente sur votre
+machine et ne la tire plus jamais : `docker pull ghcr.io/orkeon/orkeon:latest` la met à jour.
 
 Le lanceur vérifie que le moteur répond avant de démarrer le conteneur : si Docker Desktop ou le service Docker est
 arrêté, il le dit et ne démarre rien.
@@ -166,7 +168,9 @@ Aucun paquet publié à ce jour ne nomme de runtime : le `.orkeon-runtime` de ch
 vide, et sa release ne porte aucune archive du runtime. Sur une machine sans `orkeon-repl`, sans Docker et sans
 `ORKEON_SOURCE`, installez `orkeon-repl` depuis l'archive de release d'Orkeon
 ([Mode tool](#mode-tool--orkeon-repl-installé)) ; `orkeon-code --version` dit alors `found: <version> (orkeon-repl,
-…/VERSION)`. `orkeon-code runtime install` dit que le paquet ne nomme aucun runtime à télécharger, et sort avec 1.
+…/VERSION)`. Sans `orkeon-repl` trouvé (sur le PATH, ou celui que nomme `ORKEON_REPL`), `orkeon-code runtime install`
+dit que le paquet ne nomme aucun runtime à télécharger, et sort avec 1 ; avec un, il dit qu'il n'y a rien à télécharger
+et nomme l'`orkeon-repl` utilisé, et sort avec 0.
 
 La suite décrit ce que fait le lanceur pour un paquet qui en nomme un. Un paquet dont la release a publié des archives du runtime les nomme dans `.orkeon-runtime` : les sept caractères de
 l'épingle dont elles sont construites, leur adresse et un SHA-256 par plateforme (`linux-x64`, `linux-arm64`,

@@ -227,9 +227,15 @@ export const acceptedHarness = (id: string, title: string): string =>
 export const acceptedOrkeonCode = (id: string, title: string): string =>
   `accepted ${id} — ${title}: an Orkeon Code file is never edited here; apply this in the orkeon-code repository, ` +
   "a document with its French twin under docs/fr/, a prompt's behaviour first (ADR 0003):";
-export const acceptedRemovedHarness = (id: string, title: string, path: string): string =>
-  `accepted ${id} — ${title}: ${path} is a file the harness removed, not a rule of a repository pack: ` +
-  "no patch to apply; run /dev-learn again for a current owner";
+/** A harness owner that is no rule of a repository pack (one of a proposals.json from before the rule): /dev-learn
+ *  has no patch for it now, whether the file still exists or not. */
+export const acceptedNotAHarnessRule = (id: string, title: string, path: string): string =>
+  `accepted ${id} — ${title}: ${path} is not a rule of a repository pack, the only harness file /dev-learn ` +
+  "patches now: no patch to apply; run /dev-learn again for a current owner";
+/** An Orkeon Code owner off its rules (one of a proposals.json from before them, or edited by hand). */
+export const acceptedNotAnOrkeonCodeChange = (id: string, title: string, path: string): string =>
+  `accepted ${id} — ${title}: /dev-learn patches ${path} only as a listed Orkeon Code destination, with status new ` +
+  "and no line removed, which this motif is not: no patch to apply; run /dev-learn again for a current owner";
 export const acceptedRepository = (id: string, title: string, path: string): string =>
   `accepted ${id} — ${title}: ${path} is not edited by /dev-learn; make the change in a batch (/dev-spec <code> refactor, or by hand):`;
 

@@ -1,7 +1,7 @@
 // The answers checkLearnAnswer is tested on: a valid motif on the wire, the rows shown to the model, and one case per
 // refusal of the design's table.
 import {
-  LABEL_TITLE_CHARS, MAX_LINES_PER_MOTIF, MAX_TOPIC_CHARS, checkLearnAnswer, motifLabel,
+  LABEL_TITLE_CHARS, MAX_LINES_PER_MOTIF, MAX_TOPIC_CHARS, checkForOwnerReview, checkLearnAnswer, motifLabel,
 } from "../../../../src/crews/dev-learn/domain/learn-answer.ts";
 import { SEEN_LINES_ONLY } from "../../../../src/crews/dev-learn/domain/messages.ts";
 import { WORKSPACE } from "../../../../src/shared/domain/vfs.ts";
@@ -135,6 +135,12 @@ export const MOTIF_CASES: readonly MotifCase[] = [
     problem: `${AT}: an Orkeon Code owner is never read here, so its motif takes status new, not ${status}`,
   })),
   {
+    name: "Orkeon Code owner with status new and a line removed",
+    over: { owner_kind: "orkeon-code", owner_path: "docs/crew-prompts.md", lines_removed: ["Invented line."] },
+    problem: `${AT}: an Orkeon Code owner is never read here, so its motif of status new removes no line: ` +
+      "leave lines_removed empty",
+  },
+  {
     name: "Orkeon Code owner not among its destinations", over: { owner_kind: "orkeon-code", owner_path: "docs/turn.md" },
     problem: `${AT}: 'docs/turn.md' is not an Orkeon Code destination: name one of the files listed`,
   },
@@ -160,6 +166,29 @@ export const MOTIF_CASES: readonly MotifCase[] = [
     problem: `${AT}: ${REMOVES}`,
   },
 ];
+
+export interface ReviewCase { name: string; over: Record<string, unknown> }
+
+/** The Orkeon Code motifs the answer check refuses and the owner review reads past: each status that copies a line,
+ *  and a new one that removes a line. */
+export const OWNER_REVIEW_CASES: readonly ReviewCase[] = [
+  ...(["refines", "replaces", "removes"] as const).map((status) => ({
+    name: `reads past an Orkeon Code motif of status ${status}`, over: orkeonCodeStatus(status),
+  })),
+  {
+    name: "reads past an Orkeon Code motif of status new that removes a line",
+    over: { owner_kind: "orkeon-code", owner_path: "docs/crew-prompts.md", lines_removed: ["Invented line."] },
+  },
+];
+
+/** The problems checkForOwnerReview finds in `value`, none when it passes. */
+export const reviewProblemsOf = (value: unknown): string[] => {
+  const r = checkForOwnerReview(value, SHOWN);
+  return r.ok ? [] : r.problems;
+};
+
+/** A first answer that refines a repository owner's line unseen. */
+export const UNSEEN_REFINES_ANSWER = { motifs: [motif({ status: "refines", lines_removed: ["Old line."] })] };
 
 export interface UnseenStatusCase { name: string; over: Record<string, unknown>; problem: string }
 

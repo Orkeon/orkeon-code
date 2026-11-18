@@ -13,19 +13,20 @@ import { FakeFiles } from "../../../support/doubles/fake-files.ts";
 import { FakeLlm } from "../../../support/doubles/fake-llm.ts";
 import { FakeShell } from "../../../support/doubles/fake-shell.ts";
 import {
-  ADD, COMMIT, FEATURE_TREE, LONG_TREE, MESSAGE, NOTE, NOTED_TREE, PROBES, SEL, TREE, scopedSetup, treeShell, untrackedSetup,
+  ADD, COMMIT, FEATURE_SCOPE, FEATURE_TREE, LONG_TREE, MESSAGE, NOTE, NOTED_TREE, PROBES, SEL, TREE, scopedSetup, treeShell, untrackedSetup,
 } from "./draft.fixtures.ts";
 import { assertMentions } from "../../../support/assertions/text.ts";
 import { WORKSPACE } from "../../../../src/shared/domain/vfs.ts";
 import { linkedWorktreeFiles } from "../../../support/fixtures/linked-worktree-files.ts";
 
 describe("inspectWorkTree", () => {
-  it("snapshots status, diff, branch (trimmed) and history", async () => {
+  it("snapshots the selected files' status and diff, the branch (trimmed) and history", async () => {
     // Arrange
     const shell = treeShell();
+    const files = new FakeFiles();
 
     // Act
-    const tree = await inspectWorkTree(shell);
+    const tree = await inspectWorkTree(shell, files, FEATURE_SCOPE);
 
     // Assert
     deepStrictEqual(tree, FEATURE_TREE);
@@ -33,10 +34,10 @@ describe("inspectWorkTree", () => {
 
   it("reads the start of each untracked file, which git diff HEAD does not show", async () => {
     // Arrange
-    const { shell, files } = untrackedSetup();
+    const { shell, files, scope } = untrackedSetup();
 
     // Act
-    const tree = await inspectWorkTree(shell, files);
+    const tree = await inspectWorkTree(shell, files, scope);
 
     // Assert
     deepStrictEqual(tree.untracked, [{ path: "src/new.ts", content: "export const x = 1;\n" }]);

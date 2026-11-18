@@ -18,7 +18,7 @@ import { dirname, join } from "node:path";
 import {
   ARCHIVE_VERSION, BASH_GATE, BLOCK, BUILDING_LINE, CODE_VERSION, CORRUPT_STORES, DEB_WRAPPER, DOTNET, CONSOLE_APP_DLL, ESBUILD, EXAMPLE_SETTINGS,
   DOCKER_ENGINE_DOWN, EXAMPLE_SETTINGS_FILES, FOLLOWED_CHECKOUTS, GATE, KEPT_CHECKOUTS, KEEP_OUT_OF_RANGE, LARGE_ENV, NO_FILE_SETTINGS, NOT_AT_THE_PIN, OLLAMA_AND_EXISTING, PERSIST, PINNED_SDK, PROJECT_NAMES, PS1_ARGS_LOOP,
-  PS1_CLONE_OR_INSTALL, PS1_DOCKER_ENGINE, PS1_DOCKER_TTY, PS1_FINGERPRINT, PS1_FROM_PROJECT, PS1_GATE, PS1_MODES, PS1_MEMORY_MOUNT, PS1_SESSION_MOUNTS, PS1_SESSIONS, PS1_SET_VARIABLES,
+  PS1_BASH_ONLY, PS1_CLONE_OR_INSTALL, PS1_DOCKER_ENGINE, PS1_DOCKER_TTY, PS1_FINGERPRINT, PS1_FROM_PROJECT, PS1_GATE, PS1_MODES, PS1_MEMORY_MOUNT, PS1_SESSION_MOUNTS, PS1_SESSIONS, PS1_SET_VARIABLES,
   PS1_SETTINGS, PS1_SLUG, PS1_SPEECH, PS1_STORE_LAYOUT, PS1_SUBCOMMANDS, PS1_TRUST_CHECK, PS1_TRUST_REFUSAL, PS1_USER_SETTINGS,
   PS1_VERSION_LINES, PTY, PWSH, RESTORED_IN_FINALLY, RESTORED_NAMES, ROOTS, RUNTIME_SETTINGS, RUNTIME_SLUGS, RUNTIME_PIN, RUNTIME_REF,
   SERVER_CASES, SERVER_LEFT_OUT, FINGERPRINT, FINGERPRINT_PATH, MEMORY_DIR, SESSIONS_DIR, SETTINGS_TEXT, SETTINGS_WITH_BLOCK, SLUG_PATHS, SPEECH_TOOL, START_SCRIPT, TOOL_REPL,
@@ -420,7 +420,7 @@ describe("orkeon-code, docker mode, the identity of a commit (Orkeon #404)", () 
     const bin = { docker: recorder() };
 
     // Act
-    const r = launch({ args: ["--mode", "docker"], bin });
+    const r = launch({ args: ["--mode", "docker"], bin, env: { GIT_CONFIG_NOSYSTEM: "1" } });
 
     // Assert
     deepStrictEqual(identityVarsForwarded(r.args), []);
@@ -1194,6 +1194,17 @@ describe("orkeon-code.ps1 follows the same rules (read here; run below, where pw
     assertMentions(script, PS1_MODES);
   });
 
+  it("refuses the bash launcher's run and runtime with exit 1, saying where they run", () => {
+    // Arrange
+    const launcher = "orkeon-code.ps1";
+
+    // Act
+    const script = read(launcher);
+
+    // Assert
+    assertMentions(script, PS1_BASH_ONLY);
+  });
+
   it("puts back every variable it sets, so none stays in the calling session", () => {
     // Arrange
     const launcher = "orkeon-code.ps1";
@@ -1229,6 +1240,28 @@ describe("orkeon-code.ps1, run where pwsh is installed", { skip: PWSH ? false : 
       deepStrictEqual([r.status, r.stderr.includes(`'${sub}' is not available in orkeon-code.ps1`), r.args], [1, true, []]);
     });
   }
+
+  it("hands the four git identity variables to the container when they are exported, as ./orkeon-code does (Orkeon #404)", () => {
+    // Arrange
+    const env = { GIT_AUTHOR_NAME: "Ada", GIT_AUTHOR_EMAIL: "a@x", GIT_COMMITTER_NAME: "Ada", GIT_COMMITTER_EMAIL: "a@x" };
+
+    // Act
+    const r = launch({ shell: "pwsh", args: ["-Mode", "docker"], bin: { docker: recorder() }, env });
+
+    // Assert
+    deepStrictEqual(identityVarsForwarded(r.args), IDENTITY_VARS);
+  });
+
+  it("takes the identity the host's git gives when none is exported, as ./orkeon-code does (Orkeon #404)", () => {
+    // Arrange
+    const files = { ".gitconfig": HOST_GITCONFIG };
+
+    // Act
+    const r = launch({ shell: "pwsh", args: ["-Mode", "docker"], bin: { docker: recorder() }, files });
+
+    // Assert
+    deepStrictEqual([r.env.get("GIT_AUTHOR_NAME"), r.env.get("GIT_COMMITTER_EMAIL")], ["Ada Host", "ada@host.example"]);
+  });
 
   it("hands the github token variables to the container as ./orkeon-code does, none when none is exported (Orkeon #222)", () => {
     // Arrange

@@ -8,7 +8,8 @@ import { LEARN_ANSWER_SCHEMA, checkLearnAnswer, motifLabel } from "../../../../s
 import {
   ANSWER_CASES, HARNESS_OWNER_ANSWER, LABEL_CASES, MAPPED_ANSWER, MOTIF_CASES, ORKEON_CODE_OWNER_ANSWER, REMOVES_ANSWER,
   SAME_ROWS_ANSWER, SCHEMA_WORDS,
-  SHOWN, THREE_BAD_MOTIFS, UNSEEN_STATUS_CASES, motif, problemsOf,
+  OWNER_REVIEW_CASES, SHOWN, THREE_BAD_MOTIFS, UNSEEN_REFINES_ANSWER, UNSEEN_STATUS_CASES, motif, problemsOf,
+  reviewProblemsOf,
 } from "./learn-answer.fixtures.ts";
 import { assertProblem, assertQuotesWords } from "./learn-answer.assertions.ts";
 
@@ -170,6 +171,43 @@ describe("checkLearnAnswer — each refusal", () => {
       "motif 2: title must be 1 to 80 characters", "motif 2: key_term is empty",
       'motif 3 "Refusal paths go untested": the same rows as motif 1: merge them into one motif',
     ]);
+  });
+});
+
+describe("checkForOwnerReview", () => {
+  for (const c of OWNER_REVIEW_CASES) {
+    it(`${c.name}, so the owner lines of the motif beside it are still shown`, () => {
+      // Arrange
+      const answer = { motifs: [motif({ ...c.over, rows: ["c936075d95", "b983faad38", "7b3b561c93"] }), motif()] };
+
+      // Act
+      const problems = reviewProblemsOf(answer);
+
+      // Assert
+      deepStrictEqual(problems, []);
+    });
+  }
+
+  it("reads an answer as given with the owner lines: a refining motif passes", () => {
+    // Arrange
+    const answer = UNSEEN_REFINES_ANSWER;
+
+    // Act
+    const problems = reviewProblemsOf(answer);
+
+    // Assert
+    deepStrictEqual(problems, []);
+  });
+
+  it("still refuses a fault of shape", () => {
+    // Arrange
+    const answer = { motifs: [motif({ key_term: "" })] };
+
+    // Act
+    const problems = reviewProblemsOf(answer);
+
+    // Assert
+    deepStrictEqual(problems, ['motif 1 "Refusal paths go untested": key_term is empty']);
   });
 });
 

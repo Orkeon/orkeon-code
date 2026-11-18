@@ -30,6 +30,7 @@ export const MARKERS: readonly MarkerCase[] = [
   { behaviour: "7 the repository of the patch", marker: "for the orkeon-code or the orkeon-workshop repository" },
   { behaviour: "7 patch", marker: "receives them as a patch" },
   { behaviour: "7 an Orkeon Code owner takes status new", marker: "An Orkeon Code owner is never read here, so its motif always takes status new" },
+  { behaviour: "7 an Orkeon Code motif removes no line", marker: "always takes status new and removes no line" },
   { behaviour: "8 exact removed line", marker: "character for character" },
   { behaviour: "8 statuses need shown lines", marker: "only for an answer shown owner lines below its problems" },
   { behaviour: "8 copied from a shown line", marker: "character for character from a shown line" },

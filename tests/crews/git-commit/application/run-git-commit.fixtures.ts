@@ -31,9 +31,9 @@ export const STATUS_FAILURES: Array<{ name: string; result?: Partial<ShellResult
     answer: "✗ the working tree could not be read, nothing was committed: git status failed: exit -1",
   },
   {
-    name: "a status that timed out",
-    result: { stdout: "", stderr: "", exitCode: -1, timedOut: true },
-    answer: "✗ the working tree could not be read, nothing was committed: git status failed: exit -1",
+    name: "a status that timed out, git's reason the runtime's line",
+    result: { stdout: "", stderr: "\n[Command timed out]", exitCode: -1, timedOut: true },
+    answer: "✗ the working tree could not be read, nothing was committed: git status failed: [Command timed out]",
   },
   {
     name: "a status the runtime refused",

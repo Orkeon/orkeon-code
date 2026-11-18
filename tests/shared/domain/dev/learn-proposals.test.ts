@@ -11,7 +11,7 @@ import {
 } from "../../../../src/shared/domain/dev/learn-proposals.ts";
 import {
   DEPLOYED_PATHS, FILE, HARNESS_ACCEPT, HARNESS_MOTIF, HARNESS_PATCH, NOT_DEPLOYED, NOT_LEARN_FOLDERS, ORKEON_CODE_ACCEPT,
-  ORKEON_CODE_FILE, ORKEON_CODE_MOTIF, REMOVED_HARNESS_ACCEPT, REMOVED_HARNESS_MOTIF, REPO_ACCEPT,
+  ORKEON_CODE_FILE, ORKEON_CODE_MOTIF, ORKEON_CODE_OFF_RULES, REMOVED_HARNESS_ACCEPT, REMOVED_HARNESS_MOTIF, REPO_ACCEPT,
   REMOVES_FILE, REMOVES_MOTIF, REMOVES_PATCH, REPO_MOTIF, REPO_PATCH, TEN_DIGIT_ID_FILE, WRONG_SHAPES,
 } from "./learn-proposals.fixtures.ts";
 import { assertNotJsonProblem } from "./learn-proposals.assertions.ts";
@@ -243,7 +243,20 @@ describe("patchLines and acceptLines", () => {
     deepStrictEqual(lines, HARNESS_ACCEPT);
   });
 
-  it("a harness owner that is not a rule of a repository pack: the accept line says it was removed and prints no patch", () => {
+  for (const c of ORKEON_CODE_OFF_RULES) {
+    it(`an Orkeon Code motif off its rules, ${c.name}: one accept line and no patch`, () => {
+      // Arrange
+      const { motif } = c;
+
+      // Act
+      const lines = acceptLines(motif);
+
+      // Assert
+      deepStrictEqual(lines, [c.line]);
+    });
+  }
+
+  it("a harness owner that is not a rule of a repository pack: the accept line says /dev-learn patches no such file and prints no patch", () => {
     // Arrange
     const motif = REMOVED_HARNESS_MOTIF;
 

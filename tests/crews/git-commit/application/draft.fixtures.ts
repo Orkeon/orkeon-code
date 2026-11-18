@@ -1,5 +1,5 @@
 // The work trees, git commands and fakes the commit use case is tested over.
-import { GIT_STATUS_COMMAND } from "../../../../src/shared/domain/git/close.ts";
+import { gitDiffCommand } from "../../../../src/shared/domain/git/close.ts";
 import type { WorkTree } from "../../../../src/crews/git-commit/application/draft.ts";
 import { MAX_COMMIT_DIFF_CHARS } from "../../../../src/crews/git-commit/application/draft.ts";
 import { FakeFiles } from "../../../support/doubles/fake-files.ts";
@@ -9,29 +9,30 @@ import { WORKSPACE } from "../../../../src/shared/domain/vfs.ts";
 export const TREE: WorkTree = { status: "M a.ts", diff: "", branch: "main", recent: "", untracked: [] };
 export const MESSAGE = "fix(api): handle null\n\nbody";
 
-/** A shell answering the four git reads of a work tree on a feature branch. */
+/** A shell answering the git reads of a work tree on a feature branch, a.ts modified; FEATURE_SCOPE selects a.ts. */
 export function treeShell(): FakeShell {
   const shell = new FakeShell();
-  shell.results[GIT_STATUS_COMMAND] = { stdout: " M a.ts\n" };
-  shell.results["git diff HEAD"] = { stdout: "diff --git" };
+  shell.results[gitDiffCommand(["a.ts"])] = { stdout: "diff --git" };
   shell.results["git branch --show-current"] = { stdout: "feature/x\n" };
   shell.results["git log --oneline -10"] = { stdout: "abc first" };
   return shell;
 }
 
-/** What inspectWorkTree reads from treeShell(). */
+export const FEATURE_SCOPE = { status: " M a.ts\n", files: ["a.ts"] };
+
+/** What inspectWorkTree reads from treeShell() over FEATURE_SCOPE. */
 export const FEATURE_TREE: WorkTree = {
-  status: " M a.ts\n", diff: "diff --git", branch: "feature/x", recent: "abc first", untracked: [],
+  status: " M a.ts", diff: "diff --git", branch: "feature/x", recent: "abc first", untracked: [],
 };
 
 /** A modified file, an untracked source file, and an untracked binary that cannot be read. */
 export function untrackedSetup() {
   const shell = new FakeShell();
-  shell.results[GIT_STATUS_COMMAND] = { stdout: " M a.ts\n?? src/new.ts\n?? img.png\n" };
   const files = new FakeFiles();
   files.files.set(`${WORKSPACE}/src/new.ts`, "export const x = 1;\n");
   files.readErrors.set(`${WORKSPACE}/img.png`, new Error("binary"));
-  return { shell, files };
+  const scope = { status: " M a.ts\n?? src/new.ts\n?? img.png\n", files: ["a.ts", "src/new.ts", "img.png"] };
+  return { shell, files, scope };
 }
 
 /** A status with two new files, a scope selecting a modified file and one of them. */

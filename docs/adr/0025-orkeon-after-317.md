@@ -1,6 +1,6 @@
 # ADR 0025: Orkeon main after #317, `orkeon run --validate` on every crew
 
-- **Status**: accepted
+- **Status**: accepted, amended 2026-11-18 (#115)
 - **Date**: 2026-11-09
 - **Amends**: [ADR 0024](0024-orkeon-after-299.md)
 
@@ -29,7 +29,8 @@ none of these sources as declarative, so each one is a procedural script to `--v
   (ADR 0013); `.orkeon-version`, the status meta, the issue template, the guides. `scripts/sync-typings.sh` at this
   commit changes nothing under `src/crews/.orkeon` and `src/commands/.orkeon`.
 - **`orkeon run --validate` is adopted on every crew**, as the smoke `scripts/smoke-validate.sh`: each
-  `src/crews/<name>/crew.ork.ts` (a `_` probe left out) is validated through `scripts/run-crew.sh` with the example
+  `src/crews/<name>/crew.ork.ts` (a `_` probe left out) is validated through `scripts/run-crew.sh` (*amended
+  2026-11-18, #115: through `orkeon-code run` since `1.0.0-rc.3`, which removed `run-crew.sh`*) with the example
   settings made keyless, as the other smokes do. Every crew is judged; the smoke names each one that exited other than
   `0` or ended without its `VALIDATION OK` line, and fails with them. `runtime-smoke.yml` runs it after the crew smoke,
   on the same triggers plus the script itself; `npm run check` stays Node-only. `tests/scripts/smoke-validate.test.ts`

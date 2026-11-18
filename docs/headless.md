@@ -34,6 +34,8 @@ Under `orkeon run` (`orkeon-code run`) the gate has no one to ask, and decides e
 | `plan`, `dontAsk` | Reads only |
 | `bypassPermissions` | Everything |
 
+The gate judges the tool calls of an act only: a crew's own `tools.*` calls, made from its code, do not go through it.
+
 An act given no `permissionMode` runs in `default`. An `onToolCall` hook runs before the gate, which then judges the
 input it returns; an `"ask"` it returns is judged as an edit in `default` once the act's mode admits the call, so it is refused here
 (Orkeon Code's own callbacks never ask).
@@ -65,12 +67,15 @@ is the only directory of your machine it can write ([SECURITY.md](../SECURITY.md
   then the source mode (`ORKEON_SOURCE`, [Development](development.md)), then the runtime the package names,
   downloaded as for the REPL ([Getting started](getting-started.md); no package published so far names one).
   `--mode docker|tool|source` picks one.
-- In docker mode the checkout is the container's `/work/agent`, read-only: a path under it given after `--` (an
-  `--llm-mock` file) is named there; a crew outside the checkout is refused.
+- In docker mode the checkout is the container's `/work/agent`, read-only, and the project its `/work/project`: a
+  path under one of them given after `--` (an `--llm-mock` file) is named there. A file given after `--` that lies
+  outside both stops the run, since the container does not see it: put it under the project. A crew outside the
+  checkout is refused.
 - What follows `--` goes to `orkeon run` as is (`-- --validate`, `-- --llm-mock answers.jsonl`, `-- -v 2`), but for
-  a relative path that names a file or a folder of your current folder: the runner starts elsewhere (in the project,
-  the clone or the container), so the launcher hands that path over absolute, resolved against the folder you ran
-  `orkeon-code` from.
+  the value of an option of `orkeon run` that takes a path (`--llm-mock`, `--llm-record`, `--llm-replay`,
+  `--llm-log-path`, `--inputs-file`, written `--llm-mock FILE` or `--llm-mock=FILE`) when it is relative and names a
+  file or a folder of your current folder: the runner starts elsewhere (in the project, the clone or the container),
+  so the launcher hands that path over absolute, resolved against the folder you ran `orkeon-code` from.
 - `orkeon-code run --help` prints the usage of `run` on stdout and exits `0`.
 - `orkeon-code.ps1` has no `run` yet: use the bash launcher (Git Bash or WSL on Windows).
 - The crew reads its input from the JSON of `--inputs`.

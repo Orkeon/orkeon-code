@@ -12,9 +12,9 @@
 # (ORKEON_CODE_STATE, default .crew-output/), mounted on /workspace. The probe ingests it into its
 # own collection, memory-eval-golden. Settings: the file `orkeon-code run` reads (docs/headless.md).
 #
-# rag_eval declares no access, so the runtime asks for it in default and even in acceptEdits mode
-# and denies it headless: run this in a terminal and answer the question, or under an allow rule
-# for rag_eval. q13 holds only when the settings set a retrieval score floor
+# The probe calls rag_eval from its own code, not through a model's act: the permission gate
+# judges only an act's tool calls, so the call runs headless in every mode and nothing is asked.
+# q13 holds only when the settings set a retrieval score floor
 # (Orkeon:Rag:Retrieval:MinScore); without one every query returns passages.
 #
 # Runner: the one `orkeon-code run` finds, in the order docs/headless.md gives. When that runtime

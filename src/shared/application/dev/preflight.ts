@@ -2,11 +2,14 @@
 // without format problems, a sheet for every batch not done, an order the dependencies allow, git's
 // identity (each batch's close commits) and a current branch. A ✗ stops the run before any launch; a
 // tree changed outside the work folder and `.orkeon/` is a ⚠ only (a close commits the files its batch
-// touched, by name). The plan's facts come read; git is asked here.
+// touched, by name), and so is a status git could not give, never read as a clean tree. The plan's facts
+// come read; git is asked here.
 import type { Shell } from "../ports.ts";
-import { readIdentity, runGit } from "../git/commit-files.ts";
+import { gitReason, readIdentity, runGit } from "../git/commit-files.ts";
 import { GIT_CURRENT_BRANCH_COMMAND, GIT_STATUS_COMMAND, changedPaths } from "../../domain/git/close.ts";
-import { BRANCH_NONE, PLAN_NONE, SHEETS_OK, changesOutsideWorkFolder, identityMissing, identityOk, noSheetFor } from "./messages.ts";
+import {
+  BRANCH_NONE, PLAN_NONE, SHEETS_OK, changesOutsideWorkFolder, identityMissing, identityOk, noSheetFor, treeStatusFailed,
+} from "./messages.ts";
 
 export interface PreflightInput {
   /** The plan as the user reads it, `workbench/demo/DEMO-PLAN.md`; null when the code has none. */
@@ -59,7 +62,9 @@ export async function preflight(deps: { shell: Pick<Shell, "run"> }, input: Pref
   else lines.push(`preflight ✓ branch: ${name}`);
 
   const status = await runGit(deps.shell, GIT_STATUS_COMMAND);
-  if (status.exitCode === 0) {
+  if (status.exitCode !== 0) {
+    lines.push(treeStatusFailed(gitReason(status)));
+  } else {
     const work = input.workFolder.replace(/\/+$/, "");
     const own = (p: string): boolean => p === work || p.startsWith(`${work}/`) || p.startsWith(".orkeon/");
     const others = changedPaths(status.stdout).filter((p) => !own(p));

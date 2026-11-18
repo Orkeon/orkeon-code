@@ -4,15 +4,20 @@ import { after, describe, it } from "node:test";
 import { deepStrictEqual, strictEqual } from "node:assert";
 import { existsSync, readFileSync } from "node:fs";
 import { join } from "node:path";
-import { FINGERPRINT, FINGERPRINT_PATH, launch, launchWithNode, removeScratch } from "./launcher.fixtures.ts";
+import {
+  FINGERPRINT, FINGERPRINT_PATH, HOST_GITCONFIG, IDENTITY_VARS, identityVarsForwarded, launch, launchWithNode, removeScratch,
+} from "./launcher.fixtures.ts";
 import { assertLacks, assertSays } from "./launcher.assertions.ts";
 import {
-  DOCKER_CREW, DOCKER_OUTSIDE_SRC, DOTNET_BIN, DOWNLOADED_RAN, ELSEWHERE, MOCK_IN_CONTAINER, MOCK_ON_HOST, INPUTS, INPUTS_ARE_RUNS, LOG_TO_STDERR, NAMED_RUNTIME, NO_SESSION,
-  NO_ESBUILD, NO_ESBUILD_NAMED, NO_ORKEON, NO_RUNNER, NO_SOURCE, NPM_ESBUILD, NPM_ESBUILD_FILE, ORKEON, PROBE, TOOL_MANIFEST, UNKNOWN, USAGE, agentMount, callerFile, cloneToolCalls,
+  CALLER_MOCK, CALLER_MOCK_IN_DOCKER, DOCKER_CREW, DOCKER_OUTSIDE_FILE, DOCKER_OUTSIDE_SRC, DOTNET_BIN, DOWNLOADED_RAN, ELSEWHERE, MOCK_IN_CONTAINER, MOCK_ON_HOST, INPUTS, INPUTS_ARE_RUNS, LOG_TO_STDERR, NAMED_RUNTIME, NO_SESSION,
+  NO_ESBUILD, NO_ESBUILD_NAMED, NO_ORKEON, NO_RUNNER, NO_SOURCE, NPM_ESBUILD, NPM_ESBUILD_FILE, ORKEON, PROBE, PROJECT_MOCK, PROJECT_MOCK_IN_CONTAINER,
+  PROJECT_MOCK_ON_HOST, RESOLVED_CASES, TOOL_MANIFEST, UNKNOWN, USAGE, agentMount, callerFile, cloneToolCalls,
   crewPath, downloadingRunStart, homeWithOrkeon, noRunnerStart, orkeonExiting, runArgs, runStart, scriptingCheckout, sourceCalls,
 } from "./launcher.run.fixtures.ts";
 import { CURL_CALL, OWN_ORKEON_RAN, pathWithoutRuntime } from "./launcher.runtime.fixtures.ts";
-import { assertArgsEndWith, assertArgsHold, assertCalls, assertNothingRun, assertPathOrkeonRan, assertRunnerArgs } from "./launcher.run.assertions.ts";
+import {
+  assertArgsEndWith, assertArgsHold, assertCalls, assertNoContainerRun, assertNothingRun, assertPathOrkeonRan, assertRunnerArgs,
+} from "./launcher.run.assertions.ts";
 
 after(removeScratch);
 
@@ -97,6 +102,30 @@ describe("orkeon-code run, the arguments", () => {
 
     // Assert
     assertArgsEndWith(r, ["--llm-mock", callerFile(r, "answers.jsonl")]);
+  });
+
+  for (const c of RESOLVED_CASES) {
+    it(c.name, () => {
+      // Arrange
+      const start = runStart({ args: c.args, files: c.files });
+
+      // Act
+      const r = launch(start);
+
+      // Assert
+      assertArgsEndWith(r, c.tail(r));
+    });
+  }
+
+  it("prints the run's usage and ends with 0 on --help after the crew", () => {
+    // Arrange
+    const start = runStart({ args: ["--help"] });
+
+    // Act
+    const r = launch(start);
+
+    // Assert
+    deepStrictEqual([r.status, r.stdout.startsWith(USAGE[0])], [0, true]);
   });
 
   it("prints its usage and ends with 0 on run --help", () => {
@@ -412,6 +441,41 @@ describe("orkeon-code run, the runner", () => {
 
     // Assert
     assertArgsEndWith(r, MOCK_IN_CONTAINER);
+  });
+
+  it("names a file of the project given after -- as the container sees it, in docker mode", () => {
+    // Arrange
+    const start = runStart({ bin: { docker: ORKEON.orkeon }, args: PROJECT_MOCK_ON_HOST, files: PROJECT_MOCK });
+
+    // Act
+    const r = launch(start);
+
+    // Assert
+    assertArgsEndWith(r, PROJECT_MOCK_IN_CONTAINER);
+  });
+
+  it("stops in docker mode on a file given after -- that lies outside the project and the checkout, running nothing", () => {
+    // Arrange
+    const start = runStart({ bin: { docker: ORKEON.orkeon }, args: CALLER_MOCK_IN_DOCKER, files: CALLER_MOCK });
+
+    // Act
+    const r = launch(start);
+
+    // Assert
+    strictEqual(r.status, 1);
+    assertSays(r.stderr, DOCKER_OUTSIDE_FILE);
+    assertNoContainerRun(r);
+  });
+
+  it("hands the container the identity the host's git gives, in docker mode (Orkeon #404)", () => {
+    // Arrange
+    const start = runStart({ bin: { docker: ORKEON.orkeon }, args: ["--mode", "docker"], files: { ".gitconfig": HOST_GITCONFIG } });
+
+    // Act
+    const r = launch(start);
+
+    // Assert
+    deepStrictEqual(identityVarsForwarded(r.args), IDENTITY_VARS);
   });
 
   it("writes nothing in the state before the runner is known", () => {
