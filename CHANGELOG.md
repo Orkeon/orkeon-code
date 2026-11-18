@@ -7,6 +7,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.0.0-rc.3] - 2026-11-18
+
+### Changed — the pin moves to Orkeon 1.3.0
+
+- The pin moves to Orkeon `main` `1b480bd` (Orkeon #412), the commit of Orkeon `1.3.0`: the tool and docker modes,
+  which run Orkeon's last release, run the pin again, and `.config/dotnet-tools.json` names `1.3.0`. The typings
+  change in one place, the `sources` of `rag_ingest` are strings, and nothing is adopted
+  ([ADR 0031](docs/adr/0031-orkeon-after-361.md)).
+- What a session sees of the release: the `orkeon` image carries git and reads a mounted repository whoever owns it,
+  so `/commit` reads the tree in docker mode (Orkeon #404); a command run by `shell_command` receives
+  `GIT_AUTHOR_NAME`, `GIT_AUTHOR_EMAIL`, `GIT_COMMITTER_NAME` and `GIT_COMMITTER_EMAIL` from the host, under every
+  confinement, so a commit keeps the identity the caller set; the code index records the imports of a Python file,
+  and `dependency_graph` and `package_summary` answer with them once the index is rebuilt (Orkeon #406); the HTTP
+  tools send `User-Agent: Orkeon/<version>` where they sent `Orkeon/1.0` (Orkeon #418). The fixes of the MCP server
+  and client (#402, #405, #413 to #417) change what an MCP server named in `tools.extra` offers: an array parameter
+  keeps its `items`, and one unreadable tool no longer takes its server's other tools away.
+
 ### Fixed — `/dev-learn` names no file of the harness's removed dev pack
 
 - Orkeon Workshop removed its `dev` pack (orkeon-workshop#5): `/dev-learn` no longer offers its plan template, common
@@ -43,8 +60,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - When `git status` failed where the crew runs (no git in the container, no repository), `/commit` answered "Nothing
   to commit — working tree clean." on a tree that held changes. It now stops with git's reason and commits nothing.
-  The `orkeon` docker image ships without git ([Orkeon #404](https://github.com/Orkeon/orkeon/issues/404)): in docker
-  mode, `/commit` now says so instead of finding nothing.
+  The `orkeon` docker image shipped without git before Orkeon `1.3.0`
+  ([Orkeon #404](https://github.com/Orkeon/orkeon/issues/404)): on such an image, `/commit` now says so instead of
+  finding nothing.
 
 ## [1.0.0-rc.2] - 2026-11-17
 
@@ -1842,7 +1860,8 @@ First release as a standalone project, on Orkeon `1.0.0-rc.5`.
 - Checks: unit tests on Node's native type stripping, type check, bundle check with the runtime's esbuild flags,
   provenance gate, runtime smoke.
 
-[Unreleased]: https://github.com/Orkeon/orkeon-code/compare/v1.0.0-rc.2...HEAD
+[Unreleased]: https://github.com/Orkeon/orkeon-code/compare/v1.0.0-rc.3...HEAD
+[1.0.0-rc.3]: https://github.com/Orkeon/orkeon-code/releases/tag/v1.0.0-rc.3
 [1.0.0-rc.2]: https://github.com/Orkeon/orkeon-code/releases/tag/v1.0.0-rc.2
 [1.0.0-rc.1]: https://github.com/Orkeon/orkeon-code/releases/tag/v1.0.0-rc.1
 [0.1.0-alpha.1]: https://github.com/Orkeon/orkeon-code/releases/tag/v0.1.0-alpha.1

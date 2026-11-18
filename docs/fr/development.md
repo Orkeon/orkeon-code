@@ -54,7 +54,7 @@ runtime ; dans un clone qui n'en a pas sur le PATH, il utilise l'outil `orkeon` 
 SDK .NET qui le restaure et le lance est épinglé par `global.json`, comme celui d'Orkeon : `10.0.300` avec
 `rollForward: latestFeature`) ou l'image `orkeon`, sur le dossier courant sauf si `--workspace` ou `--demo` en
 décide autrement. Les deux sont une release : l'outil est sur nuget.org en
-`1.2.0`, l'image est `ghcr.io/orkeon/orkeon:latest` (`1.2.0`), toutes deux à l'épingle à ce jour ; l'outil ne porte pas
+`1.3.0`, l'image est `ghcr.io/orkeon/orkeon:latest` (`1.3.0`), toutes deux à l'épingle à ce jour ; l'outil ne porte pas
 d'esbuild, le lanceur prend celui que `npm ci` a installé ; `ORKEON_CODE_MODE=source ORKEON_SOURCE=<checkout à l'épingle>` le
 lance depuis un checkout d'Orkeon, construit sur place. Cet outil lit ses limites de script dans `Orkeon:Scripting:Limits`, pas dans
 le `Orkeon:Cli:ScriptCommands:Limits` du REPL

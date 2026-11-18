@@ -6,13 +6,13 @@
 // RELEASE_NOTES (messages.ts) are pinned by tests/commands/_lib/status/messages.test.ts, which keeps them true.
 
 export const CLI_NAME = "orkeon-code";
-export const CLI_VERSION = "1.0.0-rc.2";
+export const CLI_VERSION = "1.0.0-rc.3";
 export const CLI_BUILD = "source";
 /** The Orkeon runtime this version runs on: the commit of Orkeon's `main` pinned in .orkeon-version, which the
  *  launcher announces (tests/repository/version.test.ts keeps the two equal). A release tag is never the pin: the
  *  commands are checked against the sources at this commit (ADR 0013). /status and /doctor compare it with the
  *  commit of the runtime that runs them, read from the host's `runtime` service (Orkeon #225). */
-export const ORKEON_RUNTIME_COMMIT = "a9f3878aca94c81d5c23fa0b858b59b8a78d5122";
+export const ORKEON_RUNTIME_COMMIT = "1b480bd1c7c267b9486db278ee62cbc430d61a15";
 /** The pin as the launcher and the rows print it: its first seven characters. */
 export const ORKEON_RUNTIME_PIN = ORKEON_RUNTIME_COMMIT.slice(0, 7);
 
