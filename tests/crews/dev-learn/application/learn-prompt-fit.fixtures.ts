@@ -55,11 +55,11 @@ export const FULL_INPUT: LearnPromptInput = {
 export const MANY_PROBLEMS: readonly string[] = Array.from({ length: 15 }, (_, i) =>
   `motif ${1 + (i % 3)}: removed line not found in CONTRIBUTING.md: "${"x".repeat(60)}"; nearest: CONTRIBUTING.md:${i}: ${"y".repeat(150)}`);
 
-/** The longest harness destination the learner is shown. */
-const LONGEST_DESTINATION = ".devcontainer/harness/packs/dev/claude/skills/dev-implement/references/common-rules.md";
+/** A long owner path: a rule of a repository pack in the harness, longer than every destination the learner is shown. */
+const LONGEST_DESTINATION = ".devcontainer/harness/packs/repo-orkeon-code/claude/rules/architecture-and-tests.md";
 
 /** The most owner lines a re-ask can show: every motif's block full, each line at its cut under the longest
- *  harness destination, with a five-digit line number, each label quoting a cut title. */
+ *  owner path, with a five-digit line number, each label quoting a cut title. */
 export const WORST_BLOCKS: readonly OwnerLinesBlock[] = Array.from({ length: MAX_MOTIFS_PER_AXIS }, (_, k) => ({
   label: motifLabel(k + 1, "t".repeat(70)), path: LONGEST_DESTINATION,
   lines: Array.from({ length: MAX_OWNER_LINES_PER_MOTIF }, (_, i) =>

@@ -2,7 +2,7 @@
 // `<work>/learn-<date>/proposals.json` for --accept and --refuse to read, and the lines
 // those print. A decision applies nothing: it prints the change to make. Pure, no IO.
 import { sha1Hex } from "../sha1.ts";
-import { acceptedHarness, acceptedRepository, hasTheWrongShape, THE_TOP_LEVEL } from "./messages.ts";
+import { acceptedHarness, acceptedOrkeonCode, acceptedRepository, hasTheWrongShape, THE_TOP_LEVEL } from "./messages.ts";
 
 export const LEARN_FOLDER_PATTERN: RegExp = /^learn-\d{4}-\d{2}-\d{2}$/;
 export function learnFolderName(date: string): string {
@@ -11,7 +11,7 @@ export function learnFolderName(date: string): string {
 export const PROPOSALS_JSON = "proposals.json";
 export const PROPOSALS_MD = "PROPOSALS.md";
 
-export type OwnerKind = "repository" | "harness";
+export type OwnerKind = "repository" | "orkeon-code" | "harness";
 export type CheckKind = "test" | "analyzer" | "architecture-test" | "gate" | "rule";
 /** removes: the motif takes a wrong line out of its owner and adds none. */
 export type MotifStatus = "new" | "refines" | "replaces" | "removes";
@@ -50,7 +50,7 @@ type Obj = Record<string, unknown>;
 class Shape extends Error {}
 const fieldPath = (at: string, key: string): string => (at === "" ? key : `${at}.${key}`);
 
-const OWNER_KINDS: readonly string[] = ["repository", "harness"];
+const OWNER_KINDS: readonly string[] = ["repository", "orkeon-code", "harness"];
 const CHECK_KINDS: readonly string[] = ["test", "analyzer", "architecture-test", "gate", "rule"];
 const STATUSES: readonly string[] = ["new", "refines", "replaces", "removes"];
 const FILTERS: readonly string[] = ["recurrence", "prevention", "novelty"];
@@ -167,10 +167,13 @@ export function patchLines(motif: Motif): string[] {
   ];
 }
 
-/** The lines printed for a motif: the patch for a harness owner, the change to make for a repository owner. */
+/** The lines printed for a motif: the patch for an Orkeon Code or a harness owner, the change to make for a
+ *  repository owner. */
 export function acceptLines(motif: Motif): string[] {
   const head = motif.owner.kind === "harness"
     ? acceptedHarness(motif.id, motif.title)
-    : acceptedRepository(motif.id, motif.title, motif.owner.path);
+    : motif.owner.kind === "orkeon-code"
+      ? acceptedOrkeonCode(motif.id, motif.title)
+      : acceptedRepository(motif.id, motif.title, motif.owner.path);
   return [head, ...patchLines(motif).map((l) => `  ${l}`)];
 }

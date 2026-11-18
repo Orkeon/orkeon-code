@@ -10,7 +10,8 @@ import {
   parseProposalsFile, patchLines, serializeProposalsFile,
 } from "../../../../src/shared/domain/dev/learn-proposals.ts";
 import {
-  DEPLOYED_PATHS, FILE, HARNESS_ACCEPT, HARNESS_MOTIF, HARNESS_PATCH, NOT_DEPLOYED, NOT_LEARN_FOLDERS, REPO_ACCEPT,
+  DEPLOYED_PATHS, FILE, HARNESS_ACCEPT, HARNESS_MOTIF, HARNESS_PATCH, NOT_DEPLOYED, NOT_LEARN_FOLDERS, ORKEON_CODE_ACCEPT,
+  ORKEON_CODE_FILE, ORKEON_CODE_MOTIF, REPO_ACCEPT,
   REMOVES_FILE, REMOVES_MOTIF, REMOVES_PATCH, REPO_MOTIF, REPO_PATCH, TEN_DIGIT_ID_FILE, WRONG_SHAPES,
 } from "./learn-proposals.fixtures.ts";
 import { assertNotJsonProblem } from "./learn-proposals.assertions.ts";
@@ -122,6 +123,17 @@ describe("parseProposalsFile", () => {
     deepStrictEqual(r, { ok: true, file: FILE });
   });
 
+  it("reads a motif an Orkeon Code file owns", () => {
+    // Arrange
+    const text = serializeProposalsFile(ORKEON_CODE_FILE);
+
+    // Act
+    const r = parseProposalsFile(text);
+
+    // Assert
+    deepStrictEqual(r, { ok: true, file: ORKEON_CODE_FILE });
+  });
+
   it("reads a motif that removes a line and adds none", () => {
     // Arrange
     const text = serializeProposalsFile(REMOVES_FILE);
@@ -207,6 +219,17 @@ describe("patchLines and acceptLines", () => {
 
     // Assert
     deepStrictEqual(lines, HARNESS_PATCH);
+  });
+
+  it("an Orkeon Code owner: the accept lines send the patch to the orkeon-code repository", () => {
+    // Arrange
+    const motif = ORKEON_CODE_MOTIF;
+
+    // Act
+    const lines = acceptLines(motif);
+
+    // Assert
+    deepStrictEqual(lines, ORKEON_CODE_ACCEPT);
   });
 
   it("a harness owner: the accept lines send the patch to the orkeon-workshop repository", () => {

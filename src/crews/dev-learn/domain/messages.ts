@@ -15,12 +15,14 @@ export const topicNotSlug = (at: string, topic: string, max: number): string =>
 export const rowsEmpty = (at: string): string => `${at}: rows is empty`;
 export const rowNotGiven = (at: string, id: string): string => `${at}: row '${id}' is not one of the rows given`;
 export const rowTwice = (at: string, id: string): string => `${at}: row '${id}' is listed twice`;
-export const ownerKindIs = (at: string): string => `${at}: owner_kind must be repository or harness`;
+export const ownerKindIs = (at: string): string => `${at}: owner_kind must be repository, orkeon-code or harness`;
 export const ownerPathNotRelative = (at: string, path: string): string => `${at}: owner_path '${path}' is not a relative path`;
 export const deployedCopy = (at: string): string =>
   `${at}: .claude/ is the harness's deployed copy: name the orkeon-workshop file with owner_kind harness`;
 export const harnessOwnerUnder = (at: string, packs: string): string =>
-  `${at}: a harness owner is a file of the orkeon-workshop repository under ${packs}`;
+  `${at}: a harness owner is a rule of a repository pack, a file of the orkeon-workshop repository under ${packs}`;
+export const orkeonCodeOwnerListed = (at: string, path: string): string =>
+  `${at}: '${path}' is not an Orkeon Code destination: name one of the files listed`;
 export const checkIsOneOf = (at: string, kinds: string): string => `${at}: check must be one of ${kinds}`;
 export const statusIs = (at: string): string => `${at}: status must be new, refines, replaces or removes`;
 export const atProblem = (at: string, problem: string): string => `${at}: ${problem}`;

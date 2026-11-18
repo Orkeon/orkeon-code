@@ -13,7 +13,8 @@ export type WorkDirCheck = { ok: true; folder: string } | { ok: false; reason: s
 // Python's str.isprintable() refuses the Other categories and every separator but the space.
 const NON_PRINTABLE = /[\p{C}\p{Zl}\p{Zp}]|(?! )\p{Zs}/u;
 
-/** Normalised as learn-candidates.py:61-63; folder "" when the value is empty. */
+/** The work folder as a repository pack names it: tabs and line breaks dropped, trimmed, every leading "./" and
+ *  trailing "/" taken off; folder "" when the value is empty. */
 export function normalizeWorkDir(raw: string): WorkDirCheck {
   let w = raw.replace(/[\t\r\n]/g, "").trim();
   for (;;) {

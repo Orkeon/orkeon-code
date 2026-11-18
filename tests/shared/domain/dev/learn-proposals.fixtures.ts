@@ -14,9 +14,16 @@ export const REPO_MOTIF: Motif = {
 /** A motif a harness file owns, refining a line. */
 export const HARNESS_MOTIF: Motif = {
   ...REPO_MOTIF, id: "77b0d2aa", title: "Axis names drift",
-  owner: { kind: "harness", path: ".devcontainer/harness/packs/dev/claude/skills/dev-verify/references/audit-axes.md" },
+  owner: { kind: "harness", path: ".devcontainer/harness/packs/repo-sample/claude/rules/audits.md" },
   check: "rule", status: "refines",
   linesRemoved: ["Name the axis."], linesAdded: ["Name the axis with one of the listed words.", "Keep the case."],
+};
+
+/** A motif an Orkeon Code file owns, adding a line. */
+export const ORKEON_CODE_MOTIF: Motif = {
+  ...REPO_MOTIF, id: "5c41e0b7", title: "Audits skip the refusal texts",
+  owner: { kind: "orkeon-code", path: "docs/crew-prompts.md" }, check: "rule",
+  linesAdded: ["The auditor checks that each refusal text has a test."],
 };
 
 /** A proposals file: one axis with both motifs and a dropped one, one axis without a proposal. */
@@ -95,7 +102,7 @@ export const NOT_DEPLOYED: readonly string[] = [
 ];
 
 export const HARNESS_PATCH: readonly string[] = [
-  "file: .devcontainer/harness/packs/dev/claude/skills/dev-verify/references/audit-axes.md",
+  "file: .devcontainer/harness/packs/repo-sample/claude/rules/audits.md",
   "- Name the axis.",
   "+ Name the axis with one of the listed words.",
   "+ Keep the case.",
@@ -103,10 +110,16 @@ export const HARNESS_PATCH: readonly string[] = [
 
 export const HARNESS_ACCEPT: readonly string[] = [
   "accepted 77b0d2aa — Axis names drift: a harness file is never edited here; apply this in the orkeon-workshop repository:",
-  "  file: .devcontainer/harness/packs/dev/claude/skills/dev-verify/references/audit-axes.md",
+  "  file: .devcontainer/harness/packs/repo-sample/claude/rules/audits.md",
   "  - Name the axis.",
   "  + Name the axis with one of the listed words.",
   "  + Keep the case.",
+];
+
+export const ORKEON_CODE_ACCEPT: readonly string[] = [
+  "accepted 5c41e0b7 — Audits skip the refusal texts: an Orkeon Code file is never edited here; apply this in the orkeon-code repository:",
+  "  file: docs/crew-prompts.md",
+  "  + The auditor checks that each refusal text has a test.",
 ];
 
 export const REPO_PATCH: readonly string[] = [
@@ -129,3 +142,6 @@ export const REMOVES_PATCH: readonly string[] = ["file: CONTRIBUTING.md", "- Ref
 
 /** FILE whose first axis holds REMOVES_MOTIF alone. */
 export const REMOVES_FILE: ProposalsFile = { ...FILE, axes: [{ ...FILE.axes[0], motifs: [REMOVES_MOTIF] }] };
+
+/** FILE with its first axis's motifs replaced by the Orkeon Code one. */
+export const ORKEON_CODE_FILE: ProposalsFile = { ...FILE, axes: [{ ...FILE.axes[0], motifs: [ORKEON_CODE_MOTIF] }] };

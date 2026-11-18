@@ -7,6 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed — `/dev-learn` names no file of the harness's removed dev pack
+
+- Orkeon Workshop removed its `dev` pack (orkeon-workshop#5): `/dev-learn` no longer offers its plan template, common
+  rules, audit axes nor capture script as owners, and refuses a harness owner that is not a rule of a repository pack
+  (`.devcontainer/harness/packs/repo-<name>/claude/rules/<file>`).
+- A motif may now be owned by one of Orkeon Code's own files (`owner_kind` `orkeon-code`): `docs/crew-prompts.md`,
+  the design rules, the gate, the auditor's and the reviewer's charters. Like a harness file it is never edited
+  here: accepting it prints the patch to apply in the orkeon-code repository (#117).
+
 ### Added — `orkeon-code run`, one crew headless from a clone or an install
 
 - `orkeon-code run <crew> [--inputs JSON] [--workspace DIR | --demo] [--trust] [-- orkeon run args]` runs one crew
