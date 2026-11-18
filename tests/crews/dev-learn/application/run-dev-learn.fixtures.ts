@@ -205,7 +205,7 @@ export function motifsWithAbsentOwners() {
     motifs: [
       motif({ owner_path: "docs/missing.md" }),
       motif({ title: "Harness rule", topic: "harness-rule", rows: [T.exports, T.invoices, T.ledger1],
-        owner_kind: "harness", owner_path: ".devcontainer/harness/packs/dev/claude/skills/dev-verify/references/audit-axes.md" }),
+        owner_kind: "harness", owner_path: ".devcontainer/harness/packs/repo-sample/claude/rules/audits.md" }),
       motif({ title: "Refines", topic: "refines", rows: [T.exports, T.ledger1, T.ledger3],
         status: "refines", lines_removed: ["A line nobody wrote."] }),
     ],
@@ -215,8 +215,8 @@ export function motifsWithAbsentOwners() {
 }
 
 /** Where the harness owner of a motif sits in the orkeon-workshop repository, and its deployed copy. */
-export const HARNESS_OWNER = ".devcontainer/harness/packs/dev/claude/skills/dev-verify/references/audit-axes.md";
-const DEPLOYED_OWNER = `${WORKSPACE}/.claude/skills/dev-verify/references/audit-axes.md`;
+export const HARNESS_OWNER = ".devcontainer/harness/packs/repo-sample/claude/rules/audits.md";
+const DEPLOYED_OWNER = `${WORKSPACE}/.claude/rules/audits.md`;
 
 /** The fixture whose new motif is owned by a harness file whose deployed copy holds its key term. */
 export function harnessOwnerHoldsKeyTerm() {
@@ -229,6 +229,14 @@ export function harnessOwnerHoldsKeyTerm() {
 /** What the re-ask of harnessOwnerHoldsKeyTerm shows: the owner lines under the orkeon-workshop path. */
 export const HARNESS_OWNER_LINES = `\nOwner lines found for ${motifLabel(1, "Refusal paths go untested")} (${HARNESS_OWNER}):\n` +
   `${HARNESS_OWNER}:3: A refusal path has a test.`;
+
+/** The fixture whose new motif is owned by an Orkeon Code file that the checkout also holds, with its key term. */
+export function orkeonCodeOwnerInCheckout() {
+  const f = setup();
+  f.files.files.set(`${WORKSPACE}/docs/crew-prompts.md`, "# Crew prompts\n\nA refusal path has a test.\n");
+  f.llm.extractions = [{ motifs: [motif({ owner_kind: "orkeon-code", owner_path: "docs/crew-prompts.md" })] }];
+  return f;
+}
 
 /** The fixture whose first answer refines a line of its owner, unseen, then refines it again with the lines shown. */
 export function refinesBeforeOwnerLines() {

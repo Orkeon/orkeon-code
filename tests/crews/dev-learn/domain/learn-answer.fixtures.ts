@@ -40,11 +40,20 @@ export const MAPPED_ANSWER = {
 /** An answer with a harness owner refining a line, and one item the model dropped. */
 export const HARNESS_OWNER_ANSWER = {
   motifs: [motif({
-    owner_kind: "harness", owner_path: ".devcontainer/harness/packs/dev/claude/skills/dev-verify/references/audit-axes.md",
+    owner_kind: "harness", owner_path: ".devcontainer/harness/packs/repo-sample/claude/rules/audits.md",
     status: "refines", lines_removed: ["Old line."],
   })],
   dropped: [{ title: "Vague", filter: "prevention", reason: "a reminder stops nothing" }],
 };
+
+/** An answer whose motif refines a line of an Orkeon Code file listed among its destinations. */
+export const ORKEON_CODE_OWNER_ANSWER = {
+  motifs: [motif({ owner_kind: "orkeon-code", owner_path: "docs/crew-prompts.md", status: "refines", lines_removed: ["Old line."] })],
+};
+
+/** The problem of a harness owner that is not a rule of a repository pack. */
+const HARNESS_OWNER_PROBLEM =
+  "a harness owner is a rule of a repository pack, a file of the orkeon-workshop repository under .devcontainer/harness/packs/repo-";
 
 export interface AnswerCase {
   name: string;
@@ -95,7 +104,20 @@ export const MOTIF_CASES: readonly MotifCase[] = [
   },
   {
     name: "harness owner outside the packs", over: { owner_kind: "harness", owner_path: "CONTRIBUTING.md" },
-    problem: `${AT}: a harness owner is a file of the orkeon-workshop repository under .devcontainer/harness/packs/`,
+    problem: `${AT}: ${HARNESS_OWNER_PROBLEM}`,
+  },
+  {
+    name: "harness owner in a pack that is not a repository's",
+    over: { owner_kind: "harness", owner_path: ".devcontainer/harness/packs/dev/claude/skills/dev-verify/references/audit-axes.md" },
+    problem: `${AT}: ${HARNESS_OWNER_PROBLEM}`,
+  },
+  {
+    name: "Orkeon Code owner not among its destinations", over: { owner_kind: "orkeon-code", owner_path: "docs/turn.md" },
+    problem: `${AT}: 'docs/turn.md' is not an Orkeon Code destination: name one of the files listed`,
+  },
+  {
+    name: "an unknown owner kind", over: { owner_kind: "workshop" },
+    problem: `${AT}: owner_kind must be repository, orkeon-code or harness`,
   },
   { name: "no line added", over: { lines_added: [] }, problem: `${AT}: ${ADDS}` },
   { name: "six lines added", over: { lines_added: SIX }, problem: `${AT}: ${ADDS}` },

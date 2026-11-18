@@ -27,7 +27,7 @@ export const WORK: WorkFolder = {
 
 function motif(id: string, kind: "harness" | "repository", rows: string[], title: string, topic: string): Motif {
   const path = kind === "harness"
-    ? ".devcontainer/harness/packs/dev/claude/skills/dev-verify/references/audit-axes.md"
+    ? ".devcontainer/harness/packs/repo-sample/claude/rules/audits.md"
     : "CONTRIBUTING.md";
   return {
     id, title, topic, rows, batches: ["demo/F1", "demo/F2", "demo/F3"],

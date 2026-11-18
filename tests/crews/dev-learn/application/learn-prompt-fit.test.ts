@@ -30,9 +30,22 @@ describe("buildLearnPrompt", () => {
       ...input.rows.map((r) => `| ${r.id} | ${r.batch} |`),
       "- rounding-inside-handlers — Rounding inside handlers",
       "- tests/architecture.test.ts",
-      "- .devcontainer/harness/packs/dev/claude/skills/dev-verify/references/audit-axes.md",
+      "Orkeon Code destinations (owner_kind orkeon-code, paths in the orkeon-code repository):\n- docs/crew-prompts.md\n",
+      "Harness destinations (owner_kind harness, paths in the orkeon-workshop repository):\n" +
+        "- .devcontainer/harness/packs/repo-<name>/claude/rules/<file>",
     ]);
     assertOmits(p, ["answer again"]);
+  });
+
+  it("names no file of the harness's removed dev pack", () => {
+    // Arrange
+    const input = INPUT;
+
+    // Act
+    const p = buildLearnPrompt(input, []);
+
+    // Assert
+    assertOmits(p, [".devcontainer/harness/packs/dev/"]);
   });
 
   it("says none for an empty list", () => {

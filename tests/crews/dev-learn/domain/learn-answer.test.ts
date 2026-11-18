@@ -6,7 +6,8 @@ import { deepStrictEqual, ok, strictEqual } from "node:assert";
 
 import { LEARN_ANSWER_SCHEMA, checkLearnAnswer, motifLabel } from "../../../../src/crews/dev-learn/domain/learn-answer.ts";
 import {
-  ANSWER_CASES, HARNESS_OWNER_ANSWER, LABEL_CASES, MAPPED_ANSWER, MOTIF_CASES, REMOVES_ANSWER, SAME_ROWS_ANSWER, SCHEMA_WORDS,
+  ANSWER_CASES, HARNESS_OWNER_ANSWER, LABEL_CASES, MAPPED_ANSWER, MOTIF_CASES, ORKEON_CODE_OWNER_ANSWER, REMOVES_ANSWER,
+  SAME_ROWS_ANSWER, SCHEMA_WORDS,
   SHOWN, THREE_BAD_MOTIFS, UNSEEN_STATUS_CASES, motif, problemsOf,
 } from "./learn-answer.fixtures.ts";
 import { assertProblem, assertQuotesWords } from "./learn-answer.assertions.ts";
@@ -35,6 +36,18 @@ describe("checkLearnAnswer — a valid answer", () => {
     ok(r.ok);
     deepStrictEqual(r.value.dropped, [{ title: "Vague", filter: "prevention", reason: "a reminder stops nothing" }]);
     deepStrictEqual(r.value.motifs[0].linesRemoved, ["Old line."]);
+  });
+
+  it("accepts an Orkeon Code owner listed among its destinations", () => {
+    // Arrange
+    const answer = ORKEON_CODE_OWNER_ANSWER;
+
+    // Act
+    const r = checkLearnAnswer(answer, SHOWN, true);
+
+    // Assert
+    ok(r.ok);
+    deepStrictEqual(r.value.motifs[0].owner, { kind: "orkeon-code", path: "docs/crew-prompts.md" });
   });
 
   it("accepts a motif that removes a line and adds none", () => {

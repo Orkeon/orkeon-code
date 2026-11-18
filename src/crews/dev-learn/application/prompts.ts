@@ -1,9 +1,10 @@
 // The learner's prompt for one axis (ADR 0003): the instructions, the material - the
 // axis, its untreated rows as a table, the refused motifs, the repository's guidance
-// files and the harness destinations - the problems of a refused answer and the owner
+// files, Orkeon Code's destinations and the harness's - the problems of a refused answer and the owner
 // lines code found for them. Text only: ./learn-prompt-fit.ts fits it under its budget.
 import { MAX_LINES_PER_MOTIF, MAX_TOPIC_CHARS } from "../domain/learn-answer.ts";
 import type { OwnerLinesBlock } from "../domain/owner-lines.ts";
+import { HARNESS_DESTINATIONS, ORKEON_CODE_DESTINATIONS } from "../domain/markers.ts";
 
 export const LEARN_INSTRUCTIONS: string = [
   "You study the gaps that audits of finished batches keep finding on one axis, and propose what would stop them " +
@@ -26,11 +27,13 @@ export const LEARN_INSTRUCTIONS: string = [
   "- Where a rule can be written as code, prefer the check: a test, an analyzer rule, an architecture test or the " +
     "gate. Name it in check; rule means a written rule only.",
   "- Pick the owner closest to where the gap was made. A rule of the repository comes first (its contributing " +
-    "guide, a lint or analyzer rule, an architecture test, its repository pack), taken from the owner files listed. " +
-    "Name a harness file only when the workflow itself writes or audits the wrong thing.",
-  "- Bear in mind that nothing here changes a harness file. For one, give its path in the orkeon-workshop " +
-    "repository with the lines to take out and the lines to put in; the user receives them as a patch. A path " +
-    "under .claude/ is a deployed copy and never an owner.",
+    "guide, a lint or analyzer rule, an architecture test, its repository pack), taken from the owner files listed " +
+    "or, for a rule of its pack in the harness, from the harness destinations. Name an Orkeon Code file only when " +
+    "the workflow itself writes or audits the wrong thing, and only one of its destinations listed.",
+  "- Bear in mind that nothing here changes an Orkeon Code file or a harness file. For one, give its path as its " +
+    "destinations list it, with the lines to take out and the lines to put in; the user receives them as a patch " +
+    "for the orkeon-code or the orkeon-workshop repository. A path under .claude/ is a deployed copy and never an " +
+    "owner.",
   "- Statuses refines, replaces and removes are only for an answer shown owner lines below its problems: copy each " +
     "removed line character for character from a shown line, and say in novelty what the shown lines miss. removes " +
     "takes out a line the rows show to be wrong and adds none.",
@@ -51,15 +54,6 @@ export interface LearnMaterial {
   refused: readonly string[];
   owners: readonly string[];
 }
-
-/** Where a harness owner may live, in the orkeon-workshop repository. */
-const HARNESS_DESTINATIONS: readonly string[] = [
-  ".devcontainer/harness/packs/dev/claude/skills/dev-plan/references/plan-template.md",
-  ".devcontainer/harness/packs/dev/claude/skills/dev-implement/references/common-rules.md",
-  ".devcontainer/harness/packs/dev/claude/skills/dev-verify/references/audit-axes.md",
-  ".devcontainer/harness/packs/dev/claude/skills/dev-verify/scripts/audit-capture.sh",
-  ".devcontainer/harness/packs/repo-<name>/claude/rules/<file>",
-];
 
 /** The head of the rows table: its columns, then its rule. */
 export const ROWS_TABLE_HEAD: readonly string[] = [
@@ -90,7 +84,10 @@ export function learnHead(input: LearnMaterial, problems: readonly string[]): st
     "Owner files of the repository:",
     ...listed(input.owners),
     "",
-    "Harness destinations (paths in the orkeon-workshop repository):",
+    "Orkeon Code destinations (owner_kind orkeon-code, paths in the orkeon-code repository):",
+    ...listed(ORKEON_CODE_DESTINATIONS),
+    "",
+    "Harness destinations (owner_kind harness, paths in the orkeon-workshop repository):",
     ...listed(HARNESS_DESTINATIONS),
     ...(problems.length > 0
       ? ["", "Your previous answer had these problems; answer again, fixing each:", ...problems.map((p) => `- ${p}`)]

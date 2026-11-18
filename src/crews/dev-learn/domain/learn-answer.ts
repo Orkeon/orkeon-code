@@ -4,7 +4,8 @@
 import type { Checked } from "../../../shared/domain/agents/charter.ts";
 import type { CheckKind, MotifStatus, OwnerKind } from "../../../shared/domain/dev/learn-proposals.ts";
 import { MAX_TOPIC_CHARS, TOPIC_PATTERN } from "../../../shared/domain/shared-memory/refused.ts";
-import { MOTIFS_MUST_BE_LIST, SEEN_LINES_ONLY, addsLines, atProblem, checkIsOneOf, deployedCopy, droppedNeeds, harnessOwnerUnder, lineLength, needsRemovedLine, ownerKindIs, ownerPathNotRelative, removesLines, rowNotGiven, rowTwice, rowsEmpty, sameRows, statusIs, titleLength, tooManyMotifs, topicNotSlug } from "./messages.ts";
+import { MOTIFS_MUST_BE_LIST, SEEN_LINES_ONLY, addsLines, atProblem, checkIsOneOf, deployedCopy, droppedNeeds, harnessOwnerUnder, orkeonCodeOwnerListed, lineLength, needsRemovedLine, ownerKindIs, ownerPathNotRelative, removesLines, rowNotGiven, rowTwice, rowsEmpty, sameRows, statusIs, titleLength, tooManyMotifs, topicNotSlug } from "./messages.ts";
+import { HARNESS_REPO_PACKS, ORKEON_CODE_DESTINATIONS } from "./markers.ts";
 import { ANSWER_NOT_AN_OBJECT as NOT_AN_OBJECT, fieldEmpty } from "../../../shared/domain/dev/messages.ts";
 
 export { MAX_TOPIC_CHARS };
@@ -26,11 +27,10 @@ export interface AnswerMotif {
 export interface AnswerDropped { title: string; filter: "recurrence" | "prevention" | "novelty"; reason: string }
 export interface LearnAnswer { motifs: AnswerMotif[]; dropped: AnswerDropped[] }
 
-const OWNER_KINDS: readonly OwnerKind[] = ["repository", "harness"];
+const OWNER_KINDS: readonly OwnerKind[] = ["repository", "orkeon-code", "harness"];
 const CHECK_KINDS: readonly CheckKind[] = ["test", "analyzer", "architecture-test", "gate", "rule"];
 const STATUSES: readonly MotifStatus[] = ["new", "refines", "replaces", "removes"];
 const FILTERS: ReadonlyArray<AnswerDropped["filter"]> = ["recurrence", "prevention", "novelty"];
-const HARNESS_PACKS = ".devcontainer/harness/packs/";
 
 const stringList = { type: "array", items: { type: "string" } };
 
@@ -148,8 +148,10 @@ function checkMotif(
     problems.push(ownerPathNotRelative(at, path));
   } else if (kind === "repository" && (path === ".claude" || path.startsWith(".claude/"))) {
     problems.push(deployedCopy(at));
-  } else if (kind === "harness" && !path.startsWith(HARNESS_PACKS)) {
-    problems.push(harnessOwnerUnder(at, HARNESS_PACKS));
+  } else if (kind === "harness" && !path.startsWith(HARNESS_REPO_PACKS)) {
+    problems.push(harnessOwnerUnder(at, HARNESS_REPO_PACKS));
+  } else if (kind === "orkeon-code" && !ORKEON_CODE_DESTINATIONS.includes(path)) {
+    problems.push(orkeonCodeOwnerListed(at, path));
   }
 
   const check = text(item.check) as CheckKind;

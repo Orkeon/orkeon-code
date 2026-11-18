@@ -14,7 +14,7 @@ import {
   THREE, badThenGoodAnswer, diskFull, earlierRunKeptNoMotif, motifsDroppedByCode, motifsRemovingAKeptLine,
   motifsWithAbsentOwners, newMotifFoundInOwner, noAxisOverThree, oneMotifProposed, ownerLinesThenBadAnswer, recorded,
   removedLineNotInOwner, setup, twoFailedAnswers, MOTIF_1, ownerLinesThenRefusedAnswer, HARNESS_OWNER_LINES,
-  UNSEEN_REFINES_REASK, harnessOwnerHoldsKeyTerm, refinesBeforeOwnerLines, REFUSED_LISTED,
+  UNSEEN_REFINES_REASK, harnessOwnerHoldsKeyTerm, orkeonCodeOwnerInCheckout, refinesBeforeOwnerLines, REFUSED_LISTED,
 } from "./run-dev-learn.fixtures.ts";
 import { assertNoClaudeWrite, writtenTestAxis } from "./run-dev-learn.assertions.ts";
 import { assertMentions } from "../../../support/assertions/text.ts";
@@ -192,7 +192,7 @@ describe("runDevLearn — proposals", () => {
     // Assert
     deepStrictEqual(writtenTestAxis(f.files).motifs.map((m) => m.reconcile), [
       "owner absent: docs/missing.md",
-      "owner absent: .claude/skills/dev-verify/references/audit-axes.md",
+      "owner absent: .claude/rules/audits.md",
       "'refusal' on 1 lines of CONTRIBUTING.md, first CONTRIBUTING.md:3; removed line not found: A line nobody wrote.",
     ]);
     assertNoClaudeWrite(f.files);
@@ -332,6 +332,17 @@ describe("runDevLearn — the owner lines", () => {
 
     // Assert
     assertMentions(f.llm.extracts[1].prompt, [HARNESS_OWNER_LINES]);
+  });
+
+  it("never reads an Orkeon Code owner in the checkout, so asks no second time", async () => {
+    // Arrange
+    const f = orkeonCodeOwnerInCheckout();
+
+    // Act
+    await runDevLearn({}, f.deps);
+
+    // Assert
+    deepStrictEqual([f.llm.extracts.length, writtenTestAxis(f.files).motifs[0].reconcile], [1, "owner absent: docs/crew-prompts.md"]);
   });
 
   it("refuses a first answer that refines a line it was not shown, and asks again with the owner lines", async () => {

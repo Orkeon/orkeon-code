@@ -330,12 +330,13 @@ function filterMotifs(
 
 // ---- reconcile ----
 
-/** Reads a motif's owner file in the checkout (a harness owner through its deployed copy), each path once a run;
- *  path: the file read. */
+/** Reads a motif's owner file in the checkout (a harness owner through its deployed copy; an Orkeon Code owner is
+ *  not a file of the checkout, so never read), each path once a run; path: the file read. */
 function ownerReader(files: Pick<Files, "read">): (motif: AnswerMotif) => Promise<{ path: string; text: string | null }> {
   const texts = new Map<string, string | null>();
   return async (motif) => {
-    const path = motif.owner.kind === "harness" ? deployedHarnessPath(motif.owner.path) : motif.owner.path;
+    const path = motif.owner.kind === "harness" ? deployedHarnessPath(motif.owner.path)
+      : motif.owner.kind === "orkeon-code" ? null : motif.owner.path;
     if (path === null) return { path: motif.owner.path, text: null };
     if (!texts.has(path)) {
       let text: string | null;

@@ -234,7 +234,7 @@ const NOW = () => new Date(2026, 9, 22, 14, 5);
 
 function motif(id: string, kind: "harness" | "repository", rows: string[], title: string, topic: string): Motif {
   const path = kind === "harness"
-    ? ".devcontainer/harness/packs/dev/claude/skills/dev-verify/references/audit-axes.md"
+    ? ".devcontainer/harness/packs/repo-sample/claude/rules/audits.md"
     : "CONTRIBUTING.md";
   return {
     id, title, topic, rows, batches: ["demo/F1", "demo/F2", "demo/F3"],
@@ -288,7 +288,7 @@ export const DECIDED_STATE = {
 export const HARNESS_ACCEPTED_LINES = [
   PROBE_WARNING,
   "accepted 3f2a9c1e — Refusal paths go untested: a harness file is never edited here; apply this in the orkeon-workshop repository:",
-  "  file: .devcontainer/harness/packs/dev/claude/skills/dev-verify/references/audit-axes.md",
+  "  file: .devcontainer/harness/packs/repo-sample/claude/rules/audits.md",
   "  + Each refusal path has its own test.",
   "state: .orkeon/dev-learn-state.json — 2 gaps treated in all",
 ];
