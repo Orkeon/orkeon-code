@@ -109,6 +109,8 @@ export const agentMount = (r: Run) => `${r.root}:/work/agent:ro`;
 /** A file of the checkout given after --, as the container names it. */
 export const MOCK_IN_CONTAINER = ["--llm-mock", "/work/agent/tests/answers.jsonl"];
 export const MOCK_ON_HOST = ["--mode", "docker", "--", "--llm-mock", "<checkout>/tests/answers.jsonl"];
+/** The same, without the `--` before it, as scripts/smoke-crew.sh gives it. */
+export const MOCK_ON_HOST_NO_DASHES = ["--mode", "docker", "--llm-mock", "<checkout>/tests/answers.jsonl"];
 /** A file of the project given after --, relative from the caller's folder, and the name the container reads. */
 export const PROJECT_MOCK = { "project/answers.jsonl": "{}\n" };
 export const PROJECT_MOCK_ON_HOST = ["--mode", "docker", "--", "--llm-mock", "project/answers.jsonl"];

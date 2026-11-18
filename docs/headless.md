@@ -68,14 +68,15 @@ is the only directory of your machine it can write ([SECURITY.md](../SECURITY.md
   downloaded as for the REPL ([Getting started](getting-started.md); no package published so far names one).
   `--mode docker|tool|source` picks one.
 - In docker mode the checkout is the container's `/work/agent`, read-only, and the project its `/work/project`: a
-  path under one of them given after `--` (an `--llm-mock` file) is named there. A file given after `--` that lies
-  outside both stops the run, since the container does not see it: put it under the project. A crew outside the
+  path under one of them given to a path option of `orkeon run` (an `--llm-mock` file, with or without `--` before
+  it) is named there. Such a file that lies outside both stops the run, since the container does not see it: put it under the project. A crew outside the
   checkout is refused.
 - What follows `--` goes to `orkeon run` as is (`-- --validate`, `-- --llm-mock answers.jsonl`, `-- -v 2`), but for
   the value of an option of `orkeon run` that takes a path (`--llm-mock`, `--llm-record`, `--llm-replay`,
   `--llm-log-path`, `--inputs-file`, written `--llm-mock FILE` or `--llm-mock=FILE`) when it is relative and names a
   file or a folder of your current folder: the runner starts elsewhere (in the project, the clone or the container),
-  so the launcher hands that path over absolute, resolved against the folder you ran `orkeon-code` from.
+  so the launcher hands that path over absolute, resolved against the folder you ran `orkeon-code` from. An option
+  the launcher does not know goes to `orkeon run` the same way when no `--` precedes it.
 - `orkeon-code run --help` prints the usage of `run` on stdout and exits `0`.
 - `orkeon-code.ps1` has no `run` yet: use the bash launcher (Git Bash or WSL on Windows).
 - The crew reads its input from the JSON of `--inputs`.

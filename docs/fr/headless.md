@@ -72,15 +72,15 @@ le projet est le seul dossier de votre machine qu'il peut écrire ([SECURITY.md]
   que nomme le paquet, téléchargé comme pour le REPL ([Premiers pas](getting-started.md) ; aucun paquet publié à ce
   jour n'en nomme). `--mode docker|tool|source` en choisit un.
 - En mode docker, le checkout est le `/work/agent` du conteneur, en lecture seule, et le projet son
-  `/work/project` : un chemin sous l'un d'eux donné après `--` (un fichier `--llm-mock`) y est nommé. Un fichier
-  donné après `--` hors des deux arrête l'exécution, puisque le conteneur ne le voit pas : mettez-le sous le projet.
+  `/work/project` : un chemin sous l'un d'eux donné à une option de chemin d'`orkeon run` (un fichier `--llm-mock`,
+  précédé de `--` ou non) y est nommé. Un tel fichier hors des deux arrête l'exécution, puisque le conteneur ne le voit pas : mettez-le sous le projet.
   Un crew hors du checkout est refusé.
 - Ce qui suit `--` va tel quel à `orkeon run` (`-- --validate`, `-- --llm-mock answers.jsonl`, `-- -v 2`), sauf la
   valeur d'une option d'`orkeon run` qui prend un chemin (`--llm-mock`, `--llm-record`, `--llm-replay`,
   `--llm-log-path`, `--inputs-file`, écrite `--llm-mock FICHIER` ou `--llm-mock=FICHIER`) quand elle est relative et
   nomme un fichier ou un dossier de votre dossier courant : le runner démarre ailleurs (dans le projet, le clone ou
   le conteneur), alors le lanceur transmet ce chemin en absolu, résolu depuis le dossier d'où vous avez lancé
-  `orkeon-code`.
+  `orkeon-code`. Une option que le lanceur ne connaît pas va de même à `orkeon run` quand aucun `--` ne la précède.
 - `orkeon-code run --help` imprime l'usage de `run` sur stdout et sort avec `0`.
 - `orkeon-code.ps1` n'a pas encore de `run` : prenez le lanceur bash (Git Bash ou WSL sous Windows).
 - Le crew lit son entrée dans le JSON de `--inputs`.

@@ -47,8 +47,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed — `orkeon-code run` reads a relative path where you are
 
-- The file of a path option of `orkeon run` after `--` (`--llm-mock`, `--llm-record`, `--llm-replay`,
-  `--llm-log-path`, `--inputs-file`, as `--opt FILE` or `--opt=FILE`) was read from the project, the clone or the
+- The file of a path option of `orkeon run`, with or without `--` before it (`--llm-mock`, `--llm-record`,
+  `--llm-replay`, `--llm-log-path`, `--inputs-file`, as `--opt FILE` or `--opt=FILE`) was read from the project, the clone or the
   container, where the runner starts: one that names a file of the folder you started from is now handed over
   absolute, and in docker mode under the project or the clone as the container sees them; a file outside both stops
   the run in docker mode with exit `1`, the container not seeing it. Other words and option values pass unchanged.

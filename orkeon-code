@@ -646,7 +646,6 @@ RESUME=0
 RESUME_CHOICE=""
 EXTRA=()
 # How many words of EXTRA came before --: `orkeon-code run` reads the words after it as `orkeon run`'s.
-EXTRA_BEFORE_DASHES=-1
 while [ $# -gt 0 ]; do
   case "$1" in
     --mode) MODE="${2:?--mode needs docker|tool|source}"; shift 2 ;;
@@ -668,7 +667,7 @@ while [ $# -gt 0 ]; do
     -h|--help)
       if [ -n "$RUN_CREW" ]; then echo "$RUN_USAGE"; exit 0; fi
       awk 'NR > 1 && /^set -euo pipefail/ { exit } NR > 1' "$SELF" | sed 's/^# \{0,1\}//'; exit 0 ;;
-    --) shift; EXTRA_BEFORE_DASHES=${#EXTRA[@]}; EXTRA+=("$@"); break ;;
+    --) shift; EXTRA+=("$@"); break ;;
     *) EXTRA+=("$1"); shift ;;
   esac
 done
@@ -834,7 +833,7 @@ clone_tool() { [ "$KIND" = clone ] && [ -f "$ROOT/.config/dotnet-tools.json" ] &
 # The options of `orkeon run` (the pin's RunCommand) whose value is a file or a folder.
 RUN_PATH_OPTIONS=" --llm-mock --llm-record --llm-replay --llm-log-path --inputs-file "
 
-# Sets RUN_PATH to the value of a path option given after --, as the runner must read it. The runner starts in the
+# Sets RUN_PATH to the value of a path option of `orkeon run`, as the runner must read it. The runner starts in the
 # project, the clone or the container: a relative path that names a file or a folder of the caller's folder is made
 # absolute, as the caller meant it. In docker mode, a path under the checkout or the project is named as the
 # container sees it (the checkout is its /work/agent, the project its /work/project), and a file of the host
@@ -860,14 +859,13 @@ run_path() { # <path> <mode>
   fi
 }
 
-# Sets RUN_EXTRA to the words given to `orkeon run`: those after -- whose value is a path option's (--llm-mock FILE,
-# --llm-mock=FILE) go through run_path, every other word is passed as given.
+# Sets RUN_EXTRA to the words given to `orkeon run`, before or after --: the value of a path option (--llm-mock FILE,
+# --llm-mock=FILE) goes through run_path, every other word is passed as given.
 run_extra() { # <mode>
-  local v i=0 value=0
+  local v value=0
   RUN_EXTRA=()
   for v in ${EXTRA[@]+"${EXTRA[@]}"}; do
-    if [ "$EXTRA_BEFORE_DASHES" -lt 0 ] || [ "$i" -lt "$EXTRA_BEFORE_DASHES" ]; then RUN_EXTRA+=("$v")
-    elif [ "$value" = 1 ]; then run_path "$v" "$1"; RUN_EXTRA+=("$RUN_PATH")
+    if [ "$value" = 1 ]; then run_path "$v" "$1"; RUN_EXTRA+=("$RUN_PATH")
     else
       case "$v" in
         --*=*)
@@ -879,10 +877,7 @@ run_extra() { # <mode>
       esac
     fi
     value=0
-    if [ "$EXTRA_BEFORE_DASHES" -ge 0 ] && [ "$i" -ge "$EXTRA_BEFORE_DASHES" ]; then
-      case "$RUN_PATH_OPTIONS" in *" $v "*) value=1 ;; esac
-    fi
-    i=$((i + 1))
+    case "$RUN_PATH_OPTIONS" in *" $v "*) value=1 ;; esac
   done
 }
 

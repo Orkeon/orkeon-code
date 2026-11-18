@@ -9,7 +9,7 @@ import {
 } from "./launcher.fixtures.ts";
 import { assertLacks, assertSays } from "./launcher.assertions.ts";
 import {
-  CALLER_MOCK, CALLER_MOCK_IN_DOCKER, DOCKER_CREW, DOCKER_OUTSIDE_FILE, DOCKER_OUTSIDE_SRC, DOTNET_BIN, DOWNLOADED_RAN, ELSEWHERE, MOCK_IN_CONTAINER, MOCK_ON_HOST, INPUTS, INPUTS_ARE_RUNS, LOG_TO_STDERR, NAMED_RUNTIME, NO_SESSION,
+  CALLER_MOCK, CALLER_MOCK_IN_DOCKER, DOCKER_CREW, DOCKER_OUTSIDE_FILE, DOCKER_OUTSIDE_SRC, DOTNET_BIN, DOWNLOADED_RAN, ELSEWHERE, MOCK_IN_CONTAINER, MOCK_ON_HOST, MOCK_ON_HOST_NO_DASHES, INPUTS, INPUTS_ARE_RUNS, LOG_TO_STDERR, NAMED_RUNTIME, NO_SESSION,
   NO_ESBUILD, NO_ESBUILD_NAMED, NO_ORKEON, NO_RUNNER, NO_SOURCE, NPM_ESBUILD, NPM_ESBUILD_FILE, ORKEON, PROBE, PROJECT_MOCK, PROJECT_MOCK_IN_CONTAINER,
   PROJECT_MOCK_ON_HOST, RESOLVED_CASES, TOOL_MANIFEST, UNKNOWN, USAGE, agentMount, callerFile, cloneToolCalls,
   crewPath, downloadingRunStart, homeWithOrkeon, noRunnerStart, orkeonExiting, runArgs, runStart, scriptingCheckout, sourceCalls,
@@ -435,6 +435,17 @@ describe("orkeon-code run, the runner", () => {
   it("names a file of the checkout given after -- as the container sees it, in docker mode", () => {
     // Arrange
     const start = runStart({ bin: { docker: ORKEON.orkeon }, args: MOCK_ON_HOST, checkoutInArgs: true });
+
+    // Act
+    const r = launch(start);
+
+    // Assert
+    assertArgsEndWith(r, MOCK_IN_CONTAINER);
+  });
+
+  it("names a file of the checkout given with no -- before it as the container sees it, in docker mode", () => {
+    // Arrange
+    const start = runStart({ bin: { docker: ORKEON.orkeon }, args: MOCK_ON_HOST_NO_DASHES, checkoutInArgs: true });
 
     // Act
     const r = launch(start);
