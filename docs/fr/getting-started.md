@@ -17,7 +17,7 @@ REPL. Il lui faut trois choses : un runtime, un fichier de settings et une clé 
 ni `sudo`, ni clone, ni `npm ci`.
 
 ```bash
-v=0.1.0                                                          # the release to install
+v=1.0.0-rc.3                                                     # the release to install
 curl -fLO "https://github.com/Orkeon/orkeon-code/releases/download/v$v/install.sh"
 bash install.sh                                                  # or: bash install.sh --prefix /opt/tools
 orkeon-code --version
@@ -134,6 +134,12 @@ REPL et esbuild ; l'image est construite pour `linux/amd64` et `linux/arm64`, et
 conteneur ; sous Linux, le conteneur tourne avec votre uid, si bien que les fichiers que l'agent écrit vous
 appartiennent. L'outil shell tourne dans le conteneur.
 
+L'image ne fixe aucune identité git, et git n'y lit aucun `~/.gitconfig` (Orkeon #404) : le lanceur remet donc au
+conteneur `GIT_AUTHOR_NAME`, `GIT_AUTHOR_EMAIL`, `GIT_COMMITTER_NAME` et `GIT_COMMITTER_EMAIL`. Chacune que vous
+exportez est gardée, et une absente est prise du `user.name` ou du `user.email` de votre git pour le projet
+(`git config` dans l'espace de travail). Sans l'une ni l'autre, `/commit` s'arrête sur l'identité et dit quelles
+variables exporter.
+
 Le lanceur vérifie que le moteur répond avant de démarrer le conteneur : si Docker Desktop ou le service Docker est
 arrêté, il le dit et ne démarre rien.
 
@@ -156,7 +162,7 @@ against the pin.`) et lance quand même.
 
 ### Aucun runtime sur la machine : celui qu'Orkeon Code télécharge
 
-Aucun paquet publié à ce jour ne nomme de runtime : le `.orkeon-runtime` de chaque release, `1.0.0-rc.2` compris, est
+Aucun paquet publié à ce jour ne nomme de runtime : le `.orkeon-runtime` de chaque release, `1.0.0-rc.3` compris, est
 vide, et sa release ne porte aucune archive du runtime. Sur une machine sans `orkeon-repl`, sans Docker et sans
 `ORKEON_SOURCE`, installez `orkeon-repl` depuis l'archive de release d'Orkeon
 ([Mode tool](#mode-tool--orkeon-repl-installé)) ; `orkeon-code --version` dit alors `found: <version> (orkeon-repl,

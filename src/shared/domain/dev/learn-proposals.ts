@@ -2,7 +2,7 @@
 // `<work>/learn-<date>/proposals.json` for --accept and --refuse to read, and the lines
 // those print. A decision applies nothing: it prints the change to make. Pure, no IO.
 import { sha1Hex } from "../sha1.ts";
-import { acceptedHarness, acceptedOrkeonCode, acceptedRepository, hasTheWrongShape, THE_TOP_LEVEL } from "./messages.ts";
+import { acceptedHarness, acceptedOrkeonCode, acceptedRemovedHarness, acceptedRepository, hasTheWrongShape, THE_TOP_LEVEL } from "./messages.ts";
 
 export const LEARN_FOLDER_PATTERN: RegExp = /^learn-\d{4}-\d{2}-\d{2}$/;
 export function learnFolderName(date: string): string {
@@ -150,13 +150,23 @@ export function serializeProposalsFile(file: ProposalsFile): string {
 
 // ---- the lines a decision prints ----
 
-const HARNESS_SOURCE = /^\.devcontainer\/harness\/packs\/[^/]+\/claude\/(.+)$/;
+/** The start of every harness owner's path: a repository pack, in the orkeon-workshop repository. */
+export const HARNESS_REPO_PACKS = ".devcontainer/harness/packs/repo-";
 
-/** The harness owner's file in the orkeon-workshop repository → its deployed copy in the checkout, or null. */
+/** A harness owner, a rule of a repository pack (`<HARNESS_REPO_PACKS><name>/claude/rules/<file>`, name and file
+ *  non-empty, no deeper folder) → its deployed copy in the checkout; any other path → null. */
 export function deployedHarnessPath(path: string): string | null {
-  const m = HARNESS_SOURCE.exec(path);
-  if (!m || m[1].split("/").some((s) => s === "" || s === "." || s === "..")) return null;
-  return `.claude/${m[1]}`;
+  if (!path.startsWith(HARNESS_REPO_PACKS)) return null;
+  const [name, claude, rules, file, ...deeper] = path.slice(HARNESS_REPO_PACKS.length).split("/");
+  if (!name || claude !== "claude" || rules !== "rules" || !file || file === "." || file === ".." || deeper.length > 0) {
+    return null;
+  }
+  return `.claude/rules/${file}`;
+}
+
+/** Whether a harness owner's path is a rule of a repository pack, the only harness file a motif may own. */
+export function isHarnessRule(path: string): boolean {
+  return deployedHarnessPath(path) !== null;
 }
 
 export function patchLines(motif: Motif): string[] {
@@ -168,8 +178,12 @@ export function patchLines(motif: Motif): string[] {
 }
 
 /** The lines printed for a motif: the patch for an Orkeon Code or a harness owner, the change to make for a
- *  repository owner. */
+ *  repository owner; a harness owner that is not a rule of a repository pack (a proposals.json written before the dev
+ *  pack left the harness) is a removed file, said in one line with no patch. */
 export function acceptLines(motif: Motif): string[] {
+  if (motif.owner.kind === "harness" && !isHarnessRule(motif.owner.path)) {
+    return [acceptedRemovedHarness(motif.id, motif.title, motif.owner.path)];
+  }
   const head = motif.owner.kind === "harness"
     ? acceptedHarness(motif.id, motif.title)
     : motif.owner.kind === "orkeon-code"

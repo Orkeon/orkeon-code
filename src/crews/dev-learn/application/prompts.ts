@@ -33,7 +33,7 @@ export const LEARN_INSTRUCTIONS: string = [
   "- Bear in mind that nothing here changes an Orkeon Code file or a harness file. For one, give its path as its " +
     "destinations list it, with the lines to take out and the lines to put in; the user receives them as a patch " +
     "for the orkeon-code or the orkeon-workshop repository. A path under .claude/ is a deployed copy and never an " +
-    "owner.",
+    "owner. An Orkeon Code owner is never read here, so its motif always takes status new.",
   "- Statuses refines, replaces and removes are only for an answer shown owner lines below its problems: copy each " +
     "removed line character for character from a shown line, and say in novelty what the shown lines miss. removes " +
     "takes out a line the rows show to be wrong and adds none.",

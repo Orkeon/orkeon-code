@@ -224,12 +224,13 @@ Pour l'élagage, avec des réglages qui nomment un modèle et un fournisseur de 
 ```bash
 ORKEON_CODE_MODE=source ORKEON_SOURCE=~/src/orkeon \
   ./orkeon-code run main-loop --workspace "<the project>" --trust \
-  --inputs '{"prompt": "<a request that reads many large files>", "permissionMode": "plan"}' > run.log 2>&1
+  --inputs '{"prompt": "<a request that reads many large files>", "permissionMode": "plan"}' -- -v 2 > run.log 2>&1
 grep -o "context pruning: [^\"]*\|call used [0-9]* tokens\|HttpClient\.[A-Za-z]*\.LogicalHandler\[101\] End[^-]*ms" run.log
 ```
 
 Le premier motif est la ligne de chaque pression, le deuxième les tokens de chaque appel au modèle, le troisième
-le temps de chaque requête, celles du modèle et celles du modèle de décision (la ligne nomme le client).
+le temps de chaque requête, celles du modèle et celles du modèle de décision (la ligne nomme le client). `-- -v 2`
+monte le journal d'`orkeon run` au niveau où ces lignes s'écrivent : par défaut, il ne montre que les avertissements.
 
 Pour le routage, `/route on` dans une session, une commande, puis `/route why`. Pour les skills,
 `/skills suggest on`, une demande, puis `/skills suggest why`. Chacun écrit aussi une ligne dans le journal :

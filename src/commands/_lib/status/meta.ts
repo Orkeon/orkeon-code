@@ -2,8 +2,9 @@
 //
 // Orkeon Code versions independently of the Orkeon runtime it runs on: the
 // runtime is pinned to a commit of Orkeon's main in .orkeon-version, this one follows
-// package.json (tests/repository/version.test.ts keeps the two equal). The counts and crew names in
-// RELEASE_NOTES (messages.ts) are pinned by tests/commands/_lib/status/messages.test.ts, which keeps them true.
+// package.json (tests/repository/version.test.ts keeps the two equal). In RELEASE_NOTES (messages.ts),
+// tests/commands/_lib/status/messages.test.ts pins the command count, this version, the crew names, the Orkeon
+// version of .config/dotnet-tools.json and the Headless line; the rest of the notes no test checks.
 
 export const CLI_NAME = "orkeon-code";
 export const CLI_VERSION = "1.0.0-rc.3";

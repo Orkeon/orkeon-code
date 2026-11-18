@@ -25,7 +25,7 @@ import {
   TOOL_START, USER_SETTINGS, WHISPER, audioEnv, bashOf, checkoutHead, ciStarts, corruptHome, fullHistory, gitAt, launch, launchWithNode, orkeonCheckoutAtAnotherCommit, orkeonCheckoutBehindThePin,
   leftBeside, linkedFolder, modeStart, mostWhisperArgs, mountOf, mountRoots, namedProjectStart, nestedTrust, orkeonCheckout,
   pwshOf, read, recorder, removeScratch, runPs1ThenPrint, scratchDir, scratchFolder, serverArgs, serverOf,
-  sessionScene, slugOf, sourceModeCalls, sourceModeCallsRestoring, staleLock, startAgain, storeOf, storedFolders, tokenVarsForwarded, toolModeArgs, trustCli, trustOf, twoSessions,
+  sessionScene, slugOf, sourceModeCalls, sourceModeCallsRestoring, staleLock, startAgain, storeOf, storedFolders, tokenVarsForwarded, identityVarsForwarded, IDENTITY_VARS, HOST_GITCONFIG, toolModeArgs, trustCli, trustOf, twoSessions,
   untrustedStart, upTo, userFile, variablesSaved, variablesSet, whisperArgNames, whisperArgs, whisperEnv, writtenSettings, historyIds,
   FAKE_AUTOMOUNT, FAKE_WSLPATH, HOST_WSLPATH, ON_PLAIN_LINUX, POSIX_LAUNCHES, PS1_LAUNCH_FILE, QUOTED_PROJECT, WSL_LAUNCHES,
   fakeWindowsSpelling, launchFile, mountBases,
@@ -378,6 +378,52 @@ describe("orkeon-code, docker mode, an engine that does not answer", () => {
 
     // Assert
     deepStrictEqual(r.args, []);
+  });
+});
+
+describe("orkeon-code, docker mode, the identity of a commit (Orkeon #404)", () => {
+  it("hands the four git identity variables to the container when they are exported", () => {
+    // Arrange
+    const env = { GIT_AUTHOR_NAME: "Ada", GIT_AUTHOR_EMAIL: "a@x", GIT_COMMITTER_NAME: "Ada", GIT_COMMITTER_EMAIL: "a@x" };
+
+    // Act
+    const r = launch({ args: ["--mode", "docker"], bin: { docker: recorder() }, env });
+
+    // Assert
+    deepStrictEqual(identityVarsForwarded(r.args), IDENTITY_VARS);
+  });
+
+  it("takes the identity the host's git gives when none is exported", () => {
+    // Arrange
+    const files = { ".gitconfig": HOST_GITCONFIG };
+
+    // Act
+    const r = launch({ args: ["--mode", "docker"], bin: { docker: recorder() }, files });
+
+    // Assert
+    deepStrictEqual([r.env.get("GIT_AUTHOR_NAME"), r.env.get("GIT_COMMITTER_EMAIL")], ["Ada Host", "ada@host.example"]);
+  });
+
+  it("keeps an exported variable over the host's git", () => {
+    // Arrange
+    const files = { ".gitconfig": HOST_GITCONFIG };
+
+    // Act
+    const r = launch({ args: ["--mode", "docker"], bin: { docker: recorder() }, files, env: { GIT_AUTHOR_NAME: "Bob" } });
+
+    // Assert
+    deepStrictEqual([r.env.get("GIT_AUTHOR_NAME"), r.env.get("GIT_COMMITTER_NAME")], ["Bob", "Ada Host"]);
+  });
+
+  it("hands no identity variable over when neither the environment nor the host's git names one", () => {
+    // Arrange
+    const bin = { docker: recorder() };
+
+    // Act
+    const r = launch({ args: ["--mode", "docker"], bin });
+
+    // Assert
+    deepStrictEqual(identityVarsForwarded(r.args), []);
   });
 });
 
@@ -1171,6 +1217,19 @@ describe("orkeon-code.ps1 follows the same rules (read here; run below, where pw
 });
 
 describe("orkeon-code.ps1, run where pwsh is installed", { skip: PWSH ? false : "pwsh is not on PATH" }, () => {
+  for (const sub of ["run", "runtime"]) {
+    it(`refuses the bash launcher's ${sub} with exit 1, running nothing`, () => {
+      // Arrange
+      const bin = { docker: recorder() };
+
+      // Act
+      const r = launch({ shell: "pwsh", args: [sub, "install"], bin });
+
+      // Assert
+      deepStrictEqual([r.status, r.stderr.includes(`'${sub}' is not available in orkeon-code.ps1`), r.args], [1, true, []]);
+    });
+  }
+
   it("hands the github token variables to the container as ./orkeon-code does, none when none is exported (Orkeon #222)", () => {
     // Arrange
     const env = { GITHUB_TOKEN: "ghp_x", Orkeon__Tools__GitHub__TokenVariable: "MY_GH", MY_GH: "ghp_z" };

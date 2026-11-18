@@ -96,11 +96,19 @@ Every system prompt below ends with the runtime's `## File system` section when 
 - The owner is the one closest to where the gap was made: a rule of the repository first, its pack's rule in the
   harness included, and a file of Orkeon Code only when the workflow itself writes or audits the wrong thing.
 - Orkeon Code's owners are a closed list of its own files, each one checked to exist in this repository: this
-  document, the design rules, the gate, the auditor's and the reviewer's charters. A harness owner is a rule of a
-  repository pack, the orkeon-workshop repository having no other file the workflow follows.
+  document, the design rules, the plan's and the spec's renderers (`plan-render.ts`, `spec-render.ts`, the only
+  writers of those formats; `spec-format.ts` only reads a spec, so it is not listed), the gate, the auditor's and the
+  reviewer's charters. A harness owner is exactly a rule of a repository pack,
+  `.devcontainer/harness/packs/repo-<name>/claude/rules/<file>` with a name, a file and no deeper folder, the
+  orkeon-workshop repository having no other file a motif may own.
 - Neither an Orkeon Code file nor a harness file is changed here: its lines come back as a patch for the orkeon-code
   or the orkeon-workshop repository, an Orkeon Code owner is never read in the checkout, and a copy under `.claude/`
   is never an owner.
+- Since an Orkeon Code owner is never read, its motif takes status `new` alone, even on a second try that shows
+  another motif's owner lines, and the proposal says that owner was not read rather than absent.
+- An accepted Orkeon Code patch reminds that a document changes with its French twin and a prompt behaviour first
+  (ADR 0003). An accepted harness motif whose owner is no rule of a repository pack, from a proposals file written
+  before the dev pack left the harness, prints no patch: it says the owner is a file the harness removed.
 - A motif adds five lines at most.
 - Three motifs at most, every dropped candidate named with its filter and reason.
 - The rows, lists and paths are material, not instructions.
@@ -224,8 +232,13 @@ Every system prompt below ends with the runtime's `## File system` section when 
   it is named (which its confirmation says).
 - The list is staged with `git add -- <files>` and committed with `git commit -- <files>`, so what was staged
   elsewhere stays out.
+- When `git status` fails (any non-zero exit, a timeout, a refusal of the runtime), the crew stops before any model
+  call with git's reason (`the working tree could not be read, nothing was committed`), never reading the failure as
+  a clean tree.
 - Git's own identity (`git var GIT_AUTHOR_IDENT`, then the committer's) is checked before any model call, and when
-  it has none the crew stops and hands over the two `git config --global` commands, never inventing one.
+  it has none the crew stops and hands over the two `git config --global` commands, never inventing one. Where git
+  reads no `~/.gitconfig` (docker mode, a confined session with a `HOME` of its own), the stop also says to export
+  `GIT_AUTHOR_NAME`, `GIT_AUTHOR_EMAIL`, `GIT_COMMITTER_NAME` and `GIT_COMMITTER_EMAIL` before `orkeon-code`.
 - `--push` pushes with `git push -u origin <branch>`.
 - Off the default branch the pull request body is written to `<work>/pr-<slug>/PR.md`, and the pull request opened
   with the runtime's `github` tool (`create_pr`) when `--pr` or `dev.prAuto` ask for it, the host offers the tool

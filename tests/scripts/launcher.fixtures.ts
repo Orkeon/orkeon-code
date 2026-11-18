@@ -256,6 +256,16 @@ export const envForwarded = (args: string[]): string[] => args.flatMap((a, i) =>
 export const tokenVarsForwarded = (args: string[]): string[] =>
   envForwarded(args).filter((v) => v === "GITHUB_TOKEN" || v === "GH_TOKEN" || v.startsWith("Orkeon__Tools__GitHub") || v === "MY_GH");
 
+/** The git identity variables (Orkeon #404) among the ones handed to the container, in order. */
+export const identityVarsForwarded = (args: string[]): string[] =>
+  envForwarded(args).filter((v) => v.startsWith("GIT_AUTHOR_") || v.startsWith("GIT_COMMITTER_"));
+
+/** The four identity variables a commit in the container reads, in the order the launcher hands them over. */
+export const IDENTITY_VARS = ["GIT_AUTHOR_NAME", "GIT_AUTHOR_EMAIL", "GIT_COMMITTER_NAME", "GIT_COMMITTER_EMAIL"];
+
+/** A ~/.gitconfig of the host that names a user. */
+export const HOST_GITCONFIG = "[user]\n\tname = Ada Host\n\temail = ada@host.example\n";
+
 export const mountRoots = (args: string[]) =>
   args.flatMap((a, i) => (args[i - 1] === "--mount" ? [a.split(":")[1]] : []));
 

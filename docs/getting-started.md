@@ -17,7 +17,7 @@ REPL. It needs three things: a runtime, a settings file and an API key.
 `~/.local/bin`; no `sudo`, no clone, no `npm ci`.
 
 ```bash
-v=0.1.0                                                          # the release to install
+v=1.0.0-rc.3                                                     # the release to install
 curl -fLO "https://github.com/Orkeon/orkeon-code/releases/download/v$v/install.sh"
 bash install.sh                                                  # or: bash install.sh --prefix /opt/tools
 orkeon-code --version
@@ -135,6 +135,11 @@ REPL and esbuild; the image is built for `linux/amd64` and `linux/arm64`, and Do
 container; on Linux the container runs with your uid, so the files the agent writes belong to you. The shell tool
 runs inside the container.
 
+The image sets no git identity, and git reads no `~/.gitconfig` there (Orkeon #404), so the launcher hands the
+container `GIT_AUTHOR_NAME`, `GIT_AUTHOR_EMAIL`, `GIT_COMMITTER_NAME` and `GIT_COMMITTER_EMAIL`: each one you export is
+kept, and an unset one is taken from your git's `user.name` or `user.email` for the project (`git config` in the
+workspace). With neither, `/commit` stops at the identity and says which variables to export.
+
 The launcher checks that the engine answers before it starts the container: when Docker Desktop or the Docker service
 is stopped, it says so and starts nothing.
 
@@ -155,7 +160,7 @@ pin, or `ORKEON_SOURCE_FOLLOW_PIN=0`) it leaves the checkout alone, warns (`orke
 
 ### No runtime on the machine: the one Orkeon Code downloads
 
-No package published so far names a runtime: the `.orkeon-runtime` of every release, `1.0.0-rc.2` included, is
+No package published so far names a runtime: the `.orkeon-runtime` of every release, `1.0.0-rc.3` included, is
 empty, and its release carries no runtime archive. On a machine with neither `orkeon-repl`, Docker nor
 `ORKEON_SOURCE`, install `orkeon-repl` from Orkeon's release archive
 ([Tool mode](#tool-mode-orkeon-repl-installed)); `orkeon-code --version` then says `found: <version> (orkeon-repl,

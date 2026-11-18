@@ -46,14 +46,28 @@ export const HARNESS_OWNER_ANSWER = {
   dropped: [{ title: "Vague", filter: "prevention", reason: "a reminder stops nothing" }],
 };
 
-/** An answer whose motif refines a line of an Orkeon Code file listed among its destinations. */
+/** An answer whose motif adds a line to an Orkeon Code file listed among its destinations. */
 export const ORKEON_CODE_OWNER_ANSWER = {
-  motifs: [motif({ owner_kind: "orkeon-code", owner_path: "docs/crew-prompts.md", status: "refines", lines_removed: ["Old line."] })],
+  motifs: [motif({ owner_kind: "orkeon-code", owner_path: "docs/crew-prompts.md" })],
 };
 
 /** The problem of a harness owner that is not a rule of a repository pack. */
-const HARNESS_OWNER_PROBLEM =
-  "a harness owner is a rule of a repository pack, a file of the orkeon-workshop repository under .devcontainer/harness/packs/repo-";
+const HARNESS_OWNER_PROBLEM = "a harness owner is a rule of a repository pack, a file of the orkeon-workshop repository " +
+  "at .devcontainer/harness/packs/repo-<name>/claude/rules/<file>";
+
+/** A harness owner under a repository pack that is not one of its rules, by what breaks it. */
+const NOT_A_PACK_RULE: ReadonlyArray<{ name: string; path: string }> = [
+  { name: "a file of a repository pack outside its claude folder", path: ".devcontainer/harness/packs/repo-x/references/repo.yaml" },
+  { name: "a repository pack with no name", path: ".devcontainer/harness/packs/repo-/claude/rules/a.md" },
+  { name: "a skill of a repository pack", path: ".devcontainer/harness/packs/repo-x/claude/skills/s/SKILL.md" },
+  { name: "a rule in a folder under rules/", path: ".devcontainer/harness/packs/repo-x/claude/rules/sub/a.md" },
+];
+
+/** The fields of a motif that copies a line of its Orkeon Code owner with the given status. */
+const orkeonCodeStatus = (status: string): Record<string, unknown> => ({
+  owner_kind: "orkeon-code", owner_path: "docs/crew-prompts.md", status, lines_removed: ["Old line."],
+  ...(status === "removes" ? { lines_added: [] } : {}),
+});
 
 export interface AnswerCase {
   name: string;
@@ -100,7 +114,8 @@ export const MOTIF_CASES: readonly MotifCase[] = [
   { name: "owner path with an edge space", over: { owner_path: " x.md" }, problem: `${AT}: owner_path ' x.md' is not a relative path` },
   {
     name: "repository owner under .claude/", over: { owner_path: ".claude/rules/x.md" },
-    problem: `${AT}: .claude/ is the harness's deployed copy: name the orkeon-workshop file with owner_kind harness`,
+    problem: `${AT}: .claude/ is the harness's deployed copy: name the rule of a repository pack it comes from with ` +
+      "owner_kind harness, or one of the Orkeon Code destinations listed with owner_kind orkeon-code",
   },
   {
     name: "harness owner outside the packs", over: { owner_kind: "harness", owner_path: "CONTRIBUTING.md" },
@@ -111,6 +126,14 @@ export const MOTIF_CASES: readonly MotifCase[] = [
     over: { owner_kind: "harness", owner_path: ".devcontainer/harness/packs/dev/claude/skills/dev-verify/references/audit-axes.md" },
     problem: `${AT}: ${HARNESS_OWNER_PROBLEM}`,
   },
+  ...NOT_A_PACK_RULE.map((c) => ({
+    name: `harness owner that is not a rule of a repository pack: ${c.name}`, over: { owner_kind: "harness", owner_path: c.path },
+    problem: `${AT}: ${HARNESS_OWNER_PROBLEM}`,
+  })),
+  ...(["refines", "replaces", "removes"] as const).map((status) => ({
+    name: `Orkeon Code owner with status ${status}, owner lines shown`, over: orkeonCodeStatus(status),
+    problem: `${AT}: an Orkeon Code owner is never read here, so its motif takes status new, not ${status}`,
+  })),
   {
     name: "Orkeon Code owner not among its destinations", over: { owner_kind: "orkeon-code", owner_path: "docs/turn.md" },
     problem: `${AT}: 'docs/turn.md' is not an Orkeon Code destination: name one of the files listed`,

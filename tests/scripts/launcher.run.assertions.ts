@@ -1,6 +1,7 @@
 // Checks on what `orkeon-code run` handed its runner.
 import { deepStrictEqual, ok, strictEqual } from "node:assert";
 import type { Run } from "./launcher.fixtures.ts";
+import { runArgs } from "./launcher.run.fixtures.ts";
 
 /** The runner received exactly `expected`. */
 export function assertRunnerArgs(r: Run, expected: readonly string[]): void {
@@ -28,4 +29,11 @@ export function assertArgsEndWith(r: Run, tail: readonly string[]): void {
 export function assertCalls(r: Run, expected: readonly string[]): void {
   strictEqual(r.status, 0, r.stderr);
   deepStrictEqual(r.calls, expected);
+}
+
+/** The orkeon on PATH ran the crew, and no stand-in that records its calls (the downloaded runtime) started. */
+export function assertPathOrkeonRan(r: Run): void {
+  strictEqual(r.status, 0, r.stderr);
+  deepStrictEqual(r.args, runArgs(r), "the orkeon on PATH was not handed the run");
+  deepStrictEqual(r.calls, [], `another runner started: ${r.calls.join(", ")}`);
 }

@@ -5,6 +5,7 @@ import { join } from "node:path";
 import { WORKSPACE } from "../../src/shared/domain/vfs.ts";
 import { DOTNET, ESBUILD, recorder, scratchDir } from "./launcher.fixtures.ts";
 import type { LaunchOptions, Run } from "./launcher.fixtures.ts";
+import { AGREED, installStart, pathWithoutRuntime } from "./launcher.runtime.fixtures.ts";
 
 export const LOG_TO_STDERR = "Logging__Console__LogToStandardErrorThreshold";
 export const IMAGE = "ghcr.io/orkeon/orkeon:latest";
@@ -46,6 +47,9 @@ export const runArgs = (r: Run, crew = crewPath(r)) => [
   "--allow-external-mounts",
 ];
 
+/** A file of the folder the launcher was started from (the scratch base), as the launcher names it absolute. */
+export const callerFile = (r: Run, name: string) => join(realpathSync(join(r.root, "..")), name);
+
 /** The clone's dotnet tool manifest (.config/dotnet-tools.json), naming the orkeon tool. */
 export const TOOL_MANIFEST = { "checkout/.config/dotnet-tools.json": '{ "version": 1, "isRoot": true, "tools": {} }\n' };
 export const DOTNET_BIN = { dotnet: DOTNET };
@@ -83,6 +87,20 @@ export function homeWithOrkeon(): string {
   chmodSync(join(bin, "orkeon"), 0o755);
   return home;
 }
+
+/** An install whose package names a runtime, on a machine with no runner, the download agreed: curl serves the
+ *  runtime archive, whose bin/orkeon records that it ran. */
+export function downloadingRunStart(): LaunchOptions {
+  const install = installStart({ env: AGREED });
+  return runStart({ bin: install.bin, env: install.env, files: install.files, install: true, systemPath: install.systemPath });
+}
+
+/** An install whose package names no runtime, on a machine with neither orkeon, Docker nor ORKEON_SOURCE. */
+export const noRunnerStart = (args: string[] = []) => runStart({ bin: {}, install: true, systemPath: pathWithoutRuntime(), args });
+
+const FULL_ARCHIVE = "orkeon of the full archive of an Orkeon release (orkeon-<version>-<platform>) on PATH";
+export const NO_RUNNER = ["no Orkeon runtime found to run a crew", FULL_ARCHIVE, "Docker or ORKEON_SOURCE"];
+export const NO_ORKEON = ["orkeon not found: set ORKEON_CLI", FULL_ARCHIVE];
 
 /** The words of a docker run that place the crew: the image, the runner, the crew as the container sees it. */
 export const DOCKER_CREW = [IMAGE, "run", "/work/agent/src/crews/main-loop/crew.ork.ts"];

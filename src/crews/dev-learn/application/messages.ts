@@ -31,6 +31,11 @@ export const AXIS_TABLE_HEADER = "axis             gaps batches blocking";
 export const REFUSED_IN_HARNESS = "refused in the harness's state";
 export const REMOVED_LINE_KEPT = "its removed line is kept (harness refusal)";
 
+// ── The reconcile summary of a motif ────────────────────────────────────
+
+export const ownerAbsent = (path: string): string => `owner absent: ${path}`;
+export const orkeonCodeOwnerNotRead = (path: string): string => `Orkeon Code owner, not read here: ${path}`;
+
 // ── The end message ─────────────────────────────────────────────────────
 
 export const axisUnchanged = (axis: string, since: string | undefined): string =>

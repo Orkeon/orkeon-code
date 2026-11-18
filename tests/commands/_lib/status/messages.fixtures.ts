@@ -1,5 +1,5 @@
 // What the sources hold today, read for the commands/_lib/status/messages.ts tests.
-import { readdirSync } from "node:fs";
+import { readFileSync, readdirSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 
 /** The number of slash commands: the `.cmd.ts` files under src/commands. */
@@ -14,4 +14,16 @@ export function crewNames(): string[] {
   return readdirSync(dir, { withFileTypes: true })
     .filter((d) => d.isDirectory() && !d.name.startsWith(".") && !d.name.startsWith("_"))
     .map((d) => d.name);
+}
+
+/** The Orkeon version `.config/dotnet-tools.json` names for the `orkeon` tool, the runtime the notes say they run on. */
+export function orkeonToolVersion(): string {
+  const file = fileURLToPath(new URL("../../../../.config/dotnet-tools.json", import.meta.url));
+  const manifest = JSON.parse(readFileSync(file, "utf-8")) as { tools: Record<string, { version: string }> };
+  return manifest.tools["orkeon.scripting.cli"].version;
+}
+
+/** The facts the notes must state besides the counts: the Orkeon release they run on and the headless runner. */
+export function runtimeFacts(): string[] {
+  return [`on Orkeon ${orkeonToolVersion()} `, "Headless: orkeon-code run <crew>"];
 }

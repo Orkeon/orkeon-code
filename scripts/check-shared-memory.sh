@@ -10,15 +10,15 @@
 #
 # The fixture is staged as .orkeon/memory/ of a scratch workspace under the crew state
 # (ORKEON_CODE_STATE, default .crew-output/), mounted on /workspace. The probe ingests it into its
-# own collection, memory-eval-golden. Settings: ORKEON_CODE_SETTINGS, else config/appsettings.local.json.
+# own collection, memory-eval-golden. Settings: the file `orkeon-code run` reads (docs/headless.md).
 #
 # rag_eval declares no access, so the runtime asks for it in default and even in acceptEdits mode
 # and denies it headless: run this in a terminal and answer the question, or under an allow rule
 # for rag_eval. q13 holds only when the settings set a retrieval score floor
 # (Orkeon:Rag:Retrieval:MinScore); without one every query returns passages.
 #
-# Runner: `orkeon-code run` (the tool, else the orkeon image). When that runtime version cannot
-# run, ORKEON_SOURCE names an Orkeon checkout and the probe runs from its sources (--mode source).
+# Runner: the one `orkeon-code run` finds, in the order docs/headless.md gives. When that runtime
+# version cannot run, ORKEON_SOURCE names an Orkeon checkout and the probe runs from its sources (--mode source).
 set -euo pipefail
 unset CDPATH
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"

@@ -155,7 +155,7 @@ export function parseBatchSheet(text: string): BatchSheet {
   return sheet;
 }
 
-/** Behaviour steps = steps with a TDD line (none under "Build and tests", plan-template.md:131). */
+/** Behaviour steps = steps with a TDD line; a step under "Build and tests" carries none, so it never counts. */
 export function sheetProgress(sheet: BatchSheet): SheetProgress {
   const p: SheetProgress = { behaviourSteps: 0, red: 0, green: 0, cost: 0, complete: 0 };
   for (const s of sheet.steps) {

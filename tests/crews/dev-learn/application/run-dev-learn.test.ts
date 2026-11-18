@@ -334,7 +334,7 @@ describe("runDevLearn — the owner lines", () => {
     assertMentions(f.llm.extracts[1].prompt, [HARNESS_OWNER_LINES]);
   });
 
-  it("never reads an Orkeon Code owner in the checkout, so asks no second time", async () => {
+  it("never reads an Orkeon Code owner in the checkout, so asks no second time and says so in the summary", async () => {
     // Arrange
     const f = orkeonCodeOwnerInCheckout();
 
@@ -342,7 +342,7 @@ describe("runDevLearn — the owner lines", () => {
     await runDevLearn({}, f.deps);
 
     // Assert
-    deepStrictEqual([f.llm.extracts.length, writtenTestAxis(f.files).motifs[0].reconcile], [1, "owner absent: docs/crew-prompts.md"]);
+    deepStrictEqual([f.llm.extracts.length, writtenTestAxis(f.files).motifs[0].reconcile], [1, "Orkeon Code owner, not read here: docs/crew-prompts.md"]);
   });
 
   it("refuses a first answer that refines a line it was not shown, and asks again with the owner lines", async () => {

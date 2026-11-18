@@ -55,7 +55,7 @@ describe("closeBatch", () => {
     // Assert
     strictEqual(out.committed, false);
     deepStrictEqual(shell.commands, ["git var GIT_AUTHOR_IDENT"]);
-    deepStrictEqual(out.lines[0].split("\n").slice(1), IDENTITY_COMMANDS);
+    deepStrictEqual(out.lines[0].split("\n").slice(1, 3), IDENTITY_COMMANDS);
   });
 
   it("in a batch worktree commits without pushing and without a pull request", async () => {

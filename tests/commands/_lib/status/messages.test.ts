@@ -6,7 +6,7 @@ import { deepStrictEqual, ok } from "node:assert";
 
 import { CLI_VERSION } from "../../../../src/commands/_lib/status/meta.ts";
 import { RELEASE_NOTES } from "../../../../src/commands/_lib/status/messages.ts";
-import { commandCount, crewNames } from "./messages.fixtures.ts";
+import { commandCount, crewNames, runtimeFacts } from "./messages.fixtures.ts";
 
 describe("B-11 audit — the release notes that had gone stale", () => {
   it("RELEASE_NOTES states the CURRENT command count", () => {
@@ -43,5 +43,16 @@ describe("B-11 audit — the release notes that had gone stale", () => {
 
     // Assert
     deepStrictEqual(omitted, [], `RELEASE_NOTES omits crews ${omitted.join(", ")}`);
+  });
+
+  it("names the Orkeon version of the tool manifest and the headless runner", () => {
+    // Arrange
+    const facts = runtimeFacts();
+
+    // Act
+    const omitted = facts.filter((fact) => !RELEASE_NOTES.includes(fact));
+
+    // Assert
+    deepStrictEqual(omitted, [], `RELEASE_NOTES omits ${omitted.join(" and ")}`);
   });
 });

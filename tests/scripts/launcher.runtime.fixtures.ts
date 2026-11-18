@@ -15,15 +15,21 @@ export const CURL_CALL = `curl ${RUNTIME_URL}/${ARCHIVE_NAME}`;
 /** What the REPL of the downloaded runtime records, beside its arguments: it ran, not another one. */
 export const OWN_REPL_RAN = "own-runtime";
 
-const OWN_REPL = recorder(`echo ${OWN_REPL_RAN} >> "$RECORD/calls"\n`);
+/** What the runner of the downloaded runtime (its bin/orkeon) records: `orkeon-code run` started it. */
+export const OWN_ORKEON_RAN = "own-runtime-orkeon";
 
-/** A runtime archive as the release builds it: one folder holding bin/orkeon-repl. */
+const OWN_REPL = recorder(`echo ${OWN_REPL_RAN} >> "$RECORD/calls"\n`);
+const OWN_ORKEON = recorder(`echo ${OWN_ORKEON_RAN} >> "$RECORD/calls"\n`);
+
+/** A runtime archive as the release builds it: one folder holding bin/orkeon-repl and bin/orkeon. */
 function buildArchive(): { archive: string; sum: string } {
   const dir = scratchDir("orkeon-code-runtime-archive-");
   const top = `orkeon-runtime-${RUNTIME_ID}-linux-x64`;
   mkdirSync(join(dir, top, "bin"), { recursive: true });
   writeFileSync(join(dir, top, "bin", "orkeon-repl"), OWN_REPL);
   chmodSync(join(dir, top, "bin", "orkeon-repl"), 0o755);
+  writeFileSync(join(dir, top, "bin", "orkeon"), OWN_ORKEON);
+  chmodSync(join(dir, top, "bin", "orkeon"), 0o755);
   const archive = join(dir, ARCHIVE_NAME);
   const tar = spawnSync("tar", ["-czf", archive, "-C", dir, top], { encoding: "utf-8" });
   if (tar.status !== 0) throw new Error(`tar failed: ${tar.stderr}`);
@@ -41,8 +47,12 @@ export const WRONG_SUM = "0".repeat(64);
 
 /** The .orkeon-runtime every package published so far carries: the fields, all blank. */
 export const EMPTY_MANIFEST = "# test\nid=\nurl=\nlinux-x64=\n";
-export const PACKAGE_NAMES_NONE = ["this package names no runtime to download", "its release published none", "orkeon-repl of an Orkeon release archive"];
+export const PACKAGE_NAMES_NONE = ["this package names no runtime to download", "its release published none", "orkeon-repl of the full archive of an Orkeon release (orkeon-<version>-<platform>)"];
 export const CHECKOUT_NAMES_NONE = ["this checkout names no runtime to download"];
+/** What runtime install says when the package names no runtime and the user's orkeon-repl is on PATH. */
+export const NOTHING_TO_DOWNLOAD = ["nothing to download (.orkeon-runtime names no runtime): the runtime used is", "/orkeon-repl"];
+/** The second line of --version in an install that names no runtime, on a machine with none. */
+export const VERSION_NONE = (pin: string) => `Orkeon ${pin} expected, found: none (see docs/getting-started.md)`;
 
 /** curl, serving the archive whatever the URL, which it records. */
 const CURL = '#!/bin/sh\nfor a in "$@"; do url="$a"; done\necho "curl $url" >> "$RECORD/calls"\n'

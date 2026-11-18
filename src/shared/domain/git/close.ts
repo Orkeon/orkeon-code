@@ -2,7 +2,7 @@
 // explicit list, never the work folder), the command lines that commit, push and
 // merge them, and the pull request body and command handed over. Pure: nothing
 // here runs a command; shared/application/git runs these lines through the Shell port.
-import { ASSUMPTIONS_HEADING, ASSUMPTIONS_BY_ID_HEAD, FILES_PER_LAYER_HEADING, noIdentityStop } from "./messages.ts";
+import { ASSUMPTIONS_HEADING, ASSUMPTIONS_BY_ID_HEAD, FILES_PER_LAYER_HEADING, IDENTITY_ENV_HANDOVER, IDENTITY_ENV_INTRO, noIdentityStop } from "./messages.ts";
 
 /** Q-10's switch: `true` asks the close to open the pull request itself. Omitted = false. */
 export const DEV_PR_AUTO_CONFIG_KEY = "dev.prAuto";
@@ -44,11 +44,14 @@ export const IDENTITY_HANDOVER: readonly string[] = [
   "git config --global user.email <your email>",
 ];
 
-/** The stop when git has no identity: git's reason, then the two commands, one per line. Never an invented identity. */
+/** The stop when git has no identity: git's reason, the two commands, then the variables to export where git reads
+ *  no ~/.gitconfig, one per line. Never an invented identity. */
 export function identityStop(detail: string, rerun: string): string {
   return [
     noIdentityStop(detail, rerun),
     ...IDENTITY_HANDOVER.map((c) => `  ${c}`),
+    IDENTITY_ENV_INTRO,
+    ...IDENTITY_ENV_HANDOVER.map((c) => `  ${c}`),
   ].join("\n");
 }
 

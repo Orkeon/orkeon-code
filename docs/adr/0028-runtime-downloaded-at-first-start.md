@@ -1,6 +1,6 @@
 # ADR 0028: The runtime of the pin, downloaded at the first start
 
-- **Status**: accepted
+- **Status**: accepted, amended 2026-11-17 (#114)
 - **Date**: 2026-11-11
 - **Builds on**: [ADR 0013](0013-pin-on-orkeon-commit.md)
 
@@ -19,8 +19,9 @@ runs from the folder it is extracted in: its `bin/orkeon-repl` finds `libexec/` 
 - **The package names its runtime.** `.orkeon-runtime`, shipped with the launchers, holds an id (the seven
   characters of the pin the archives were built from), the address of `orkeon-runtime-<id>-<platform>.tar.gz` and
   one SHA-256 per platform. The release workflow of Orkeon Code builds these archives from Orkeon at the pin and
-  fills the file before it publishes. In a checkout the id is empty: nothing is downloaded, the source mode is its
-  runtime.
+  fills the file before it publishes (*amended 2026-11-17, #114: no release builds them yet, see Consequences*). An
+  empty id, in a checkout or in a package whose release published none, downloads nothing: a checkout runs the source
+  mode, an install the other runtimes it finds.
 - **The launcher downloads it when nothing else is found**: no `ORKEON_REPL`, no `orkeon-repl` on `PATH`, no Docker,
   no `ORKEON_SOURCE`, or `--mode tool` with no `orkeon-repl`. Docker keeps its place when present, so a setup that
   works does not change by itself.
@@ -49,8 +50,8 @@ runs from the folder it is extracted in: its `bin/orkeon-repl` finds `libexec/` 
   platform running Orkeon's `scripts/package-installers.sh --rids <rid>` at the pin (the `cli` set carries
   `orkeon-repl` on Linux only, so macOS needs the `full` set), cross-built on Linux, about 120 MB each, and a filled
   `.orkeon-runtime` in both the archive and the npm package.
-- `orkeon-code.ps1` does not download a runtime yet. On Windows only Orkeon's full archive carries `orkeon-repl`
-  (570 MB); the PowerShell twin waits for a smaller one.
+- `orkeon-code.ps1` does not download a runtime yet. On Windows only Orkeon's full archive carries `orkeon-repl`,
+  several hundred MB; the PowerShell twin waits for a smaller one.
 - Set aside: an npm `postinstall` (scripts are often disabled, and the archive install would not gain it), and one
   npm package per platform (five packages to publish at every pin).
 - Checks: `tests/scripts/launcher.runtime.test.ts` runs the launcher against a curl stand-in that serves a small

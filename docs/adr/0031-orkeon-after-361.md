@@ -55,7 +55,7 @@ path is visible, when the agent has no file-system tool or when it sets `announc
   (#374, a test of Orkeon alone), **to `3a6a0d9`** (#377), **to `322ffb9`** (#380, the date of Orkeon 1.1.0 in its changelog alone), **to `a318f7f`** (#386, #389 and #391, fixes after Orkeon 1.1.0), **to `a9f3878`** (#393 and #394, the commit of Orkeon 1.2.0), **then to `1b480bd`** (#396 to #418, merged by #412, the commit of Orkeon 1.3.0), the newest merge commit of Orkeon `main`. The esbuild of the runtime (`0.25.12`) and its .NET SDK (`10.0.300`) do
   not change; the typings gain `EffortLevel`, `LlmCapabilities` and `LlmReasoning`, then `llm.profiles`,
   `.filesystem(...)` and `.announceMounts(...)`, then `InvalidScriptError`, then the minimum of each limit in its
-  description.
+  description, then the `sources` of `rag_ingest` as strings (`readonly string[]`).
 - **The Llm adapter closes every act's system prompt with the runtime's section.** `agentLlm(ctx)` builds the
   adapter from the context the runtime hands a body, and each act that carries a system prompt ends with
   `ctx.fileSystem.prompt`, read at that act. One place, so the main loop, the crews, the dev roles and the
@@ -152,7 +152,8 @@ path is visible, when the agent has no file-system tool or when it sets `announc
 - At `1b480bd`: the pin is the commit of Orkeon `1.3.0` (#412), and `.config/dotnet-tools.json` names `1.3.0`. The
   typings change in one place: the `sources` of `rag_ingest` are strings. Nothing is adopted: the release fixes the
   MCP server and client (#402, #405, #413 to #417), the price of a call by its provider (#396), the imports of a
-  Python file in the code index (#406), the version Orkeon announces (#418), and gives the image git and
+  Python file in the code index (#406), the version Orkeon announces (#418), adds `examples: true` to `orkeon forge` (#400, a command of Orkeon this
+  project does not run), and gives the image git and
   `shell_command` the four identity variables of a commit (#404), which `/commit` reads through `git var` as before.
   `npm run check` green and the three smokes in source mode; no model was called, and neither the tool nor the
   docker mode was run, `1.3.0` being on Orkeon's `main` but not yet published that day.

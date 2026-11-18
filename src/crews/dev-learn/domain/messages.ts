@@ -18,11 +18,15 @@ export const rowTwice = (at: string, id: string): string => `${at}: row '${id}' 
 export const ownerKindIs = (at: string): string => `${at}: owner_kind must be repository, orkeon-code or harness`;
 export const ownerPathNotRelative = (at: string, path: string): string => `${at}: owner_path '${path}' is not a relative path`;
 export const deployedCopy = (at: string): string =>
-  `${at}: .claude/ is the harness's deployed copy: name the orkeon-workshop file with owner_kind harness`;
-export const harnessOwnerUnder = (at: string, packs: string): string =>
-  `${at}: a harness owner is a rule of a repository pack, a file of the orkeon-workshop repository under ${packs}`;
+  `${at}: .claude/ is the harness's deployed copy: name the rule of a repository pack it comes from with owner_kind ` +
+  "harness, or one of the Orkeon Code destinations listed with owner_kind orkeon-code";
+export const harnessOwnerUnder = (at: string, rule: string): string =>
+  `${at}: a harness owner is a rule of a repository pack, a file of the orkeon-workshop repository at ${rule}`;
 export const orkeonCodeOwnerListed = (at: string, path: string): string =>
   `${at}: '${path}' is not an Orkeon Code destination: name one of the files listed`;
+/** Why an Orkeon Code owner takes status new alone: it is never read here, so no line of it was ever shown. */
+export const orkeonCodeNewOnly = (at: string, status: string): string =>
+  `${at}: an Orkeon Code owner is never read here, so its motif takes status new, not ${status}`;
 export const checkIsOneOf = (at: string, kinds: string): string => `${at}: check must be one of ${kinds}`;
 export const statusIs = (at: string): string => `${at}: status must be new, refines, replaces or removes`;
 export const atProblem = (at: string, problem: string): string => `${at}: ${problem}`;

@@ -557,7 +557,7 @@ ORKEON_CODE_MODE=source ORKEON_SOURCE=~/src/orkeon \
 ORKEON_CODE_SETTINGS=config/appsettings.local.json \
   ./orkeon-code run main-loop --workspace /tmp/kev-ws --trust \
   --inputs '{"prompt": "What does the function in text.ts do? Answer in one sentence.",
-             "permissionMode": "plan", "llmProfile": "guarded"}' 2>&1 | grep -E "Decision|decision\.|finalOutput"
+             "permissionMode": "plan", "llmProfile": "guarded"}' -- -v 2 2>&1 | grep -E "Decision|decision\.|finalOutput"
 ```
 
 ## What Orkeon Code asks it itself

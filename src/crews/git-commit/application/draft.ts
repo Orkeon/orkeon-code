@@ -5,7 +5,7 @@ import type { CrewMemory, Files, Llm, Shell } from "../../../shared/application/
 import type { PromptPair } from "../../../shared/domain/types.ts";
 import { normalizeCommitMessage, commitSubject, isCommitPermitted, untrackedPaths } from "../domain/commit.ts";
 import { GIT_STATUS_COMMAND, changedPaths, gitDiffCommand } from "../../../shared/domain/git/close.ts";
-import { commitFiles, gitReason } from "../../../shared/application/git/commit-files.ts";
+import { commitFiles, gitReason, runGit } from "../../../shared/application/git/commit-files.ts";
 import { WORKSPACE } from "../../../shared/domain/vfs.ts";
 import { committed } from "./messages.ts";
 import { refusedLine as refused } from "../../../shared/application/git/messages.ts";
@@ -31,8 +31,8 @@ export type StatusRead = { ok: true; status: string } | { ok: false; reason: str
 
 /** The working tree's status, as the selection of the commit's files reads it. */
 export async function readStatus(shell: Shell): Promise<StatusRead> {
-  const r = await shell.run(GIT_STATUS_COMMAND);
-  return r.exitCode > 0 ? { ok: false, reason: gitReason(r) } : { ok: true, status: r.stdout };
+  const r = await runGit(shell, GIT_STATUS_COMMAND);
+  return r.exitCode !== 0 || r.timedOut === true ? { ok: false, reason: gitReason(r) } : { ok: true, status: r.stdout };
 }
 
 /** The lines of `status` that name one of `files` (either side of a rename). */

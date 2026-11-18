@@ -62,10 +62,16 @@ is the only directory of your machine it can write ([SECURITY.md](../SECURITY.md
 - The runner is `orkeon run` (`Orkeon.Scripting.Cli`), found in this order: the command line `ORKEON_CLI` names,
   `orkeon` on PATH, the `bin/orkeon` of the runtime the launcher downloaded, the `orkeon` tool of a clone's
   `.config/dotnet-tools.json` (the .NET 10 SDK and nuget.org), then the `orkeon` image (`ghcr.io/orkeon/orkeon`),
-  then the source mode (`ORKEON_SOURCE`, [Development](development.md)). `--mode docker|tool|source` picks one.
+  then the source mode (`ORKEON_SOURCE`, [Development](development.md)), then the runtime the package names,
+  downloaded as for the REPL ([Getting started](getting-started.md); no package published so far names one).
+  `--mode docker|tool|source` picks one.
 - In docker mode the checkout is the container's `/work/agent`, read-only: a path under it given after `--` (an
   `--llm-mock` file) is named there; a crew outside the checkout is refused.
-- What follows `--` goes to `orkeon run` as is (`-- --validate`, `-- --llm-mock answers.jsonl`, `-- -v 2`).
+- What follows `--` goes to `orkeon run` as is (`-- --validate`, `-- --llm-mock answers.jsonl`, `-- -v 2`), but for
+  a relative path that names a file or a folder of your current folder: the runner starts elsewhere (in the project,
+  the clone or the container), so the launcher hands that path over absolute, resolved against the folder you ran
+  `orkeon-code` from.
+- `orkeon-code run --help` prints the usage of `run` on stdout and exits `0`.
 - `orkeon-code.ps1` has no `run` yet: use the bash launcher (Git Bash or WSL on Windows).
 - The crew reads its input from the JSON of `--inputs`.
 - For `main-loop` it is what `/assistant` passes: the request and the mode.
@@ -92,8 +98,13 @@ orkeon-code run main-loop --workspace ~/src/app \
 - The runner prints the crew's result as JSON on stdout, alone: the launcher sends its log lines to stderr
   (`Logging__Console__LogToStandardErrorThreshold=Trace`; a plain `orkeon run` writes them on stdout, before the
   JSON).
-- Before the runner starts, the launcher ends alone: `3` for an untrusted project with no terminal to ask in and no
-  `--trust`, `0` with nothing run when the trust question is answered no, `1` on a usage error.
+- Before the runner starts, the launcher ends alone:
+  - `3` for an untrusted project with no terminal to ask in and no `--trust`, or when the runtime the package names
+    must be downloaded and there is no terminal to ask in first (unless `ORKEON_CODE_RUNTIME_DOWNLOAD=1`);
+  - `0` with nothing run when the trust question, or the question before that download, is answered no;
+  - `1` on any error of its own: a usage error, an unknown crew, no settings file, no runner found, no esbuild, a
+    Docker engine that does not answer, a failed source build or `dotnet tool restore`. That `1` looks like the
+    runner's script error below: its message on stderr, starting with `orkeon-code:`, tells them apart.
 - Then it ends with the runner's exit code: `0` when the script completed, `1` on a
   script error, `2` on a runtime error, `130` when cancelled, `75` when `Orkeon:Checkpointing:Enabled` is set and
   the run stopped on a question (`run.finished` says `waiting_for_input` with a `requestId`; `orkeon run --resume

@@ -59,13 +59,13 @@ Le runtime exécute les sources sous des règles qui façonnent tout ce qui suit
   de lecture d'un même tour du modèle tournent en même temps ; tout autre appel tourne seul, l'un après l'autre.
 - **`spawn_agent` appartient au runtime.** L'hôte de scripts l'offre à chaque act ; le nommer dans `.tools([...])`, ou
   dans `act({ tools })`, lève `UnknownToolError`. Un enfant tourne sous le plus strict de son mode et de celui de son
-  lanceur ; les enfants de ce projet n'en nomment aucun.
+  lanceur (Orkeon #299) ; les enfants de ce projet n'en nomment aucun.
 - **Les outils d'intelligence du code sont fixés par un contrat.** Chaque nom d'outil et chaque champ qu'utilisent
   les adaptateurs a été relevé sur des appels réels, et `shared/domain/code-intel-contract.ts` et son test les fixent.
 - **L'index n'a pas besoin d'une liste de langages.** `index_codebase` puis `codebase_map` fonctionnent de bout en
   bout, les langages étant détectés sans être nommés.
 - **Un budget arrête `act` par une erreur typée.** Un budget `toolCalls` arrête `act` par une
-  `BudgetExhaustedException` typée.
+  `BudgetExhaustedError` typée.
 - **Un acte arrêté à son plafond d'itérations est un échec, jamais une réponse.** Le runtime résout un tel acte avec
   `exhausted: true` et un avis à la place des mots du modèle ; l'adaptateur `Llm` le lève comme une
   `IterationsExhausted`. Un relecteur ou un auditeur qui n'a jamais conclu se lit alors `not run`, avec les tours
@@ -266,13 +266,15 @@ src/
 │   ├── _lib/          the use cases, in the folder of their commands: run<Name>(tokens, deps) → CommandView,
 │   │                  or dispatch<Name>(tokens, deps) → a ticket or a message when the command launches a
 │   │                  crew, and their pure helpers. dev/ (dev, dev-batches, dev-implement, dev-source),
-│   │                  git/ (branch, commit, diff, review), memory/ (memory, memory-admit), session/ (export,
-│   │                  resume, tasks), settings/ (advisor, agents, config, hooks, mode, model, permissions,
-│   │                  session-config: the toggle commands, skills), speech/ (say, transcribe, voice),
-│   │                  status/ (cache, doctor, meta: version; messages: release notes, status). At the root, what
+│   │                  git/ (branch, commit, diff, review), memory/ (memory, memory-admit), project/
+│   │                  (analyze), session/ (export, resume, tasks), settings/ (advisor, agents, choices,
+│   │                  config, effort, hooks, mode, model, output-style, permissions, route, session-config:
+│   │                  the toggle commands, skills, theme), speech/ (say, transcribe, voice), status/ (cache,
+│   │                  context, doctor, meta: version, messages: release notes, status, usage, usage-tools);
+│   │                  each group keeps its text in messages.ts (prompts.ts, markers.ts). At the root, what
 │   │                  several families share: args.ts (arguments), dispatch.ts (crew launch, completion
-│   │                  line, main-loop launch), dev-step.ts, effort.ts, pr-context.ts, view.ts (CommandView,
-│   │                  showView)
+│   │                  line, main-loop launch), dev-step.ts, effort.ts, messages.ts, pr-context.ts, view.ts
+│   │                  (CommandView, showView)
 │   └── .orkeon/       orkeon-cli.d.ts (generated: npm run typings)
 ├── crews/<name>/      crew.ork.ts (wiring) + application/ (run-<crew>.ts, the use case) + domain/
 │   └── .orkeon/       orkeon.d.ts (generated)
@@ -298,9 +300,10 @@ tests/
 │   └── assertions/    the checks shared across test files
 ├── fixtures/          the texts that are files of their own (a sheet, a plan, a YAML)
 ├── repository/        the rules of the repository as a whole: architecture, test-shape, command-surface,
-│                      prompt-contract, version, shared-memory-fixture
+│                      prompt-contract, version, shared-memory-fixture, learn-destinations, syntax,
+│                      text-isolation
 ├── scripts/           the scripts of scripts/ and the launchers: dev-run, session-start-script, docs-parity,
-│                      install, launcher
+│                      install, launcher, release-notes, smoke-crew, smoke-validate
 └── config/            the example settings
 mcp/whisper/           the speech MCP server, Python run by uv: whisper_mcp.py, tests/, samples/, smoke.py
 ```
@@ -352,8 +355,10 @@ rend le texte, ou le message d'échec propre à l'outil sans l'enrobage du runti
 | `ToolCatalogue` | Les outils enregistrés sous leurs noms d'enregistrement, trouvés sans tenir compte de la casse comme Orkeon les trouve, pour les diagnostics et la vérification des outils supplémentaires (le service `tools` de `ctx.services` pour les noms, l'espace de noms `tools` pour les appels : `call` brut, `callText` décodé) | `tool-catalogue.ts` | `fake-tool-catalogue.ts` |
 | `CodeIndex` | L'index du code tel que `/analyze` le récolte et que `/init` en lit la carte des paquets (`index_status`, `index_codebase`, `codebase_map`, `dependency_graph`, `package_summary`) | `code-index.ts` | `fake-code-index.ts` |
 | `CostIndex` | Le coût d'accès que `/dev-batches` mesure : les racines indexées, le rafraîchissement des fichiers du lot, le rapport (`index_status`, `incremental_reindex`, `access_cost`) | `code-index.ts` | `fake-cost-index.ts` |
+| `AnchorIndex` | Les ancres de l'index du code que `/dev-plan` lit pour son inventaire : la fermeture de noms pleinement qualifiés, les noms qu'elle n'a pas trouvés, si elle a été coupée (`batch_anchors` `closure`) | `code-index.ts` | `fake-anchor-index.ts` |
 | `CrewHost` | Lister et lancer des crews (le service `script-host`, `ctx.services`) | `crew-host.ts` | `fake-crew-host.ts` |
 | `PermissionRules` | Les règles de session de la garde de permission du runtime : ajouter, effacer, lister (le service `permissions`, `ctx.services`) | `permission-rules.ts` | `fake-permission-rules.ts` |
+| `PendingApprovals` | Les approbations d'outil qui attendent l'opérateur, en lecture seule, pour `/tasks` ; un runtime qui n'en garde pas n'en rend aucune (le service `approvals`, `ctx.services`) | `approvals.ts` | `fake-pending-approvals.ts` |
 | `Llm` | Le modèle : `act` (la boucle d'outils), `complete`, `extract` (`ctx.llm` de l'agent en cours), `effortSent` (ce qu'un act envoie pour son effort, `ctx.llm.reasoning`) ; un `act` ou un `complete` qui échoue lève une `LlmFailure` | `llm.ts` | `fake-llm.ts` |
 | `RunState` | L'état propre de l'agent en cours, pour une exécution de crew (`ctx.state`) | `run-state.ts` | `fake-run-state.ts` |
 | `CrewMemory` | La mémoire clé/valeur du crew en cours, partagée par ses agents le temps d'une exécution (`ctx.memory.crew`) | `crew-memory.ts` | `fake-crew-memory.ts` |
@@ -375,7 +380,8 @@ Ce que le tableau laisse de côté :
   `orkeonToolCatalogue(ctx.services)`, qu'un handler construit, puisque les noms enregistrés viennent de son
   contexte) et les services bâtis sur eux (`orkeonConfigStore()`, `orkeonSessionIo()`).
 - Les adaptateurs de ce que le contexte transporte sont construits par le point d'entrée à partir du contexte qu'il
-  reçoit : `createLlm(ctx.llm)`, `createRunState(ctx)`, `createCrewMemory(ctx)`, `createCrewHost(ctx.services)` et
+  reçoit : `agentLlm(ctx)` (le `Llm` au-dessus de `ctx.llm`, le prompt système de chaque act fermé par la section
+  `ctx.fileSystem` du runtime), `createRunState(ctx)`, `createCrewMemory(ctx)`, `createCrewHost(ctx.services)` et
   `createPermissionRules(ctx.services)` (une commande async remet les deux derniers à `launchCrew` ou
   `launchMainLoop` avec son log).
 - Chaque adaptateur prend l'objet du runtime en paramètre, si bien que son propre test l'exécute au-dessus d'un
@@ -446,22 +452,26 @@ defineCommand({
   en ligne.
 
 **Un crew** construit ses agents, câble les adaptateurs à la portée module, construit ceux liés au contexte dans le
-corps de l'agent, et appelle son cas d'usage `application/run-<crew>.ts`, qui prend son entrée et ses ports.
+corps de l'agent, et appelle son cas d'usage `application/run-<crew>.ts`, qui prend son entrée et ses ports. Chaque
+agent part d'`orkeonAgent()`, le builder sur le profil que nomme l'entrée du crew (`llmProfile`), sinon le simple.
 `/analyze` :
 
 ```ts
-import { AgentBuilder, CrewBuilder, publishCrew, inputs } from "../../shared/infrastructure/globals.ts";
-import { orkeonCodeIndex, orkeonProgress } from "../../shared/infrastructure/orkeon/wiring.ts";
-import { createLlm } from "../../shared/infrastructure/orkeon/llm.ts";
+import { CrewBuilder, publishCrew, inputs } from "../../shared/infrastructure/globals.ts";
+import { orkeonAgent, orkeonCodeIndex, orkeonProgress } from "../../shared/infrastructure/orkeon/wiring.ts";
+import { agentLlm } from "../../shared/infrastructure/orkeon/llm.ts";
 import { runAnalyze } from "./application/run-analyze.ts";
+import { ANALYST_GOAL, ANALYST_ROLE } from "./application/prompts.ts";
 
 const ports = { index: orkeonCodeIndex(), progress: orkeonProgress() };
 
-const analyst = AgentBuilder()
+const analyst = orkeonAgent()
   .name("analyst")
+  .role(ANALYST_ROLE)
   .tools([])
+  .goal(ANALYST_GOAL)
   .body(async (_input: any, ctx: any) =>
-    await runAnalyze(inputs(), { ...ports, llm: createLlm(ctx.llm), log: ctx.log }))
+    await runAnalyze(inputs(), { ...ports, llm: agentLlm(ctx), log: ctx.log }))
   .build();
 
 publishCrew(CrewBuilder().name("analyze").process("sequential").withAgent(analyst).build());

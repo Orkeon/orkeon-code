@@ -217,12 +217,13 @@ For the pruning, with settings that name a model and a decision provider, in a p
 ```bash
 ORKEON_CODE_MODE=source ORKEON_SOURCE=~/src/orkeon \
   ./orkeon-code run main-loop --workspace "<the project>" --trust \
-  --inputs '{"prompt": "<a request that reads many large files>", "permissionMode": "plan"}' > run.log 2>&1
+  --inputs '{"prompt": "<a request that reads many large files>", "permissionMode": "plan"}' -- -v 2 > run.log 2>&1
 grep -o "context pruning: [^\"]*\|call used [0-9]* tokens\|HttpClient\.[A-Za-z]*\.LogicalHandler\[101\] End[^-]*ms" run.log
 ```
 
 The first pattern is the line of each pressure, the second the tokens of each model call, the third the time of
-each request, the model's and the decision model's (the line names the client).
+each request, the model's and the decision model's (the line names the client). `-- -v 2` raises the log of `orkeon run`
+to the level these lines are written at: by default it shows the warnings alone.
 
 For the routing, `/route on` in a session, a command, then `/route why`. For the skills, `/skills suggest on`, a
 request, then `/skills suggest why`. Each also writes a line in the log: `route: <crew> on '<profile>' (...)`,

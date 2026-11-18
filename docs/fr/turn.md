@@ -21,7 +21,7 @@ Le corps de l'agent `main-loop` est la boucle (`crews/main-loop/application/run-
 4. Lire les drapeaux de comportement une fois (`/effort`, `/passes` de `/review`, `/fast`, `/proactive`, `/output-style`).
 5. Ajouter le tour de l'utilisateur au tampon de session ; compacter d'abord si le tampon est sous pression
    (`auto-compact.ts`).
-6. Assembler le prompt (ci-dessous ; `application/prompts.ts` au-dessus des lectures de `context-gather.ts`) et
+6. Assembler le prompt (ci-dessous ; `application/turn-context.ts` au-dessus des lectures de `context-gather.ts`) et
    appeler l'`act` du modèle (le port `Llm` au-dessus de `ctx.llm.act()`) : le runtime fait tourner le cycle modèle
    ⇄ appels d'outils sur le catalogue, chaque appel d'un tour du modèle dans l'ordre, sous le budget du crew et la
    garde de permission, et rend la réponse finale.

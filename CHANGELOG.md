@@ -17,12 +17,40 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   ([ADR 0031](docs/adr/0031-orkeon-after-361.md)).
 - What a session sees of the release: the `orkeon` image carries git and reads a mounted repository whoever owns it,
   so `/commit` reads the tree in docker mode (Orkeon #404); a command run by `shell_command` receives
-  `GIT_AUTHOR_NAME`, `GIT_AUTHOR_EMAIL`, `GIT_COMMITTER_NAME` and `GIT_COMMITTER_EMAIL` from the host, under every
-  confinement, so a commit keeps the identity the caller set; the code index records the imports of a Python file,
-  and `dependency_graph` and `package_summary` answer with them once the index is rebuilt (Orkeon #406); the HTTP
-  tools send `User-Agent: Orkeon/<version>` where they sent `Orkeon/1.0` (Orkeon #418). The fixes of the MCP server
-  and client (#402, #405, #413 to #417) change what an MCP server named in `tools.extra` offers: an array parameter
-  keeps its `items`, and one unreadable tool no longer takes its server's other tools away.
+  `GIT_AUTHOR_NAME`, `GIT_AUTHOR_EMAIL`, `GIT_COMMITTER_NAME` and `GIT_COMMITTER_EMAIL` from the session, under every
+  confinement, so a commit keeps the identity the caller exported; the code index records the imports of a Python
+  file, and `dependency_graph` and `package_summary` answer with them once the index is rebuilt (`/analyze
+  --rebuild`, Orkeon #406); the HTTP tools send `User-Agent: Orkeon/<version>` where they sent `Orkeon/1.0` (Orkeon
+  #418). The fixes of the MCP client (#415, #417, and the client halves of #405 and #416) change what a remote MCP
+  server of `MCP:Servers` offers to `tools.extra`: an array parameter keeps its `items`, and one unreadable tool no
+  longer takes its server's other tools away.
+
+### Fixed — a commit in docker mode has an identity
+
+- The image sets no git identity and reads no `~/.gitconfig` of yours, so `/commit` and the close of a dev step
+  always stopped at `git var` in docker mode. Both launchers now hand the container `GIT_AUTHOR_NAME`,
+  `GIT_AUTHOR_EMAIL`, `GIT_COMMITTER_NAME` and `GIT_COMMITTER_EMAIL`: each one you exported is kept, an unset one
+  takes the `user.name` or `user.email` your git gives for the project
+  ([Getting started](docs/getting-started.md#docker-mode-nothing-to-install-but-docker)).
+- When git has no identity, the stop now also gives the four variables to export, the way that works where git reads
+  no `~/.gitconfig` (a confined session, a container), after the two `git config --global` commands.
+
+### Fixed — `/commit` stops on every failed `git status`
+
+- A `git status` the runtime ended (exit `-1`), that timed out, or that the runtime refused read as a clean tree, or
+  threw: `/commit` now stops on any of them with the reason and commits nothing.
+
+### Fixed — `orkeon-code run` reads a relative path where you are
+
+- A relative path after `--` (`-- --llm-mock answers.jsonl`) was read from the project, the clone or the container,
+  where the runner starts: one that names a file or a folder of the folder you started from is now handed over
+  absolute, and in docker mode under the project as the container sees it. `orkeon-code run --help` prints the
+  usage and ends with `0`.
+- `orkeon-code runtime install` with no runtime named but an `orkeon-repl` already on PATH (or `ORKEON_REPL`) says
+  that runtime is the one used and ends with `0`, where it failed; the no-runtime messages of `orkeon-code run` point
+  at the full Orkeon release archive, as `runtime install` does.
+- `orkeon-code.ps1 runtime install` was handed to the REPL: the PowerShell launcher now refuses `runtime` as it
+  refuses `run`, both being the bash launcher's alone for now.
 
 ### Fixed — `/dev-learn` names no file of the harness's removed dev pack
 
@@ -32,6 +60,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - A motif may now be owned by one of Orkeon Code's own files (`owner_kind` `orkeon-code`): `docs/crew-prompts.md`,
   the design rules, the gate, the auditor's and the reviewer's charters. Like a harness file it is never edited
   here: accepting it prints the patch to apply in the orkeon-code repository (#117).
+- An adversarial review of the change tightened it: `--accept` on a `proposals.json` written before it says that a
+  harness owner which is no rule of a repository pack is a file the harness removed, and prints no patch; a harness owner
+  is exactly `.devcontainer/harness/packs/repo-<name>/claude/rules/<file>`; a motif owned by an Orkeon Code file takes
+  the status `new` alone, that file not being read here, and its proposal says so instead of "owner absent"; the plan's
+  and the spec's renderers (`plan-render.ts`, `spec-render.ts`) join the Orkeon Code owners, and an accepted one
+  reminds you of the French twin and of ADR 0003.
 
 ### Added — `orkeon-code run`, one crew headless from a clone or an install
 

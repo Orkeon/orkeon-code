@@ -225,7 +225,11 @@ export const fieldHasTheWrongShape = (file: string, field: string): string => `$
 export const acceptedHarness = (id: string, title: string): string =>
   `accepted ${id} — ${title}: a harness file is never edited here; apply this in the orkeon-workshop repository:`;
 export const acceptedOrkeonCode = (id: string, title: string): string =>
-  `accepted ${id} — ${title}: an Orkeon Code file is never edited here; apply this in the orkeon-code repository:`;
+  `accepted ${id} — ${title}: an Orkeon Code file is never edited here; apply this in the orkeon-code repository, ` +
+  "a document with its French twin under docs/fr/, a prompt's behaviour first (ADR 0003):";
+export const acceptedRemovedHarness = (id: string, title: string, path: string): string =>
+  `accepted ${id} — ${title}: ${path} is a file the harness removed, not a rule of a repository pack: ` +
+  "no patch to apply; run /dev-learn again for a current owner";
 export const acceptedRepository = (id: string, title: string, path: string): string =>
   `accepted ${id} — ${title}: ${path} is not edited by /dev-learn; make the change in a batch (/dev-spec <code> refactor, or by hand):`;
 

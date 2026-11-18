@@ -7,8 +7,8 @@ import { existsSync } from "node:fs";
 import { PTY, RUNTIME_PIN, launch, removeScratch } from "./launcher.fixtures.ts";
 import { assertSays } from "./launcher.assertions.ts";
 import {
-  AGREED, CHECKOUT_NAMES_NONE, DOCKER, EMPTY_MANIFEST, NO_TERMINAL, PACKAGE_NAMES_NONE, QUESTION, RUNTIME_ID, TOOL, WRONG_SUM,
-  homeWithRuntime, installStart, manifest, runtimeHome,
+  AGREED, CHECKOUT_NAMES_NONE, DOCKER, EMPTY_MANIFEST, NO_TERMINAL, NOTHING_TO_DOWNLOAD, PACKAGE_NAMES_NONE, QUESTION, RUNTIME_ID, TOOL,
+  VERSION_NONE, WRONG_SUM, homeWithRuntime, installStart, manifest, runtimeHome,
 } from "./launcher.runtime.fixtures.ts";
 import {
   assertDownloadedOnce, assertNoRuntimeKept, assertNothingDownloaded, assertNothingStarted, assertOwnReplStarted, assertRuntimeInstalled,
@@ -262,6 +262,19 @@ describe("orkeon-code runtime install and remove", () => {
     ok(!r.calls.some((c) => c.startsWith("curl ")), r.calls.join(", "));
   });
 
+  it("install says the user's orkeon-repl is used and ends with 0 when the package names no runtime", () => {
+    // Arrange
+    const start = installStart({ args: ["runtime", "install"], bare: true, manifest: EMPTY_MANIFEST, bin: TOOL });
+
+    // Act
+    const r = launch(start);
+
+    // Assert
+    strictEqual(r.status, 0, r.stderr);
+    assertSays(r.stdout, NOTHING_TO_DOWNLOAD);
+    assertNothingDownloaded(r, runtimeHome(r));
+  });
+
   it("remove deletes the downloaded runtime", () => {
     // Arrange
     const home = homeWithRuntime();
@@ -311,5 +324,16 @@ describe("orkeon-code --version, the downloaded runtime", () => {
     // Assert
     strictEqual(r.stdout.split("\n")[1], `Orkeon ${RUNTIME_PIN} expected, found: none yet (${RUNTIME_ID} is downloaded at the first start)`);
     assertNothingDownloaded(r, runtimeHome(r));
+  });
+
+  it("says none is found in an install whose package names no runtime, on a machine with none", () => {
+    // Arrange
+    const start = installStart({ args: ["--version"], bare: true, manifest: EMPTY_MANIFEST });
+
+    // Act
+    const r = launch(start);
+
+    // Assert
+    strictEqual(r.stdout.split("\n")[1], VERSION_NONE(RUNTIME_PIN));
   });
 });

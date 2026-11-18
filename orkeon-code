@@ -38,14 +38,14 @@
 # /resume lists them inside the REPL. A bare --llm-log after -- goes to <state>/llm-logs.
 #
 # Modes (auto-detected in this order, or forced with --mode / ORKEON_CODE_MODE):
-#   tool    orkeon-repl on PATH (from the orkeon Debian package, an Orkeon release archive, or the
+#   tool    orkeon-repl on PATH (from the orkeon Debian package, the full Orkeon release archive, or the
 #           dotnet tool), or ORKEON_REPL="<command line>" (e.g. "dotnet /opt/orkeon/Orkeon.ConsoleApp.dll")
 #   docker  ghcr.io/orkeon/orkeon:latest (the last release, not the pin), nothing else to install
 #   source  an Orkeon checkout named by ORKEON_SOURCE, built there with `dotnet build`, run from the project
 # With none of them, an install whose package names a runtime (.orkeon-runtime) downloads it once, after asking,
 # into ~/.orkeon-code/runtime (tool mode from then on): `orkeon-code runtime install` does it without starting,
 # ORKEON_CODE_RUNTIME_DOWNLOAD=1 answers yes where there is no terminal, `orkeon-code runtime remove` deletes it.
-# The packages published so far name none: put the orkeon-repl of an Orkeon release archive on PATH instead.
+# The packages published so far name none: put the orkeon-repl of the full Orkeon release archive of your platform on PATH instead.
 #
 # Settings: --settings, else ORKEON_CODE_SETTINGS, else config/appsettings.local.json (a clone),
 # else ~/.orkeon-code/appsettings.json, else ${XDG_CONFIG_HOME:-~/.config}/orkeon-code/appsettings.json
@@ -82,6 +82,8 @@ resolve_links() { # <path>
 # Follow symlinks, so a link from ~/.local/bin still finds the checkout or the install's version folder.
 SELF="$(resolve_links "${BASH_SOURCE[0]}")"
 ROOT="$(cd "$(dirname "$SELF")" && pwd -P)"
+# The folder the launcher was started from: a relative path given to `run` after -- is read from there.
+CALLER_DIR="$PWD"
 # The pin is a commit of Orkeon's main (.orkeon-version, ADR 0013): the source mode runs it; the tool and docker
 # modes run a release, which the pin never names.
 ORKEON_REF="$(tr -d '[:space:]' < "$ROOT/.orkeon-version")"
@@ -98,7 +100,8 @@ warn() { echo "orkeon-code: warning: $*" >&2; }
 
 # ── The runtime downloaded at the first start (ADR 0028) ───────────────────
 # .orkeon-runtime names the archives published for this package: an id, their folder, a SHA-256 per platform. An
-# empty id (a checkout) means there is none. The archive is extracted where it is kept and runs from there.
+# empty id (a checkout, or a package whose release published none) means there is none. The archive is
+# extracted where it is kept and runs from there.
 RUNTIME_HOME="$CODE_HOME/runtime"
 runtime_field() { # <key>
   [ -f "$ROOT/.orkeon-runtime" ] || return 0
@@ -124,7 +127,7 @@ download_runtime() {
   local platform sum name work found other
   if [ -z "$RUNTIME_ID" ]; then
     [ "$KIND" = install ] || die "this checkout names no runtime to download (.orkeon-runtime): use Docker, orkeon-repl or ORKEON_SOURCE (see docs/getting-started.md)."
-    die "this package names no runtime to download (its .orkeon-runtime is empty: its release published none): put the orkeon-repl of an Orkeon release archive on PATH, or use Docker or ORKEON_SOURCE (see docs/getting-started.md)."
+    die "this package names no runtime to download (its .orkeon-runtime is empty: its release published none): put the orkeon-repl of the full archive of an Orkeon release (orkeon-<version>-<platform>) on PATH, or use Docker or ORKEON_SOURCE (see docs/getting-started.md)."
   fi
   platform="$(runtime_platform)" && sum="$(runtime_field "$platform")" && [ -n "$sum" ] \
     || die "no Orkeon runtime is published for this platform ($(uname -s) $(uname -m)): install Docker, or the orkeon-repl tool (see docs/getting-started.md)."
@@ -504,6 +507,11 @@ if [ "${1:-}" = runtime ]; then
   case "${2:-}" in
     install)
       if runtime_downloaded; then echo "orkeon-code: Orkeon $RUNTIME_ID is already in $RUNTIME_HOME/$RUNTIME_ID."; exit 0; fi
+      # No runtime named, and a REPL of the user's on PATH: there is nothing to download, the start runs that one.
+      if [ -n "${ORKEON_REPL:-}" ]; then read -r installed_repl _ <<< "$ORKEON_REPL"; else installed_repl=orkeon-repl; fi
+      if [ -z "$RUNTIME_ID" ] && command -v "$installed_repl" >/dev/null 2>&1; then
+        echo "orkeon-code: nothing to download (.orkeon-runtime names no runtime): the runtime used is $(runtime_found tool)."; exit 0
+      fi
       download_runtime; exit 0 ;;
     remove)
       rm -rf "$RUNTIME_HOME"; echo "orkeon-code: no downloaded runtime left in $RUNTIME_HOME."; exit 0 ;;
@@ -605,7 +613,7 @@ crew_names() {
   printf '%s' "$out"
 }
 if [ "${1:-}" = run ]; then
-  case "${2:-}" in ''|-*) die "$RUN_USAGE" ;; esac
+  case "${2:-}" in -h|--help) echo "$RUN_USAGE"; exit 0 ;; ''|-*) die "$RUN_USAGE" ;; esac
   case "$2" in
     */*|*.ts)
       [ -f "$2" ] || die "crew not found: $2"
@@ -717,6 +725,23 @@ if [ -n "${ORKEON_CODE_MODEL:-}" ]; then export ORKEON_Llm__Model="$ORKEON_CODE_
 # is checked. On by default here; a settings file can still turn it off.
 export Orkeon__Security__PermissionGate__Enabled="${Orkeon__Security__PermissionGate__Enabled:-true}"
 
+# The identity of a commit made in the container (/commit, the close of a dev step): the image sets none and reads no
+# ~/.gitconfig of the host (HOME=/tmp), and Orkeon 1.3.0 hands GIT_AUTHOR_* and GIT_COMMITTER_* to shell_command
+# (Orkeon #404). Each variable already exported is kept; one unset takes the user.name or user.email git gives on
+# the host for the workspace, when git is there and gives one. Sets GIT_IDENTITY_VARS, the names to hand over.
+GIT_IDENTITY_VARS=(GIT_AUTHOR_NAME GIT_AUTHOR_EMAIL GIT_COMMITTER_NAME GIT_COMMITTER_EMAIL)
+git_identity_env() {
+  local name="" email=""
+  if command -v git >/dev/null 2>&1; then
+    name="$(git -C "$WORKSPACE" config --get user.name 2>/dev/null || true)"
+    email="$(git -C "$WORKSPACE" config --get user.email 2>/dev/null || true)"
+  fi
+  [ -n "${GIT_AUTHOR_NAME:-}" ] || { [ -z "$name" ] || export GIT_AUTHOR_NAME="$name"; }
+  [ -n "${GIT_COMMITTER_NAME:-}" ] || { [ -z "$name" ] || export GIT_COMMITTER_NAME="$name"; }
+  [ -n "${GIT_AUTHOR_EMAIL:-}" ] || { [ -z "$email" ] || export GIT_AUTHOR_EMAIL="$email"; }
+  [ -n "${GIT_COMMITTER_EMAIL:-}" ] || { [ -z "$email" ] || export GIT_COMMITTER_EMAIL="$email"; }
+}
+
 # ── What the REPL and run share: the state, the user's settings, esbuild, the source build ──
 # Sets SLUG, STATE, PROJECT_REL and PROJECT_STATE, and makes STATE's output/ and tmp/.
 project_state() {
@@ -798,13 +823,22 @@ clone_tool() { [ "$KIND" = clone ] && [ -f "$ROOT/.config/dotnet-tools.json" ] &
 # returns. A plain `orkeon run` writes its log lines on stdout, before the result: the console logger is sent to
 # stderr, so that stdout carries the crew's result alone.
 run_crew() {
-  local mode="$MODE" cli=() own="$RUNTIME_HOME/${RUNTIME_ID:-none}/bin/orkeon" rel v env_args user_args extra=()
+  local mode="$MODE" cli=() own="$RUNTIME_HOME/${RUNTIME_ID:-none}/bin/orkeon" rel v env_args user_args extra=() given=()
+  # The runner starts in the project, the clone or the container: a relative path after -- that names a file or a
+  # folder of the caller's folder (an --llm-mock file) is handed over absolute, as the caller meant it.
+  for v in ${EXTRA[@]+"${EXTRA[@]}"}; do
+    case "$v" in
+      /*|-*) given+=("$v") ;;
+      *) if [ -e "$CALLER_DIR/$v" ]; then given+=("$(cd "$(dirname "$CALLER_DIR/$v")" && pwd -P)/$(basename "$v")"); else given+=("$v"); fi ;;
+    esac
+  done
+  EXTRA=(${given[@]+"${given[@]}"})
   if [ -z "$mode" ]; then
     if [ -n "${ORKEON_CLI:-}" ] || command -v orkeon >/dev/null 2>&1 || [ -x "$own" ] || clone_tool; then mode=tool
     elif command -v docker >/dev/null 2>&1; then mode=docker
     elif [ -n "${ORKEON_SOURCE:-}" ]; then mode=source
     elif [ -n "$RUNTIME_ID" ]; then mode=tool
-    else die "no Orkeon runtime found to run a crew: install the orkeon tool or Docker, or set ORKEON_SOURCE (see docs/headless.md)."
+    else die "no Orkeon runtime found to run a crew: put the orkeon of the full archive of an Orkeon release (orkeon-<version>-<platform>) on PATH, or use Docker or ORKEON_SOURCE (see docs/headless.md)."
     fi
   fi
   export Orkeon__Embeddings__FingerprintPath="${Orkeon__Embeddings__FingerprintPath:-/output/rag/embedding-fingerprint.json}"
@@ -819,7 +853,7 @@ run_crew() {
         ensure_runtime
         [ -x "$own" ] || die "the runtime in $RUNTIME_HOME/$RUNTIME_ID carries no bin/orkeon: install the orkeon tool, or use Docker."
         cli=("$own")
-      else die "orkeon not found: set ORKEON_CLI, or install the orkeon tool (see docs/headless.md)."
+      else die "orkeon not found: set ORKEON_CLI, or put the orkeon of the full archive of an Orkeon release (orkeon-<version>-<platform>) on PATH (see docs/headless.md)."
       fi
       command -v "${cli[0]}" >/dev/null 2>&1 || die "${cli[0]} not found (see docs/headless.md)."
       if [ "${cli[*]}" = "dotnet tool run orkeon" ]; then
@@ -846,15 +880,21 @@ run_crew() {
       -e "Orkeon__Security__PermissionGate__Enabled=$Orkeon__Security__PermissionGate__Enabled"
       -e "Orkeon__Embeddings__FingerprintPath=$Orkeon__Embeddings__FingerprintPath"
       -e "Logging__Console__LogToStandardErrorThreshold=$Logging__Console__LogToStandardErrorThreshold")
+    git_identity_env
     for v in ORKEON_Llm__ApiKey ORKEON_Llm__Model "$KEY_VAR" GITHUB_TOKEN GH_TOKEN \
-             Orkeon__Tools__GitHub__TokenVariable "${Orkeon__Tools__GitHub__TokenVariable:-}"; do
+             Orkeon__Tools__GitHub__TokenVariable "${Orkeon__Tools__GitHub__TokenVariable:-}" "${GIT_IDENTITY_VARS[@]}"; do
       if [ -n "$v" ] && [ -n "${!v:-}" ]; then env_args+=(-e "$v"); fi
     done
     user_args=()
     if [ "$(uname -s)" = Linux ]; then user_args=(--user "$(id -u):$(id -g)"); fi
-    # The checkout is the container's /work/agent: a path under it given after -- (an --llm-mock file) is named there.
+    # The checkout is the container's /work/agent, the project its /work/project: a path under one of them given
+    # after -- (an --llm-mock file) is named there.
     for v in ${EXTRA[@]+"${EXTRA[@]}"}; do
-      case "$v" in "$ROOT"/*) extra+=("/work/agent/${v#"$ROOT"/}") ;; *) extra+=("$v") ;; esac
+      case "$v" in
+        "$ROOT"/*) extra+=("/work/agent/${v#"$ROOT"/}") ;;
+        "$WORKSPACE"/*) extra+=("/work/project/${v#"$WORKSPACE"/}") ;;
+        *) extra+=("$v") ;;
+      esac
     done
     exec docker run --rm -i ${user_args[@]+"${user_args[@]}"} "${env_args[@]}" -w /work \
       -v "$WORKSPACE:/work/project" -v "$ROOT:/work/agent:ro" -v "$SETTINGS:/work/settings.json:ro" -v "$STATE:/work/state" \
@@ -1189,8 +1229,9 @@ case "$MODE" in
       -e "Orkeon__Embeddings__FingerprintPath=$Orkeon__Embeddings__FingerprintPath")
     # The github tool's token (Orkeon #222): GITHUB_TOKEN, GH_TOKEN, or the variable Orkeon__Tools__GitHub__TokenVariable
     # names, each handed over only when set, with the setting itself so the runtime reads the same variable.
+    git_identity_env
     for v in ORKEON_Llm__ApiKey ORKEON_Llm__Model "$KEY_VAR" GITHUB_TOKEN GH_TOKEN \
-             Orkeon__Tools__GitHub__TokenVariable "${Orkeon__Tools__GitHub__TokenVariable:-}"; do
+             Orkeon__Tools__GitHub__TokenVariable "${Orkeon__Tools__GitHub__TokenVariable:-}" "${GIT_IDENTITY_VARS[@]}"; do
       if [ -n "$v" ] && [ -n "${!v:-}" ]; then env_args+=(-e "$v"); fi
     done
     # Files the agent writes in the project belong to the caller, not to root.

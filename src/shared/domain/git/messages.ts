@@ -3,6 +3,14 @@
 
 export const noIdentityStop = (detail: string, rerun: string): string =>
   `✗ stopped: git has no identity for the commit (${detail}). Set one in a terminal, then re-run ${rerun}:`;
+/** The four variables git reads before any configuration file, which the runtime hands to a command (Orkeon #404). */
+export const IDENTITY_ENV_HANDOVER: readonly string[] = [
+  "export GIT_AUTHOR_NAME=\"<your name>\" GIT_COMMITTER_NAME=\"<your name>\"",
+  "export GIT_AUTHOR_EMAIL=<your email> GIT_COMMITTER_EMAIL=<your email>",
+];
+/** Before the variables of IDENTITY_ENV_HANDOVER: the way that works where git reads no ~/.gitconfig. */
+export const IDENTITY_ENV_INTRO =
+  "Where git reads no ~/.gitconfig (a confined session, a container), export these before orkeon-code instead:";
 
 // ── The body of a pull request ──────────────────────────────────────────
 

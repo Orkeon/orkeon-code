@@ -37,7 +37,7 @@ import { MAX_LEARN_PROMPT_CHARS, buildLearnPrompt } from "./learn-prompt-fit.ts"
 import type { LearnPromptInput } from "./learn-prompt-fit.ts";
 import { readBacklog } from "./learn-backlog.ts";
 import type { Backlog } from "./learn-backlog.ts";
-import { AXIS_TABLE_HEADER, BAD_INPUT_AXIS, BAD_INPUT_LIST, NOTHING_TO_DECIDE_UNTIL_NEW_GAPS, NOTHING_UNTREATED, LEARN_NOT_IN_WORK_TREE, REFUSED_IN_HARNESS, REFUSE_EACH, REMOVED_LINE_KEPT, axisUnchanged, decideQuestion, learnHead, motifsProposed, noAxisEligible, noMotifKept, noProposalOnAxis, notAtTop, nothingUntreatedOnAxis, proposalsWritten, underThreeBatches } from "./messages.ts";
+import { AXIS_TABLE_HEADER, BAD_INPUT_AXIS, BAD_INPUT_LIST, NOTHING_TO_DECIDE_UNTIL_NEW_GAPS, NOTHING_UNTREATED, LEARN_NOT_IN_WORK_TREE, REFUSED_IN_HARNESS, REFUSE_EACH, REMOVED_LINE_KEPT, axisUnchanged, decideQuestion, learnHead, motifsProposed, noAxisEligible, noMotifKept, noProposalOnAxis, notAtTop, nothingUntreatedOnAxis, orkeonCodeOwnerNotRead, ownerAbsent, proposalsWritten, underThreeBatches } from "./messages.ts";
 import { answerDidNotParse } from "../../../shared/application/agents/messages.ts";
 import { errorText } from "../../../shared/domain/error-text.ts";
 import {
@@ -353,11 +353,13 @@ function ownerReader(files: Pick<Files, "read">): (motif: AnswerMotif) => Promis
 
 type OwnerRead = ReturnType<typeof ownerReader>;
 
-/** A kept motif against its owner: an absent owner (the file read) is only said in the summary; what the owner
- *  holds is named under the owner's own path, a harness owner's in the orkeon-workshop repository. */
+/** A kept motif against its owner: an Orkeon Code owner, never read, and an absent owner (the file read) are only
+ *  said in the summary; what the owner holds is named under the owner's own path, a harness owner's in the
+ *  orkeon-workshop repository. */
 async function reconcile(read: OwnerRead, { motif, k }: Kept): Promise<OwnerReview> {
   const { path, text } = await read(motif);
-  if (text === null) return { summary: `owner absent: ${path}`, problems: [], block: null };
+  if (motif.owner.kind === "orkeon-code") return { summary: orkeonCodeOwnerNotRead(path), problems: [], block: null };
+  if (text === null) return { summary: ownerAbsent(path), problems: [], block: null };
   return reviewOwner(motifLabel(k, motif.title), motif, motif.owner.path, matchOwner(text, motif.keyTerm, motif.linesRemoved));
 }
 

@@ -3,9 +3,10 @@
 // of what is wrong with it, so the crew can ask once more. Pure, no IO.
 import type { Checked } from "../../../shared/domain/agents/charter.ts";
 import type { CheckKind, MotifStatus, OwnerKind } from "../../../shared/domain/dev/learn-proposals.ts";
+import { isHarnessRule } from "../../../shared/domain/dev/learn-proposals.ts";
 import { MAX_TOPIC_CHARS, TOPIC_PATTERN } from "../../../shared/domain/shared-memory/refused.ts";
-import { MOTIFS_MUST_BE_LIST, SEEN_LINES_ONLY, addsLines, atProblem, checkIsOneOf, deployedCopy, droppedNeeds, harnessOwnerUnder, orkeonCodeOwnerListed, lineLength, needsRemovedLine, ownerKindIs, ownerPathNotRelative, removesLines, rowNotGiven, rowTwice, rowsEmpty, sameRows, statusIs, titleLength, tooManyMotifs, topicNotSlug } from "./messages.ts";
-import { HARNESS_REPO_PACKS, ORKEON_CODE_DESTINATIONS } from "./markers.ts";
+import { MOTIFS_MUST_BE_LIST, SEEN_LINES_ONLY, addsLines, atProblem, checkIsOneOf, deployedCopy, droppedNeeds, harnessOwnerUnder, orkeonCodeNewOnly, orkeonCodeOwnerListed, lineLength, needsRemovedLine, ownerKindIs, ownerPathNotRelative, removesLines, rowNotGiven, rowTwice, rowsEmpty, sameRows, statusIs, titleLength, tooManyMotifs, topicNotSlug } from "./messages.ts";
+import { HARNESS_DESTINATIONS, ORKEON_CODE_DESTINATIONS } from "./markers.ts";
 import { ANSWER_NOT_AN_OBJECT as NOT_AN_OBJECT, fieldEmpty } from "../../../shared/domain/dev/messages.ts";
 
 export { MAX_TOPIC_CHARS };
@@ -148,8 +149,8 @@ function checkMotif(
     problems.push(ownerPathNotRelative(at, path));
   } else if (kind === "repository" && (path === ".claude" || path.startsWith(".claude/"))) {
     problems.push(deployedCopy(at));
-  } else if (kind === "harness" && !path.startsWith(HARNESS_REPO_PACKS)) {
-    problems.push(harnessOwnerUnder(at, HARNESS_REPO_PACKS));
+  } else if (kind === "harness" && !isHarnessRule(path)) {
+    problems.push(harnessOwnerUnder(at, HARNESS_DESTINATIONS[0]));
   } else if (kind === "orkeon-code" && !ORKEON_CODE_DESTINATIONS.includes(path)) {
     problems.push(orkeonCodeOwnerListed(at, path));
   }
@@ -158,6 +159,7 @@ function checkMotif(
   if (!CHECK_KINDS.includes(check)) problems.push(checkIsOneOf(at, CHECK_KINDS.join(", ")));
   const status = text(item.status) as MotifStatus;
   if (!STATUSES.includes(status)) problems.push(statusIs(at));
+  else if (status !== "new" && kind === "orkeon-code") problems.push(orkeonCodeNewOnly(at, status));
   else if (status !== "new" && !ownerLinesShown) problems.push(atProblem(at, SEEN_LINES_ONLY(status)));
 
   const removed = lines(item.lines_removed);

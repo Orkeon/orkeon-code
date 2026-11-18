@@ -38,7 +38,7 @@ describe("checkLearnAnswer — a valid answer", () => {
     deepStrictEqual(r.value.motifs[0].linesRemoved, ["Old line."]);
   });
 
-  it("accepts an Orkeon Code owner listed among its destinations", () => {
+  it("accepts an Orkeon Code owner listed among its destinations, its motif of status new", () => {
     // Arrange
     const answer = ORKEON_CODE_OWNER_ANSWER;
 
