@@ -89,6 +89,8 @@ export const rewound = (dropped: number, kept: number): string =>
 // /clear
 
 export const conversationCleared = (removed: number): string => `conversation cleared (${removed} messages removed).`;
-export const modeKept = (mode: string): string => `Permission mode kept: ${mode}.`;
-export const modeNotKept = (mode: string): string =>
-  `⚠ the permission mode ${mode} could not be written back: the session is on its fallback mode, /mode ${mode} sets it again.`;
+export const MODE_SETTING = "Permission mode";
+export const MODEL_SETTING = "Model";
+export const settingKept = (setting: string, value: string): string => `${setting} kept: ${value}.`;
+export const settingNotKept = (setting: string, value: string): string =>
+  `⚠ ${setting} ${value} could not be written back: the session is on its default.`;

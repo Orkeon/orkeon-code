@@ -153,8 +153,8 @@ du catalogue.
 - **Par requête** : préfixez le texte, `plan: explain the cache layer`, `acceptEdits: fix the failing test`.
 - **Pour la session** : `/mode acceptEdits`. `/mode` seul ouvre un panneau des modes dans la console ; sur un rejeu
   ou une console simple, il fait défiler `default`, `acceptEdits`, `plan` et `bypassPermissions`, jamais `dontAsk`
-  (on y accède par `/mode dontAsk`). `/plan`, alias de `/mode`, bascule le mode plan. `/clear` le garde : la
-  conversation et le reste de l'état de la session partent, le mode reste.
+  (on y accède par `/mode dontAsk`). `/plan`, alias de `/mode`, bascule le mode plan. `/clear` le garde, avec le choix
+  de `/model` : la conversation et le reste de l'état de la session partent, le mode et le modèle restent.
 - **Repli** : sans l'un ni l'autre, le mode est `default`, ou celui que fixe
   `/config set permissions.fallback <mode>` (`--session` le garde pour la seule session). Chaque tour qui utilise le
   repli dit quel mode s'est appliqué et d'où il vient.

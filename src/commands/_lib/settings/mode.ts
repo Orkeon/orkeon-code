@@ -1,6 +1,6 @@
 // The session-default permission mode: the mode a prompt runs in when it carries
 // no explicit "mode:" prefix, persisted in the session state bag (survives crew
-// runs; /clear restores "default"). /mode offers, cycles, shows or sets it; typed by its
+// runs; /clear writes it back after its reset). /mode offers, cycles, shows or sets it; typed by its
 // alias /plan, it toggles it in and out of plan.
 
 import type { Chooser, Logger } from "../../../shared/application/ports.ts";

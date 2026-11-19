@@ -12,8 +12,8 @@
 //   - the override travels over the SAME provider, so it can only name a model
 //     that provider serves ('claude-…' on a DeepSeek endpoint is a 4xx from the
 //     API, not a local error);
-//   - the preference is session state, so /clear drops it back to the
-//     boot model;
+//   - the preference is session state, which /clear writes back after its
+//     reset; /model reset drops it back to the boot model;
 //   - `llm.profile` wins: under a profile the loop does not send the override (the
 //     profile names the model, and a decision profile's escalation target would get
 //     it too), so `show` names the profile and a switch warns that it is not sent.

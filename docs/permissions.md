@@ -145,8 +145,8 @@ of the catalogue.
 - **Per request**: prefix the text, `plan: explain the cache layer`, `acceptEdits: fix the failing test`.
 - **For the session**: `/mode acceptEdits`. Bare `/mode` opens a panel of the modes in the console; on a replay or a
   plain console it cycles through `default`, `acceptEdits`, `plan` and `bypassPermissions`, never `dontAsk` (reach it
-  with `/mode dontAsk`). `/plan`, an alias of `/mode`, toggles plan mode. `/clear` keeps it: the conversation and
-  the rest of the session state go, the mode stays.
+  with `/mode dontAsk`). `/plan`, an alias of `/mode`, toggles plan mode. `/clear` keeps it, with the `/model` choice: the
+  conversation and the rest of the session state go, the mode and the model stay.
 - **Fallback**: with neither, the mode is `default`, or the one set by `/config set permissions.fallback <mode>`
   (`--session` keeps it for the session only). Every turn that uses the fallback says which mode applied and where
   it came from.

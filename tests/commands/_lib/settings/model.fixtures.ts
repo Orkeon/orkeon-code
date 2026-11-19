@@ -56,7 +56,7 @@ export const NO_MODEL_SHOW_TEXT =
 export const SWITCHED_TEXT =
   "model set to 'deepseek-chat' — it applies from the next /assistant turn, no relaunch.\n" +
   "It travels over the configured provider, so it must be a model that provider serves; " +
-  "/clear (or /model reset) returns to the boot model.";
+  "/clear keeps it, /model reset returns to the boot model.";
 
 export const UNDECLARED_TEXT =
   "model set to 'claude x' — ⚠ NOT among the models this host declares " +

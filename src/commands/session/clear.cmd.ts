@@ -11,7 +11,7 @@ const session = orkeonSessionIo();
 defineCommand({
   name: "clear",
   aliases: ["reset-session"],
-  description: "Clear the conversation buffer and the screen, the permission mode kept.",
+  description: "Clear the conversation buffer and the screen, the permission mode and the model kept.",
   handler: async (_args, ctx) => {
     const line = await runClear({ session });
     ctx.clear();

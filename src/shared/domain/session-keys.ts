@@ -45,7 +45,7 @@ export const FAST_MODE_STATE_KEY = "fast_mode";
 /** `/proactive` — appends the follow-up-suggestion clause to the task (B-9). */
 export const PROACTIVE_STATE_KEY = "proactive_suggestions";
 
-/** `/model` — per-turn model override applied to act() (B-10). */
+/** `/model` — per-turn model override applied to act() (B-10); kept by /clear, which writes it back. */
 export const MODEL_PREFERENCE_STATE_KEY = "model_preference";
 
 // ── Permissions, configuration, tasks and the compaction breaker ──────────

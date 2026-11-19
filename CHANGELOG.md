@@ -16,11 +16,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `spawn_agent` (`default`, `acceptEdits`, `bypassPermissions`), and its ceiling moves from 10 800 to 11 200
   characters for that line ([turn](docs/turn.md#the-explorer)).
 
-### Fixed — `/clear` keeps the permission mode
+### Fixed — `/clear` keeps the permission mode and the model
 
 - `/clear` dropped the mode `/mode` had set (`bypassPermissions` included) back to the fallback mode: the runtime's
   reset empties the whole session state. The mode is now written back after the reset, and the line `/clear` prints
-  names it ([permissions](docs/permissions.md)). The rules of `/permissions` still go with the conversation.
+  names it ([permissions](docs/permissions.md)). The `/model` choice is kept the same way: it used to fall back to
+  the boot model. The rules of `/permissions` still go with the conversation.
 
 ### Changed — `/model show` names the model of an `llm.profile`
 
