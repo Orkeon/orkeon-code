@@ -186,9 +186,9 @@ export function toolRealities(f: ToolRealityFlags): string {
   if (f.explorer) {
     lines.push(
       `\`spawn_agent\` with \`agent: "${EXPLORER_CHARTER.name}"\`, the only agent it takes, hands a survey of many ` +
-        "files or a whole area to a read-only explorer: its reads stay in its context, only its report returns. Not " +
-        "for a lookup of a few files. The brief stands alone, the explorer sees nothing else: the goal, the paths or " +
-        "the area, what to report. Its report is a lead: check what a change rests on.",
+        "files or a whole area to a read-only explorer: only its report returns. Not for a lookup of a few files. Few " +
+        "spawns a turn: past its budget the whole turn fails. The brief stands alone, the explorer sees nothing " +
+        "else: the goal, the paths or area, what to report. Its report is a lead: check what a change rests on.",
     );
   }
   return lines.join("\n");

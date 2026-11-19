@@ -14,7 +14,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   context. `spawn_agent` used to fail in the main loop whatever the agent: the crew held only `coder`, which the
   runtime refuses to run inside itself. The header names the explorer in the modes that do not refuse
   `spawn_agent` (`default`, `acceptEdits`, `bypassPermissions`), and its ceiling moves from 10 800 to 11 200
-  characters for that line ([turn](docs/turn.md#the-explorer)).
+  characters for that line ([turn](docs/turn.md#the-explorer)). A turn may spawn 8 agents, not the runtime's 3:
+  an audit split by area sends more than three, and the fourth used to end the whole turn ("Agent exceeded 3
+  spawned sub-agents"). The header says to spawn few, since past the budget the turn still fails.
 
 ### Fixed — `/clear` keeps the permission mode and the model
 

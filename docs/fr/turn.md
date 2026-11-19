@@ -284,6 +284,11 @@ les lectures qu'il a faites restent dans son propre contexte.
   dossiers, `glob`, `grep`, l'index du code et ses requêtes de graphe). Ni shell, ni écriture, ni construction
   d'index, ni web. Il a 30 itérations d'appels d'outils. Il tourne sous le plus strict de `plan` et du mode du tour,
   sur le modèle de l'hôte : un choix de `/model` vaut pour la boucle principale, et `/route` ne le route pas.
+- **Combien** : un tour lance 8 agents au plus (`spawnedAgents` de `crews/main-loop/domain/turn-budget.ts` ; le
+  runtime en permet 3 quand un budget n'en nomme aucun). Le neuvième `spawn_agent` met fin au tour entier, comme un
+  budget épuisé, au lieu d'être refusé : l'en-tête dit donc au modèle d'en lancer peu, au-delà du budget le tour
+  entier échoue. Chaque explorateur part avec ce qui reste au tour pour plafond, et l'horloge du tour tourne pendant
+  qu'il travaille.
 - **Son brief** : l'`input` de l'appel, sans les espaces autour. Un brief vide et un brief de plus de 24 000
   caractères sont refusés avant tout appel au modèle, et le tour lit le refus comme résultat de l'appel.
 - **Son prompt** (le message système de son unique act) :
