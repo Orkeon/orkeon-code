@@ -50,7 +50,7 @@ export const MODEL_PREFERENCE_STATE_KEY = "model_preference";
 
 // ── Permissions, configuration, tasks and the compaction breaker ──────────
 
-/** `/mode` — the session-default permission mode (cleared by /clear). A
+/** `/mode` — the session-default permission mode (kept by /clear, which writes it back). A
  *  contract with the host: Orkeon's `SessionStateKeys.DefaultPermissionMode`,
  *  which the REPL console shows and cycles. */
 export const DEFAULT_MODE_STATE_KEY = "default_permission_mode";

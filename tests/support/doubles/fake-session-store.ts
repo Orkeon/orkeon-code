@@ -4,7 +4,7 @@
 // becomes the buffer); with `cutsTurns`, snip cuts the buffer as session_snip does
 // instead (Orkeon #287: the head and the last N turns, a turn opening at each user
 // message; fewer turns than asked leave it untouched) and answers what it removed and
-// kept; reset empties the buffer and setTitle sets `title`. A `failure`
+// kept; reset empties the buffer, the state bag and the title, as the runtime's does, and setTitle sets `title`. A `failure`
 // makes every call throw it, as a host without the session tools does; a
 // `readStateFailure` makes readState alone throw it (a state bag that cannot be
 // read, but can be written), a `writeStateFailure` writeState alone (one that
@@ -67,6 +67,8 @@ export class FakeSessionStore implements SessionStore {
     this.check();
     const removed = this.messages.length;
     this.messages = [];
+    this.state.clear();
+    this.title = null;
     return removed;
   }
 
