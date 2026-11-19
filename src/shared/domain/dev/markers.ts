@@ -105,3 +105,23 @@ export const OPEN_TDD_LINE = "TDD: RED [ ] GREEN [ ] COST [ ]";
 export const TEST_POLICY_SECTION = "Test policy and scopes";
 /** The head of a step's test table, in a sheet and in a correction step. */
 export const STEP_TESTS_TABLE_HEAD = ["| # | Test | Level | Project | Ids |", "|---|------|-------|---------|-----|"];
+
+// ── The owners /dev-learn may name ──────────────────────────────────────────
+
+/** The files of Orkeon Code a motif may name, paths in the orkeon-code repository, which the learner's prompt lists
+ *  and both its answer check and `--accept` read: the behaviour of each crew's prompt (changed first, ADR 0003), the
+ *  design rules a plan classifies, the writers of the plan's, the spec's and the change brief's format, this file
+ *  (the patterns and headings by which every reader of those formats reads them back), the gate's mechanical checks,
+ *  then the charters of the auditor and of the reviewer. Each one is a file of this repository
+ *  (tests/repository/learn-destinations). */
+export const ORKEON_CODE_DESTINATIONS: readonly string[] = [
+  "docs/crew-prompts.md",
+  "src/shared/domain/dev/design-rules.ts",
+  "src/crews/dev-plan/domain/plan-render.ts",
+  "src/crews/dev-spec/domain/spec-render.ts",
+  "src/crews/dev-change/domain/change-render.ts",
+  "src/shared/domain/dev/markers.ts",
+  "src/crews/dev-verify/domain/gate.ts",
+  "src/crews/dev-verify/domain/auditor-charter.ts",
+  "src/shared/domain/dev/reviewer-charter.ts",
+];

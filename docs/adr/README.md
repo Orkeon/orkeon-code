@@ -17,6 +17,7 @@ How the code is laid out, how the prompts are written, how the dev steps and the
 | [0026](0026-text-isolation.md) | Text apart from logic, by kind and by layer |
 | [0027](0027-decision-model-optimisations.md) | The decision model asked by Orkeon Code: prune, route, suggest |
 | [0028](0028-runtime-downloaded-at-first-start.md) | The runtime of the pin, downloaded at the first start |
+| [0032](0032-pruning-in-the-dev-acts.md) | The acts of the dev crews carry the pruning of their tool loop |
 
 ## Moves of the pin
 
@@ -49,4 +50,3 @@ changes for Orkeon Code: what is adopted, what is set aside, what is removed.
 | [0029](0029-orkeon-after-333.md) | Orkeon main after #333 and the 1.0.0 release, a sub-agent's act routed to a profile |
 | [0030](0030-orkeon-after-356.md) | Orkeon main after #356, the findings of the release validation fixed in the runtime |
 | [0031](0031-orkeon-after-361.md) | Orkeon main after #361, `/effort` reads what the model takes |
-| [0032](0032-pruning-in-the-dev-acts.md) | The acts of the dev crews carry the pruning of their tool loop |

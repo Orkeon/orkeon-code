@@ -20,7 +20,7 @@ The `main-loop` agent's body is the loop (`crews/main-loop/application/run-main-
 4. Read the behaviour flags once (`/effort`, `/passes` of `/review`, `/fast`, `/proactive`, `/output-style`).
 5. Append the user turn to the session buffer; compact first if the buffer is under pressure
    (`auto-compact.ts`).
-6. Assemble the prompt (below; `application/prompts.ts` over the reads of `context-gather.ts`) and call the model's
+6. Assemble the prompt (below; `application/turn-context.ts` over the reads of `context-gather.ts`) and call the model's
    `act` (the `Llm` port over `ctx.llm.act()`): the runtime runs the model ⇄ tool calls cycle over the catalogue,
    every call of a model turn in order, under the crew budget and the permission gate, and returns the final answer.
    - A failed model call throws an `LlmFailure`: the turn stores no answer and fails with the provider's error.

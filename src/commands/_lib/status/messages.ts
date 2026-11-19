@@ -78,7 +78,7 @@ export const noToolCallHolds = (text: string): string => `no tool call holds '${
 export const RELEASE_NOTES = [
   `${CLI_NAME} ${CLI_VERSION} (${CLI_BUILD})`,
   "",
-  `Second release candidate of 1.0.0, on Orkeon 1.2.0 (main ${ORKEON_RUNTIME_PIN}).`,
+  `Third release candidate of 1.0.0, on Orkeon 1.3.0 (main ${ORKEON_RUNTIME_PIN}).`,
   "",
   "Crews: main-loop (the interactive loop behind /assistant), code-review, git-commit,",
   "       project-init, init-verifiers, session-compact, advisor, analyze, speech,",
@@ -96,5 +96,6 @@ export const RELEASE_NOTES = [
   "        /effort sets the reasoning effort among the levels the model takes.",
   "Decision model (off by default): /route runs a crew on the cheapest profile that fits,",
   "        /skills suggest offers the skills that fit a turn, compaction.prune drops stale tool results.",
+  "Headless: orkeon-code run <crew> runs one crew from a shell, its result alone on stdout.",
   "Code intelligence: index, maps, dependency graph and symbol tools of the Orkeon runtime.",
 ].join("\n");

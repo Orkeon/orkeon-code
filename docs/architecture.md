@@ -61,7 +61,7 @@ The runtime runs the sources under rules that shape everything below:
 - **The index needs no language list.** `index_codebase` then `codebase_map` work end to end, the languages detected
   without being named.
 - **A budget stops `act` with a typed error.** A `toolCalls` budget stops `act` with a typed
-  `BudgetExhaustedException`.
+  `BudgetExhaustedError`.
 - **An act stopped at its iteration cap is a failure, never an answer.** The runtime resolves such an act with
   `exhausted: true` and a notice in place of the model's words; the `Llm` adapter throws it as an
   `IterationsExhausted`. A reviewer or an auditor that never concluded then reads `not run`, with the turns it used,
@@ -250,13 +250,15 @@ src/
 │   ├── _lib/          the use cases, in the folder of their commands: run<Name>(tokens, deps) → CommandView,
 │   │                  or dispatch<Name>(tokens, deps) → a ticket or a message when the command launches a
 │   │                  crew, and their pure helpers. dev/ (dev, dev-batches, dev-implement, dev-source),
-│   │                  git/ (branch, commit, diff, review), memory/ (memory, memory-admit), session/ (export,
-│   │                  resume, tasks), settings/ (advisor, agents, config, hooks, mode, model, permissions,
-│   │                  session-config: the toggle commands, skills), speech/ (say, transcribe, voice),
-│   │                  status/ (cache, doctor, meta: version; messages: release notes, status). At the root, what
+│   │                  git/ (branch, commit, diff, review), memory/ (memory, memory-admit), project/
+│   │                  (analyze), session/ (export, resume, tasks), settings/ (advisor, agents, choices,
+│   │                  config, effort, hooks, mode, model, output-style, permissions, route, session-config:
+│   │                  the toggle commands, skills, theme), speech/ (say, transcribe, voice), status/ (cache,
+│   │                  context, doctor, meta: version, messages: release notes, status, usage, usage-tools);
+│   │                  each group keeps its text in messages.ts (prompts.ts, markers.ts). At the root, what
 │   │                  several families share: args.ts (arguments), dispatch.ts (crew launch, completion
-│   │                  line, main-loop launch), dev-step.ts, effort.ts, pr-context.ts, view.ts (CommandView,
-│   │                  showView)
+│   │                  line, main-loop launch), dev-step.ts, effort.ts, messages.ts, pr-context.ts, view.ts
+│   │                  (CommandView, showView)
 │   └── .orkeon/       orkeon-cli.d.ts (generated: npm run typings)
 ├── crews/<name>/      crew.ork.ts (wiring) + application/ (run-<crew>.ts, the use case) + domain/
 │   └── .orkeon/       orkeon.d.ts (generated)
@@ -282,9 +284,10 @@ tests/
 │   └── assertions/    the checks shared across test files
 ├── fixtures/          the texts that are files of their own (a sheet, a plan, a YAML)
 ├── repository/        the rules of the repository as a whole: architecture, test-shape, command-surface,
-│                      prompt-contract, version, shared-memory-fixture
+│                      prompt-contract, version, shared-memory-fixture, learn-destinations, syntax,
+│                      text-isolation
 ├── scripts/           the scripts of scripts/ and the launchers: dev-run, session-start-script, docs-parity,
-│                      install, launcher
+│                      install, launcher, release-notes, smoke-crew, smoke-validate
 └── config/            the example settings
 mcp/whisper/           the speech MCP server, Python run by uv: whisper_mcp.py, tests/, samples/, smoke.py
 ```
@@ -336,8 +339,10 @@ the text, or the tool's own failure message without the runtime's wrapping, and 
 | `ToolCatalogue` | The registered tools under their registered names, found case-insensitively as Orkeon finds them, for diagnostics and the extra tools' check (the `tools` service of `ctx.services` for the names, the `tools` namespace for the calls: `call` raw, `callText` decoded) | `tool-catalogue.ts` | `fake-tool-catalogue.ts` |
 | `CodeIndex` | The code index as `/analyze` harvests it and `/init` reads its package map (`index_status`, `index_codebase`, `codebase_map`, `dependency_graph`, `package_summary`) | `code-index.ts` | `fake-code-index.ts` |
 | `CostIndex` | The access cost `/dev-batches` measures: the indexed roots, the refresh of the batch's files, the report (`index_status`, `incremental_reindex`, `access_cost`) | `code-index.ts` | `fake-cost-index.ts` |
+| `AnchorIndex` | The anchors of the code index `/dev-plan` reads for its inventory: the closure of fully qualified names, the names it did not find, whether it was cut (`batch_anchors` `closure`) | `code-index.ts` | `fake-anchor-index.ts` |
 | `CrewHost` | List and launch crews (the `script-host` service, `ctx.services`) | `crew-host.ts` | `fake-crew-host.ts` |
 | `PermissionRules` | The session rules of the host's permission gate: add, clear, list (the `permissions` service, `ctx.services`) | `permission-rules.ts` | `fake-permission-rules.ts` |
+| `PendingApprovals` | The tool approvals waiting for the operator, read-only, for `/tasks`; a host that keeps none answers none (the `approvals` service, `ctx.services`) | `approvals.ts` | `fake-pending-approvals.ts` |
 | `Llm` | The model: `act` (the tool loop), `complete`, `extract` (`ctx.llm` of the running agent), `effortSent` (what an act sends for its effort, `ctx.llm.reasoning`); a failed `act` or `complete` throws an `LlmFailure` | `llm.ts` | `fake-llm.ts` |
 | `RunState` | The running agent's own state, for one crew run (`ctx.state`) | `run-state.ts` | `fake-run-state.ts` |
 | `CrewMemory` | The running crew's key/value memory, shared by its agents for one run (`ctx.memory.crew`) | `crew-memory.ts` | `fake-crew-memory.ts` |
@@ -358,7 +363,8 @@ What the table leaves out:
   the registered names come from its context) and the services built on them (`orkeonConfigStore()`,
   `orkeonSessionIo()`).
 - The adapters of what the context carries are built by the entry point from the context it receives:
-  `createLlm(ctx.llm)`, `createRunState(ctx)`, `createCrewMemory(ctx)`, `createCrewHost(ctx.services)` and
+  `agentLlm(ctx)` (the `Llm` over `ctx.llm`, every act's system prompt closed by the runtime's `ctx.fileSystem`
+  section), `createRunState(ctx)`, `createCrewMemory(ctx)`, `createCrewHost(ctx.services)` and
   `createPermissionRules(ctx.services)` (an async command hands the last two to `launchCrew` or `launchMainLoop`
   with its log).
 - Every adapter takes the runtime object as a parameter, so its own test runs it over a stand-in: `fake-tools.ts`
@@ -423,21 +429,25 @@ defineCommand({
   as a line.
 
 **A crew** builds its agents, wires the adapters at module scope, builds the context-bound ones in the agent body,
-and calls its use case `application/run-<crew>.ts`, which takes its input and its ports. `/analyze`:
+and calls its use case `application/run-<crew>.ts`, which takes its input and its ports. Every agent starts from
+`orkeonAgent()`, the builder on the profile the crew input names (`llmProfile`), else the plain one. `/analyze`:
 
 ```ts
-import { AgentBuilder, CrewBuilder, publishCrew, inputs } from "../../shared/infrastructure/globals.ts";
-import { orkeonCodeIndex, orkeonProgress } from "../../shared/infrastructure/orkeon/wiring.ts";
-import { createLlm } from "../../shared/infrastructure/orkeon/llm.ts";
+import { CrewBuilder, publishCrew, inputs } from "../../shared/infrastructure/globals.ts";
+import { orkeonAgent, orkeonCodeIndex, orkeonProgress } from "../../shared/infrastructure/orkeon/wiring.ts";
+import { agentLlm } from "../../shared/infrastructure/orkeon/llm.ts";
 import { runAnalyze } from "./application/run-analyze.ts";
+import { ANALYST_GOAL, ANALYST_ROLE } from "./application/prompts.ts";
 
 const ports = { index: orkeonCodeIndex(), progress: orkeonProgress() };
 
-const analyst = AgentBuilder()
+const analyst = orkeonAgent()
   .name("analyst")
+  .role(ANALYST_ROLE)
   .tools([])
+  .goal(ANALYST_GOAL)
   .body(async (_input: any, ctx: any) =>
-    await runAnalyze(inputs(), { ...ports, llm: createLlm(ctx.llm), log: ctx.log }))
+    await runAnalyze(inputs(), { ...ports, llm: agentLlm(ctx), log: ctx.log }))
   .build();
 
 publishCrew(CrewBuilder().name("analyze").process("sequential").withAgent(analyst).build());

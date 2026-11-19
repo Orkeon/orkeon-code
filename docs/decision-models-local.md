@@ -20,9 +20,9 @@ profile does not see: the escalation judges an answer, the fallback replaces a c
 
 ## The runtime: source mode
 
-The pin (`a9f3878`) serves Liquid and Kev; it is the release `1.2.0`, and every release since `1.0.0` does too: the tool mode
+The pin (`d81bfab`) serves Liquid and Kev; it is the release `1.3.0`, and every release since `1.0.0` does too: the tool mode
 knows `Orkeon:Liquid`, `Orkeon:Kev` and `Orkeon:Decision:Provider`. The docker mode runs the image of
-the last release, `1.2.0` at this writing. This page was written in source mode, on an
+the last release, `1.3.0` at this writing. This page was written in source mode, on an
 Orkeon checkout at the pin or after it ([Getting started](getting-started.md#source-mode-an-orkeon-checkout)):
 
 ```bash
@@ -557,7 +557,7 @@ ORKEON_CODE_MODE=source ORKEON_SOURCE=~/src/orkeon \
 ORKEON_CODE_SETTINGS=config/appsettings.local.json \
   ./orkeon-code run main-loop --workspace /tmp/kev-ws --trust \
   --inputs '{"prompt": "What does the function in text.ts do? Answer in one sentence.",
-             "permissionMode": "plan", "llmProfile": "guarded"}' 2>&1 | grep -E "Decision|decision\.|finalOutput"
+             "permissionMode": "plan", "llmProfile": "guarded"}' -- -v 2 2>&1 | grep -E "Decision|decision\.|finalOutput"
 ```
 
 ## What Orkeon Code asks it itself

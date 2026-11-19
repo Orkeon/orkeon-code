@@ -2,7 +2,11 @@
 // `<work>/learn-<date>/proposals.json` for --accept and --refuse to read, and the lines
 // those print. A decision applies nothing: it prints the change to make. Pure, no IO.
 import { sha1Hex } from "../sha1.ts";
-import { acceptedHarness, acceptedOrkeonCode, acceptedRepository, hasTheWrongShape, THE_TOP_LEVEL } from "./messages.ts";
+import { ORKEON_CODE_DESTINATIONS } from "./markers.ts";
+import {
+  acceptedHarness, acceptedNotAHarnessRule, acceptedNotAnOrkeonCodeChange, acceptedOrkeonCode, acceptedRepository,
+  hasTheWrongShape, THE_TOP_LEVEL,
+} from "./messages.ts";
 
 export const LEARN_FOLDER_PATTERN: RegExp = /^learn-\d{4}-\d{2}-\d{2}$/;
 export function learnFolderName(date: string): string {
@@ -150,13 +154,29 @@ export function serializeProposalsFile(file: ProposalsFile): string {
 
 // ---- the lines a decision prints ----
 
-const HARNESS_SOURCE = /^\.devcontainer\/harness\/packs\/[^/]+\/claude\/(.+)$/;
+/** The start of every harness owner's path: a repository pack, in the orkeon-workshop repository. */
+export const HARNESS_REPO_PACKS = ".devcontainer/harness/packs/repo-";
 
-/** The harness owner's file in the orkeon-workshop repository → its deployed copy in the checkout, or null. */
+/** A name of a path segment a rule may carry: non-empty, no edge space, no backslash, not dots alone. */
+function isPlainSegment(segment: string | undefined): segment is string {
+  return segment !== undefined && segment !== "" && segment === segment.trim() && !segment.includes("\\")
+    && !/^\.+$/.test(segment);
+}
+
+/** A harness owner, a rule of a repository pack (`<HARNESS_REPO_PACKS><name>/claude/rules/<file>`, name and file
+ *  plain segments, no deeper folder) → its deployed copy in the checkout; any other path → null. */
 export function deployedHarnessPath(path: string): string | null {
-  const m = HARNESS_SOURCE.exec(path);
-  if (!m || m[1].split("/").some((s) => s === "" || s === "." || s === "..")) return null;
-  return `.claude/${m[1]}`;
+  if (!path.startsWith(HARNESS_REPO_PACKS)) return null;
+  const [name, claude, rules, file, ...deeper] = path.slice(HARNESS_REPO_PACKS.length).split("/");
+  if (!isPlainSegment(name) || claude !== "claude" || rules !== "rules" || !isPlainSegment(file) || deeper.length > 0) {
+    return null;
+  }
+  return `.claude/rules/${file}`;
+}
+
+/** Whether a harness owner's path is a rule of a repository pack, the only harness file a motif may own. */
+export function isHarnessRule(path: string): boolean {
+  return deployedHarnessPath(path) !== null;
 }
 
 export function patchLines(motif: Motif): string[] {
@@ -167,9 +187,24 @@ export function patchLines(motif: Motif): string[] {
   ];
 }
 
+/** Whether an Orkeon Code motif keeps to the rules its owner, never read, sets: a listed destination, status new and
+ *  no line removed. */
+export function isOrkeonCodeChange(motif: Pick<Motif, "owner" | "status" | "linesRemoved">): boolean {
+  return ORKEON_CODE_DESTINATIONS.includes(motif.owner.path) && motif.status === "new"
+    && motif.linesRemoved.every((l) => l.trim() === "");
+}
+
 /** The lines printed for a motif: the patch for an Orkeon Code or a harness owner, the change to make for a
- *  repository owner. */
+ *  repository owner. The owner rules are checked again, since a proposals.json may come from before them or be edited
+ *  by hand: a harness owner that is no rule of a repository pack, or an Orkeon Code motif off its rules, is said in
+ *  one line with no patch. */
 export function acceptLines(motif: Motif): string[] {
+  if (motif.owner.kind === "harness" && !isHarnessRule(motif.owner.path)) {
+    return [acceptedNotAHarnessRule(motif.id, motif.title, motif.owner.path)];
+  }
+  if (motif.owner.kind === "orkeon-code" && !isOrkeonCodeChange(motif)) {
+    return [acceptedNotAnOrkeonCodeChange(motif.id, motif.title, motif.owner.path)];
+  }
   const head = motif.owner.kind === "harness"
     ? acceptedHarness(motif.id, motif.title)
     : motif.owner.kind === "orkeon-code"

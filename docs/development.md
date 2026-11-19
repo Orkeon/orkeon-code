@@ -51,7 +51,7 @@ runtime's typings come from, how the pin on Orkeon moves, and how a release is c
 clone without one on PATH it uses the `orkeon` tool (`Orkeon.Scripting.Cli`, nuget.org, named by `.config/dotnet-tools.json`; the .NET SDK
 that restores and runs it is pinned by `global.json`, like Orkeon's: `10.0.300` with `rollForward: latestFeature`) or the
 `orkeon` image, on the current folder unless `--workspace` or `--demo` says otherwise. Both are a release:
-the tool is on nuget.org at `1.2.0`, the image is `ghcr.io/orkeon/orkeon:latest` (`1.2.0`), both the pin at this writing;
+the tool is on nuget.org at `1.3.0`, the image is `ghcr.io/orkeon/orkeon:latest` (`1.3.0`), both the pin at this writing;
 the tool carries no esbuild, the launcher takes the one `npm ci` installed;
 `ORKEON_CODE_MODE=source ORKEON_SOURCE=<checkout at the pin>` runs it from an Orkeon checkout, built on the spot. That tool reads its script limits from
 `Orkeon:Scripting:Limits`, not from the REPL's `Orkeon:Cli:ScriptCommands:Limits`
@@ -103,9 +103,9 @@ hand, with `.nvmrc`.
 1. Move the `[Unreleased]` entries of `CHANGELOG.md` under `## [x.y.z] - YYYY-MM-DD`.
 2. Bump `package.json` `version` and `CLI_VERSION` in `src/commands/_lib/status/meta.ts` (the test keeps them equal), and
    the release notes (`RELEASE_NOTES`) in `src/commands/_lib/status/messages.ts`.
-3. Run `ORKEON_SOURCE=<an Orkeon checkout at the pin> bash scripts/check-shared-memory.sh` in a terminal (it asks for
-   `rag_eval`; without `ORKEON_SOURCE` it runs the older tool of `.config/dotnet-tools.json`, not the pin, which refuses
-   newer settings such as `Orkeon:Decision`): the shared memory's recall on
+3. Run `ORKEON_SOURCE=<an Orkeon checkout at the pin> bash scripts/check-shared-memory.sh` (the probe calls
+   `rag_eval` from its code, outside the permission gate, so nothing is asked in any mode; it runs the probe through `orkeon-code run`, from the pin's sources with `ORKEON_SOURCE`, else on the
+   runner `orkeon-code run` finds, in the order of [Autonomous and embedded runs](headless.md#one-shot-from-a-shell)): the shared memory's recall on
    its reference set must end on `check-shared-memory: thresholds met` (recall@5 >= 0.85, MRR >= 0.70). The question
    with no answer (q13) passes only when the runtime's settings give `Orkeon:Rag:Retrieval:MinScore`: without that
    floor every query returns passages, q13 fails and so does the check. The examples give 0.6.

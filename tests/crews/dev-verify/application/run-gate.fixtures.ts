@@ -75,6 +75,7 @@ export function fakesWithNotes(): { files: FakeFiles; shell: FakeShell } {
 //   cp -r tests/fixtures/dev/verify/batch/. "$T"; then the scenario's edits (first occurrence of `find`, or `create`)
 //   bash /workspace/temp/_sources/orkeon-workshop/.devcontainer/harness/packs/dev/claude/skills/dev-verify/scripts/audit-capture.sh \
 //     F1 workbench/vdemo/VDEMO-PLAN-F1.md <scratch>/cap-<name>.txt --roots "src tests" --trait BR --build-outputs "bin obj"
+// (audit-capture.sh was a file of the harness's dev pack, removed since by orkeon-workshop#5: the recording stands.)
 // harness-gate.txt keeps its stdout from `GATE — batch F1 — sheet` through `GATE — batch F1:`, "$T" replaced by
 // /workspace. git-outputs.json holds the stdout and exit code of each command runGate issued, run with
 // `bash -c "<command>"` in "$T", with the pack of pack.yaml (the same roots, trait and build outputs).

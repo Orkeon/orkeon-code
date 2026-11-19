@@ -4,14 +4,15 @@ import { describe, it } from "node:test";
 import { deepStrictEqual, ok, strictEqual } from "node:assert";
 
 import {
-  COMMIT_MESSAGE_FILE, GIT_STATUS_COMMAND, IDENTITY_HANDOVER, changedPaths, indexDeletedPaths, ghPrCreateCommand, gitAddCommand, gitCommitCommand,
+  COMMIT_MESSAGE_FILE, GIT_STATUS_COMMAND, changedPaths, indexDeletedPaths, ghPrCreateCommand, gitAddCommand, gitCommitCommand,
   gitDiffCommand, gitMergeFfOnly, isNotFastForward, isPushed, gitPushCommand, gitPushedCheckCommand, gitRebaseAbortIn, gitRebaseIn, identityStop, parseDefaultBranch,
   parseGitIdent, prBodyPath, prSlug, renderPrBody, selectCommitFiles, shellQuote, shellUnsafe,
 } from "../../../../src/shared/domain/git/close.ts";
 import {
-  DEFAULT_BRANCHES, FULL_PR, GIT_REASON, IDENTITY_COMMANDS, MERGE_FAILURES, NOT_IDENTS, PR_COMMANDS, PR_HEADINGS, PUSHED_CHECKS, QUOTED,
+  DEFAULT_BRANCHES, FULL_PR, GIT_REASON, IDENTITY_COMMANDS, IDENTITY_ENV_COMMANDS, IDENTITY_PS_COMMANDS, MERGE_FAILURES, NOT_IDENTS, PR_COMMANDS, PR_HEADINGS, PUSHED_CHECKS, QUOTED,
   RENAME_STATUS, SAFE_ARGS, SHORT_PR, SLUGS, STAGED_STATUS, STATUS, UNSAFE_ARGS, UNSAFE_STATUS,
 } from "./close.fixtures.ts";
+import { IDENTITY_ENV_INTRO, IDENTITY_HANDOVER, IDENTITY_PS_INTRO } from "../../../../src/shared/domain/git/messages.ts";
 
 describe("parseGitIdent", () => {
   it("reads the name and the email of `git var GIT_AUTHOR_IDENT`", () => {
@@ -51,8 +52,30 @@ describe("identityStop", () => {
     const lines = text.split("\n");
     ok(lines[0].includes("fatal: unable to auto-detect email address"));
     ok(lines[0].includes("/commit"));
-    deepStrictEqual(lines.slice(1), IDENTITY_HANDOVER.map((c) => `  ${c}`));
+    deepStrictEqual(lines.slice(1, 3), IDENTITY_HANDOVER.map((c) => `  ${c}`));
     deepStrictEqual(IDENTITY_HANDOVER, IDENTITY_COMMANDS);
+  });
+
+  it("then hands over the four variables to export in a POSIX shell, the way where git reads no ~/.gitconfig", () => {
+    // Arrange
+    const reason = GIT_REASON;
+
+    // Act
+    const text = identityStop(reason, "/commit");
+
+    // Assert
+    deepStrictEqual(text.split("\n").slice(3, 6), [IDENTITY_ENV_INTRO, ...IDENTITY_ENV_COMMANDS.map((c) => `  ${c}`)]);
+  });
+
+  it("then hands over the same four variables in PowerShell, last", () => {
+    // Arrange
+    const reason = GIT_REASON;
+
+    // Act
+    const text = identityStop(reason, "/commit");
+
+    // Assert
+    deepStrictEqual(text.split("\n").slice(6), [IDENTITY_PS_INTRO, ...IDENTITY_PS_COMMANDS.map((c) => `  ${c}`)]);
   });
 });
 

@@ -17,7 +17,7 @@ REPL. Il lui faut trois choses : un runtime, un fichier de settings et une clé 
 ni `sudo`, ni clone, ni `npm ci`.
 
 ```bash
-v=0.1.0                                                          # the release to install
+v=1.0.0-rc.3                                                     # the release to install
 curl -fLO "https://github.com/Orkeon/orkeon-code/releases/download/v$v/install.sh"
 bash install.sh                                                  # or: bash install.sh --prefix /opt/tools
 orkeon-code --version
@@ -79,11 +79,11 @@ avec le lanceur bash ([tutoriel WSL](wsl-tutorial.md)). Sur les deux, un chemin 
 dans les appels du modèle et dans ce qu'une commande imprime ([architecture](architecture.md#le-vfs-et-la-plateforme-hôte)) ;
 sous WSL un programme Windows n'est joignable que sans confinement, et reçoit encore des chemins `/mnt/c/…`.
 
-- Orkeon Code est vérifié contre les sources d'Orkeon au commit de `.orkeon-version` (`a9f3878`, le `main` après
-  Orkeon/orkeon#394, le commit d'Orkeon `1.2.0`, 2026-11-16) : le [mode source](#mode-source--un-checkout-dorkeon) exécute ce commit, le runtime
+- Orkeon Code est vérifié contre les sources d'Orkeon au commit de `.orkeon-version` (`d81bfab`, le `main` après
+  Orkeon/orkeon#412, le commit d'Orkeon `1.3.0`, 2026-11-18) : le [mode source](#mode-source--un-checkout-dorkeon) exécute ce commit, le runtime
   de référence.
 - Le [mode tool](#mode-tool--orkeon-repl-installé) (le paquet Debian sur le canal apt `stable`, les archives de
-  release) exécute la dernière release d'Orkeon, `1.2.0` (`a9f3878`), et le
+  release) exécute la dernière release d'Orkeon, `1.3.0` (`d81bfab`), et le
   [mode docker](#mode-docker--rien-à-installer-sauf-docker) son image, `ghcr.io/orkeon/orkeon:latest` : les deux sont
   à l'épingle à ce jour, et en retard sur elle dès que l'épingle dépasse cette release : `/status` dit lequel
   ([ADR 0013](../adr/0013-pin-on-orkeon-commit.md)). Ce qui manque à une release plus ancienne est listé dans
@@ -94,12 +94,12 @@ Le lanceur prend le premier mode disponible, dans cet ordre, sauf si `--mode` en
 
 ### Mode tool : `orkeon-repl` installé
 
-Le REPL est `orkeon-repl` (`Orkeon.ConsoleApp`) de la dernière release, `1.2.0`, l'épingle à ce jour. Le paquet Debian et les
+Le REPL est `orkeon-repl` (`Orkeon.ConsoleApp`) de la dernière release, `1.3.0`, l'épingle à ce jour. Le paquet Debian et les
 archives de release le livrent autonome, avec son propre esbuild : aucun .NET à installer.
 
 **Debian et Ubuntu** (amd64, arm64) : le paquet `orkeon` installe `/usr/bin/orkeon-repl`. Ajoutez la source apt
 d'Orkeon une fois, comme le décrit [Install with apt](https://github.com/Orkeon/orkeon/blob/main/docs/guides/install-with-apt.md),
-puis `sudo apt install orkeon`. `1.2.0` est sur le canal `stable` ; une version candidate est publiée sur le canal
+puis `sudo apt install orkeon`. `1.3.0` est sur le canal `stable` ; une version candidate est publiée sur le canal
 `rc` (`Suites: raw/apt/rc/`).
 
 **Autres systèmes** : l'**archive complète** de la [release d'Orkeon](https://github.com/Orkeon/orkeon/releases) pour
@@ -111,7 +111,7 @@ lancez `./install.sh` : il installe dans `~/.local/lib/orkeon` et lie `orkeon-re
 dossier `bin` à votre `PATH` utilisateur.
 
 ```bash
-v=1.2.0; rid=linux-x64       # the last release; or linux-arm64, osx-x64, osx-arm64
+v=1.3.0; rid=linux-x64       # the last release; or linux-arm64, osx-x64, osx-arm64
 curl -fLO "https://github.com/Orkeon/orkeon/releases/download/v$v/orkeon-$v-$rid.tar.gz"
 curl -fLO "https://github.com/Orkeon/orkeon/releases/download/v$v/SHA256SUMS"
 sha256sum --check --ignore-missing SHA256SUMS
@@ -128,11 +128,19 @@ celui que npm a installé (`ORKEON_ESBUILD_PATH` le remplace).
 
 ### Mode docker : rien à installer sauf Docker
 
-Le lanceur exécute `ghcr.io/orkeon/orkeon:latest`, l'image de la dernière release (`1.2.0` à ce jour,
+Le lanceur exécute `ghcr.io/orkeon/orkeon:latest`, l'image de la dernière release (`1.3.0` à ce jour,
 l'épingle ; `ORKEON_CODE_IMAGE` nomme une autre image), qui porte le
 REPL et esbuild ; l'image est construite pour `linux/amd64` et `linux/arm64`, et Docker tire celle de votre machine. Le projet est monté dans le
 conteneur ; sous Linux, le conteneur tourne avec votre uid, si bien que les fichiers que l'agent écrit vous
 appartiennent. L'outil shell tourne dans le conteneur.
+
+L'image ne fixe aucune identité git, et git n'y lit aucun `~/.gitconfig` (Orkeon #404) : le lanceur remet donc au
+conteneur `GIT_AUTHOR_NAME`, `GIT_AUTHOR_EMAIL`, `GIT_COMMITTER_NAME` et `GIT_COMMITTER_EMAIL`. Chacune que vous
+exportez est gardée, et une absente est prise du `user.name` ou du `user.email` de votre git pour le projet
+(`git config` dans l'espace de travail). Sans l'une ni l'autre, `/commit` s'arrête sur l'identité et dit quelles
+variables exporter. Il faut pour cela une image d'Orkeon `1.3.0` ou plus récente : git dans l'image, et les variables
+`GIT_*` transmises par `shell_command`. Le mode docker exécute l'`ghcr.io/orkeon/orkeon:latest` déjà présente sur votre
+machine et ne la tire plus jamais : `docker pull ghcr.io/orkeon/orkeon:latest` la met à jour.
 
 Le lanceur vérifie que le moteur répond avant de démarrer le conteneur : si Docker Desktop ou le service Docker est
 arrêté, il le dit et ne démarre rien.
@@ -149,18 +157,20 @@ ce checkout, ou `ORKEON_ESBUILD_PATH`.
 Le checkout devrait être au commit de `.orkeon-version`, celui contre lequel les commandes ont été vérifiées. Le
 lanceur l'y amène lui-même quand rien de vous n'est en jeu : aucun fichier suivi modifié, sur `main` ou détaché, et en
 retard sur l'épingle (récupéré depuis `origin main` s'il manque). Il dit alors `orkeon-code: ORKEON_SOURCE moved from
-<sha7> to the pin a9f3878.` et le build restaure la solution. Sinon (une branche à vous, du travail non commité, des
+<sha7> to the pin d81bfab.` et le build restaure la solution. Sinon (une branche à vous, du travail non commité, des
 commits en avance sur l'épingle, ou `ORKEON_SOURCE_FOLLOW_PIN=0`), il laisse le checkout tel quel, avertit
-(`orkeon-code: warning: ORKEON_SOURCE is at <sha7>, the pin of .orkeon-version is a9f3878: the commands were checked
+(`orkeon-code: warning: ORKEON_SOURCE is at <sha7>, the pin of .orkeon-version is d81bfab: the commands were checked
 against the pin.`) et lance quand même.
 
 ### Aucun runtime sur la machine : celui qu'Orkeon Code télécharge
 
-Aucun paquet publié à ce jour ne nomme de runtime : le `.orkeon-runtime` de chaque release, `1.0.0-rc.2` compris, est
+Aucun paquet publié à ce jour ne nomme de runtime : le `.orkeon-runtime` de chaque release, `1.0.0-rc.3` compris, est
 vide, et sa release ne porte aucune archive du runtime. Sur une machine sans `orkeon-repl`, sans Docker et sans
 `ORKEON_SOURCE`, installez `orkeon-repl` depuis l'archive de release d'Orkeon
 ([Mode tool](#mode-tool--orkeon-repl-installé)) ; `orkeon-code --version` dit alors `found: <version> (orkeon-repl,
-…/VERSION)`. `orkeon-code runtime install` dit que le paquet ne nomme aucun runtime à télécharger, et sort avec 1.
+…/VERSION)`. Sans `orkeon-repl` trouvé (sur le PATH, ou celui que nomme `ORKEON_REPL`), `orkeon-code runtime install`
+dit que le paquet ne nomme aucun runtime à télécharger, et sort avec 1 ; avec un, il dit qu'il n'y a rien à télécharger
+et nomme l'`orkeon-repl` utilisé, et sort avec 0.
 
 La suite décrit ce que fait le lanceur pour un paquet qui en nomme un. Un paquet dont la release a publié des archives du runtime les nomme dans `.orkeon-runtime` : les sept caractères de
 l'épingle dont elles sont construites, leur adresse et un SHA-256 par plateforme (`linux-x64`, `linux-arm64`,

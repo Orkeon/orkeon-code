@@ -2,7 +2,10 @@
 // explicit list, never the work folder), the command lines that commit, push and
 // merge them, and the pull request body and command handed over. Pure: nothing
 // here runs a command; shared/application/git runs these lines through the Shell port.
-import { ASSUMPTIONS_HEADING, ASSUMPTIONS_BY_ID_HEAD, FILES_PER_LAYER_HEADING, noIdentityStop } from "./messages.ts";
+import {
+  ASSUMPTIONS_HEADING, ASSUMPTIONS_BY_ID_HEAD, FILES_PER_LAYER_HEADING, IDENTITY_ENV_HANDOVER, IDENTITY_ENV_INTRO,
+  IDENTITY_HANDOVER, IDENTITY_PS_HANDOVER, IDENTITY_PS_INTRO, noIdentityStop,
+} from "./messages.ts";
 
 /** Q-10's switch: `true` asks the close to open the pull request itself. Omitted = false. */
 export const DEV_PR_AUTO_CONFIG_KEY = "dev.prAuto";
@@ -38,17 +41,16 @@ export function parseGitIdent(stdout: string): GitIdent | null {
   return { name: m[1].trim(), email: m[2] };
 }
 
-/** The two commands that give git an identity; the user types them with their own name and email. */
-export const IDENTITY_HANDOVER: readonly string[] = [
-  "git config --global user.name \"<your name>\"",
-  "git config --global user.email <your email>",
-];
-
-/** The stop when git has no identity: git's reason, then the two commands, one per line. Never an invented identity. */
+/** The stop when git has no identity: git's reason, the two commands, then the four variables, in a POSIX shell and
+ *  in PowerShell (the only way where git reads no ~/.gitconfig), one per line. Never an invented identity. */
 export function identityStop(detail: string, rerun: string): string {
   return [
     noIdentityStop(detail, rerun),
     ...IDENTITY_HANDOVER.map((c) => `  ${c}`),
+    IDENTITY_ENV_INTRO,
+    ...IDENTITY_ENV_HANDOVER.map((c) => `  ${c}`),
+    IDENTITY_PS_INTRO,
+    ...IDENTITY_PS_HANDOVER.map((c) => `  ${c}`),
   ].join("\n");
 }
 

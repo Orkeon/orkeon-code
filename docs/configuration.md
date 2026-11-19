@@ -543,7 +543,10 @@ settings), and the launcher keeps it outside the project: in `~/.orkeon-code/pro
 | `ORKEON_CODE_HOME` | An install's own folder: its `appsettings.json`, its `trusted-folders.json`, its state and its demo repository (default `~/.orkeon-code`). A clone reads its `appsettings.json` and `trusted-folders.json` there too |
 | `ORKEON_CODE_IMAGE` | Another runtime image (docker mode) |
 | `ORKEON_REPL` | The command line that starts the REPL (tool mode) |
+| `ORKEON_CLI` | The command line of `orkeon run`, the first runner of [`orkeon-code run`](headless.md#one-shot-from-a-shell) |
+| `ORKEON_CODE_RUNTIME_DOWNLOAD` | `1`: downloads the runtime the package names without asking, also with no terminal ([Getting started](getting-started.md)) |
 | `ORKEON_SOURCE` | Orkeon checkout (source mode) |
+| `ORKEON_SOURCE_FOLLOW_PIN` | `0`: never moves the checkout of `ORKEON_SOURCE` to the pin, which the launcher otherwise does when the checkout is clean |
 | `ORKEON_ESBUILD_PATH` | esbuild binary (tool and source modes) |
 | `ORKEON_CODE_TRUST` | `1`: starts an untrusted folder without a terminal, only when `CI=true`, storing nothing ([Trusted folders](permissions.md#trusted-folders)) |
 

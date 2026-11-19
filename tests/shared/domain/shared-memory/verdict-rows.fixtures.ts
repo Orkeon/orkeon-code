@@ -94,7 +94,8 @@ export const SHORT_CELLS: readonly ShortCellCase[] = [
 
 // The recorded run of the harness's learning script, read from tests/fixtures/dev/learn. The recorded files were
 // produced once, from /workspace, with python3 and the script
-// at temp/_sources/orkeon-workshop/.devcontainer/harness/packs/dev/claude/skills/dev-learn/scripts/learn-candidates.py:
+// at temp/_sources/orkeon-workshop/.devcontainer/harness/packs/dev/claude/skills/dev-learn/scripts/learn-candidates.py
+// (the harness's dev pack, removed since by orkeon-workshop#5: the recording stands, the script is gone):
 //
 //   F=/workspace/tests/fixtures/dev/learn
 //   LC=<the script above>

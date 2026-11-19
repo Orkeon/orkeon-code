@@ -6,18 +6,18 @@ The layers and the rule between them are in [Architecture](architecture.md); wha
 
 ## Add a command
 
-1. Write `src/commands/<group>/<name>.cmd.ts` after the pattern above, `<group>` the functional folder it belongs to: one `name: "<literal>"` in kebab case, a static
+1. Write `src/commands/<group>/<name>.cmd.ts` after the pattern of [Entry points](architecture.md#entry-points), `<group>` the functional folder it belongs to: one `name: "<literal>"` in kebab case, a static
    `description`, no top-level `export`.
 2. Put the logic worth testing in `src/commands/_lib/<group>/<name>.ts`, the same `<group>` as the command, as
    `run<Name>(tokens, deps)` returning a `CommandView`, its deps a `Pick<>` of the ports and services it reads; test
    it in `tests/commands/_lib/<group>/<name>.test.ts`, over the fakes. A helper that several groups share
    sits at the root of `_lib/`; a group never imports another one.
-3. Raise `EXPECTED_COMMAND_COUNT` in `tests/repository/command-surface.test.ts` and the command count of `RELEASE_NOTES` in
+3. Raise `EXPECTED_COMMAND_COUNT` in `tests/repository/command-surface.fixtures.ts` and the command count of `RELEASE_NOTES` in
    `src/commands/_lib/status/messages.ts` (pinned by `tests/commands/_lib/status/messages.test.ts`), then run `npm run docs:commands`.
 
 ## Add a crew
 
-1. Create `src/crews/<name>/crew.ork.ts` after the pattern above: the two header lines (`// @orkeon-script 1.0`, then
+1. Create `src/crews/<name>/crew.ork.ts` after the pattern of [Entry points](architecture.md#entry-points): the two header lines (`// @orkeon-script 1.0`, then
    the reference to `../.orkeon/orkeon.d.ts`), the agents with the tool names they need, `publishCrew(...)`.
 2. Put the use case in `application/run-<name>.ts` (`run<Name>(input, deps)`), its pure rules in `domain/`, each with
    its `*.test.ts`; the use case test runs over the fakes.
@@ -67,9 +67,9 @@ the mode too (Orkeon classifies an unknown mode fail-closed). Update `mode-polic
    string when there is nothing to say, so a session that does not use it keeps a byte-identical prompt.
 2. Give it a field of `ContextParts` and its place in `assembleContext`'s fixed order; a block of the static header
    must hold no per-turn data, or the provider's cache breaks.
-3. Read its input in `application/context-gather.ts` (through the ports) and pass it in `application/prompts.ts`;
+3. Read its input in `application/context-gather.ts` (through the ports) and pass it in `application/turn-context.ts`;
    test the renderer in `prompt-assembly.test.ts` and the turn over the fakes.
-4. Specify the behaviour first, in "Prompt assembly" above, then write the text from it in this project's own words
+4. Specify the behaviour first, in [Prompt assembly](turn.md#prompt-assembly), then write the text from it in this project's own words
    (CONTRIBUTING, "Original work only"); pin a marker phrase of each rule in the test, and run
    `node scripts/render-prompts.mjs` before and after to read the change as the model will.
 

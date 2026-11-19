@@ -72,6 +72,9 @@ export const identityOk = (name: string, email: string): string => `preflight �
 export const BRANCH_NONE = "branch: none checked out (a detached HEAD?): check out the work branch";
 export const changesOutsideWorkFolder = (count: number, paths: string): string =>
   `preflight ⚠ tree: ${count} change(s) outside the work folder (${paths}): a close commits only its batch's files`;
+/** A status git could not give: the tree is not known clean, and each batch's close will stop on the same failure. */
+export const treeStatusFailed = (reason: string): string =>
+  `preflight ⚠ tree: git status failed: ${reason} (a batch's close stops while git cannot read the tree)`;
 
 // question-round.ts, settle-questions.ts
 export const REWRITE_REFUSED = "the rewrite was refused";

@@ -2,7 +2,8 @@
 # Validate smoke: every crew of src/crews/ (a folder with a crew.ork.ts, a `_` probe left out) goes
 # through `orkeon run --validate` at the pin. The runtime resolves the settings, builds its host and
 # checks the script up to its bundle (the version directive, the types over its own typings, esbuild)
-# without running it: no LLM is called, no key is needed, nothing of the checkout is written. Proves
+# without running it: no LLM is called, no key is needed. Of the checkout only the demo fixture is
+# written: `--demo` seeds fixtures/sample-repo in a clone (ignored by git). Proves
 # what the Node type check cannot: that the runtime's own `tsc` and loader accept each crew as this
 # project writes it (Orkeon #315, #316; ADR 0025). Every crew is judged, then the smoke fails when one did.
 #

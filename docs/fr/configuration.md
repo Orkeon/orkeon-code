@@ -569,7 +569,10 @@ projet ; `--llm-log-path <dossier>` est passé tel quel et l'emporte sur un `--l
 | `ORKEON_CODE_HOME` | Le dossier propre d'une installation : son `appsettings.json`, son `trusted-folders.json`, son état et son dépôt de démo (défaut `~/.orkeon-code`). Un clone y lit aussi son `appsettings.json` et son `trusted-folders.json` |
 | `ORKEON_CODE_IMAGE` | Une autre image du runtime (mode docker) |
 | `ORKEON_REPL` | La ligne de commande qui démarre le REPL (mode tool) |
+| `ORKEON_CLI` | La ligne de commande d'`orkeon run`, le premier runner d'[`orkeon-code run`](headless.md#en-un-coup-depuis-un-shell) |
+| `ORKEON_CODE_RUNTIME_DOWNLOAD` | `1` : télécharge le runtime que nomme le paquet sans demander, même sans terminal ([Premiers pas](getting-started.md)) |
 | `ORKEON_SOURCE` | Checkout d'Orkeon (mode source) |
+| `ORKEON_SOURCE_FOLLOW_PIN` | `0` : ne déplace jamais le checkout d'`ORKEON_SOURCE` sur l'épingle, ce que le lanceur fait sinon quand le checkout est propre |
 | `ORKEON_ESBUILD_PATH` | Binaire esbuild (modes tool et source) |
 | `ORKEON_CODE_TRUST` | `1` : démarre un dossier sans confiance sans terminal, seulement quand `CI=true`, sans rien enregistrer ([Dossiers de confiance](permissions.md#dossiers-de-confiance)) |
 

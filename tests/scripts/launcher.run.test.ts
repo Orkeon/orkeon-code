@@ -4,14 +4,20 @@ import { after, describe, it } from "node:test";
 import { deepStrictEqual, strictEqual } from "node:assert";
 import { existsSync, readFileSync } from "node:fs";
 import { join } from "node:path";
-import { FINGERPRINT, FINGERPRINT_PATH, launch, launchWithNode, removeScratch } from "./launcher.fixtures.ts";
+import {
+  FINGERPRINT, FINGERPRINT_PATH, HOST_GITCONFIG, IDENTITY_VARS, identityVarsForwarded, launch, launchWithNode, removeScratch,
+} from "./launcher.fixtures.ts";
 import { assertLacks, assertSays } from "./launcher.assertions.ts";
 import {
-  DOCKER_CREW, DOCKER_OUTSIDE_SRC, DOTNET_BIN, DOWNLOADED_RAN, ELSEWHERE, MOCK_IN_CONTAINER, MOCK_ON_HOST, INPUTS, INPUTS_ARE_RUNS, LOG_TO_STDERR, NAMED_RUNTIME, NO_SESSION,
-  NO_ESBUILD, NO_ESBUILD_NAMED, NO_SOURCE, NPM_ESBUILD, NPM_ESBUILD_FILE, ORKEON, PROBE, TOOL_MANIFEST, UNKNOWN, USAGE, agentMount, cloneToolCalls, crewPath, homeWithOrkeon, orkeonExiting, runArgs,
-  runStart, scriptingCheckout, sourceCalls,
+  CALLER_MOCK, CALLER_MOCK_IN_DOCKER, DOCKER_CREW, DOCKER_OUTSIDE_FILE, DOCKER_OUTSIDE_SRC, DOTNET_BIN, DOWNLOADED_RAN, ELSEWHERE, MOCK_IN_CONTAINER, MOCK_ON_HOST, MOCK_ON_HOST_NO_DASHES, INPUTS, INPUTS_ARE_RUNS, LOG_TO_STDERR, NAMED_RUNTIME, NO_SESSION,
+  NO_ESBUILD, NO_ESBUILD_NAMED, NO_ORKEON, NO_RUNNER, NO_SOURCE, NPM_ESBUILD, NPM_ESBUILD_FILE, ORKEON, PROBE, PROJECT_MOCK, PROJECT_MOCK_IN_CONTAINER,
+  PROJECT_MOCK_ON_HOST, RESOLVED_CASES, TOOL_MANIFEST, UNKNOWN, USAGE, agentMount, callerFile, cloneToolCalls,
+  crewPath, downloadingRunStart, homeWithOrkeon, noRunnerStart, orkeonExiting, runArgs, runStart, scriptingCheckout, sourceCalls,
 } from "./launcher.run.fixtures.ts";
-import { assertArgsEndWith, assertArgsHold, assertCalls, assertNothingRun, assertRunnerArgs } from "./launcher.run.assertions.ts";
+import { CURL_CALL, OWN_ORKEON_RAN, pathWithoutRuntime } from "./launcher.runtime.fixtures.ts";
+import {
+  assertArgsEndWith, assertArgsHold, assertCalls, assertNoContainerRun, assertNothingRun, assertPathOrkeonRan, assertRunnerArgs,
+} from "./launcher.run.assertions.ts";
 
 after(removeScratch);
 
@@ -85,6 +91,52 @@ describe("orkeon-code run, the arguments", () => {
 
     // Assert
     assertArgsEndWith(r, ["--inputs", INPUTS, "--llm-mock", "answers.jsonl"]);
+  });
+
+  it("hands a relative path after -- that names a file of the caller's folder over absolute", () => {
+    // Arrange
+    const start = runStart({ args: ["--", "--llm-mock", "answers.jsonl"], files: { "answers.jsonl": "{}\n" } });
+
+    // Act
+    const r = launch(start);
+
+    // Assert
+    assertArgsEndWith(r, ["--llm-mock", callerFile(r, "answers.jsonl")]);
+  });
+
+  for (const c of RESOLVED_CASES) {
+    it(c.name, () => {
+      // Arrange
+      const start = runStart({ args: c.args, files: c.files });
+
+      // Act
+      const r = launch(start);
+
+      // Assert
+      assertArgsEndWith(r, c.tail(r));
+    });
+  }
+
+  it("prints the run's usage and ends with 0 on --help after the crew", () => {
+    // Arrange
+    const start = runStart({ args: ["--help"] });
+
+    // Act
+    const r = launch(start);
+
+    // Assert
+    deepStrictEqual([r.status, r.stdout.startsWith(USAGE[0])], [0, true]);
+  });
+
+  it("prints its usage and ends with 0 on run --help", () => {
+    // Arrange
+    const start = runStart({ crew: "--help" });
+
+    // Act
+    const r = launch(start);
+
+    // Assert
+    deepStrictEqual([r.status, r.stdout.startsWith(USAGE[0])], [0, true]);
   });
 
   it("refuses --continue, a run being one turn with no session", () => {
@@ -226,6 +278,28 @@ describe("orkeon-code run, the runner", () => {
     assertCalls(r, [DOWNLOADED_RAN]);
   });
 
+  it("runs an orkeon on PATH before the downloaded runtime's bin/orkeon", () => {
+    // Arrange
+    const start = runStart({ install: true, files: NAMED_RUNTIME, env: { ORKEON_CODE_HOME: homeWithOrkeon() } });
+
+    // Act
+    const r = launch(start);
+
+    // Assert
+    assertPathOrkeonRan(r);
+  });
+
+  it("runs the downloaded runtime's bin/orkeon before the clone's dotnet tool", () => {
+    // Arrange
+    const start = runStart({ bin: DOTNET_BIN, files: { ...TOOL_MANIFEST, ...NAMED_RUNTIME }, env: { ORKEON_CODE_HOME: homeWithOrkeon() } });
+
+    // Act
+    const r = launch(start);
+
+    // Assert
+    assertCalls(r, [DOWNLOADED_RAN]);
+  });
+
   it("restores and runs the clone's dotnet tool, from the clone, with no orkeon on PATH", () => {
     // Arrange
     const start = runStart({ bin: DOTNET_BIN, files: TOOL_MANIFEST });
@@ -286,6 +360,53 @@ describe("orkeon-code run, the runner", () => {
     assertCalls(r, sourceCalls(source, r));
   });
 
+  it("finds source mode without --mode when ORKEON_SOURCE is set and neither a tool nor Docker is on the machine", () => {
+    // Arrange
+    const source = scriptingCheckout();
+    const start = runStart({ bin: DOTNET_BIN, systemPath: pathWithoutRuntime(), env: { ORKEON_SOURCE: source } });
+
+    // Act
+    const r = launch(start);
+
+    // Assert
+    assertCalls(r, sourceCalls(source, r));
+  });
+
+  it("downloads the runtime the package names, once agreed, then runs its bin/orkeon, when nothing else runs a crew", () => {
+    // Arrange
+    const start = downloadingRunStart();
+
+    // Act
+    const r = launch(start);
+
+    // Assert
+    assertCalls(r, [CURL_CALL, OWN_ORKEON_RAN]);
+  });
+
+  it("points at the full archive of an Orkeon release when nothing runs a crew in an install that names no runtime", () => {
+    // Arrange
+    const start = noRunnerStart();
+
+    // Act
+    const r = launch(start);
+
+    // Assert
+    strictEqual(r.status, 1);
+    assertSays(r.stderr, NO_RUNNER);
+  });
+
+  it("points at ORKEON_CLI and the full archive of an Orkeon release when tool mode finds no orkeon", () => {
+    // Arrange
+    const start = noRunnerStart(["--mode", "tool"]);
+
+    // Act
+    const r = launch(start);
+
+    // Assert
+    strictEqual(r.status, 1);
+    assertSays(r.stderr, NO_ORKEON);
+  });
+
   it("runs the image's orkeon in docker mode, the crew read from the checkout mounted read-only", () => {
     // Arrange
     const start = runStart({ bin: { docker: ORKEON.orkeon }, args: ["--mode", "docker"] });
@@ -320,6 +441,52 @@ describe("orkeon-code run, the runner", () => {
 
     // Assert
     assertArgsEndWith(r, MOCK_IN_CONTAINER);
+  });
+
+  it("names a file of the checkout given with no -- before it as the container sees it, in docker mode", () => {
+    // Arrange
+    const start = runStart({ bin: { docker: ORKEON.orkeon }, args: MOCK_ON_HOST_NO_DASHES, checkoutInArgs: true });
+
+    // Act
+    const r = launch(start);
+
+    // Assert
+    assertArgsEndWith(r, MOCK_IN_CONTAINER);
+  });
+
+  it("names a file of the project given after -- as the container sees it, in docker mode", () => {
+    // Arrange
+    const start = runStart({ bin: { docker: ORKEON.orkeon }, args: PROJECT_MOCK_ON_HOST, files: PROJECT_MOCK });
+
+    // Act
+    const r = launch(start);
+
+    // Assert
+    assertArgsEndWith(r, PROJECT_MOCK_IN_CONTAINER);
+  });
+
+  it("stops in docker mode on a file given after -- that lies outside the project and the checkout, running nothing", () => {
+    // Arrange
+    const start = runStart({ bin: { docker: ORKEON.orkeon }, args: CALLER_MOCK_IN_DOCKER, files: CALLER_MOCK });
+
+    // Act
+    const r = launch(start);
+
+    // Assert
+    strictEqual(r.status, 1);
+    assertSays(r.stderr, DOCKER_OUTSIDE_FILE);
+    assertNoContainerRun(r);
+  });
+
+  it("hands the container the identity the host's git gives, in docker mode (Orkeon #404)", () => {
+    // Arrange
+    const start = runStart({ bin: { docker: ORKEON.orkeon }, args: ["--mode", "docker"], files: { ".gitconfig": HOST_GITCONFIG } });
+
+    // Act
+    const r = launch(start);
+
+    // Assert
+    deepStrictEqual(identityVarsForwarded(r.args), IDENTITY_VARS);
   });
 
   it("writes nothing in the state before the runner is known", () => {

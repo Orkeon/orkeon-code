@@ -14,8 +14,8 @@
   .\orkeon-code.ps1 setup                        # write %USERPROFILE%\.orkeon-code\appsettings.json (never the key)
 
 .NOTES
-  Modes: tool (orkeon-repl on PATH, from the full Orkeon release .zip (the .msi has no orkeon-repl), the
-  Debian package or the dotnet tool, or $env:ORKEON_REPL) and docker
+  Modes: tool (orkeon-repl on PATH, from the full Orkeon release .zip (the .msi has no orkeon-repl, the
+  dotnet tool installs orkeon alone) or the Debian package, or $env:ORKEON_REPL) and docker
   (ghcr.io/orkeon/orkeon:latest, the last release, not the pin). The source mode is only in the
   bash launcher. Folder trust, per-project state, sessions, settings, API key, model and $env:ORKEON_CODE_AUDIO_DIR (speech-to-text,
   tool mode): see the header of ./orkeon-code.
@@ -35,9 +35,9 @@ param(
 $ErrorActionPreference = 'Stop'
 
 # A subcommand of ./orkeon-code (trust, setup) is the first argument, and takes the rest as its own.
-# `run` (one crew, headless) is the bash launcher's alone for now.
-if ($Extra.Count -gt 0 -and $Extra[0] -ceq 'run') {
-  [Console]::Error.WriteLine("orkeon-code: 'run' is not available in orkeon-code.ps1 yet: run the bash launcher (./orkeon-code run <crew>) from Git Bash or WSL (docs/headless.md).")
+# `run` (one crew, headless) and `runtime` (the downloaded runtime) are the bash launcher's alone for now.
+if ($Extra.Count -gt 0 -and $Extra[0] -cin @('run', 'runtime')) {
+  [Console]::Error.WriteLine("orkeon-code: '$($Extra[0])' is not available in orkeon-code.ps1 yet: run the bash launcher (./orkeon-code $($Extra[0]) ...) from Git Bash or WSL (docs/headless.md, docs/getting-started.md).")
   exit 1
 }
 $Sub = $null
@@ -392,7 +392,8 @@ foreach ($name in @('ORKEON_Llm__Model', 'Orkeon__Security__PermissionGate__Enab
                     'ORKEON_MCP__Servers__whisper__Args__8', 'ORKEON_MCP__Servers__whisper__Args__9',
                     'ORKEON_MCP__Servers__whisper__Args__10', 'ORKEON_MCP__Servers__whisper__Args__11',
                     'ORKEON_MCP__Servers__whisper__Args__12',
-                    'WHISPER_MICROPHONE', 'WHISPER_SPEAKER', 'UV_PROJECT_ENVIRONMENT')) {
+                    'WHISPER_MICROPHONE', 'WHISPER_SPEAKER', 'UV_PROJECT_ENVIRONMENT',
+                    'GIT_AUTHOR_NAME', 'GIT_AUTHOR_EMAIL', 'GIT_COMMITTER_NAME', 'GIT_COMMITTER_EMAIL')) {
   $savedEnv[$name] = [Environment]::GetEnvironmentVariable($name)
 }
 try {
@@ -876,7 +877,17 @@ try {
     # The github tool's token (Orkeon #222): GITHUB_TOKEN, GH_TOKEN, or the variable Orkeon__Tools__GitHub__TokenVariable
     # names, each handed over only when set, with the setting itself so the runtime reads the same variable.
     $tokenVar = [Environment]::GetEnvironmentVariable('Orkeon__Tools__GitHub__TokenVariable')
-    foreach ($v in @('ORKEON_Llm__ApiKey', 'ORKEON_Llm__Model', $keyVar, 'GITHUB_TOKEN', 'GH_TOKEN', 'Orkeon__Tools__GitHub__TokenVariable', $tokenVar)) {
+    # The identity of a commit made in the container (the image sets none, Orkeon #404): each of the four variables
+    # already set is kept, one unset takes the user.name or user.email git gives on the host for the workspace.
+    if (Get-Command git -ErrorAction SilentlyContinue) {
+      $gitName = (& git -C $Workspace config --get user.name 2>$null)
+      $gitEmail = (& git -C $Workspace config --get user.email 2>$null)
+      foreach ($pair in @(@('GIT_AUTHOR_NAME', $gitName), @('GIT_COMMITTER_NAME', $gitName), @('GIT_AUTHOR_EMAIL', $gitEmail), @('GIT_COMMITTER_EMAIL', $gitEmail))) {
+        if (-not [Environment]::GetEnvironmentVariable($pair[0]) -and $pair[1]) { [Environment]::SetEnvironmentVariable($pair[0], [string]$pair[1]) }
+      }
+    }
+    foreach ($v in @('ORKEON_Llm__ApiKey', 'ORKEON_Llm__Model', $keyVar, 'GITHUB_TOKEN', 'GH_TOKEN', 'Orkeon__Tools__GitHub__TokenVariable', $tokenVar,
+                     'GIT_AUTHOR_NAME', 'GIT_AUTHOR_EMAIL', 'GIT_COMMITTER_NAME', 'GIT_COMMITTER_EMAIL')) {
       if ($v -and [Environment]::GetEnvironmentVariable($v)) { $envArgs += @('-e', $v) }
     }
     $inState = if ($projectRel) { "/work/state/$projectRel" } else { '/work/state' }

@@ -85,20 +85,23 @@ export interface DeployedCase {
   deployed: string;
 }
 
-/** A pack's claude folder, mapped onto .claude/ of the checkout. */
+/** A rule of a repository pack, mapped onto .claude/rules/ of the checkout. */
 export const DEPLOYED_PATHS: readonly DeployedCase[] = [
-  {
-    path: ".devcontainer/harness/packs/dev/claude/skills/dev-verify/references/audit-axes.md",
-    deployed: ".claude/skills/dev-verify/references/audit-axes.md",
-  },
   { path: ".devcontainer/harness/packs/repo-x/claude/rules/naming.md", deployed: ".claude/rules/naming.md" },
+  { path: ".devcontainer/harness/packs/repo-orkeon-code/claude/rules/a.md", deployed: ".claude/rules/a.md" },
 ];
 
-/** Paths outside a pack's claude folder, or escaping it. */
+/** Paths that are not a rule of a repository pack: outside the packs, in another pack, deeper, or escaping it. */
 export const NOT_DEPLOYED: readonly string[] = [
-  "CONTRIBUTING.md", ".claude/rules/naming.md", ".devcontainer/harness/packs/dev/skills/x.md",
-  ".devcontainer/harness/packs/dev/claude/", "x/.devcontainer/harness/packs/dev/claude/rules/a.md",
-  ".devcontainer/harness/packs/dev/claude/../../etc/passwd", "",
+  "CONTRIBUTING.md", ".claude/rules/naming.md",
+  ".devcontainer/harness/packs/dev/claude/skills/dev-verify/references/audit-axes.md",
+  ".devcontainer/harness/packs/dev/claude/rules/a.md", ".devcontainer/harness/packs/repo-x/references/repo.yaml",
+  ".devcontainer/harness/packs/repo-/claude/rules/a.md", ".devcontainer/harness/packs/repo-x/claude/skills/s/SKILL.md",
+  ".devcontainer/harness/packs/repo-x/claude/rules/sub/a.md", ".devcontainer/harness/packs/repo-x/claude/rules/",
+  ".devcontainer/harness/packs/repo-x/claude/rules/..", "x/.devcontainer/harness/packs/repo-x/claude/rules/a.md", "",
+  ".devcontainer/harness/packs/repo-x/claude/rules/a\\..\\..\\b.md", ".devcontainer/harness/packs/repo-x/claude/rules/ a.md",
+  ".devcontainer/harness/packs/repo-x/claude/rules/a.md ", ".devcontainer/harness/packs/repo-x/claude/rules/...",
+  ".devcontainer/harness/packs/repo-.../claude/rules/a.md", ".devcontainer/harness/packs/repo-x\\y/claude/rules/a.md",
 ];
 
 export const HARNESS_PATCH: readonly string[] = [
@@ -117,7 +120,8 @@ export const HARNESS_ACCEPT: readonly string[] = [
 ];
 
 export const ORKEON_CODE_ACCEPT: readonly string[] = [
-  "accepted 5c41e0b7 — Audits skip the refusal texts: an Orkeon Code file is never edited here; apply this in the orkeon-code repository:",
+  "accepted 5c41e0b7 — Audits skip the refusal texts: an Orkeon Code file is never edited here; apply this in the " +
+    "orkeon-code repository, a document with its French twin under docs/fr/, a prompt's behaviour first (ADR 0003):",
   "  file: docs/crew-prompts.md",
   "  + The auditor checks that each refusal text has a test.",
 ];
@@ -145,3 +149,42 @@ export const REMOVES_FILE: ProposalsFile = { ...FILE, axes: [{ ...FILE.axes[0], 
 
 /** FILE with its first axis's motifs replaced by the Orkeon Code one. */
 export const ORKEON_CODE_FILE: ProposalsFile = { ...FILE, axes: [{ ...FILE.axes[0], motifs: [ORKEON_CODE_MOTIF] }] };
+
+/** A harness motif of a proposals.json written before the owner rule: its owner is no rule of a repository pack. */
+export const REMOVED_HARNESS_MOTIF: Motif = {
+  ...HARNESS_MOTIF,
+  owner: { kind: "harness", path: ".devcontainer/harness/packs/dev/claude/skills/dev-verify/references/audit-axes.md" },
+};
+
+export const REMOVED_HARNESS_ACCEPT: readonly string[] = [
+  "accepted 77b0d2aa — Axis names drift: .devcontainer/harness/packs/dev/claude/skills/dev-verify/references/audit-axes.md " +
+    "is not a rule of a repository pack, the only harness file /dev-learn patches now: no patch to apply; run /dev-learn " +
+    "again for a current owner",
+];
+
+export interface OffRulesCase { name: string; motif: Motif; line: string }
+
+/** The one accept line of an Orkeon Code motif off its rules, for the owner path given. */
+const offRules = (path: string): string =>
+  `accepted 5c41e0b7 — Audits skip the refusal texts: /dev-learn patches ${path} only as a listed Orkeon Code ` +
+  "destination, with status new and no line removed, which this motif is not: no patch to apply; run /dev-learn " +
+  "again for a current owner";
+
+/** Orkeon Code motifs a proposals.json may hold from before the owner rules, or edited by hand. */
+export const ORKEON_CODE_OFF_RULES: readonly OffRulesCase[] = [
+  {
+    name: "an owner off the destinations",
+    motif: { ...ORKEON_CODE_MOTIF, owner: { kind: "orkeon-code", path: "docs/turn.md" } },
+    line: offRules("docs/turn.md"),
+  },
+  ...(["refines", "replaces", "removes"] as const).map((status) => ({
+    name: `status ${status}`,
+    motif: { ...ORKEON_CODE_MOTIF, status, linesRemoved: ["Invented."] },
+    line: offRules("docs/crew-prompts.md"),
+  })),
+  {
+    name: "status new with a line removed",
+    motif: { ...ORKEON_CODE_MOTIF, linesRemoved: ["Invented."] },
+    line: offRules("docs/crew-prompts.md"),
+  },
+];

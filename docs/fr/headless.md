@@ -36,6 +36,8 @@ mode :
 | `plan`, `dontAsk` | Lectures seulement |
 | `bypassPermissions` | Tout |
 
+La garde ne juge que les appels d'outils d'un act : les appels `tools.*` qu'un crew fait depuis son code ne passent pas par elle.
+
 Un act sans `permissionMode` tourne en `default`. Un hook `onToolCall` tourne avant la garde, qui juge ensuite
 l'entrée qu'il renvoie ; un `"ask"` qu'il renvoie est jugé comme une modification en `default` une fois l'appel admis par
 le mode de l'act, donc refusé ici (les callbacks d'Orkeon Code ne demandent jamais).
@@ -66,11 +68,20 @@ le projet est le seul dossier de votre machine qu'il peut écrire ([SECURITY.md]
 - Le runner est `orkeon run` (`Orkeon.Scripting.Cli`), cherché dans cet ordre : la ligne de commande que nomme
   `ORKEON_CLI`, `orkeon` sur le PATH, le `bin/orkeon` du runtime que le lanceur a téléchargé, l'outil `orkeon` du
   `.config/dotnet-tools.json` d'un clone (le SDK .NET 10 et nuget.org), puis l'image `orkeon`
-  (`ghcr.io/orkeon/orkeon`), puis le mode source (`ORKEON_SOURCE`, [Développement](development.md)).
-  `--mode docker|tool|source` en choisit un.
-- En mode docker, le checkout est le `/work/agent` du conteneur, en lecture seule : un chemin dessous donné après
-  `--` (un fichier `--llm-mock`) y est nommé ; un crew hors du checkout est refusé.
-- Ce qui suit `--` va tel quel à `orkeon run` (`-- --validate`, `-- --llm-mock answers.jsonl`, `-- -v 2`).
+  (`ghcr.io/orkeon/orkeon`), puis le mode source (`ORKEON_SOURCE`, [Développement](development.md)), puis le runtime
+  que nomme le paquet, téléchargé comme pour le REPL ([Premiers pas](getting-started.md) ; aucun paquet publié à ce
+  jour n'en nomme). `--mode docker|tool|source` en choisit un.
+- En mode docker, le checkout est le `/work/agent` du conteneur, en lecture seule, et le projet son
+  `/work/project` : un chemin sous l'un d'eux donné à une option de chemin d'`orkeon run` (un fichier `--llm-mock`,
+  précédé de `--` ou non) y est nommé. Un tel fichier hors des deux arrête l'exécution, puisque le conteneur ne le voit pas : mettez-le sous le projet.
+  Un crew hors du checkout est refusé.
+- Ce qui suit `--` va tel quel à `orkeon run` (`-- --validate`, `-- --llm-mock answers.jsonl`, `-- -v 2`), sauf la
+  valeur d'une option d'`orkeon run` qui prend un chemin (`--llm-mock`, `--llm-record`, `--llm-replay`,
+  `--llm-log-path`, `--inputs-file`, écrite `--llm-mock FICHIER` ou `--llm-mock=FICHIER`) quand elle est relative et
+  nomme un fichier ou un dossier de votre dossier courant : le runner démarre ailleurs (dans le projet, le clone ou
+  le conteneur), alors le lanceur transmet ce chemin en absolu, résolu depuis le dossier d'où vous avez lancé
+  `orkeon-code`. Une option que le lanceur ne connaît pas va de même à `orkeon run` quand aucun `--` ne la précède.
+- `orkeon-code run --help` imprime l'usage de `run` sur stdout et sort avec `0`.
 - `orkeon-code.ps1` n'a pas encore de `run` : prenez le lanceur bash (Git Bash ou WSL sous Windows).
 - Le crew lit son entrée dans le JSON de `--inputs`.
 - Pour `main-loop`, c'est ce que `/assistant` lui passe : la requête et le mode.
@@ -99,8 +110,14 @@ orkeon-code run main-loop --workspace ~/src/app \
 - Le runner imprime le résultat du crew en JSON sur stdout, seul : le lanceur envoie ses lignes de journal sur
   stderr (`Logging__Console__LogToStandardErrorThreshold=Trace` ; un `orkeon run` nu les écrit sur stdout, avant le
   JSON).
-- Avant que le runner ne démarre, le lanceur s'arrête seul : `3` pour un projet non fiable sans terminal où demander
-  ni `--trust`, `0` sans rien lancer quand la question de confiance reçoit un non, `1` sur une erreur d'usage.
+- Avant que le runner ne démarre, le lanceur s'arrête seul :
+  - `3` pour un projet non fiable sans terminal où demander ni `--trust`, ou quand le runtime que nomme le paquet doit
+    être téléchargé sans terminal où demander d'abord (sauf avec `ORKEON_CODE_RUNTIME_DOWNLOAD=1`) ;
+  - `0` sans rien lancer quand la question de confiance, ou celle d'avant ce téléchargement, reçoit un non ;
+  - `1` sur toute erreur qui lui est propre : une erreur d'usage, un crew inconnu, pas de fichier de réglages, aucun
+    runner trouvé, pas d'esbuild, un moteur Docker qui ne répond pas, un build des sources ou un `dotnet tool
+    restore` qui échoue. Ce `1` ressemble à l'erreur de script du runner ci-dessous : son message sur stderr, qui
+    commence par `orkeon-code:`, les distingue.
 - Ensuite il sort avec le code du runner : `0` quand le script s'est terminé, `1` sur
   une erreur de script, `2` sur une erreur du runtime, `130` quand il est annulé, `75` quand
   `Orkeon:Checkpointing:Enabled` est posé et que l'exécution s'est arrêtée sur une question (`run.finished` dit

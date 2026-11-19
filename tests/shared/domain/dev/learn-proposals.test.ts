@@ -11,7 +11,7 @@ import {
 } from "../../../../src/shared/domain/dev/learn-proposals.ts";
 import {
   DEPLOYED_PATHS, FILE, HARNESS_ACCEPT, HARNESS_MOTIF, HARNESS_PATCH, NOT_DEPLOYED, NOT_LEARN_FOLDERS, ORKEON_CODE_ACCEPT,
-  ORKEON_CODE_FILE, ORKEON_CODE_MOTIF, REPO_ACCEPT,
+  ORKEON_CODE_FILE, ORKEON_CODE_MOTIF, ORKEON_CODE_OFF_RULES, REMOVED_HARNESS_ACCEPT, REMOVED_HARNESS_MOTIF, REPO_ACCEPT,
   REMOVES_FILE, REMOVES_MOTIF, REMOVES_PATCH, REPO_MOTIF, REPO_PATCH, TEN_DIGIT_ID_FILE, WRONG_SHAPES,
 } from "./learn-proposals.fixtures.ts";
 import { assertNotJsonProblem } from "./learn-proposals.assertions.ts";
@@ -183,7 +183,7 @@ describe("parseProposalsFile", () => {
 
 describe("deployedHarnessPath", () => {
   for (const c of DEPLOYED_PATHS) {
-    it(`maps a pack's claude folder onto .claude/ of the checkout: ${c.path}`, () => {
+    it(`maps a rule of a repository pack onto .claude/rules/ of the checkout: ${c.path}`, () => {
       // Arrange
       const { path } = c;
 
@@ -241,6 +241,30 @@ describe("patchLines and acceptLines", () => {
 
     // Assert
     deepStrictEqual(lines, HARNESS_ACCEPT);
+  });
+
+  for (const c of ORKEON_CODE_OFF_RULES) {
+    it(`an Orkeon Code motif off its rules, ${c.name}: one accept line and no patch`, () => {
+      // Arrange
+      const { motif } = c;
+
+      // Act
+      const lines = acceptLines(motif);
+
+      // Assert
+      deepStrictEqual(lines, [c.line]);
+    });
+  }
+
+  it("a harness owner that is not a rule of a repository pack: the accept line says /dev-learn patches no such file and prints no patch", () => {
+    // Arrange
+    const motif = REMOVED_HARNESS_MOTIF;
+
+    // Act
+    const lines = acceptLines(motif);
+
+    // Assert
+    deepStrictEqual(lines, REMOVED_HARNESS_ACCEPT);
   });
 
   it("a repository owner: the change to make in a batch", () => {

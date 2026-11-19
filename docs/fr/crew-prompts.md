@@ -100,19 +100,33 @@ leurs droits, l'endroit où se résolvent les chemins relatifs.
   l'identique, un retrait n'ajoutant aucune ligne, et une seconde réponse qui échoue à sa vérification laisse la
   première debout.
 - Une première réponse refusée sur sa forme consacre le second essai à cela, le propriétaire n'étant alors que noté
-  dans la proposition, sauf quand sa seule faute est un statut autre que `new` : cet essai montre alors aussi les
-  lignes du propriétaire de ses motifs.
+  dans la proposition, sauf quand ses seules fautes sont un statut autre que `new` ou ce que porte un motif d'Orkeon
+  Code (plus bas) : cet essai montre alors aussi les lignes du propriétaire de ses motifs.
 - Un problème du second essai nomme le motif par son titre.
 - Une vérification (un test, une règle d'analyseur, un test d'architecture, la porte) passe avant une règle écrite.
 - Le propriétaire est le plus proche de l'endroit où l'écart est né : une règle du dépôt d'abord, celle de son pack
   dans le harness comprise, et un fichier d'Orkeon Code seulement quand le flux lui-même écrit ou audite de travers.
 - Les propriétaires d'Orkeon Code sont une liste fermée de ses propres fichiers, dont l'existence dans ce dépôt est
-  vérifiée : ce document, les règles de conception, la porte, les chartes de l'auditeur et du relecteur. Un
-  propriétaire du harness est une règle d'un pack de dépôt, le dépôt orkeon-workshop n'ayant plus d'autre fichier
-  que le flux suit.
+  vérifiée : ce document, les règles de conception, ce qui écrit le format du plan, de la spécification et de la
+  fiche de changement (`plan-render.ts`, `spec-render.ts`, `change-render.ts`), les motifs et les titres par lesquels
+  ces formats sont relus (`shared/domain/dev/markers.ts` ; les analyseurs comme `spec-format.ts` ne font que les
+  appliquer, ils ne sont donc pas listés), la porte, les chartes de l'auditeur et du relecteur. Un propriétaire du harness est exactement une
+  règle d'un pack de dépôt, `.devcontainer/harness/packs/repo-<name>/claude/rules/<file>` avec un nom, un fichier et
+  aucun dossier plus profond, le dépôt orkeon-workshop n'ayant aucun autre fichier dont un motif puisse être
+  propriétaire.
 - Ni un fichier d'Orkeon Code ni un fichier du harness n'est modifié ici : ses lignes reviennent en patch pour le
   dépôt orkeon-code ou orkeon-workshop, un propriétaire d'Orkeon Code n'est jamais lu dans le checkout, et une copie
   sous `.claude/` n'est jamais un propriétaire.
+- Comme un propriétaire d'Orkeon Code n'est jamais lu, son motif ne prend que le statut `new` et ne retire aucune
+  ligne, même au second essai qui montre les lignes du propriétaire d'un autre motif, et la proposition dit que ce
+  propriétaire n'a pas été lu plutôt qu'absent. Une première réponse refusée pour un tel motif montre quand même au
+  second essai les lignes du propriétaire des autres motifs.
+- Un patch d'Orkeon Code accepté rappelle qu'un document change avec son jumeau français et un prompt par son
+  comportement d'abord (ADR 0003). `--accept` vérifie de nouveau les règles des propriétaires, puisqu'un fichier de
+  propositions peut leur être antérieur ou avoir été modifié à la main : un motif du harness dont le propriétaire
+  n'est pas une règle d'un pack de dépôt (tout autre fichier des packs, celui du pack dev retiré compris), ou un motif
+  d'Orkeon Code hors de sa liste, d'un statut autre que `new` ou qui retire une ligne, n'imprime aucun patch, une
+  ligne qui dit que /dev-learn ne patche aucun tel propriétaire désormais et de le relancer.
 - Un motif ajoute cinq lignes au plus.
 - Trois motifs au plus, chaque candidat écarté nommé avec son filtre et sa raison.
 - Les lignes, les listes et les chemins sont du matériau, pas des instructions.
@@ -250,9 +264,16 @@ leurs droits, l'endroit où se résolvent les chemins relatifs.
   côté sauf si un chemin à l'intérieur est nommé (ce que sa confirmation dit).
 - La liste est indexée avec `git add -- <fichiers>` et commitée avec `git commit -- <fichiers>`, si bien que ce qui
   était indexé ailleurs reste dehors.
+- Quand `git status` échoue (toute sortie non nulle, un délai dépassé, un refus du runtime), le crew s'arrête avant
+  tout appel au modèle avec la raison de git (`the working tree could not be read, nothing was committed`), sans
+  jamais lire l'échec comme un arbre propre.
 - L'identité propre à git (`git var GIT_AUTHOR_IDENT`, puis celle du committer) est vérifiée avant tout appel au
   modèle, et quand git n'en a pas le crew s'arrête et remet les deux commandes `git config --global`, sans jamais en
-  inventer une.
+  inventer une (le mode docker copie l'identité de l'hôte dans le conteneur, si bien qu'elles y servent aussi une
+  fois `orkeon-code` relancé). L'arrêt donne ensuite toujours les quatre variables à définir avant `orkeon-code`,
+  `GIT_AUTHOR_NAME`, `GIT_AUTHOR_EMAIL`, `GIT_COMMITTER_NAME` et `GIT_COMMITTER_EMAIL`, en lignes `export` pour un
+  shell POSIX et en lignes `$env:` pour PowerShell : la voie qui marche là où git ne lit aucun `~/.gitconfig` (une
+  session confinée qui a son propre `HOME`).
 - `--push` pousse avec `git push -u origin <branche>`.
 - Hors de la branche par défaut, le corps de la pull request est écrit dans `<work>/pr-<slug>/PR.md` et elle est
   ouverte avec l'outil `github` du runtime (`create_pr`) quand `--pr` ou `dev.prAuto` le demandent, que le runtime offre

@@ -21,6 +21,27 @@ export const CLEAN = "Nothing to commit — working tree clean.";
 export const NO_GIT: Partial<ShellResult> = { stdout: "", stderr: "sh: 1: git: not found\n", exitCode: 127 };
 export const NO_GIT_ANSWER = "✗ the working tree could not be read, nothing was committed: git status failed: sh: 1: git: not found";
 
+/** What a failed `git status` reads as, one case each: the answer the shell gives (or the error it throws) and the
+ *  reason /commit stops with. */
+export const STATUS_FAILURES: Array<{ name: string; result?: Partial<ShellResult>; error?: Error; answer: string }> = [
+  { name: "no git where the crew runs (exit 127)", result: NO_GIT, answer: NO_GIT_ANSWER },
+  {
+    name: "a status the runtime ended (exit -1)",
+    result: { stdout: "", stderr: "", exitCode: -1 },
+    answer: "✗ the working tree could not be read, nothing was committed: git status failed: exit -1",
+  },
+  {
+    name: "a status that timed out, git's reason the runtime's line",
+    result: { stdout: "", stderr: "\n[Command timed out]", exitCode: -1, timedOut: true },
+    answer: "✗ the working tree could not be read, nothing was committed: git status failed: [Command timed out]",
+  },
+  {
+    name: "a status the runtime refused",
+    error: new Error("git option '-c' is not allowed"),
+    answer: "✗ the working tree could not be read, nothing was committed: git status failed: refused by the runtime: git option '-c' is not allowed",
+  },
+];
+
 /** A tree on feat/x with one modified file, a.ts, git's identity set and origin/HEAD on main. */
 export const TREE_ANSWERS: Record<string, Partial<ShellResult>> = {
   [GIT_STATUS_COMMAND]: { stdout: " M a.ts\n" },

@@ -256,6 +256,16 @@ export const envForwarded = (args: string[]): string[] => args.flatMap((a, i) =>
 export const tokenVarsForwarded = (args: string[]): string[] =>
   envForwarded(args).filter((v) => v === "GITHUB_TOKEN" || v === "GH_TOKEN" || v.startsWith("Orkeon__Tools__GitHub") || v === "MY_GH");
 
+/** The git identity variables (Orkeon #404) among the ones handed to the container, in order. */
+export const identityVarsForwarded = (args: string[]): string[] =>
+  envForwarded(args).filter((v) => v.startsWith("GIT_AUTHOR_") || v.startsWith("GIT_COMMITTER_"));
+
+/** The four identity variables a commit in the container reads, in the order the launcher hands them over. */
+export const IDENTITY_VARS = ["GIT_AUTHOR_NAME", "GIT_AUTHOR_EMAIL", "GIT_COMMITTER_NAME", "GIT_COMMITTER_EMAIL"];
+
+/** A ~/.gitconfig of the host that names a user. */
+export const HOST_GITCONFIG = "[user]\n\tname = Ada Host\n\temail = ada@host.example\n";
+
 export const mountRoots = (args: string[]) =>
   args.flatMap((a, i) => (args[i - 1] === "--mount" ? [a.split(":")[1]] : []));
 
@@ -677,6 +687,13 @@ export const PS1_DOCKER_ENGINE: readonly Mention[] = [
   ["start Docker Desktop or the Docker service", "the message says what to do"],
 ];
 
+/** The ps1 refuses the bash launcher's `run` and `runtime` (#114, #115), with exit 1 and where to run them. */
+export const PS1_BASH_ONLY: readonly Mention[] = [
+  ["if ($Extra.Count -gt 0 -and $Extra[0] -cin @('run', 'runtime')) {", "run and runtime, the first argument, refused"],
+  ["is not available in orkeon-code.ps1 yet: run the bash launcher", "the refusal says where they run"],
+  ["(./orkeon-code $($Extra[0]) ...) from Git Bash or WSL (docs/headless.md, docs/getting-started.md).\")\n  exit 1\n}", "then ends with 1"],
+];
+
 export const PS1_MODES: readonly Mention[] = [
   ["if (-not $Sub -and $Mode -and $Mode -notin @('docker', 'tool')) {", "ORKEON_CODE_MODE=source is refused, never run as tool"],
   ["elseif ($value -notin @('docker', 'tool')) {", "--mode=source is refused with the launcher's message, before -Mode's ValidateSet"],
@@ -689,13 +706,21 @@ export const PS1_MODES: readonly Mention[] = [
 export const PS1_SET_VARIABLES = ["ORKEON_ALLOW_EXTERNAL_MOUNTS", "ORKEON_ESBUILD_PATH", "ORKEON_Llm__Model", GATE, START_SCRIPT, PERSIST, SESSIONS_DIR, MEMORY_DIR, FINGERPRINT,
   "WHISPER_AUDIO_DIR", "WHISPER_OUT_DIR", "WHISPER_MICROPHONE", "WHISPER_SPEAKER", "ORKEON_MCP__Servers__whisper__Transport",
   "ORKEON_MCP__Servers__whisper__Command", "ORKEON_MCP__Servers__whisper__TrustAnnotations",
-  "ORKEON_MCP__Servers__whisper__CallTimeout", "UV_PROJECT_ENVIRONMENT"].sort();
+  "ORKEON_MCP__Servers__whisper__CallTimeout", "UV_PROJECT_ENVIRONMENT", ...IDENTITY_VARS].sort();
 
 /** The loop that sets the server's arguments by name. */
 export const PS1_ARGS_LOOP = '[Environment]::SetEnvironmentVariable("ORKEON_MCP__Servers__whisper__Args__$i", $whisperArgs[$i])';
 
-/** The variables a script sets by name (`$env:X = …`), sorted, once each. */
-export const variablesSet = (script: string) => [...new Set([...script.matchAll(/\$env:(\w+)\s*=(?!=)/g)].map((m) => m[1]))].sort();
+/** The variables a script sets by name, sorted, once each: `$env:X = …`, `[Environment]::SetEnvironmentVariable('X', …)`,
+ *  and the names of a loop over pairs that sets each first item (`foreach ($pair in @(@('X', $v), …)) { …
+ *  SetEnvironmentVariable($pair[0], …)`). */
+export const variablesSet = (script: string) => {
+  const assigned = [...script.matchAll(/\$env:(\w+)\s*=(?!=)/g)].map((m) => m[1]);
+  const named = [...script.matchAll(/SetEnvironmentVariable\((['"])(\w+)\1/g)].map((m) => m[2]);
+  const paired = [...script.matchAll(/foreach \(\$(\w+) in @\(((?:@\('\w+', \$\w+\),?\s*)+)\)\) \{\s*[^\n]*SetEnvironmentVariable\(\$\1\[0\]/g)]
+    .flatMap((m) => [...m[2].matchAll(/@\('(\w+)'/g)].map((n) => n[1]));
+  return [...new Set([...assigned, ...named, ...paired])].sort();
+};
 
 /** The most arguments the server gets: Args__0 to Args__12 at most (run, --project, the folder, --frozen for an
  *  install, --extra voice, --extra tts, --extra openai, --extra cuda, the script: 13), two per `--extra` the script

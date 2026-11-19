@@ -2,17 +2,18 @@
 //
 // Orkeon Code versions independently of the Orkeon runtime it runs on: the
 // runtime is pinned to a commit of Orkeon's main in .orkeon-version, this one follows
-// package.json (tests/repository/version.test.ts keeps the two equal). The counts and crew names in
-// RELEASE_NOTES (messages.ts) are pinned by tests/commands/_lib/status/messages.test.ts, which keeps them true.
+// package.json (tests/repository/version.test.ts keeps the two equal). In RELEASE_NOTES (messages.ts),
+// tests/commands/_lib/status/messages.test.ts pins the command count, this version, the crew names, the Orkeon
+// version of .config/dotnet-tools.json and the Headless line; the rest of the notes no test checks.
 
 export const CLI_NAME = "orkeon-code";
-export const CLI_VERSION = "1.0.0-rc.2";
+export const CLI_VERSION = "1.0.0-rc.3";
 export const CLI_BUILD = "source";
 /** The Orkeon runtime this version runs on: the commit of Orkeon's `main` pinned in .orkeon-version, which the
  *  launcher announces (tests/repository/version.test.ts keeps the two equal). A release tag is never the pin: the
  *  commands are checked against the sources at this commit (ADR 0013). /status and /doctor compare it with the
  *  commit of the runtime that runs them, read from the host's `runtime` service (Orkeon #225). */
-export const ORKEON_RUNTIME_COMMIT = "a9f3878aca94c81d5c23fa0b858b59b8a78d5122";
+export const ORKEON_RUNTIME_COMMIT = "d81bfab393ce1f9235ed2711dd770b87398b4345";
 /** The pin as the launcher and the rows print it: its first seven characters. */
 export const ORKEON_RUNTIME_PIN = ORKEON_RUNTIME_COMMIT.slice(0, 7);
 

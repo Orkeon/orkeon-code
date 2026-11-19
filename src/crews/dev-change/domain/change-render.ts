@@ -1,4 +1,4 @@
-// The change brief as code writes it: the harness's template (sections 1 to 8) with a section 9 of decisions, an
+// The change brief as code writes it: the eight sections of CHANGE_SECTIONS with a section 9 of decisions, an
 // empty section left out. § 1 (the origin, quoted) and the facts of § 2 (the reproduction or the measurement that
 // ran) are code's and carried over from the file on a revision or a fold; the model adds its own facts after them.
 // A criterion carries a `- **Statement**:` line first, which spec-format.ts reads for /dev-plan. Pure, no IO.

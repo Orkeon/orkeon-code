@@ -5,6 +5,7 @@ import { join } from "node:path";
 import { WORKSPACE } from "../../src/shared/domain/vfs.ts";
 import { DOTNET, ESBUILD, recorder, scratchDir } from "./launcher.fixtures.ts";
 import type { LaunchOptions, Run } from "./launcher.fixtures.ts";
+import { AGREED, installStart, pathWithoutRuntime } from "./launcher.runtime.fixtures.ts";
 
 export const LOG_TO_STDERR = "Logging__Console__LogToStandardErrorThreshold";
 export const IMAGE = "ghcr.io/orkeon/orkeon:latest";
@@ -46,6 +47,9 @@ export const runArgs = (r: Run, crew = crewPath(r)) => [
   "--allow-external-mounts",
 ];
 
+/** A file of the folder the launcher was started from (the scratch base), as the launcher names it absolute. */
+export const callerFile = (r: Run, name: string) => join(realpathSync(join(r.root, "..")), name);
+
 /** The clone's dotnet tool manifest (.config/dotnet-tools.json), naming the orkeon tool. */
 export const TOOL_MANIFEST = { "checkout/.config/dotnet-tools.json": '{ "version": 1, "isRoot": true, "tools": {} }\n' };
 export const DOTNET_BIN = { dotnet: DOTNET };
@@ -84,6 +88,20 @@ export function homeWithOrkeon(): string {
   return home;
 }
 
+/** An install whose package names a runtime, on a machine with no runner, the download agreed: curl serves the
+ *  runtime archive, whose bin/orkeon records that it ran. */
+export function downloadingRunStart(): LaunchOptions {
+  const install = installStart({ env: AGREED });
+  return runStart({ bin: install.bin, env: install.env, files: install.files, install: true, systemPath: install.systemPath });
+}
+
+/** An install whose package names no runtime, on a machine with neither orkeon, Docker nor ORKEON_SOURCE. */
+export const noRunnerStart = (args: string[] = []) => runStart({ bin: {}, install: true, systemPath: pathWithoutRuntime(), args });
+
+const FULL_ARCHIVE = "orkeon of the full archive of an Orkeon release (orkeon-<version>-<platform>) on PATH";
+export const NO_RUNNER = ["no Orkeon runtime found to run a crew", FULL_ARCHIVE, "Docker or ORKEON_SOURCE"];
+export const NO_ORKEON = ["orkeon not found: set ORKEON_CLI", FULL_ARCHIVE];
+
 /** The words of a docker run that place the crew: the image, the runner, the crew as the container sees it. */
 export const DOCKER_CREW = [IMAGE, "run", "/work/agent/src/crews/main-loop/crew.ork.ts"];
 /** The checkout as the container's /work/agent, read-only: the crew's relative imports resolve there. */
@@ -91,6 +109,38 @@ export const agentMount = (r: Run) => `${r.root}:/work/agent:ro`;
 /** A file of the checkout given after --, as the container names it. */
 export const MOCK_IN_CONTAINER = ["--llm-mock", "/work/agent/tests/answers.jsonl"];
 export const MOCK_ON_HOST = ["--mode", "docker", "--", "--llm-mock", "<checkout>/tests/answers.jsonl"];
+/** The same, without the `--` before it, as scripts/smoke-crew.sh gives it. */
+export const MOCK_ON_HOST_NO_DASHES = ["--mode", "docker", "--llm-mock", "<checkout>/tests/answers.jsonl"];
+/** A file of the project given after --, relative from the caller's folder, and the name the container reads. */
+export const PROJECT_MOCK = { "project/answers.jsonl": "{}\n" };
+export const PROJECT_MOCK_ON_HOST = ["--mode", "docker", "--", "--llm-mock", "project/answers.jsonl"];
+export const PROJECT_MOCK_IN_CONTAINER = ["--llm-mock", "/work/project/answers.jsonl"];
+/** A file of the caller's folder, outside the project and the checkout: the container does not see it. */
+export const CALLER_MOCK = { "answers.jsonl": "{}\n" };
+export const CALLER_MOCK_IN_DOCKER = ["--mode", "docker", "--", "--llm-mock", "answers.jsonl"];
+export const DOCKER_OUTSIDE_FILE = ["in docker mode the container sees only the project and the checkout", "put it under the project"];
+
+/** The words given to `orkeon run` that the launcher leaves or makes absolute: only the value of a path option of
+ *  `orkeon run` after --, in both spellings, is resolved from the caller's folder. */
+export interface ResolvedCase { name: string; args: string[]; files: Record<string, string>; tail: (r: Run) => string[] }
+export const RESOLVED_CASES: readonly ResolvedCase[] = [
+  {
+    name: "hands the value of --llm-mock=FILE after -- over absolute, as --llm-mock FILE",
+    args: ["--", "--llm-mock=answers.jsonl"], files: CALLER_MOCK, tail: (r) => [`--llm-mock=${callerFile(r, "answers.jsonl")}`],
+  },
+  {
+    name: "hands the value of --inputs-file after -- over absolute, a path option of orkeon run",
+    args: ["--", "--inputs-file", "inputs.json"], files: { "inputs.json": "{}\n" }, tail: (r) => ["--inputs-file", callerFile(r, "inputs.json")],
+  },
+  {
+    name: "passes the value of an option that takes no path as given, though it names a file of the caller's folder",
+    args: ["--", "-v", "2"], files: { "2": "" }, tail: () => ["-v", "2"],
+  },
+  {
+    name: "passes a word given before -- as given, though it names a file of the caller's folder",
+    args: ["answers.jsonl"], files: CALLER_MOCK, tail: () => ["answers.jsonl"],
+  },
+];
 
 /** Where `npm ci` leaves esbuild's binary in a clone, and no esbuild named in the environment. */
 export const NPM_ESBUILD = "node_modules/@esbuild/linux-x64/bin/esbuild";

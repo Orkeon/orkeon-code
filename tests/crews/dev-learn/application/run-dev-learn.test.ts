@@ -14,7 +14,7 @@ import {
   THREE, badThenGoodAnswer, diskFull, earlierRunKeptNoMotif, motifsDroppedByCode, motifsRemovingAKeptLine,
   motifsWithAbsentOwners, newMotifFoundInOwner, noAxisOverThree, oneMotifProposed, ownerLinesThenBadAnswer, recorded,
   removedLineNotInOwner, setup, twoFailedAnswers, MOTIF_1, ownerLinesThenRefusedAnswer, HARNESS_OWNER_LINES,
-  UNSEEN_REFINES_REASK, harnessOwnerHoldsKeyTerm, orkeonCodeOwnerInCheckout, refinesBeforeOwnerLines, REFUSED_LISTED,
+  UNSEEN_REFINES_REASK, MIXED_REFINES_REASK, mixedRefinesBeforeOwnerLines, harnessOwnerHoldsKeyTerm, orkeonCodeOwnerInCheckout, refinesBeforeOwnerLines, REFUSED_LISTED,
 } from "./run-dev-learn.fixtures.ts";
 import { assertNoClaudeWrite, writtenTestAxis } from "./run-dev-learn.assertions.ts";
 import { assertMentions } from "../../../support/assertions/text.ts";
@@ -334,7 +334,7 @@ describe("runDevLearn — the owner lines", () => {
     assertMentions(f.llm.extracts[1].prompt, [HARNESS_OWNER_LINES]);
   });
 
-  it("never reads an Orkeon Code owner in the checkout, so asks no second time", async () => {
+  it("never reads an Orkeon Code owner in the checkout, so asks no second time and says so in the summary", async () => {
     // Arrange
     const f = orkeonCodeOwnerInCheckout();
 
@@ -342,7 +342,7 @@ describe("runDevLearn — the owner lines", () => {
     await runDevLearn({}, f.deps);
 
     // Assert
-    deepStrictEqual([f.llm.extracts.length, writtenTestAxis(f.files).motifs[0].reconcile], [1, "owner absent: docs/crew-prompts.md"]);
+    deepStrictEqual([f.llm.extracts.length, writtenTestAxis(f.files).motifs[0].reconcile], [1, "Orkeon Code owner, not read here: docs/crew-prompts.md"]);
   });
 
   it("refuses a first answer that refines a line it was not shown, and asks again with the owner lines", async () => {
@@ -366,6 +366,17 @@ describe("runDevLearn — the owner lines", () => {
     // Assert
     const [m] = writtenTestAxis(f.files).motifs;
     deepStrictEqual([m.status, m.linesRemoved], ["refines", ["A refusal is part of a command's contract."]]);
+  });
+
+  it("still shows a motif's owner lines on the re-ask when an Orkeon Code motif beside it is refused for its status", async () => {
+    // Arrange
+    const f = mixedRefinesBeforeOwnerLines();
+
+    // Act
+    await runDevLearn({}, f.deps);
+
+    // Assert
+    assertMentions(f.llm.extracts[1].prompt, MIXED_REFINES_REASK);
   });
 
   it("asks once when the code drops every motif the owner lines concern", async () => {

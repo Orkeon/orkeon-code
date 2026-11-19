@@ -1,6 +1,6 @@
-// The spec file as code writes it from a checked SpecAnswer, its open questions and its decisions: the harness's
-// template (sections 1 to 12) with a section 13 of decisions, a section left out when it has nothing to say (the
-// numbers stay the template's, so a reader and /dev-plan find each section where they expect it). A use case and a
+// The spec file as code writes it from a checked SpecAnswer, its open questions and its decisions: the twelve
+// sections of SPEC_SECTIONS with a section 13 of decisions, a section left out when it has nothing to say (the
+// numbers stay fixed, so a reader and /dev-plan find each section where they expect it). A use case and a
 // rule carry a `- **Statement**:` line first, which spec-format.ts reads for /dev-plan. Pure, no IO.
 import { STATEMENT } from "../../../shared/domain/dev/markers.ts";
 import { decisionTable, questionTable } from "../../../shared/domain/dev/questions.ts";

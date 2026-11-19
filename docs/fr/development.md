@@ -54,7 +54,7 @@ runtime ; dans un clone qui n'en a pas sur le PATH, il utilise l'outil `orkeon` 
 SDK .NET qui le restaure et le lance est épinglé par `global.json`, comme celui d'Orkeon : `10.0.300` avec
 `rollForward: latestFeature`) ou l'image `orkeon`, sur le dossier courant sauf si `--workspace` ou `--demo` en
 décide autrement. Les deux sont une release : l'outil est sur nuget.org en
-`1.2.0`, l'image est `ghcr.io/orkeon/orkeon:latest` (`1.2.0`), toutes deux à l'épingle à ce jour ; l'outil ne porte pas
+`1.3.0`, l'image est `ghcr.io/orkeon/orkeon:latest` (`1.3.0`), toutes deux à l'épingle à ce jour ; l'outil ne porte pas
 d'esbuild, le lanceur prend celui que `npm ci` a installé ; `ORKEON_CODE_MODE=source ORKEON_SOURCE=<checkout à l'épingle>` le
 lance depuis un checkout d'Orkeon, construit sur place. Cet outil lit ses limites de script dans `Orkeon:Scripting:Limits`, pas dans
 le `Orkeon:Cli:ScriptCommands:Limits` du REPL
@@ -109,9 +109,9 @@ montées mineures et de correctif ; la majeure se monte à la main, avec `.nvmrc
 1. Déplacez les entrées `[Unreleased]` de `CHANGELOG.md` sous `## [x.y.z] - YYYY-MM-DD`.
 2. Montez `version` dans `package.json` et `CLI_VERSION` dans `src/commands/_lib/status/meta.ts` (le test les garde
    égaux), ainsi que les notes de release (`RELEASE_NOTES`) dans `src/commands/_lib/status/messages.ts`.
-3. Lancez `ORKEON_SOURCE=<un checkout d'Orkeon à l'épingle> bash scripts/check-shared-memory.sh` dans un terminal (il demande
-   `rag_eval` ; sans `ORKEON_SOURCE`, il lance l'outil plus ancien de `.config/dotnet-tools.json`, pas l'épingle, qui refuse
-   des réglages récents comme `Orkeon:Decision`) : le rappel de la mémoire
+3. Lancez `ORKEON_SOURCE=<un checkout d'Orkeon à l'épingle> bash scripts/check-shared-memory.sh` (la sonde appelle
+   `rag_eval` depuis son code, hors de la garde des permissions, donc rien n'est demandé, quel que soit le mode ; il lance la sonde par `orkeon-code run`, depuis les sources de l'épingle avec `ORKEON_SOURCE`, sinon
+   sur le runner que trouve `orkeon-code run`, dans l'ordre des [Exécutions autonomes et embarquées](headless.md#en-un-coup-depuis-un-shell)) : le rappel de la mémoire
    partagée sur son jeu de référence doit finir sur `check-shared-memory: thresholds met` (recall@5 >= 0.85, MRR >= 0.70).
    La question sans réponse (q13) ne passe que si les réglages du runtime donnent `Orkeon:Rag:Retrieval:MinScore` :
    sans ce plancher, toute requête renvoie des passages, q13 échoue et la vérification aussi. Les exemples donnent 0,6.

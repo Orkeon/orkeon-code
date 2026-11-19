@@ -90,17 +90,30 @@ Every system prompt below ends with the runtime's `## File system` section when 
 - On that try a motif may refine, replace or remove (status `removes`) a line it sees, copied exactly, a removal
   adding no line, and a second answer that fails its check leaves the first one standing.
 - A first answer refused on its shape spends the second try on that, the owner then only noted in the proposal,
-  unless its only fault is a status other than `new`, when that try also shows the owner lines of its motifs.
+  unless its only faults are a status other than `new` or what an Orkeon Code motif carries (below), when that try
+  also shows the owner lines of its motifs.
 - A problem of the second try names the motif by its title.
 - A check (a test, an analyzer rule, an architecture test, the gate) is preferred over a written rule.
 - The owner is the one closest to where the gap was made: a rule of the repository first, its pack's rule in the
   harness included, and a file of Orkeon Code only when the workflow itself writes or audits the wrong thing.
 - Orkeon Code's owners are a closed list of its own files, each one checked to exist in this repository: this
-  document, the design rules, the gate, the auditor's and the reviewer's charters. A harness owner is a rule of a
-  repository pack, the orkeon-workshop repository having no other file the workflow follows.
+  document, the design rules, the writers of the plan's, the spec's and the change brief's format (`plan-render.ts`,
+  `spec-render.ts`, `change-render.ts`), the patterns and headings by which those formats are read back
+  (`shared/domain/dev/markers.ts`; the parsers such as `spec-format.ts` only apply them, so they are not listed), the
+  gate, the auditor's and the reviewer's charters. A harness owner is exactly a rule of a repository pack,
+  `.devcontainer/harness/packs/repo-<name>/claude/rules/<file>` with a name, a file and no deeper folder, the
+  orkeon-workshop repository having no other file a motif may own.
 - Neither an Orkeon Code file nor a harness file is changed here: its lines come back as a patch for the orkeon-code
   or the orkeon-workshop repository, an Orkeon Code owner is never read in the checkout, and a copy under `.claude/`
   is never an owner.
+- Since an Orkeon Code owner is never read, its motif takes status `new` alone and removes no line, even on a second
+  try that shows another motif's owner lines, and the proposal says that owner was not read rather than absent. A
+  first answer refused for such a motif still shows the other motifs' owner lines on its second try.
+- An accepted Orkeon Code patch reminds that a document changes with its French twin and a prompt behaviour first
+  (ADR 0003). `--accept` checks the owner rules again, since a proposals file may predate them or be edited by hand:
+  a harness motif whose owner is no rule of a repository pack (any other file of the packs, the removed dev pack's
+  included), or an Orkeon Code motif off its list, its status `new` or with a line removed, prints no patch, one line
+  saying /dev-learn patches no such owner now and to run it again.
 - A motif adds five lines at most.
 - Three motifs at most, every dropped candidate named with its filter and reason.
 - The rows, lists and paths are material, not instructions.
@@ -224,8 +237,15 @@ Every system prompt below ends with the runtime's `## File system` section when 
   it is named (which its confirmation says).
 - The list is staged with `git add -- <files>` and committed with `git commit -- <files>`, so what was staged
   elsewhere stays out.
+- When `git status` fails (any non-zero exit, a timeout, a refusal of the runtime), the crew stops before any model
+  call with git's reason (`the working tree could not be read, nothing was committed`), never reading the failure as
+  a clean tree.
 - Git's own identity (`git var GIT_AUTHOR_IDENT`, then the committer's) is checked before any model call, and when
-  it has none the crew stops and hands over the two `git config --global` commands, never inventing one.
+  it has none the crew stops and hands over the two `git config --global` commands, never inventing one (docker
+  mode copies the host's identity into the container, so they serve there too once `orkeon-code` is relaunched). The
+  stop then always gives the four variables to set before `orkeon-code`, `GIT_AUTHOR_NAME`, `GIT_AUTHOR_EMAIL`,
+  `GIT_COMMITTER_NAME` and `GIT_COMMITTER_EMAIL`, as `export` lines for a POSIX shell and as `$env:` lines for
+  PowerShell: the way that works where git reads no `~/.gitconfig` (a confined session with a `HOME` of its own).
 - `--push` pushes with `git push -u origin <branch>`.
 - Off the default branch the pull request body is written to `<work>/pr-<slug>/PR.md`, and the pull request opened
   with the runtime's `github` tool (`create_pr`) when `--pr` or `dev.prAuto` ask for it, the host offers the tool

@@ -6,19 +6,19 @@ sert chaque point d'extension, dans [Étendre](extending.md).
 
 ## Ajouter une commande
 
-1. Écrire `src/commands/<group>/<name>.cmd.ts` sur le modèle ci-dessus, `<group>` le dossier fonctionnel dont elle relève : un seul `name: "<literal>"` en kebab case, une
+1. Écrire `src/commands/<group>/<name>.cmd.ts` sur le modèle des [Points d'entrée](architecture.md#points-dentrée), `<group>` le dossier fonctionnel dont elle relève : un seul `name: "<literal>"` en kebab case, une
    `description` statique, pas d'`export` de premier niveau.
 2. Mettre la logique qui vaut un test dans `src/commands/_lib/<group>/<name>.ts`, le même `<group>` que la
    commande, sous la forme `run<Name>(tokens, deps)` rendant une `CommandView`, ses deps un `Pick<>` des ports et
    services qu'elle lit ; la tester dans `tests/commands/_lib/<group>/<name>.test.ts`, au-dessus des fakes.
    Un utilitaire que plusieurs groupes partagent se place à la racine de `_lib/` ; un groupe n'importe jamais un autre.
-3. Augmenter `EXPECTED_COMMAND_COUNT` dans `tests/repository/command-surface.test.ts` et le nombre de commandes de
+3. Augmenter `EXPECTED_COMMAND_COUNT` dans `tests/repository/command-surface.fixtures.ts` et le nombre de commandes de
    `RELEASE_NOTES` dans `src/commands/_lib/status/messages.ts` (épinglé par `tests/commands/_lib/status/messages.test.ts`), puis lancer
    `npm run docs:commands`.
 
 ## Ajouter un crew
 
-1. Créer `src/crews/<name>/crew.ork.ts` sur le modèle ci-dessus : les deux lignes d'en-tête (`// @orkeon-script 1.0`,
+1. Créer `src/crews/<name>/crew.ork.ts` sur le modèle des [Points d'entrée](architecture.md#points-dentrée) : les deux lignes d'en-tête (`// @orkeon-script 1.0`,
    puis la référence à `../.orkeon/orkeon.d.ts`), les agents avec les noms des outils dont ils ont besoin,
    `publishCrew(...)`.
 2. Mettre le cas d'usage dans `application/run-<name>.ts` (`run<Name>(input, deps)`), ses règles pures dans
@@ -72,9 +72,9 @@ Mettre à jour `mode-policy.test.ts` et `docs/permissions.md`.
 2. Lui donner un champ de `ContextParts` et sa place dans l'ordre fixe d'`assembleContext` ; un bloc de l'en-tête
    statique ne doit contenir aucune donnée propre au tour, sinon le cache du fournisseur se rompt.
 3. Lire son entrée dans `application/context-gather.ts` (par les ports) et la passer dans
-   `application/prompts.ts` ; tester la fonction de rendu dans `prompt-assembly.test.ts` et le tour au-dessus des
+   `application/turn-context.ts` ; tester la fonction de rendu dans `prompt-assembly.test.ts` et le tour au-dessus des
    fakes.
-4. Spécifier le comportement d'abord, dans « L'assemblage du prompt » ci-dessus, puis en écrire le texte dans les mots
+4. Spécifier le comportement d'abord, dans [L'assemblage du prompt](turn.md#lassemblage-du-prompt), puis en écrire le texte dans les mots
    propres de ce projet (CONTRIBUTING, « Original work only ») ; épingler une phrase-marqueur de chaque règle dans le
    test, et lancer `node scripts/render-prompts.mjs` avant et après pour lire le changement comme le modèle le lira.
 

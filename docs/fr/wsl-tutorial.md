@@ -98,7 +98,7 @@ mkdir -p ~/audio && timeout 20 parecord --channels=1 --rate=16000 --file-format=
 
 ## 3. Orkeon depuis son paquet apt
 
-Le canal `stable` porte la dernière release d'Orkeon, `1.2.0` : c'est à ce jour le commit du `main` d'Orkeon
+Le canal `stable` porte la dernière release d'Orkeon, `1.3.0` : c'est à ce jour le commit du `main` d'Orkeon
 contre lequel Orkeon Code est vérifié (`.orkeon-version`), si bien que le mode tool exécute l'épingle jusqu'à ce que
 l'épingle dépasse cette release ([Premiers pas](getting-started.md)). Le canal `dev` publie un paquet par commit de `main` validé par la CI, versionné
 `1.0.1~dev.<n>` (`n` est le numéro de l'exécution CI), les trois derniers builds seulement : il sert à suivre
@@ -147,7 +147,7 @@ sudo apt-get update && sudo apt-get install -y orkeon orkeon-archive-keyring
 orkeon --version && command -v orkeon-repl
 ```
 
-Attendu : `1.2.0` et `/usr/bin/orkeon-repl`. Plus tard, la
+Attendu : `1.3.0` et `/usr/bin/orkeon-repl`. Plus tard, la
 release suivante se prend par `sudo apt update && sudo apt upgrade` ; `apt list -a orkeon` liste celles du
 canal, et `/status` dit si celle qui tourne est le commit de `.orkeon-version`.
 
@@ -188,8 +188,8 @@ Premier REPL, sans la voix, sur le dépôt d'exemple jetable (`--demo`), en mode
 ./orkeon-code --mode tool --demo
 ```
 
-Le bandeau affiche `orkeon-code <version> on Orkeon (tool: a release, the pin is a9f3878)` : le mode tool exécute
-la release du paquet, `1.2.0` (`a9f3878`), qui est à ce jour l'épingle de
+Le bandeau affiche `orkeon-code <version> on Orkeon (tool: a release, the pin is d81bfab)` : le mode tool exécute
+la release du paquet, `1.3.0` (`d81bfab`), qui est à ce jour l'épingle de
 `.orkeon-version`. Viennent ensuite le projet et le fichier de
 réglages. Dans le REPL :
 

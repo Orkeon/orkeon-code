@@ -21,9 +21,9 @@ réponse.
 
 ## Le runtime : le mode source
 
-L'épingle (`a9f3878`) sert Liquid et Kev ; c'est la release `1.2.0`, et chaque release depuis `1.0.0` les sert aussi : le mode
+L'épingle (`d81bfab`) sert Liquid et Kev ; c'est la release `1.3.0`, et chaque release depuis `1.0.0` les sert aussi : le mode
 tool connaît `Orkeon:Liquid`, `Orkeon:Kev` et `Orkeon:Decision:Provider`. Le mode docker exécute
-l'image de la dernière release, `1.2.0` à ce jour. Cette page a été écrite en mode source, sur
+l'image de la dernière release, `1.3.0` à ce jour. Cette page a été écrite en mode source, sur
 un checkout d'Orkeon à l'épingle ou après ([Premiers pas](getting-started.md#mode-source--un-checkout-dorkeon)) :
 
 ```bash
@@ -574,7 +574,7 @@ ORKEON_CODE_MODE=source ORKEON_SOURCE=~/src/orkeon \
 ORKEON_CODE_SETTINGS=config/appsettings.local.json \
   ./orkeon-code run main-loop --workspace /tmp/kev-ws --trust \
   --inputs '{"prompt": "What does the function in text.ts do? Answer in one sentence.",
-             "permissionMode": "plan", "llmProfile": "guarded"}' 2>&1 | grep -E "Decision|decision\.|finalOutput"
+             "permissionMode": "plan", "llmProfile": "guarded"}' -- -v 2 2>&1 | grep -E "Decision|decision\.|finalOutput"
 ```
 
 ## Ce qu'Orkeon Code lui demande lui-même
