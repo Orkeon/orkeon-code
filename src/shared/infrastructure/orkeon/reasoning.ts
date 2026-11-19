@@ -1,7 +1,7 @@
 /// <reference path="../../../crews/.orkeon/orkeon.d.ts" />
 // ReasoningReader over the runtime's `llm` namespace (Orkeon #359, #360, #364): the configuration the session's
 // turns run on (`llm.profile(name)`, else `llm.model(name)`, else `llm.default_`), its `capabilities`, and its
-// `reasoning`, with the effort asked or as the host configures it. The runtime judges, as it judges the call;
+// `reasoning`, with the effort asked or as the host configures it, and its `model`. The runtime judges, as it judges the call;
 // nothing is called. A profile is asked for only when `llm.profiles` lists its name: one the host does not declare
 // answers null, as do a host without the namespace and a provider that cannot tell.
 
@@ -36,5 +36,6 @@ export function createReasoningReader(host: LlmConfigs | undefined): ReasoningRe
   return {
     capabilities: (target) => read(target, (config) => capabilitiesOf(config.capabilities)),
     effort: (target, level) => read(target, (config) => effortReportOf((level === null ? config : config.with({ effort: level })).reasoning)),
+    model: (target) => read(target, (config) => (config.model.trim() === "" ? null : config.model.trim())),
   };
 }

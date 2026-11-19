@@ -19,6 +19,7 @@ import {
   PANEL_MODEL_ONLY_TEXT,
   RESET_LOWERED_TEXT,
   NO_MODEL_SHOW_TEXT,
+  PROFILE_MODEL_SHOW_TEXT,
   PROFILE_SHOW_TEXT,
   PROFILE_SWITCHED_TEXT,
   PROFILE_SWITCH_WARNING,
@@ -245,7 +246,7 @@ describe("/model show", () => {
     strictEqual(lines[2], "  session override: deepseek-chat");
   });
 
-  it("names the llm.profile as what the next turn runs on, the override not applied", async () => {
+  it("names the llm.profile alone when the host cannot tell its model, the override not applied", async () => {
     // Arrange
     const { session, run } = modelHarness("guarded");
     session.state.set(MODEL_PREFERENCE_STATE_KEY, "deepseek-chat");
@@ -255,6 +256,30 @@ describe("/model show", () => {
 
     // Assert
     deepStrictEqual(view, { text: PROFILE_SHOW_TEXT });
+  });
+
+  it("names the model the llm.profile runs on and stars it among the declared models", async () => {
+    // Arrange
+    const { reasoning, run } = modelHarness("guarded");
+    reasoning.models = { guarded: "deepseek-chat" };
+
+    // Act
+    const view = await run("show");
+
+    // Assert
+    deepStrictEqual(view, { text: PROFILE_MODEL_SHOW_TEXT });
+  });
+
+  it("asks the host for the model of the llm.profile, not of the override", async () => {
+    // Arrange
+    const { session, reasoning, run } = modelHarness("guarded");
+    session.state.set(MODEL_PREFERENCE_STATE_KEY, "kimi-k3");
+
+    // Act
+    await run("show");
+
+    // Assert
+    deepStrictEqual(reasoning.targets, [{ profile: "guarded", model: "" }]);
   });
 
   it("says the host reports no model and declares none", async () => {

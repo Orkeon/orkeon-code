@@ -193,3 +193,44 @@ describe("createReasoningReader — effort", () => {
     strictEqual(report, null);
   });
 });
+
+describe("createReasoningReader — model", () => {
+  it("reads the model a profile the host declares runs on", () => {
+    // Arrange
+    const host = new FakeLlmConfigs();
+    host.profileModels = HOST_PROFILES;
+    const reader = createReasoningReader(host);
+
+    // Act
+    const model = reader.model(PROFILED);
+
+    // Assert
+    deepStrictEqual([model, host.asked], ["glm-5.3", ["profile:guarded"]]);
+  });
+
+  it("answers nothing for the model of a profile the host does not declare, without asking for it", () => {
+    // Arrange
+    const host = new FakeLlmConfigs();
+    host.profileModels = HOST_PROFILES;
+    const reader = createReasoningReader(host);
+
+    // Act
+    const model = reader.model(UNDECLARED_PROFILE);
+
+    // Assert
+    deepStrictEqual([model, host.asked], [null, []]);
+  });
+
+  it("answers nothing for the model when the runtime refuses the configuration", () => {
+    // Arrange
+    const host = new FakeLlmConfigs();
+    host.refusal = NO_PROVIDER;
+    const reader = createReasoningReader(host);
+
+    // Act
+    const model = reader.model(BOOT);
+
+    // Assert
+    strictEqual(model, null);
+  });
+});

@@ -38,7 +38,7 @@ import { runEffort, storedEffortWarning } from "./effort.ts";
 import {
   MODEL_CHOICE, MODEL_UNCHANGED, NO_EFFECTIVE_MODEL, OVERRIDE_CLEARED_NO_BOOT, declaredCatalogue, modelSet,
   modelSetUndeclared, modelSetWarned, modelShown, overrideCleared, overrideNotSent, profileNamesModel,
-  profileWinsOverride,
+  profileRunsModel, profileWinsOverride,
 } from "./messages.ts";
 
 export interface ModelDeps {
@@ -49,7 +49,8 @@ export interface ModelDeps {
   log: Pick<Logger, "warn">;
   /** Where a bare /model opens a panel, when it can and there is something to pick. */
   chooser?: Chooser;
-  /** What the model switched to makes of the effort /effort stored; absent: nothing is said of it. */
+  /** What the model switched to makes of the effort /effort stored, and the model an `llm.profile` runs on;
+   *  absent: nothing is said of either. */
   reasoning?: ReasoningReader;
 }
 
@@ -91,8 +92,10 @@ export async function runModel(tokens: string[], deps: ModelDeps): Promise<Comma
       session.readState(MODEL_PREFERENCE_STATE_KEY).catch(() => null),
       readLlmProfile(config),
     ]);
-    // Under a profile no declared model of the host is the effective one: the profile names its own.
-    const effective = profile === null ? pref || boot : "";
+    // Under a profile the effective model is the profile's own, when the host tells it; the override and the boot
+    // model are not.
+    const profileModel = profile === null ? null : deps.reasoning?.model({ profile, model: "" }) ?? null;
+    const effective = profile === null ? pref || boot : profileModel ?? "";
     if (tokens.length === 0 && deps.chooser?.interactive && profile === null && declared.length > 0) {
       return pickModel(deps, deps.chooser, { declared, effective, boot, override: pref ?? "" });
     }
@@ -104,7 +107,7 @@ export async function runModel(tokens: string[], deps: ModelDeps): Promise<Comma
     }
 
     const override = pref ? (profile === null ? pref : overrideNotSent(pref)) : "(none)";
-    return { text: modelShown(effectiveLine(effective, profile), boot, override, catalogue, NO_CATALOGUE_NOTE) };
+    return { text: modelShown(effectiveLine(effective, profile, profileModel), boot, override, catalogue, NO_CATALOGUE_NOTE) };
   }
 
   if (first === "reset" || first === "clear") {
@@ -174,8 +177,11 @@ async function pickModel(
   return { text: texts.length > 0 ? texts.join("\n") : MODEL_UNCHANGED };
 }
 
-/** The first line of `show`: the profile when one is set, else the effective model. */
-function effectiveLine(effective: string, profile: string | null): string {
-  if (profile !== null) return profileNamesModel(profile);
+/** The first line of `show`: the profile when one is set, with its model when the host tells it, else the effective
+ *  model. */
+function effectiveLine(effective: string, profile: string | null, profileModel: string | null): string {
+  if (profile !== null) {
+    return profileModel === null ? profileNamesModel(profile) : profileRunsModel(profile, profileModel);
+  }
   return effective || NO_EFFECTIVE_MODEL;
 }

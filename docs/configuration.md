@@ -141,8 +141,9 @@ on the Ollama service, or the model silently loses its instructions and its tool
 - The `/model` override does not: under a profile the assistant's turns do not send it (it would replace the
   profile's model, and on a decision profile the model of its escalation target too), and each turn logs `/model
   override '<name>' ignored: llm.profile <profile> is active`.
-- `/model show` names the profile, and `/model <name>` stores the override with a warning, to apply again once
-  `llm.profile` is unset.
+- `/model show` names the profile and the model it runs on, starred among the declared models: a decision
+  profile's is that of the profile it targets, the one it escalates to is not shown (the runtime does not tell it).
+  `/model <name>` stores the override with a warning, to apply again once `llm.profile` is unset.
 - Kev on this machine and Liquid, step by step, with their examples
   [`config/appsettings.kev.example.json`](../config/appsettings.kev.example.json) and
   [`config/appsettings.liquid.example.json`](../config/appsettings.liquid.example.json): [Decision models

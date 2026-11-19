@@ -70,6 +70,15 @@ export const PROFILE_SHOW_TEXT =
   `declared models (* = effective):\n${renderModelList(DECLARED, "")}\n` +
   USAGE;
 
+/** What /model show answers under the llm.profile `guarded` when the host tells it runs on deepseek-chat. */
+export const PROFILE_MODEL_SHOW_TEXT =
+  "effective model for the next turn: deepseek-chat, the model llm.profile guarded runs on " +
+  "(the /model override does not apply)\n" +
+  "  boot model      : kimi-k3\n" +
+  "  session override: (none)\n" +
+  `declared models (* = effective):\n${renderModelList(DECLARED, "deepseek-chat")}\n` +
+  USAGE;
+
 /** The warning /model deepseek-chat logs under the llm.profile `guarded`. */
 export const PROFILE_SWITCH_WARNING =
   "llm.profile guarded is active: the /model override 'deepseek-chat' is stored but not sent while it is set " +

@@ -16,6 +16,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `spawn_agent` (`default`, `acceptEdits`, `bypassPermissions`), and its ceiling moves from 10 800 to 11 200
   characters for that line ([turn](docs/turn.md#the-explorer)).
 
+### Changed — `/model show` names the model of an `llm.profile`
+
+- Under an `llm.profile`, `/model show` said only that the profile names the model, and starred none of the
+  declared models, while the boot model line read as the one in use. It now names the model the profile runs on, as
+  the runtime reports it (a decision profile's: that of the profile it targets), and stars it in the list
+  ([configuration](docs/configuration.md)).
+
 ## [1.0.0-rc.3] - 2026-11-18
 
 ### Changed — the pin moves to Orkeon 1.3.0
