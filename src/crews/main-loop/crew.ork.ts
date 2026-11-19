@@ -59,6 +59,9 @@ import { loadCatalogue, runMainLoop } from "./application/run-main-loop.ts";
 import { contextPruning } from "../../shared/application/compaction/prune-context.ts";
 import { suggestSkills } from "../../shared/application/skills/suggest-skills.ts";
 import { CODER_GOAL, CODER_ROLE } from "./application/prompts.ts";
+import { runExplorer } from "./application/run-explorer.ts";
+import { EXPLORER_CHARTER } from "./domain/explorer-charter.ts";
+import { charterCatalogue } from "../../shared/domain/agents/charter.ts";
 import { BREAKER_RUN_FIELD, turnCompaction } from "./application/auto-compact.ts";
 
 // The tool catalogue is decided at load time (module scope is synchronous), from
@@ -71,6 +74,16 @@ const ports = {
   shell: orkeonShell(), session: orkeonSessionIo(), files: orkeonFiles(), telemetry: orkeonTelemetry(),
   memory: orkeonMemoryStore(), tools: orkeonToolCalls(), config: orkeonConfigStore(),
 };
+
+/** The read-only explorer `spawn_agent` reaches by name (docs/turn.md, "The explorer"), added to the crew by the
+ *  coder's turn: the runtime runs an agent the crew holds, never the coder inside itself. */
+const explorer = () => orkeonAgent()
+  .name(EXPLORER_CHARTER.name)
+  .role(EXPLORER_CHARTER.role)
+  .goal(EXPLORER_CHARTER.goal)
+  .tools(charterCatalogue(EXPLORER_CHARTER))
+  .maxIterations(EXPLORER_CHARTER.maxIterations)
+  .body(async (input: unknown, ctx: any) => await runExplorer(input, { llm: agentLlm(ctx), log: ctx.log }));
 
 const coder = orkeonAgent()
   .name("coder")
@@ -85,6 +98,7 @@ const coder = orkeonAgent()
     // The shared memory's guard on every call: what the host's gate cannot read (an edit_batch's operations, a
     // path in another case, a shell cd into the folder) is refused here (shared-memory/layout memoryWriteRefusal).
     // Each result is recorded on the way (tool-trace-recorder): the turn stores its calls as a [tools] message.
+    if (!ctx.crew.has(EXPLORER_CHARTER.name)) ctx.spawn(explorer());
     const trace = createToolTrace();
     const llm = agentLlm(ctx, tracedCallbacks(memoryGuardCallbacks(memoryDirOf(ports.config)), trace));
     const log = ctx.log;

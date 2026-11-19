@@ -54,8 +54,10 @@ The runtime runs the sources under rules that shape everything below:
 - **The read calls of a turn run together.** `Orkeon:Tools:ResultLimits:MaxParallelToolCalls` (4) read calls of one
   model turn run at once; every other call runs alone, one after the other.
 - **`spawn_agent` is the host's own.** The script host offers it to every act; naming it in `.tools([...])`, or in
-  `act({ tools })`, throws `UnknownToolError`. A child runs under the stricter of its mode and its spawner's (Orkeon
-  #299); this project's children name none.
+  `act({ tools })`, throws `UnknownToolError`. It runs an agent the crew holds, by name, never the agent that
+  calls it, so the main loop adds its `explorer` to the crew at each turn ([turn](turn.md#the-explorer)). A child
+  runs under the stricter of its mode and its spawner's (Orkeon #299); the explorer names `plan`, this project's
+  other children none.
 - **The code-intelligence tools are pinned by a contract.** Every tool name and field the adapters use was read off
   live calls, and is pinned by `shared/domain/code-intel-contract.ts` and its test.
 - **The index needs no language list.** `index_codebase` then `codebase_map` work end to end, the languages detected

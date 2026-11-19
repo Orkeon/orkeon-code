@@ -180,8 +180,14 @@ un changement comme un diff.
   - Là où un outil web est offert (`web_search`, `http_api`, `web_scrape`, `scrape_element`, `firefox`), le projet
     passe avant le web : un port, une commande ou une image que sa documentation et ses réglages d'exemple donnent
     l'emporte sur une valeur trouvée sur le web, et une valeur lue nulle part n'est pas donnée comme un fait.
-  - Les lignes sur l'écriture, l'édition, le shell et le web n'apparaissent que dans les modes qui offrent ces
-    outils.
+  - Là où le catalogue écrit (les modes où le runtime ne refuse pas `spawn_agent`), `spawn_agent` avec
+    `agent: "explorer"` confie un brief à un agent du crew en lecture seule ([L'explorateur](#lexplorateur)), le seul
+    agent qu'il accepte : ses lectures restent dans son propre contexte et seul son rapport revient. Il sert au
+    survol de nombreux fichiers ou d'une zone entière, jamais à la consultation de quelques fichiers. Le brief se
+    suffit à lui-même, puisque l'explorateur ne voit rien d'autre : le but, les chemins ou la zone, ce qu'il faut
+    rapporter. Son rapport est une piste : ce sur quoi repose un changement est d'abord vérifié.
+  - Les lignes sur l'écriture, l'édition, le shell, le web et l'explorateur n'apparaissent que dans les modes qui
+    offrent ces outils.
 - **Refus** : un outil non offert (les outils de script sont offerts sans être listés) ou un appel refusé est une
   décision du mode ou de l'utilisateur ; changer d'approche au lieu de répéter l'appel.
 #### Chercher dans le code
@@ -267,6 +273,37 @@ un changement comme un diff.
   évaluation ou un plan ; sinon le runtime peut demander avant un appel), puis la clause proactive quand `/proactive` est
   activé.
 
+### L'explorateur
+
+`crews/main-loop/domain/explorer-charter.ts`, `crews/main-loop/application/run-explorer.ts`. `spawn_agent` lance un
+agent que le crew contient, par son nom, et le runtime refuse de lancer `coder` à l'intérieur de lui-même. Chaque tour
+ajoute donc un `explorer` au crew avant d'agir. Sa réponse revient au tour comme résultat de l'appel `spawn_agent`, et
+les lectures qu'il a faites restent dans son propre contexte.
+
+- **Sa charte** : le mode `plan` et les outils de lecture et de recherche du code (les fichiers, leurs nœuds, les
+  dossiers, `glob`, `grep`, l'index du code et ses requêtes de graphe). Ni shell, ni écriture, ni construction
+  d'index, ni web. Il a 30 itérations d'appels d'outils. Il tourne sous le plus strict de `plan` et du mode du tour,
+  sur le modèle de l'hôte : un choix de `/model` vaut pour la boucle principale, et `/route` ne le route pas.
+- **Son brief** : l'`input` de l'appel, sans les espaces autour. Un brief vide et un brief de plus de 24 000
+  caractères sont refusés avant tout appel au modèle, et le tour lit le refus comme résultat de l'appel.
+- **Son prompt** (le message système de son unique act) :
+  - Il ne voit que le brief : ni conversation, ni instructions du projet, ni tour précédent. Il ne suppose pas ce que
+    le brief tait, et dit comment il l'a compris.
+  - Il ne change rien : il lit et cherche seulement, et ne présente aucun changement comme fait.
+  - Il cherche avant de lire : l'index du code et `grep` trouvent l'endroit, puis `file_read` en lit une plage. Les
+    lectures et recherches qui ne dépendent pas l'une de l'autre partent dans un seul message.
+  - Une liste ou une recherche revenue coupée n'est pas le tout : un nom qui en manque n'est pas absent. Il resserre
+    l'appel (un dossier plus bas, un motif `glob`) avant de dire que quelque chose n'existe pas.
+  - Il cesse de lire dès que le brief a sa réponse, puisque ses itérations sont comptées.
+  - Sa réponse finale est le rapport, qui entre en entier dans le contexte du tour : il est donc court, quelques
+    centaines de mots. La réponse au brief d'abord, chaque fait avec le `path:line` sur lequel il repose, ce qu'il n'a
+    pas pu établir dit comme tel et jamais deviné, aucun contenu de fichier au-delà des quelques lignes dont un fait a
+    besoin comme preuve.
+  - Il écrit dans la langue du brief.
+- **Permissions** : `spawn_agent` est demandé en `default`, accepté en `acceptEdits` et `bypassPermissions`, et
+  refusé en `plan` et `dontAsk`, où l'en-tête ne nomme pas l'explorateur
+  ([permissions](permissions.md#ce-que-chaque-outil-déclare)).
+
 ## Router un crew vers un profil
 
 `shared/domain/agents/model-route.ts`, `shared/application/agents/route-agent.ts`
@@ -299,8 +336,8 @@ décision sur le runtime, ce profil est choisi à chaque lancement de `/dev-spec
   garde ses requêtes) n'est pas routée : elle garde ce profil.
 - **Ce qui n'est pas routé** : la boucle principale (`/assistant` : son cache de prompt suit un modèle),
   `/compact`, `/memory admit`, les crews de parole, `/advisor` (il a son propre modèle), `/dev-batches` et
-  `/tasks` ; et, dans un crew, les rôles de `/dev-implement`, les agents qu'un crew démarre en arrière-plan et
-  l'extraction de la réponse d'un sous-agent. L'effort de raisonnement reste celui de `/effort`.
+  `/tasks` ; et, dans un crew, les rôles de `/dev-implement`, les agents qu'un crew démarre en arrière-plan,
+  l'explorateur de la boucle principale et l'extraction de la réponse d'un sous-agent. L'effort de raisonnement reste celui de `/effort`.
 - **L'act d'un sous-agent dans un crew** ([ADR 0029](../adr/0029-orkeon-after-333.md)) :
   - Le relecteur de `/dev-spec`, `/dev-change` et `/dev-plan`, le relecteur du lot suivant de `/dev-batches` et
     l'auditeur de `/dev-verify` font chacun un act que la même décision route.

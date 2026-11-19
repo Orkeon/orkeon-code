@@ -110,7 +110,9 @@ Ce que le tableau ne dit pas, outil par outil :
 - **`spawn_agent`.** Le runtime l'offre à chaque act, quel que soit le catalogue : demandé en `default`, refusé en
   `plan` et en `dontAsk`. Une règle peut le nommer, et une règle allow sur lui vaut aussi en `dontAsk` (`/permissions`
   avertit quand vous en ajoutez une). L'enfant qu'il lance tourne sous le plus strict de son propre mode et de celui
-  de son parent. Les enfants d'Orkeon Code n'en nomment aucun : ils prennent celui du parent.
+  de son parent. L'explorateur de la boucle principale, le seul agent qu'un tour peut lancer, nomme `plan` : il ne
+  change donc jamais rien ([tour](turn.md#lexplorateur)). Les autres enfants d'Orkeon Code n'en nomment aucun : ils
+  prennent celui du parent.
 
 ### Outils réseau
 

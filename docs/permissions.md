@@ -103,7 +103,9 @@ What the table does not say, tool by tool:
   index and writes its reports. Neither belongs to a mode that promises nothing changes.
 - **`spawn_agent`.** The runtime offers it to every act, whatever the catalogue: asked about in `default`, refused in
   `plan` and `dontAsk`. A rule may name it, and an allow rule on it holds in `dontAsk` too (`/permissions` warns when
-  you add one). The child it spawns runs under the stricter of its own mode and its spawner's. Orkeon Code's
+  you add one). The child it spawns runs under the stricter of its own mode and its spawner's. The main loop's
+  explorer, the one agent a turn can spawn, names `plan`, so it never changes anything
+  ([turn](turn.md#the-explorer)). Orkeon Code's other
   children name none, so they take the spawner's.
 
 ### Network tools

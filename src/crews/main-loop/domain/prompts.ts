@@ -2,6 +2,8 @@
 // prompt-assembly.ts orders, joins and caps. Written from the behaviour specification in docs/turn.md,
 // "Prompt assembly" (ADR 0003).
 
+import { EXPLORER_CHARTER } from "./explorer-charter.ts";
+
 // ── Static header ────────────────────────────────────────────────────────
 
 export const IDENTITY_BLOCK =
@@ -138,6 +140,8 @@ export interface ToolRealityFlags {
   fileWrite: boolean;
   shell: boolean;
   web: boolean;
+  /** `spawn_agent` can reach the explorer: the modes in which the runtime does not refuse it. */
+  explorer: boolean;
 }
 
 /** What the offered tools can and cannot do, one line each: a read-only mode is not told how to write, and the line
@@ -177,6 +181,14 @@ export function toolRealities(f: ToolRealityFlags): string {
     lines.push(
       "The web tools come after the project's docs and example settings: a port, command or image " +
         "they give wins over the web's; a value read nowhere is no fact.",
+    );
+  }
+  if (f.explorer) {
+    lines.push(
+      `\`spawn_agent\` with \`agent: "${EXPLORER_CHARTER.name}"\`, the only agent it takes, hands a survey of many ` +
+        "files or a whole area to a read-only explorer: its reads stay in its context, only its report returns. Not " +
+        "for a lookup of a few files. The brief stands alone, the explorer sees nothing else: the goal, the paths or " +
+        "the area, what to report. Its report is a lead: check what a change rests on.",
     );
   }
   return lines.join("\n");

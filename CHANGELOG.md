@@ -7,6 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added — the main loop's explorer
+
+- A turn can hand a survey to a read-only agent: `spawn_agent` with `agent: "explorer"` runs the brief in `plan`
+  mode, with the code's read and search tools and 30 iterations, and only its report comes back into the turn's
+  context. `spawn_agent` used to fail in the main loop whatever the agent: the crew held only `coder`, which the
+  runtime refuses to run inside itself. The header names the explorer in the modes that do not refuse
+  `spawn_agent` (`default`, `acceptEdits`, `bypassPermissions`), and its ceiling moves from 10 800 to 11 200
+  characters for that line ([turn](docs/turn.md#the-explorer)).
+
 ## [1.0.0-rc.3] - 2026-11-18
 
 ### Changed — the pin moves to Orkeon 1.3.0
