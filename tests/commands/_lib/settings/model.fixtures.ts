@@ -56,7 +56,7 @@ export const NO_MODEL_SHOW_TEXT =
 export const SWITCHED_TEXT =
   "model set to 'deepseek-chat' — it applies from the next /assistant turn, no relaunch.\n" +
   "It travels over the configured provider, so it must be a model that provider serves; " +
-  "/clear (or /model reset) returns to the boot model.";
+  "/clear keeps it, /model reset returns to the boot model.";
 
 export const UNDECLARED_TEXT =
   "model set to 'claude x' — ⚠ NOT among the models this host declares " +
@@ -68,6 +68,15 @@ export const PROFILE_SHOW_TEXT =
   "  boot model      : kimi-k3\n" +
   "  session override: deepseek-chat (not sent while llm.profile is set)\n" +
   `declared models (* = effective):\n${renderModelList(DECLARED, "")}\n` +
+  USAGE;
+
+/** What /model show answers under the llm.profile `guarded` when the host tells it runs on deepseek-chat. */
+export const PROFILE_MODEL_SHOW_TEXT =
+  "effective model for the next turn: deepseek-chat, the model llm.profile guarded runs on " +
+  "(the /model override does not apply)\n" +
+  "  boot model      : kimi-k3\n" +
+  "  session override: (none)\n" +
+  `declared models (* = effective):\n${renderModelList(DECLARED, "deepseek-chat")}\n` +
   USAGE;
 
 /** The warning /model deepseek-chat logs under the llm.profile `guarded`. */

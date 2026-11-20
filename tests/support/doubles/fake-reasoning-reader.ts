@@ -3,7 +3,8 @@
 // `hostReport` is what the host's own configuration sends when no level is asked (null: it asks for none).
 // `byProfile` answers for a target on that profile instead, and `byModel` for a target on no profile whose model it
 // holds ("" the host's own model), each entry as it stands (its null capabilities included). Every target asked
-// lands in `targets`, every level asked of `effort` in `levelsAsked`.
+// lands in `targets`, every level asked of `effort` in `levelsAsked`. `models` is the model a target runs on, by its
+// profile (by its model on no profile); a target left out: the host cannot tell.
 import type { ReasoningReader } from "../../../src/shared/application/ports.ts";
 import type { EffortLevel } from "../../../src/shared/domain/agent-policy/behavior-flags.ts";
 import type { EffortReport, ReasoningCapabilities, ReasoningTarget } from "../../../src/shared/domain/agent-policy/reasoning.ts";
@@ -24,6 +25,7 @@ export class FakeReasoningReader implements ReasoningReader {
   byModel: Record<string, ReasoningAnswers> = {};
   targets: ReasoningTarget[] = [];
   levelsAsked: Array<EffortLevel | null> = [];
+  models: Record<string, string> = {};
 
   capabilities(target: ReasoningTarget): ReasoningCapabilities | null {
     this.targets.push(target);
@@ -35,6 +37,11 @@ export class FakeReasoningReader implements ReasoningReader {
     this.levelsAsked.push(level);
     const answers = this.answersFor(target);
     return level === null ? answers.hostReport ?? null : answers.reports[level] ?? null;
+  }
+
+  model(target: ReasoningTarget): string | null {
+    this.targets.push(target);
+    return this.models[target.profile ?? target.model] ?? null;
   }
 
   private answersFor(target: ReasoningTarget): ReasoningAnswers {

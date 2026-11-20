@@ -45,8 +45,9 @@ import {
  *  question-to-tool routing of code-intel-routing.ts: without it the model answered
  *  "every base class" with a shell script of regular expressions instead of the index, then
  *  from 10 500 for the rules the prompt audit of 2026-11-01 found missing: `edit_file`, the
- *  reads of a turn in one message, `grep` for an exact text outside the code. */
-export const MAX_STATIC_HEADER_CHARS = 10_800;
+ *  reads of a turn in one message, `grep` for an exact text outside the code, then from 10 800 for the explorer's
+ *  line: without it the model reaches for `spawn_agent` with an agent name it made up, and every call is refused. */
+export const MAX_STATIC_HEADER_CHARS = 11_200;
 
 /** What the session lets the turn deliver — chosen from the catalogue, so stable per mode. */
 function describeSession(tools: readonly string[]): string {
@@ -74,6 +75,8 @@ function describeToolRealities(tools: readonly string[]): string {
     fileWrite: tools.includes("file_write"),
     shell: tools.includes("shell_command"),
     web: WEB_TOOLS.some((tool) => tools.includes(tool)),
+    // spawn_agent is never in the catalogue: the runtime refuses it in plan and dontAsk, the modes without file_write.
+    explorer: tools.includes("file_write"),
   });
 }
 

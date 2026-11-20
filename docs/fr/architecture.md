@@ -58,8 +58,10 @@ Le runtime exécute les sources sous des règles qui façonnent tout ce qui suit
 - **Les appels de lecture d'un tour tournent ensemble.** `Orkeon:Tools:ResultLimits:MaxParallelToolCalls` (4) appels
   de lecture d'un même tour du modèle tournent en même temps ; tout autre appel tourne seul, l'un après l'autre.
 - **`spawn_agent` appartient au runtime.** L'hôte de scripts l'offre à chaque act ; le nommer dans `.tools([...])`, ou
-  dans `act({ tools })`, lève `UnknownToolError`. Un enfant tourne sous le plus strict de son mode et de celui de son
-  lanceur (Orkeon #299) ; les enfants de ce projet n'en nomment aucun.
+  dans `act({ tools })`, lève `UnknownToolError`. Il lance un agent que le crew contient, par son nom, jamais l'agent
+  qui l'appelle : la boucle principale ajoute donc son `explorer` au crew à chaque tour ([tour](turn.md#lexplorateur)).
+  Un enfant tourne sous le plus strict de son mode et de celui de son lanceur (Orkeon #299) ; l'explorateur nomme
+  `plan`, les autres enfants de ce projet aucun.
 - **Les outils d'intelligence du code sont fixés par un contrat.** Chaque nom d'outil et chaque champ qu'utilisent
   les adaptateurs a été relevé sur des appels réels, et `shared/domain/code-intel-contract.ts` et son test les fixent.
 - **L'index n'a pas besoin d'une liste de langages.** `index_codebase` puis `codebase_map` fonctionnent de bout en

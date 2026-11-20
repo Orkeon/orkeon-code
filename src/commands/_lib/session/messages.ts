@@ -1,4 +1,4 @@
-// The text the session commands show the user (ADR 0026): /resume, /tasks, /export, /copy, /rename and /rewind.
+// The text the session commands show the user (ADR 0026): /clear, /resume, /tasks, /export, /copy, /rename and /rewind.
 
 // /resume
 
@@ -85,3 +85,12 @@ export const renamed = (title: string): string => "renamed session to: " + title
 export const NOTHING_TO_REWIND = "nothing to rewind — no user turn in the buffer.";
 export const rewound = (dropped: number, kept: number): string =>
   `rewound 1 exchange (${dropped} message(s) dropped, ${kept} kept).`;
+
+// /clear
+
+export const conversationCleared = (removed: number): string => `conversation cleared (${removed} messages removed).`;
+export const MODE_SETTING = "Permission mode";
+export const MODEL_SETTING = "Model";
+export const settingKept = (setting: string, value: string): string => `${setting} kept: ${value}.`;
+export const settingNotKept = (setting: string, value: string): string =>
+  `⚠ ${setting} ${value} could not be written back: the session is on its default.`;

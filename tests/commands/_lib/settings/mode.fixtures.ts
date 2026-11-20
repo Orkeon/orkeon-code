@@ -6,7 +6,7 @@ import { FakeFiles } from "../../../support/doubles/fake-files.ts";
 import { FakeLogger } from "../../../support/doubles/fake-logger.ts";
 import { FakeSessionStore } from "../../../support/doubles/fake-session-store.ts";
 
-export const SET_NOTE = `(prompts without a "mode:" prefix now run in it; /clear restores 'default').`;
+export const SET_NOTE = `(prompts without a "mode:" prefix now run in it; /clear keeps it).`;
 
 export const STRIPPED = (mode: string): string =>
   `info: entering '${mode}': the edit, network and shell tools stripped from the catalogue`;

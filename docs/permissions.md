@@ -103,7 +103,9 @@ What the table does not say, tool by tool:
   index and writes its reports. Neither belongs to a mode that promises nothing changes.
 - **`spawn_agent`.** The runtime offers it to every act, whatever the catalogue: asked about in `default`, refused in
   `plan` and `dontAsk`. A rule may name it, and an allow rule on it holds in `dontAsk` too (`/permissions` warns when
-  you add one). The child it spawns runs under the stricter of its own mode and its spawner's. Orkeon Code's
+  you add one). The child it spawns runs under the stricter of its own mode and its spawner's. The main loop's
+  explorer, the one agent a turn can spawn, names `plan`, so it never changes anything
+  ([turn](turn.md#the-explorer)). Orkeon Code's other
   children name none, so they take the spawner's.
 
 ### Network tools
@@ -143,7 +145,8 @@ of the catalogue.
 - **Per request**: prefix the text, `plan: explain the cache layer`, `acceptEdits: fix the failing test`.
 - **For the session**: `/mode acceptEdits`. Bare `/mode` opens a panel of the modes in the console; on a replay or a
   plain console it cycles through `default`, `acceptEdits`, `plan` and `bypassPermissions`, never `dontAsk` (reach it
-  with `/mode dontAsk`). `/plan`, an alias of `/mode`, toggles plan mode.
+  with `/mode dontAsk`). `/plan`, an alias of `/mode`, toggles plan mode. `/clear` keeps it, with the `/model` choice: the
+  conversation and the rest of the session state go, the mode and the model stay.
 - **Fallback**: with neither, the mode is `default`, or the one set by `/config set permissions.fallback <mode>`
   (`--session` keeps it for the session only). Every turn that uses the fallback says which mode applied and where
   it came from.

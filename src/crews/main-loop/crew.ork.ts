@@ -59,6 +59,10 @@ import { loadCatalogue, runMainLoop } from "./application/run-main-loop.ts";
 import { contextPruning } from "../../shared/application/compaction/prune-context.ts";
 import { suggestSkills } from "../../shared/application/skills/suggest-skills.ts";
 import { CODER_GOAL, CODER_ROLE } from "./application/prompts.ts";
+import { runExplorer } from "./application/run-explorer.ts";
+import { MAIN_LOOP_BUDGET } from "./domain/turn-budget.ts";
+import { EXPLORER_CHARTER } from "./domain/explorer-charter.ts";
+import { charterCatalogue } from "../../shared/domain/agents/charter.ts";
 import { BREAKER_RUN_FIELD, turnCompaction } from "./application/auto-compact.ts";
 
 // The tool catalogue is decided at load time (module scope is synchronous), from
@@ -71,6 +75,16 @@ const ports = {
   shell: orkeonShell(), session: orkeonSessionIo(), files: orkeonFiles(), telemetry: orkeonTelemetry(),
   memory: orkeonMemoryStore(), tools: orkeonToolCalls(), config: orkeonConfigStore(),
 };
+
+/** The read-only explorer `spawn_agent` reaches by name (docs/turn.md, "The explorer"), added to the crew by the
+ *  coder's turn: the runtime runs an agent the crew holds, never the coder inside itself. */
+const explorer = () => orkeonAgent()
+  .name(EXPLORER_CHARTER.name)
+  .role(EXPLORER_CHARTER.role)
+  .goal(EXPLORER_CHARTER.goal)
+  .tools(charterCatalogue(EXPLORER_CHARTER))
+  .maxIterations(EXPLORER_CHARTER.maxIterations)
+  .body(async (input: unknown, ctx: any) => await runExplorer(input, { llm: agentLlm(ctx), log: ctx.log }));
 
 const coder = orkeonAgent()
   .name("coder")
@@ -85,6 +99,7 @@ const coder = orkeonAgent()
     // The shared memory's guard on every call: what the host's gate cannot read (an edit_batch's operations, a
     // path in another case, a shell cd into the folder) is refused here (shared-memory/layout memoryWriteRefusal).
     // Each result is recorded on the way (tool-trace-recorder): the turn stores its calls as a [tools] message.
+    if (!ctx.crew.has(EXPLORER_CHARTER.name)) ctx.spawn(explorer());
     const trace = createToolTrace();
     const llm = agentLlm(ctx, tracedCallbacks(memoryGuardCallbacks(memoryDirOf(ports.config)), trace));
     const log = ctx.log;
@@ -106,19 +121,11 @@ const coder = orkeonAgent()
   })
   .build();
 
-// The budget bounds one turn. Its wall time (seconds) is the model's own work: the
-// clock stops while a tool call waits for the operator's answer (Orkeon #127; the
-// engine's ExecutionTimeout pauses the same way). 30 minutes, the example settings'
-// ExecutionTimeout too, bound a long interactive turn. The context tokens count the
-// context once (Orkeon #224): each call charges its completion plus what its prompt grew
-// by, or the part the provider's cache did not serve, never the whole context again, so
-// a turn of n calls on a context of c tokens spends about c plus its completions. 700k is
-// 200 calls of 3 500 (TOKENS_PER_CALL, the growth a tool call adds), the dev steps' rule.
 publishCrew(
   CrewBuilder()
     .name("main-loop")
     .process("autonomous")
-    .budget({ toolCalls: 200, wallTime: 1800, contextTokens: 700_000, delegationDepth: 2 })
+    .budget(MAIN_LOOP_BUDGET)
     .withAgent(coder)
     .build(),
 );

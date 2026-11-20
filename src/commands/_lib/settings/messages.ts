@@ -285,7 +285,7 @@ export const enteringReadOnly = (mode: string): string =>
   `entering '${mode}': the edit, network and shell tools stripped from the catalogue`;
 export const modeApplied = (how: string, mode: string): string =>
   `session default permission mode ${how} '${mode}' ` +
-  `(prompts without a "mode:" prefix now run in it; /clear restores 'default').`;
+  `(prompts without a "mode:" prefix now run in it; /clear keeps it).`;
 export const MODE_CHOICE = "Permission mode for this session";
 export const modeUnchanged = (mode: string): string => `permission mode unchanged: ${mode}.`;
 export const MODE_SET_TO = "set to";
@@ -330,11 +330,13 @@ export const modelSetUndeclared = (model: string, declared: readonly string[]): 
 export const modelSet = (model: string): string =>
   `model set to '${model}' — it applies from the next /assistant turn, no relaunch.\n` +
   "It travels over the configured provider, so it must be a model that provider serves; " +
-  "/clear (or /model reset) returns to the boot model.";
+  "/clear keeps it, /model reset returns to the boot model.";
 export const MODEL_CHOICE = "Model for the next turns";
 export const MODEL_UNCHANGED = "model unchanged.";
 export const profileNamesModel = (profile: string): string =>
   `the one llm.profile ${profile} names (the /model override does not apply)`;
+export const profileRunsModel = (profile: string, model: string): string =>
+  `${model}, the model llm.profile ${profile} runs on (the /model override does not apply)`;
 export const NO_EFFECTIVE_MODEL = "(none — see below)";
 
 // /output-style

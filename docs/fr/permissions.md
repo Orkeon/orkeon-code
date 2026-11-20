@@ -110,7 +110,9 @@ Ce que le tableau ne dit pas, outil par outil :
 - **`spawn_agent`.** Le runtime l'offre à chaque act, quel que soit le catalogue : demandé en `default`, refusé en
   `plan` et en `dontAsk`. Une règle peut le nommer, et une règle allow sur lui vaut aussi en `dontAsk` (`/permissions`
   avertit quand vous en ajoutez une). L'enfant qu'il lance tourne sous le plus strict de son propre mode et de celui
-  de son parent. Les enfants d'Orkeon Code n'en nomment aucun : ils prennent celui du parent.
+  de son parent. L'explorateur de la boucle principale, le seul agent qu'un tour peut lancer, nomme `plan` : il ne
+  change donc jamais rien ([tour](turn.md#lexplorateur)). Les autres enfants d'Orkeon Code n'en nomment aucun : ils
+  prennent celui du parent.
 
 ### Outils réseau
 
@@ -151,7 +153,8 @@ du catalogue.
 - **Par requête** : préfixez le texte, `plan: explain the cache layer`, `acceptEdits: fix the failing test`.
 - **Pour la session** : `/mode acceptEdits`. `/mode` seul ouvre un panneau des modes dans la console ; sur un rejeu
   ou une console simple, il fait défiler `default`, `acceptEdits`, `plan` et `bypassPermissions`, jamais `dontAsk`
-  (on y accède par `/mode dontAsk`). `/plan`, alias de `/mode`, bascule le mode plan.
+  (on y accède par `/mode dontAsk`). `/plan`, alias de `/mode`, bascule le mode plan. `/clear` le garde, avec le choix
+  de `/model` : la conversation et le reste de l'état de la session partent, le mode et le modèle restent.
 - **Repli** : sans l'un ni l'autre, le mode est `default`, ou celui que fixe
   `/config set permissions.fallback <mode>` (`--session` le garde pour la seule session). Chaque tour qui utilise le
   repli dit quel mode s'est appliqué et d'où il vient.

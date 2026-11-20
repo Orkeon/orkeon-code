@@ -107,6 +107,18 @@ export const COMPACTED_IN_HISTORY_RULE: readonly string[] = [
   "report the gap it names, never fill it in",
 ];
 
+/** The explorer's line (docs/turn.md, "Its tools"): the agent it names, what is sent to it, what its report is. */
+export const EXPLORER_RULE: readonly string[] = [
+  '`spawn_agent` with `agent: "explorer"`',
+  "the only agent it takes",
+  "only its report returns",
+  "Not for a lookup of a few files",
+  "Few spawns a turn",
+  "past its budget a spawn is refused",
+  "The brief stands alone, the explorer sees nothing else",
+  "Its report is a lead: check what a change rests on",
+];
+
 /** The note on a refused permission: it is about the catalogue, so a header without tools does not carry it. */
 export const REFUSAL_NOTE = "change your approach instead of repeating the call";
 

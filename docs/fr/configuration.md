@@ -152,8 +152,10 @@ prompt système d'un tour fait environ 2 250 tokens avant les schémas d'outils 
 - La surcharge de `/model`, elle, ne s'applique pas : sous un profil, les tours de l'assistant ne l'envoient pas
   (elle remplacerait le modèle du profil, et sur un profil de décision celui de sa cible de remontée aussi), et
   chaque tour journalise `/model override '<nom>' ignored: llm.profile <profil> is active`.
-- `/model show` nomme le profil, et `/model <nom>` enregistre la surcharge avec un avertissement, pour qu'elle
-  s'applique de nouveau une fois `llm.profile` retiré.
+- `/model show` nomme le profil et le modèle sur lequel il tourne, marqué d'une étoile parmi les modèles déclarés :
+  celui d'un profil de décision est celui du profil qu'il vise, celui vers lequel il escalade n'est pas affiché (le
+  runtime ne le dit pas). `/model <nom>` enregistre la surcharge avec un avertissement, pour qu'elle s'applique de
+  nouveau une fois `llm.profile` retiré.
 - Kev sur cette machine et Liquid, pas à pas, avec leurs exemples
   [`config/appsettings.kev.example.json`](../../config/appsettings.kev.example.json) et
   [`config/appsettings.liquid.example.json`](../../config/appsettings.liquid.example.json) : [Modèles de décision en

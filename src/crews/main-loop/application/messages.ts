@@ -79,3 +79,17 @@ export function ruleWithoutEffect(reason: string): string {
 export function autoCompactSuppressed(failures: number): string {
   return `auto-compact suppressed (breaker open after ${failures} consecutive failures)`;
 }
+
+// ── The explorer (a spawn_agent call reads its refusal as the call's result) ──
+
+export const EXPLORER_EMPTY_BRIEF = "explorer: the brief is empty; spawn_agent's input is the brief the explorer acts on";
+
+/** The refusal of a brief over the size the explorer takes. */
+export function explorerBriefTooLong(length: number, max: number): string {
+  return `explorer: the brief is ${length} characters, over ${max}; send a shorter one`;
+}
+
+/** The log line of the explorer about to act. */
+export function explorerRunning(length: number, mode: string): string {
+  return `explorer: a brief of ${length} characters, in ${mode}`;
+}
