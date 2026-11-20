@@ -30,7 +30,7 @@ jamais `~/.orkeon-code/`, où une installation garde ce qui est à vous : l'éta
 (`demo/`) ; `ORKEON_CODE_HOME` désigne un autre dossier. Sous Windows, `install.ps1` fait de même dans
 `%LOCALAPPDATA%\Programs\orkeon-code` et écrit `bin\orkeon-code.cmd`, que `cmd.exe` et PowerShell trouvent tous deux.
 
-**Depuis npm** (Linux, macOS, Windows ; Node 22 ou plus récent) : le paquet porte les mêmes fichiers que l'archive de
+**Depuis npm** (Linux, macOS, Windows ; Node 24 ou plus récent, les `engines` du paquet) : le paquet porte les mêmes fichiers que l'archive de
 la release, et esbuild avec eux.
 
 ```bash
@@ -94,7 +94,7 @@ Le lanceur prend le premier mode disponible, dans cet ordre, sauf si `--mode` en
 
 ### Mode tool : `orkeon-repl` installé
 
-Le REPL est `orkeon-repl` (`Orkeon.ConsoleApp`) de la dernière release, `1.3.0`, l'épingle à ce jour. Le paquet Debian et les
+Le REPL est `orkeon-repl` (`Orkeon.ConsoleApp`) de la dernière release, `1.3.0`, à ce jour en retard d'un correctif sur l'épingle (voir plus haut). Le paquet Debian et les
 archives de release le livrent autonome, avec son propre esbuild : aucun .NET à installer.
 
 **Debian et Ubuntu** (amd64, arm64) : le paquet `orkeon` installe `/usr/bin/orkeon-repl`. Ajoutez la source apt
@@ -129,7 +129,7 @@ celui que npm a installé (`ORKEON_ESBUILD_PATH` le remplace).
 ### Mode docker : rien à installer sauf Docker
 
 Le lanceur exécute `ghcr.io/orkeon/orkeon:latest`, l'image de la dernière release (`1.3.0` à ce jour,
-l'épingle ; `ORKEON_CODE_IMAGE` nomme une autre image), qui porte le
+en retard d'un correctif sur l'épingle ; `ORKEON_CODE_IMAGE` nomme une autre image), qui porte le
 REPL et esbuild ; l'image est construite pour `linux/amd64` et `linux/arm64`, et Docker tire celle de votre machine. Le projet est monté dans le
 conteneur ; sous Linux, le conteneur tourne avec votre uid, si bien que les fichiers que l'agent écrit vous
 appartiennent. L'outil shell tourne dans le conteneur.
@@ -242,7 +242,7 @@ export ORKEON_CODE_AUDIO_DIR=~/audio
 puis, dans le REPL : `/transcribe --list`, puis `/transcribe daily.m4a --then "list the tasks I mention"`. Avec
 `ORKEON_CODE_VOICE=1` exportée aussi, `/voice` dicte une requête et `/say` lit la dernière réponse à voix haute.
 Détails, modèles, backends et comment le modèle appelle les outils lui-même :
-[Configuration](speech.md#transcription-de-la-parole).
+[Voix](speech.md#transcription-de-la-parole).
 
 ## Ce que l'agent écrit dans votre projet
 
@@ -289,8 +289,9 @@ Détails, modèles, backends et comment le modèle appelle les outils lui-même 
   démarrage (uv absent, un serveur `whisper` dans le fichier de settings, mode docker). Un serveur qui ne peut pas
   démarrer coûte une ligne `fail:` qui le nomme ; `bash scripts/whisper-mcp-smoke.sh` le lance seul
   ([mcp/whisper/README.md](../../mcp/whisper/README.md#troubleshooting)).
-  `MCP server 'whisper' could not be connected: no answer within 30 s` veut dire que le script smoke ci-dessus a
-  été sauté : le premier `uv run` résout l'environnement du serveur en quelques minutes, et le REPL attend 30 s.
+  `MCP server 'whisper' could not be connected: MCP server 'whisper' gave no answer within 30 s (MCP:Servers:whisper:ConnectTimeout).` veut dire que le script smoke ci-dessus a
+  été sauté : le premier `uv run` résout l'environnement du serveur en quelques minutes, et le REPL attend 30 s
+  (`MCP:Servers:whisper:ConnectTimeout` dans les settings attend plus longtemps).
 - **Une commande manque** : le chargeur garde au plus `Orkeon:Cli:ScriptCommands:MaxScripts` commandes (200 par
   défaut). `bash scripts/smoke-runtime.sh` vérifie que chaque commande se charge.
 - **Le REPL refuse un montage et quitte au démarrage** : il refuse un montage sur `/sandbox`, `/credentials`,

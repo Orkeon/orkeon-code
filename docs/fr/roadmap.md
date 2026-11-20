@@ -22,9 +22,10 @@ demandent d'abord un changement dans [Orkeon](https://github.com/Orkeon/orkeon).
 
 ## Plus tard
 
-- Des sous-agents au-delà des étapes dev : les revues de `/dev-spec` et `/dev-plan` et l'audit de
-  `/dev-batches` tournent en enfants d'arrière-plan (`ctx.spawnBackground`) que `/tasks` suit ; un agent enregistré par `/agents` n'est encore que
-  stocké, et l'assistant ne délègue pas.
+- Des sous-agents au-delà des étapes dev et de l'explorateur : les revues de `/dev-spec` et `/dev-plan` et l'audit de
+  `/dev-batches` tournent en enfants d'arrière-plan (`ctx.spawnBackground`) que `/tasks` suit, et l'assistant confie
+  une exploration à des explorateurs en lecture seule ([L'explorateur](turn.md#lexplorateur)) ; un agent enregistré
+  par `/agents` n'est encore que stocké, et aucun sous-agent de l'assistant n'écrit.
 - L'éditeur structurel (`node_*`, `edit_batch`, `structural_rewrite`) dans les prompts de l'assistant : les outils
   sont au catalogue, les prompts de l'assistant ne les enseignent pas encore. Les étapes dev en utilisent une partie, branchée dans
   `/dev-batches` : ses rôles lisent et modifient un fichier par nœud (`node_replace`, `node_insert`, `node_ensure`,

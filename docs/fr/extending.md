@@ -5,7 +5,7 @@ crew un dossier, un prompt une chaîne avec son test sous `tests/`, un mode de p
 de build de votre côté : le runtime bundle les sources avec esbuild et les exécute dans Jint au démarrage du REPL, et
 un changement est donc actif au prochain démarrage. Cette page liste les points d'extension, ce que chacun touche, et
 où sont les limites. Les couches, les ports et les recettes pas à pas sont dans
-[Architecture](recipes.md) ; les règles de code dans [CONTRIBUTING.md](../../CONTRIBUTING.md).
+[Recettes](recipes.md) ; les règles de code dans [CONTRIBUTING.md](../../CONTRIBUTING.md).
 
 ## Une commande
 
@@ -17,8 +17,8 @@ lance un crew avec `defineAsyncCommand` et affiche le résultat quand le crew se
 `src/shared/infrastructure/orkeon/wiring.ts`, jamais par les globales :
 
 ```ts
-/// <reference path="./.orkeon/orkeon-cli.d.ts" />
-import { orkeonSessionIo } from "../shared/infrastructure/orkeon/wiring.ts";
+/// <reference path="../.orkeon/orkeon-cli.d.ts" />
+import { orkeonSessionIo } from "../../shared/infrastructure/orkeon/wiring.ts";
 
 const session = orkeonSessionIo();
 
@@ -117,7 +117,7 @@ classe (`<name>:read|write`) ([Configuration](configuration.md#outils-supplémen
 ## Prompts et comportement
 
 Chaque prompt est écrit d'après une spécification de comportement,
-[Architecture](turn.md#lassemblage-du-prompt), dans les mots propres de ce projet
+[Le déroulement d'un tour](turn.md#lassemblage-du-prompt), dans les mots propres de ce projet
 ([ADR 0003](../adr/0003-prompts-from-a-behaviour-specification.md), en anglais) : changez d'abord la spécification,
 puis le texte, puis les phrases-marqueurs que son test épingle. `node scripts/render-prompts.mjs <dir>` écrit chaque
 prompt tel que le modèle le lit, et un changement se relit donc comme le diff de deux rendus.
@@ -125,9 +125,9 @@ prompt tel que le modèle le lit, et un changement se relit donc comme le diff d
 - **La boucle principale.** `src/crews/main-loop/domain/prompt-assembly.ts` construit l'en-tête statique (règles de
   comportement, outils et ce qu'ils savent faire, guide de recherche, fichier d'instructions du projet) et le corps
   utilisateur (préférences, skills, mémoire, hooks, environnement, historique, jauge, requête) : une fonction de
-  rendu `build<Name>Block` par bloc, un champ de `PromptParts`, une place dans l'ordre fixe d'`assemblePrompt`.
+  rendu `build<Name>Block` par bloc, un champ de `ContextParts`, une place dans l'ordre fixe d'`assembleContext`.
   L'entrée d'un bloc est lue dans `application/context-gather.ts`, par les ports, et passée dans
-  `application/prompts.ts` ; les réglages qu'une session fixe (`/effort`, `/passes` de `/review`, `/fast`, `/proactive`,
+  `application/turn-context.ts` ; les réglages qu'une session fixe (`/effort`, `/passes` de `/review`, `/fast`, `/proactive`,
   `/output-style`, `answer.language`) voyagent de la même façon.
 - **Compaction et mémoire.** `src/shared/domain/compaction.ts` tient les prompts de résumé et d'extraction de mémoire
   et les marqueurs que le modèle relit ensuite dans son historique ; `src/shared/application/compaction/` les exécute.

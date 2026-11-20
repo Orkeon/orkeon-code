@@ -141,8 +141,9 @@ on the Ollama service, or the model silently loses its instructions and its tool
 - The `/model` override does not: under a profile the assistant's turns do not send it (it would replace the
   profile's model, and on a decision profile the model of its escalation target too), and each turn logs `/model
   override '<name>' ignored: llm.profile <profile> is active`.
-- `/model show` names the profile and the model it runs on, starred among the declared models: a decision
-  profile's is that of the profile it targets, the one it escalates to is not shown (the runtime does not tell it).
+- `/model show` names the profile and the first model it targets, starred among the declared models: a decision
+  or a fallback profile's is that of the first profile it targets, the one it escalates or falls back to is not
+  shown (the runtime does not tell it).
   `/model <name>` stores the override with a warning, to apply again once `llm.profile` is unset.
 - Kev on this machine and Liquid, step by step, with their examples
   [`config/appsettings.kev.example.json`](../config/appsettings.kev.example.json) and
@@ -225,14 +226,12 @@ What the table leaves out:
 - **`Orkeon:Tools:Shell:Environment:SessionBus`**:
   - `false` by default, since through the bus a command can start a process outside the sandbox.
   - An unconfined shell (`Confinement:Mode` `None`, the example settings) and the code sandbox receive it.
-  - `SSH_AUTH_SOCK` and `XDG_RUNTIME_DIR` reach every shell, so git reaches a private remote through the ssh agent
-   .
+  - `SSH_AUTH_SOCK` and `XDG_RUNTIME_DIR` reach every shell, so git reaches a private remote through the ssh agent.
 - **`Orkeon:Tools:Shell:Environment:Propagate`**:
   - A name holding a secret word (`KEY`, `TOKEN`, `SECRET`, `PASSWORD`, `PASSWD`, `PASS`, `CREDENTIAL`, `AUTH`,
     `PAT` as a whole segment), starting with `ORKEON_`, or whose value carries URL credentials is dropped with a
     warning.
 - **`Orkeon:Tools:ResultLimits:Limits:<tool>`**:
-  - A release before it cuts them at 4000, `truncated` last: set them to 12000 there.
   - A cut result ends with `[... truncated, N chars omitted. …]`.
   - The audit of `/dev-batches` reads that notice.
 - **`Orkeon:Rag:Retrieval:MinScore`**:
@@ -265,8 +264,9 @@ What the table leaves out:
  Two limits bound an `/assistant` turn, and the first one reached ends it:
 
 - the script engine's `ExecutionTimeout` above, which stops while a question waits for you;
-- The main-loop crew's own budget, written in its code (`src/crews/main-loop/crew.ork.ts`): 200 tool calls, 700k
-  context tokens and 30 minutes of wall time, which stops while a tool call waits for your answer.
+- The main-loop crew's own budget, written in its code (`src/crews/main-loop/domain/turn-budget.ts`): 200 tool
+  calls, 700k context tokens, 8 spawned explorers and 30 minutes of wall time, which stops while a tool call waits
+  for your answer.
   - The context is counted once: each call charges its completion plus what its prompt grew by, or the
     part of it the provider's cache did not serve, so a turn of n calls on a context of c tokens spends about c plus
     its completions, never its whole context again at each call.
@@ -305,7 +305,7 @@ Inside the REPL, `/config` lists, reads and writes the session keys, stored in t
 | `review.lenses` | all three | the lenses of `/review`, comma-separated among `correctness`, `security` and `style` |
 | `llm.profile` | the host's default model | the host profile every crew's agents run on ([the LLM](#the-llm)) |
 | `advisor.model` | the session's own, which makes it a self-review | the model of `/advisor`'s second opinion |
-| `commit.requireConfirm` | `true` | `false` lets `/commit` run without its confirmation |
+| `commit.requireConfirm` | `true` | `false` lets `/commit` run without its confirmation, as `--yes` does |
 | `spinnerVerbs` | | |
 
 How some of them are set:
@@ -383,9 +383,7 @@ gets no line and no warning: the commands check the name against the runtime's l
 running agent: `act — effort: medium (sent as 'low' to glm-5.3), maxIterations: 40`, or with no level stored, `act —
 effort: none stored, the host asks for medium (sent as 'low' to glm-5.3), maxIterations: 40`.
 
-A role or a routed crew may run on another model again: the warnings speak of the session's targets only. On a
-runtime before Orkeon #361 (an Orkeon release `1.0.0` in the tool or docker mode), nothing is said of the model's levels; before
-#365, nothing of a profile's.
+A role or a routed crew may run on another model again: the warnings speak of the session's targets only.
 
 ### What the user settings narrow
 

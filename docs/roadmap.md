@@ -21,9 +21,10 @@ What Orkeon Code does not do yet, in the order we expect to address it. Items ma
 
 ## Later
 
-- Sub-agents beyond the dev steps: the reviews of `/dev-spec` and `/dev-plan` and the audit of
-  `/dev-batches` run as background children (`ctx.spawnBackground`) that `/tasks` monitors; a saved agent of `/agents` is still storage only, and the
-  assistant does not delegate.
+- Sub-agents beyond the dev steps and the explorer: the reviews of `/dev-spec` and `/dev-plan` and the audit of
+  `/dev-batches` run as background children (`ctx.spawnBackground`) that `/tasks` monitors, and the assistant hands
+  an exploration to read-only explorers ([The explorer](turn.md#the-explorer)); a saved agent of `/agents` is still
+  storage only, and no sub-agent of the assistant writes.
 - The structural editor (`node_*`, `edit_batch`, `structural_rewrite`) in the assistant's prompts: the tools are in
   the catalogue, the assistant's prompts do not teach them yet. The dev steps use part of it: the roles of `/dev-batches` read
   and change a file by node (`node_replace`, `node_insert`, `node_ensure`, `edit_batch`) and the batch reads

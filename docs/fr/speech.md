@@ -18,7 +18,8 @@ export ORKEON_CODE_AUDIO_DIR=~/audio      # the folder of audio and video files
 ```
 
 Le lanceur monte alors ce dossier sur `/audio` (lecture seule) et `<state>/transcripts` sur `/transcripts` (lecture
-seule, `.crew-output/transcripts` par défaut), et déclare le serveur au REPL par l'environnement
+seule ; `<state>` est `.crew-output` dans un clone, `~/.orkeon-code/projects/<projet>` pour une installation,
+`ORKEON_CODE_STATE` quand elle est définie), et déclare le serveur au REPL par l'environnement
 (`ORKEON_MCP__Servers__whisper__*`), de sorte qu'aucun fichier de settings ne nomme ce checkout. La bannière affiche
 une ligne `audio`. Le dossier tient de vrais fichiers : un lien qui pointe hors de lui est refusé par les outils de
 fichiers.
@@ -153,10 +154,13 @@ optionnel, et ne l'importe jamais.
 - Un environnement qui en déclare déjà un (`ORKEON_MCP__Servers__whisper__*`, la déclaration HTTP du mode docker par
   exemple) l'emporte de la même façon, avec le même avertissement.
 - Sans uv sur le `PATH`, le lanceur avertit et démarre sans le serveur.
-- Le REPL donne 30 s à un serveur pour démarrer et répondre, et le premier `uv run` de `mcp/whisper` résout
-  d'abord son environnement : une à deux minutes, 2,5 Go de plus avec l'extra `cuda`. Lancez
-  `bash scripts/whisper-mcp-smoke.sh` une fois avant, avec le `WHISPER_DEVICE` que le REPL utilisera ; sinon le
-  premier REPL démarre sans le serveur (`MCP server 'whisper' could not be connected: no answer within 30 s`), et
+- Le REPL donne 30 s à un serveur pour démarrer et répondre (`MCP:Servers:whisper:ConnectTimeout` dans les settings
+  l'allonge), et le premier `uv run` de `mcp/whisper` résout d'abord son environnement : une à deux minutes, 2,5 Go
+  de plus avec l'extra `cuda`. Lancez `bash scripts/whisper-mcp-smoke.sh --tts` une fois avant, avec le
+  `WHISPER_DEVICE` que le REPL utilisera : le lanceur ajoute toujours l'extra `tts` tant que Piper est le moteur de
+  voix, celui par défaut, et le smoke ne l'ajoute qu'avec `--tts` ; l'extra `voice` d'`ORKEON_CODE_VOICE=1` ne fait
+  pas partie du smoke, si bien que le premier REPL lancé avec lui résout aussi cet extra. Sinon le
+  premier REPL démarre sans le serveur (`MCP server 'whisper' could not be connected: MCP server 'whisper' gave no answer within 30 s (MCP:Servers:whisper:ConnectTimeout).`), et
   les suivants aussi tant que l'environnement n'est pas résolu.
 - En mode docker, un serveur `Stdio` tourne dans le conteneur, qui n'a ni uv ni le modèle : la variable y est ignorée,
   avec un avertissement. Le serveur peut tourner sur la machine hôte en HTTP à la place, pour des fichiers transcrits en moins

@@ -104,7 +104,7 @@ What the table does not say, tool by tool:
 - **`spawn_agent`.** The runtime offers it to every act, whatever the catalogue: asked about in `default`, refused in
   `plan` and `dontAsk`. A rule may name it, and an allow rule on it holds in `dontAsk` too (`/permissions` warns when
   you add one). The child it spawns runs under the stricter of its own mode and its spawner's. The main loop's
-  explorer, the one agent a turn can spawn, names `plan`, so it never changes anything
+  explorer, the only kind of agent a turn can spawn (up to 8 per turn), names `plan`, so it never changes anything
   ([turn](turn.md#the-explorer)). Orkeon Code's other
   children name none, so they take the spawner's.
 
@@ -146,7 +146,10 @@ of the catalogue.
 - **For the session**: `/mode acceptEdits`. Bare `/mode` opens a panel of the modes in the console; on a replay or a
   plain console it cycles through `default`, `acceptEdits`, `plan` and `bypassPermissions`, never `dontAsk` (reach it
   with `/mode dontAsk`). `/plan`, an alias of `/mode`, toggles plan mode. `/clear` keeps it, with the `/model` choice: the
-  conversation and the rest of the session state go, the mode and the model stay.
+  conversation and the rest of the session state go, the mode and the model stay. These two say what the session
+  may do and what it runs on; the rest tunes the conversation that `/clear` ends, and goes back to its default:
+  `/effort`, `/fast`, `/passes`, `/proactive`, `/output-style`, the rules, the hooks and the settings set with
+  `--session` (`permissions.fallback` included). An `/effort` chosen for the kept model has to be set again after it.
 - **Fallback**: with neither, the mode is `default`, or the one set by `/config set permissions.fallback <mode>`
   (`--session` keeps it for the session only). Every turn that uses the fallback says which mode applied and where
   it came from.
@@ -186,7 +189,7 @@ A rule names a tool, built in or [extra](#extra-tools), and optionally an argume
 
 | Tool | Arguments a rule may name |
 |---|---|
-| `shell_command` | `command`, `working_directory`, `timeout_seconds` |
+| `shell_command` | `command`, `working_directory`, `timeout_seconds`, `action`, `job_id`, `tail_lines` |
 | `file_write` | `path`, `content`, `encoding`, `append`, `create_backup` |
 | `http_api` | `url`, `method`, `headers`, `body`, `content_type` |
 
@@ -325,18 +328,17 @@ Their crew's callback checks the same sets again, the only check of them under `
 
 `/commit` stages the files it commits by name (`git add -- <files>`, then `git commit -F <message> -- <files>`,
 never `-A`) and, with `--push`, pushes. With `--pr` it reads origin (`git remote get-url origin`) and calls `github`
-`create_pr` itself. It decides that call as the gate would:
+`create_pr` itself. It refuses `plan` and `dontAsk` before any step, so the call comes from a writing mode, and
+it decides it as the gate would:
 
 | Case | The pull request |
 |---|---|
-| `plan` | refused |
-| `dontAsk` without an allow rule | refused |
 | a deny rule covers the call | refused |
 | an allow rule (`allow github action=create_pr`) | opened |
 | `bypassPermissions` | opened |
 | you answered yes to its plan that named the pull request | opened |
 
-`--yes` asks nothing, so it needs the allow rule.
+`--yes` asks nothing, nor does `/commit` when `commit.requireConfirm` is `false`: either needs the allow rule.
 
 Its git commands are `git -c core.quotePath=false status`, `git --literal-pathspecs add` and `commit`, `git var`,
 `git rev-parse`, `git symbolic-ref` and `git push -u origin <branch>`; for batches run in worktrees,

@@ -17,10 +17,14 @@ Un appel à un outil que l'act n'offre pas n'atteint jamais la garde. Le runtime
 Dans les étapes dev, le `onToolCall` du crew contrôle un appel avant que la garde le juge
 ([ADR 0023](../adr/0023-orkeon-after-306.md)). Dans l'ordre :
 
-1. les [jeux de règles](#les-jeux-de-règles-règle-par-règle) de l'étape, et les racines d'un rôle pour les rôles
+1. un chemin relatif est résolu sous le projet (`/workspace`) : les contrôles suivants, les hooks et l'outil voient
+   le chemin résolu ;
+2. la [protection de la mémoire partagée](permissions.md#la-protection-de-la-mémoire-partagée) refuse une écriture
+   dans le dossier de la mémoire ;
+3. les [jeux de règles](#les-jeux-de-règles-règle-par-règle) de l'étape, et les racines d'un rôle pour les rôles
    d'un lot ;
-2. `glob`, `grep` et `count_pattern` sur leur entrée entière ;
-3. les [hooks](hooks.md) `pre-tool`.
+4. `glob`, `grep`, `count_pattern` et `directory_search` sur leur entrée entière ;
+5. les [hooks](hooks.md) `pre-tool`.
 
 Après l'appel, il lance les hooks `post-tool`.
 
@@ -34,8 +38,10 @@ Quand le runtime n'a pas de garde, le callback applique aussi lui-même le mode 
 
 | Mode de l'act | Ce que le callback laisse passer |
 |---|---|
-| `plan`, `dontAsk`, `default` | les lectures seulement |
-| `acceptEdits` | les lectures et les éditeurs de fichiers |
+| `bypassPermissions` | chaque appel |
+| `plan`, `dontAsk` | les lectures seulement, les outils de lecture propres à l'étape compris |
+| `default` | les lectures, et tout autre outil dont l'appel déclare une lecture |
+| `acceptEdits` | les lectures, les éditeurs de fichiers, et tout autre outil dont l'appel déclare une lecture |
 
 ## Ce que lit une règle
 
@@ -54,7 +60,7 @@ Le callback des crews dev comble cet écart pour les règles qu'il porte :
 |---|---|
 | `glob` | `<path>/<pattern>` |
 | `grep` | `<path>/<glob>`, ou `<path>/**` |
-| `count_pattern` | `<path>/**` |
+| `count_pattern`, `directory_search` | `<path>/**` |
 | chaque opération d'un `edit_batch` | l'éditeur qu'elle représente (`node_replace`, `node_insert`, ou `node_ensure` pour les genres d'intention), avec son propre `path` et son propre `text` |
 
 ## Les jeux de règles, règle par règle

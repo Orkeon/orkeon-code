@@ -98,11 +98,11 @@ mkdir -p ~/audio && timeout 20 parecord --channels=1 --rate=16000 --file-format=
 
 ## 3. Orkeon from its apt package
 
-The `stable` channel carries the last release of Orkeon, `1.3.0`: it is the commit of Orkeon's `main` Orkeon
-Code is checked against (`.orkeon-version`) at this writing, so the tool mode runs the pin until the pin moves past
-that release ([Getting started](getting-started.md)). The
-`dev` channel publishes one package per commit of `main` the CI validated, versioned `1.0.1~dev.<n>` (`n` is the
-number of the CI run), the last three builds only: it is for following `main` ahead of the pin, not for this
+The `stable` channel carries the last release of Orkeon, `1.3.0`: at this writing it is one fix behind the commit
+of Orkeon's `main` Orkeon Code is checked against (`.orkeon-version`, Orkeon #423, a spawn past the budget refused),
+so the tool mode runs that release, not the pin ([Getting started](getting-started.md)). The
+`dev` channel publishes one package per commit of `main` the CI validated, versioned `<next patch>~dev.<n>`
+(`1.3.1~dev.<n>` after `1.3.0`; `n` is the number of the CI run), the last three builds only: it is for following `main` ahead of the pin, not for this
 tutorial. The package installs `/usr/bin/orkeon-repl` (the REPL, with its
 `esbuild`: no .NET and no npm to install) and `orkeon` (the CLI). Supported systems: Debian 12 and 13, Ubuntu 22.04,
 24.04 and 26.04 (`cat /etc/os-release` says which you have).
@@ -482,7 +482,7 @@ cuts it, at the price of less sure tool calls. Back to DeepSeek: start again wit
 | `/doctor`: `toolchain: node ❌`, or `toolchain: dotnet ❌ 10.0.2xx [/usr/share/dotnet/sdk]` | `tool` mode needs neither: the package ships its own esbuild, and nothing calls `dotnet` |
 | No `audio` line in the banner | The launcher said why: `uv` missing from the `PATH`, a `whisper` server already declared in the settings or the environment, docker mode |
 | `whisper-mcp-smoke: uv not found. Install it: …` | Step 4 was not done, or section 10 went through, or the terminal predates the install: `source ~/.local/bin/env`; otherwise `curl -LsSf https://astral.sh/uv/install.sh \| sh && source ~/.local/bin/env` |
-| `MCP server 'whisper' could not be connected: no answer within 30 s` at start, then `no registered tool 'whisper_info'` | Orkeon gives the server 30 s to answer |
+| `MCP server 'whisper' could not be connected: MCP server 'whisper' gave no answer within 30 s (MCP:Servers:whisper:ConnectTimeout).` at start, then `no registered tool 'whisper_info'` | Orkeon gives the server 30 s to answer |
 | `MCP server 'whisper' could not be connected: …` with a path | A path of the settings file is wrong: `Command` (`~/.local/bin/uv`), `--project` and the script (`~/orkeon-code/mcp/whisper`), the two folders written twice in `Mounts` and `Env` |
 | `fail: … Failed to start MCP server process` | `uv` is not on the REPL's `PATH`: `source ~/.local/bin/env` then start again |
 | `Library libcublas.so.12 is not found` | `WHISPER_DEVICE=cuda` without the `cuda` extra: the launcher and the smoke add it by themselves on `WHISPER_DEVICE=cuda`; a server declared by hand wants `--extra cuda` |
@@ -506,7 +506,7 @@ What the table leaves out:
   - For dotnet, the repository's `global.json` asks for the SDK `10.0.300` or a later feature band (`latestFeature`)
     and the distribution has an older band: `sudo apt-get install --only-upgrade dotnet-sdk-10.0` (Microsoft's apt
     feed, `/usr/share/dotnet`).
-- **`MCP server 'whisper' could not be connected: no answer within 30 s` at start, then `no registered tool 'whisper_info'`**:
+- **`MCP server 'whisper' could not be connected: MCP server 'whisper' gave no answer within 30 s (MCP:Servers:whisper:ConnectTimeout).` at start, then `no registered tool 'whisper_info'`**:
   - The clone's first `uv run` resolves the environment (CUDA wheels, minutes).
   - Prepare the environment outside the REPL: the smoke (section 5), or the declared command run once by hand with
     `< /dev/null` (section 8).

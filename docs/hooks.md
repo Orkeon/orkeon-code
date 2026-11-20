@@ -25,7 +25,7 @@ registry to their crew, and so does `/tasks repair` to the agent it starts again
    or ask you; a refused call does not run, and the model reads `DENIED: …` as its result;
 4. the call runs;
 5. every `post-tool` hook runs, in order. One that fails adds a line to the result the model reads
-   (`[post-tool hook #2 (node .orkeon/hooks/post.mjs file_write src/x.ts) exited 1: …]`); when they all exit 0, the
+   (`[post-tool hook #2 (node .orkeon/hooks/post.mjs file_write /workspace/src/x.ts) exited 1: …]`); when they all exit 0, the
    result is left as it is. A result that is not text reaches the model then as compact JSON, on one line.
 
 The time a hook runs counts in the step's time budget, at each call: keep hooks short.
@@ -58,9 +58,12 @@ Three words are replaced in the command before it runs:
 
 | Word | Replaced by |
 |---|---|
-| `{tool}` | the name of the tool the model called, `file_write` |
+| `{tool}` | the name of the tool the model called, `file_write`, when it holds only those same characters; `-` otherwise |
 | `{event}` | `pre-tool` or `post-tool` |
-| `{path}` | the call's `path` argument, as the model wrote it, when it holds only letters, digits and `._/@+=,:-` and does not start with `-`; `-` otherwise or without one |
+| `{path}` | the call's `path` argument as the tool receives it (a relative path resolved under `/workspace`, `./` and `..` folded), when it holds only letters, digits and `._/@+=,:-` and does not start with `-`; `-` otherwise or without one |
+
+For an `edit_batch`, each hook runs once per operation, `{path}` being that operation's path: a per-file hook hears
+every file the batch writes.
 
 The program must be one the shell tool runs: `node`, `npm`, `dotnet` and `find` under `Orkeon:Tools:Shell:AllowInterpreters`,
 which the example settings turn on, and any other under `Orkeon:Tools:Shell:ExtraAllowedCommands` (`"bash"` for a

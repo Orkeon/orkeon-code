@@ -12,32 +12,64 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - A turn can hand a survey to a read-only agent: `spawn_agent` with `agent: "explorer"` runs the brief in `plan`
   mode, with the code's read and search tools and 30 iterations, and only its report comes back into the turn's
   context. `spawn_agent` used to fail in the main loop whatever the agent: the crew held only `coder`, which the
-  runtime refuses to run inside itself. The header names the explorer in the modes that do not refuse
-  `spawn_agent` (`default`, `acceptEdits`, `bypassPermissions`), and its ceiling moves from 10 800 to 11 200
-  characters for that line ([turn](docs/turn.md#the-explorer)). A turn may spawn 8 agents, not the runtime's 3,
-  since an audit split by area sends more than three; past them `spawn_agent` is refused and the turn carries on
-  (Orkeon #423). The fourth used to end the whole turn ("Agent exceeded 3 spawned sub-agents").
+  runtime refuses to run inside itself. The header names the explorer only where a spawn of it can get through:
+  `default`, `acceptEdits` and `bypassPermissions`, and `dontAsk` under an allow rule on `spawn_agent`, never under a
+  deny rule that matches it. Its ceiling moves from 10 800 to 11 200 characters for that line
+  ([turn](docs/turn.md#the-explorer)). A turn may spawn 8 agents, not the runtime's 3, since an audit split by area
+  sends more than three; past them `spawn_agent` is refused and the turn carries on (Orkeon #423). Reaching the count
+  used to end the turn at the next model call, the reports already received lost.
+- An explorer that stops short no longer spends the turn's spawn for nothing. When its token ceiling runs out, its
+  wrap-up comes back marked as cut short. When it uses its 30 iterations without a report, the call is refused with
+  a request for a narrower brief ([turn](docs/turn.md#the-explorer)).
 
 ### Changed — the pin moves to Orkeon `30a61f8`
 
 - The pin moves to Orkeon `main` `30a61f8` (Orkeon #423, which fixes #422): a spawn past the spawn budget is refused
   with a tool error the model reads, where it used to end the whole turn and lose the reports already received. The
-  typings change in their comments alone. The tool and docker modes run Orkeon `1.3.0`, one fix behind the pin
+  typings change in their comments alone. The tool and docker modes run Orkeon `1.3.0`, one fix behind the pin, and
+  the guides and the contribution guide now say so where they called `1.3.0` the pin
   ([ADR 0031](docs/adr/0031-orkeon-after-361.md)).
+- A dev step whose spawn is refused past the budget (`Spawn budget spent`) or at the delegation depth reads it as a
+  spent budget again, as it did before the runtime changed the wording.
 
 ### Fixed — `/clear` keeps the permission mode and the model
 
 - `/clear` dropped the mode `/mode` had set (`bypassPermissions` included) back to the fallback mode: the runtime's
   reset empties the whole session state. The mode is now written back after the reset, and the line `/clear` prints
   names it ([permissions](docs/permissions.md)). The `/model` choice is kept the same way: it used to fall back to
-  the boot model. The rules of `/permissions` still go with the conversation.
+  the boot model. The rules of `/permissions` and the tunings of the conversation (`/effort`, `/fast` and the like)
+  still go back to their defaults.
+- Each is written back as it was stored. A stored mode that is not a permission mode, or the empty model `/model
+  reset` leaves, is neither written back nor named as kept, and a setting `/clear` could not read before the reset
+  gets its own line.
 
 ### Changed — `/model show` names the model of an `llm.profile`
 
 - Under an `llm.profile`, `/model show` said only that the profile names the model, and starred none of the
-  declared models, while the boot model line read as the one in use. It now names the model the profile runs on, as
-  the runtime reports it (a decision profile's: that of the profile it targets), and stars it in the list
-  ([configuration](docs/configuration.md)).
+  declared models, while the boot model line read as the one in use. It now names the first model the profile
+  targets, as the runtime reports it, and stars it in the list: a decision or fallback profile may then escalate or
+  fall back to another, which the runtime does not tell ([configuration](docs/configuration.md)).
+
+### Fixed — `commit.requireConfirm` is read
+
+- `commit.requireConfirm` set to `false` (`/config set commit.requireConfirm false`) now lets `/commit` launch
+  without its confirmation, as `--yes` does; it was declared and documented but read by nothing. Unset, it still
+  asks ([permissions](docs/permissions.md)).
+
+### Fixed — the runtime smoke type-checks every crew
+
+- `smoke-validate.sh` fails a crew whose `--validate` skipped the type check for want of a compiler, where the
+  runtime's warning let it pass, and `runtime-smoke.yml` hands the runtime this project's TypeScript through
+  `Orkeon:Scripting:Toolchain:TscPath`: the TypeScript 7 of an Orkeon checkout fails these crews (Orkeon #424)
+  ([development](docs/development.md)).
+
+### Changed — the guides follow the code at the pin
+
+- The README and the page on autonomous and embedded runs say a .NET application can already run a crew in process
+  through Orkeon's `Orkeon.Scripting` package; what is missing is Orkeon Code's host example.
+- The command example of the extension guide imports from the right paths, the guides quote the MCP timeout line as
+  the runtime writes it and name `MCP:Servers:whisper:ConnectTimeout` to wait longer, and the hooks page says
+  `{path}` is the path the tool receives, resolved under `/workspace`.
 
 ## [1.0.0-rc.3] - 2026-11-18
 

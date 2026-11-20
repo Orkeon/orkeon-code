@@ -17,9 +17,12 @@ back to their own tools on that error.
 In the dev steps, the crew's `onToolCall` checks a call before the gate judges it
 ([ADR 0023](adr/0023-orkeon-after-306.md)). In order:
 
-1. the step's [rule sets](#the-rule-sets-rule-by-rule), and a role's roots for the roles of a batch;
-2. `glob`, `grep` and `count_pattern` by their whole input;
-3. the `pre-tool` [hooks](hooks.md).
+1. a relative path is resolved under the project (`/workspace`): the checks below, the hooks and the tool see the
+   resolved one;
+2. the [shared memory's guard](permissions.md#the-shared-memorys-guard) refuses a write into the memory folder;
+3. the step's [rule sets](#the-rule-sets-rule-by-rule), and a role's roots for the roles of a batch;
+4. `glob`, `grep`, `count_pattern` and `directory_search` by their whole input;
+5. the `pre-tool` [hooks](hooks.md).
 
 After the call, it runs the `post-tool` hooks.
 
@@ -33,8 +36,10 @@ When the host has no gate, the callback also applies the act's mode by itself:
 
 | Mode of the act | What the callback lets through |
 |---|---|
-| `plan`, `dontAsk`, `default` | reads only |
-| `acceptEdits` | reads and the file editors |
+| `bypassPermissions` | every call |
+| `plan`, `dontAsk` | reads only, the step's own read tools included |
+| `default` | reads, and any other tool whose call declares a read |
+| `acceptEdits` | reads, the file editors, and any other tool whose call declares a read |
 
 ## What a rule reads
 
@@ -51,7 +56,7 @@ The dev crews' callback closes that gap for the rules it holds:
 |---|---|
 | `glob` | `<path>/<pattern>` |
 | `grep` | `<path>/<glob>`, or `<path>/**` |
-| `count_pattern` | `<path>/**` |
+| `count_pattern`, `directory_search` | `<path>/**` |
 | each `edit_batch` operation | the editor it stands for (`node_replace`, `node_insert`, or `node_ensure` for the intent kinds), with its own `path` and `text` |
 
 ## The rule sets, rule by rule
