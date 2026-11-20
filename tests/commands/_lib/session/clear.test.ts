@@ -5,7 +5,7 @@ import { deepStrictEqual, strictEqual } from "node:assert";
 
 import { runClear } from "../../../../src/commands/_lib/session/clear.ts";
 import { DEFAULT_MODE_STATE_KEY, MODEL_PREFERENCE_STATE_KEY } from "../../../../src/shared/domain/session-keys.ts";
-import { NOTHING_KEPT_LINE, clearSession } from "./clear.fixtures.ts";
+import { NOTHING_KEPT_LINE, NOTHING_READ_LINE, clearSession } from "./clear.fixtures.ts";
 
 describe("/clear", () => {
   it("keeps the permission mode /mode set", async () => {
@@ -76,5 +76,50 @@ describe("/clear", () => {
 
     // Assert
     strictEqual(line, NOTHING_KEPT_LINE);
+  });
+
+  it("says what it could not read before the reset when the state cannot be read", async () => {
+    // Arrange
+    const session = clearSession({ messages: 1, mode: "bypassPermissions", model: "claude-mythos-5-2" });
+    session.readStateFailure = new Error("unreadable state");
+
+    // Act
+    const line = await runClear({ session });
+
+    // Assert
+    strictEqual(line, NOTHING_READ_LINE);
+  });
+
+  it("writes the model back as it was read, its spaces included", async () => {
+    // Arrange
+    const session = clearSession({ model: "  claude-mythos-5-2 " });
+
+    // Act
+    await runClear({ session });
+
+    // Assert
+    strictEqual(session.state.get(MODEL_PREFERENCE_STATE_KEY), "  claude-mythos-5-2 ");
+  });
+
+  it("writes no model back when /model reset left it empty", async () => {
+    // Arrange
+    const session = clearSession({ messages: 2, model: "" });
+
+    // Act
+    const line = await runClear({ session });
+
+    // Assert
+    deepStrictEqual([line, session.state.has(MODEL_PREFERENCE_STATE_KEY)], ["conversation cleared (2 messages removed).", false]);
+  });
+
+  it("writes back no stored mode that is not a permission mode", async () => {
+    // Arrange
+    const session = clearSession({ messages: 2, mode: "foo" });
+
+    // Act
+    const line = await runClear({ session });
+
+    // Assert
+    deepStrictEqual([line, session.state.has(DEFAULT_MODE_STATE_KEY)], ["conversation cleared (2 messages removed).", false]);
   });
 });

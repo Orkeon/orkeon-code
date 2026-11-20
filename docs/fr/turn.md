@@ -9,7 +9,7 @@ ici. Les couches et les ports sont dans [Architecture](architecture.md) ; les pr
 
 ## Un tour de la boucle
 
-Le corps de l'agent `main-loop` est la boucle (`crews/main-loop/application/run-main-loop.ts`) :
+Le corps de l'agent du crew `main-loop`, `coder`, est la boucle (`crews/main-loop/application/run-main-loop.ts`) :
 
 1. Faire l'appel de prélude de la commande qui lance, s'il y en a un (`/transcribe --then` : la transcription, qui
    suit la requête ; `/voice --go` : la dictée, qui est la requête), au nom de la commande : un échec fait échouer
@@ -17,11 +17,18 @@ Le corps de l'agent `main-loop` est la boucle (`crews/main-loop/application/run-
 2. Prendre le mode que la commande qui lance a résolu (un préfixe `mode:` explicite, sinon le mode par défaut de la
    session fixé par `/mode`, sinon le repli ; `default` quand elle est lancée sans) et dire d'où il vient.
 3. Construire le catalogue d'outils à partir du mode, des outils supplémentaires et des règles (au chargement) et
-   annoncer ce que les règles ont changé.
-4. Lire les drapeaux de comportement une fois (`/effort`, `/passes` de `/review`, `/fast`, `/proactive`, `/output-style`).
-5. Ajouter le tour de l'utilisateur au tampon de session ; compacter d'abord si le tampon est sous pression
+   annoncer ce que les règles ont changé. Quand l'hôte dit que sa garde de permission est coupée, un avertissement dit
+   que le mode et les règles ne vérifient rien : une fois par session (clé d'état `gate.warned`), au-dessus de la
+   réponse, jamais stocké, et jamais en `bypassPermissions`.
+4. Lire les drapeaux de comportement une fois (`/model`, `/effort`, `/passes` de `/review`, `/fast`, `/proactive`,
+   `/output-style`). Sous un `llm.profile` de session, le profil nomme le modèle : un choix de `/model` est écarté
+   pour le tour, avec un avertissement.
+5. Faire passer la requête par la chaîne de début de tour (`domain/turn-chains.ts`) : une garde peut refuser le tour,
+   qui s'arrête avant que rien ne soit stocké ni aucun modèle appelé. Au premier tour d'une session, ce que son script
+   de démarrage a affiché est stocké comme message `[turn-context]` juste avant la requête.
+6. Ajouter le tour de l'utilisateur au tampon de session ; compacter d'abord si le tampon est sous pression
    (`auto-compact.ts`).
-6. Assembler le prompt (ci-dessous ; `application/turn-context.ts` au-dessus des lectures de `context-gather.ts`) et
+7. Assembler le prompt (ci-dessous ; `application/turn-context.ts` au-dessus des lectures de `context-gather.ts`) et
    appeler l'`act` du modèle (le port `Llm` au-dessus de `ctx.llm.act()`) : le runtime fait tourner le cycle modèle
    ⇄ appels d'outils sur le catalogue, chaque appel d'un tour du modèle dans l'ordre, sous le budget du crew et la
    garde de permission, et rend la réponse finale.
@@ -33,7 +40,14 @@ Le corps de l'agent `main-loop` est la boucle (`crews/main-loop/application/run-
      appels exécutés avant le blocage (une modification faite sur le disque reste consignée), journalise un
      avertissement et répond le blocage, son profil, son étape et sa raison, avec ce qu'il faut faire.
    - Le run n'échoue pas.
-7. Ajouter le message `[tools]` du tour, puis la réponse.
+   - Un act arrêté à son plafond d'itérations répond la note du runtime qui dit qu'aucune réponse finale n'est venue.
+     Un act dont le budget de tokens est épuisé répond la conclusion que le modèle a faite sans outils, suivie d'une
+     ligne qui le dit, affichée et jamais stockée. Ni l'un ni l'autre ne passe par la chaîne d'arrêt : un second act
+     rencontrerait la même limite.
+   - Sinon la chaîne d'arrêt lit la réponse : une réponse vide, ou une réponse sans la ligne par laquelle une commande
+     qui lance lui demande de finir (`closingLine`), revient au modèle une fois, avec la raison, et la seconde réponse
+     tient. Quand ce second act échoue, une première réponse non vide tient, avec un avertissement.
+8. Ajouter le message `[tools]` du tour, puis la réponse.
    - Le message est construit depuis l'`onToolResult` de l'act (`shared/domain/tool-trace.ts`) et depuis les appels
      que l'`onToolCall` du crew lui-même a refusés (une erreur `denied: <raison>`) : une ligne par appel, l'outil,
      ses arguments principaux coupés court (chemin, motif, glob, mode, commande…) et un résultat d'une ligne (un
@@ -180,14 +194,15 @@ un changement comme un diff.
   - Là où un outil web est offert (`web_search`, `http_api`, `web_scrape`, `scrape_element`, `firefox`), le projet
     passe avant le web : un port, une commande ou une image que sa documentation et ses réglages d'exemple donnent
     l'emporte sur une valeur trouvée sur le web, et une valeur lue nulle part n'est pas donnée comme un fait.
-  - Là où le catalogue écrit (les modes où le runtime ne refuse pas `spawn_agent`), `spawn_agent` avec
-    `agent: "explorer"` confie un brief à un agent du crew en lecture seule ([L'explorateur](#lexplorateur)), le seul
-    agent qu'il accepte : ses lectures restent dans son propre contexte et seul son rapport revient. Il sert au
-    survol de nombreux fichiers ou d'une zone entière, jamais à la consultation de quelques fichiers. Le brief se
-    suffit à lui-même, puisque l'explorateur ne voit rien d'autre : le but, les chemins ou la zone, ce qu'il faut
-    rapporter. Son rapport est une piste : ce sur quoi repose un changement est d'abord vérifié.
-  - Les lignes sur l'écriture, l'édition, le shell, le web et l'explorateur n'apparaissent que dans les modes qui
-    offrent ces outils.
+  - Là où un lancement peut atteindre l'explorateur (ses permissions sont dans [L'explorateur](#lexplorateur)),
+    `spawn_agent` avec `agent: "explorer"` confie un brief à un agent du crew en lecture seule, le seul agent qu'il
+    accepte : ses lectures restent dans son propre contexte et seul son rapport revient. Il sert au survol de
+    nombreux fichiers ou d'une zone entière, jamais à la consultation de quelques fichiers. Peu de lancements par
+    tour : au-delà du budget, un lancement est refusé. L'`input` de l'appel est le brief et tout ce que voit
+    l'explorateur : le but, les chemins ou la zone, ce qu'il faut rapporter. Son rapport est une piste : ce sur quoi
+    repose un changement est d'abord vérifié.
+  - Les lignes sur l'écriture, l'édition, le shell et le web n'apparaissent que dans les modes qui offrent ces
+    outils, celle sur l'explorateur que là où un lancement peut l'atteindre.
 - **Refus** : un outil non offert (les outils de script sont offerts sans être listés) ou un appel refusé est une
   décision du mode ou de l'utilisateur ; changer d'approche au lieu de répéter l'appel.
 #### Chercher dans le code
@@ -283,14 +298,22 @@ les lectures qu'il a faites restent dans son propre contexte.
 - **Sa charte** : le mode `plan` et les outils de lecture et de recherche du code (les fichiers, leurs nœuds, les
   dossiers, `glob`, `grep`, l'index du code et ses requêtes de graphe). Ni shell, ni écriture, ni construction
   d'index, ni web. Il a 30 itérations d'appels d'outils. Il tourne sous le plus strict de `plan` et du mode du tour,
-  sur le modèle de l'hôte : un choix de `/model` vaut pour la boucle principale, et `/route` ne le route pas.
+  sur le `llm.profile` de la session, sinon le modèle par défaut de l'hôte : ni `/model` ni `/effort` ne l'atteignent,
+  et `/route` ne le route pas.
 - **Combien** : un tour lance 8 agents au plus (`spawnedAgents` de `crews/main-loop/domain/turn-budget.ts` ; le
   runtime en permet 3 quand un budget n'en nomme aucun). Le neuvième `spawn_agent` est refusé par une erreur d'outil que
-  le modèle lit, et le tour continue avec les rapports qu'il tient (Orkeon #423 : il mettait fin au tour entier).
-  L'en-tête dit au modèle d'en lancer peu, et qu'au-delà du budget un lancement est refusé. Chaque explorateur part avec ce qui reste au tour pour plafond, et l'horloge du tour tourne pendant
-  qu'il travaille.
+  le modèle lit, et le tour continue avec les rapports qu'il tient (Orkeon #423 : atteindre le compte mettait fin au
+  tour à l'appel au modèle suivant, les rapports déjà reçus perdus). L'en-tête dit au modèle d'en lancer peu, et
+  qu'au-delà du budget un lancement est refusé. Les lancements s'exécutent l'un après l'autre, dans le temps du tour :
+  chaque explorateur part avec ce qui reste au tour pour plafond, et l'horloge du tour tourne pendant qu'il
+  travaille.
 - **Son brief** : l'`input` de l'appel, sans les espaces autour. Un brief vide et un brief de plus de 24 000
-  caractères sont refusés avant tout appel au modèle, et le tour lit le refus comme résultat de l'appel.
+  caractères sont refusés avant tout appel au modèle, et le tour lit le refus comme résultat de l'appel ; le
+  lancement refusé compte quand même parmi les 8.
+- **Quand il s'arrête avant la fin** : un explorateur dont le plafond de tokens est épuisé rend la conclusion que le
+  modèle a faite sans outils, sous une ligne qui dit que le rapport est coupé. Celui qui use ses 30 itérations sans
+  rapport n'a rien à garder (le runtime ne rend que sa note) : l'appel est refusé avec ce qui s'est passé et la
+  demande d'un brief plus étroit. Dans les deux cas, le lancement compte.
 - **Son prompt** (le message système de son unique act) :
   - Il ne voit que le brief : ni conversation, ni instructions du projet, ni tour précédent. Il ne suppose pas ce que
     le brief tait, et dit comment il l'a compris.
@@ -299,15 +322,19 @@ les lectures qu'il a faites restent dans son propre contexte.
     lectures et recherches qui ne dépendent pas l'une de l'autre partent dans un seul message.
   - Une liste ou une recherche revenue coupée n'est pas le tout : un nom qui en manque n'est pas absent. Il resserre
     l'appel (un dossier plus bas, un motif `glob`) avant de dire que quelque chose n'existe pas.
-  - Il cesse de lire dès que le brief a sa réponse, puisque ses itérations sont comptées.
+  - Il cesse de lire dès que le brief a sa réponse, puisque ses itérations sont comptées : au-delà de la dernière,
+    rien de ce qu'il a trouvé ne revient, il rapporte donc ce qu'il tient avant.
   - Sa réponse finale est le rapport, qui entre en entier dans le contexte du tour : il est donc court, quelques
     centaines de mots. La réponse au brief d'abord, chaque fait avec le `path:line` sur lequel il repose, ce qu'il n'a
     pas pu établir dit comme tel et jamais deviné, aucun contenu de fichier au-delà des quelques lignes dont un fait a
     besoin comme preuve.
   - Il écrit dans la langue du brief.
 - **Permissions** : `spawn_agent` est demandé en `default`, accepté en `acceptEdits` et `bypassPermissions`, et
-  refusé en `plan` et `dontAsk`, où l'en-tête ne nomme pas l'explorateur
-  ([permissions](permissions.md#ce-que-chaque-outil-déclare)).
+  refusé en `plan` et `dontAsk` ; une règle allow sur lui tient en `dontAsk`, jamais en `plan`
+  ([permissions](permissions.md#ce-que-chaque-outil-déclare)). L'en-tête ne nomme l'explorateur que là où un
+  lancement peut passer : pas en `plan`, en `dontAsk` seulement sous une règle allow qui le couvre, et nulle part où
+  une règle deny le couvre (`explorerReachable`). Une règle sur le brief (`input`) ne couvre que certains lancements et
+  n'y change rien.
 
 ## Router un crew vers un profil
 

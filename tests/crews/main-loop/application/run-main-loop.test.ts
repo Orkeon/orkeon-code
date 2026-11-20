@@ -373,7 +373,7 @@ describe("runMainLoop — the turn", () => {
 
     // Assert
     strictEqual(llm.acts[0].request.permissionMode, "acceptEdits");
-    strictEqual(llm.acts[0].request.system, buildStaticHeader({ toolNames: toolsetFor("acceptEdits"), scriptTools: scriptToolsFor("acceptEdits", MEMORY_TOOLS) }));
+    strictEqual(llm.acts[0].request.system, buildStaticHeader({ toolNames: toolsetFor("acceptEdits"), scriptTools: scriptToolsFor("acceptEdits", MEMORY_TOOLS), explorer: true }));
     deepStrictEqual(log.lines, ["info: permission mode 'acceptEdits' — session default via /mode"]);
   });
 
@@ -389,8 +389,23 @@ describe("runMainLoop — the turn", () => {
     // Assert
     strictEqual(llm.acts[0].request.permissionMode, "default");
     deepStrictEqual(loaded.catalogue.tools, toolsetFor("default"));
-    strictEqual(llm.acts[0].request.system, buildStaticHeader({ toolNames: toolsetFor("default"), scriptTools: scriptToolsFor("default", MEMORY_TOOLS) }));
+    strictEqual(llm.acts[0].request.system, buildStaticHeader({ toolNames: toolsetFor("default"), scriptTools: scriptToolsFor("default", MEMORY_TOOLS), explorer: true }));
     deepStrictEqual(log.lines, ["info: permission mode 'default' — no mode given at launch, built-in 'default'"]);
+  });
+
+  it("names the explorer in a dontAsk turn whose rules allow spawn_agent", async () => {
+    // Arrange
+    const { llm, deps } = turnSetup();
+    const input = { prompt: "survey the crews", permissionMode: "dontAsk", permissionRules: ["allow spawn_agent"] };
+
+    // Act
+    await runMainLoop(input, loadCatalogue(input), deps);
+
+    // Assert
+    strictEqual(
+      llm.acts[0].request.system,
+      buildStaticHeader({ toolNames: toolsetFor("dontAsk"), scriptTools: scriptToolsFor("dontAsk", MEMORY_TOOLS), explorer: true }),
+    );
   });
 
   it("lists the extra tools of the mode in the system message", async () => {

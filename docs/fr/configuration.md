@@ -152,9 +152,9 @@ prompt système d'un tour fait environ 2 250 tokens avant les schémas d'outils 
 - La surcharge de `/model`, elle, ne s'applique pas : sous un profil, les tours de l'assistant ne l'envoient pas
   (elle remplacerait le modèle du profil, et sur un profil de décision celui de sa cible de remontée aussi), et
   chaque tour journalise `/model override '<nom>' ignored: llm.profile <profil> is active`.
-- `/model show` nomme le profil et le modèle sur lequel il tourne, marqué d'une étoile parmi les modèles déclarés :
-  celui d'un profil de décision est celui du profil qu'il vise, celui vers lequel il escalade n'est pas affiché (le
-  runtime ne le dit pas). `/model <nom>` enregistre la surcharge avec un avertissement, pour qu'elle s'applique de
+- `/model show` nomme le profil et le premier modèle qu'il vise, marqué d'une étoile parmi les modèles déclarés :
+  celui d'un profil de décision ou de repli est celui du premier profil qu'il vise, celui vers lequel il escalade
+  ou se replie n'est pas affiché (le runtime ne le dit pas). `/model <nom>` enregistre la surcharge avec un avertissement, pour qu'elle s'applique de
   nouveau une fois `llm.profile` retiré.
 - Kev sur cette machine et Liquid, pas à pas, avec leurs exemples
   [`config/appsettings.kev.example.json`](../../config/appsettings.kev.example.json) et
@@ -242,14 +242,12 @@ Ce que le tableau laisse de côté :
   - `false` par défaut, puisque par le bus une commande peut lancer un processus hors du bac à sable.
   - Un shell non confiné (`Confinement:Mode` `None`, les exemples de settings) et le bac à sable de code le
     reçoivent.
-  - `SSH_AUTH_SOCK` et `XDG_RUNTIME_DIR` atteignent tout shell, donc git atteint un remote privé par l'agent ssh
-   .
+  - `SSH_AUTH_SOCK` et `XDG_RUNTIME_DIR` atteignent tout shell, donc git atteint un remote privé par l'agent ssh.
 - **`Orkeon:Tools:Shell:Environment:Propagate`** :
   - Un nom portant un mot de secret (`KEY`, `TOKEN`, `SECRET`, `PASSWORD`, `PASSWD`, `PASS`, `CREDENTIAL`, `AUTH`,
     `PAT` comme segment entier), commençant par `ORKEON_`, ou dont la valeur porte des identifiants d'URL est écarté
     avec un avertissement.
 - **`Orkeon:Tools:ResultLimits:Limits:<tool>`** :
-  - Une release antérieure les coupe à 4000, `truncated` en dernier : mettez-les à 12000 là.
   - Un résultat coupé finit par `[... truncated, N chars omitted. …]`.
   - L'audit de `/dev-batches` lit cette mention.
 - **`Orkeon:Rag:Retrieval:MinScore`** :
@@ -284,9 +282,9 @@ Ce que le tableau laisse de côté :
  Deux limites bornent un tour d'`/assistant`, et la première atteinte y met fin :
 
 - l'`ExecutionTimeout` du moteur de script ci-dessus, qui s'arrête pendant qu'une question vous attend ;
-- Le budget propre du crew de la boucle principale, écrit dans son code (`src/crews/main-loop/crew.ork.ts`) : 200
-  appels d'outils, 700k tokens de contexte et 30 minutes de temps réel, qui s'arrête pendant qu'un appel d'outil
-  attend votre réponse.
+- Le budget propre du crew de la boucle principale, écrit dans son code
+  (`src/crews/main-loop/domain/turn-budget.ts`) : 200 appels d'outils, 700k tokens de contexte, 8 explorateurs lancés
+  et 30 minutes de temps réel, qui s'arrête pendant qu'un appel d'outil attend votre réponse.
   - Le contexte est compté une fois : chaque appel paie sa complétion plus ce dont son prompt a
     grandi, ou la part que le cache du fournisseur n'a pas servie, donc un tour de n appels sur un contexte de c
     tokens dépense environ c plus ses complétions, jamais tout son contexte à chaque appel.
@@ -325,7 +323,7 @@ Dans le REPL, `/config` liste, lit et écrit les clés de session, rangées dans
 | `review.lenses` | les trois | les angles de `/review`, séparés par des virgules parmi `correctness`, `security` et `style` |
 | `llm.profile` | le modèle par défaut du runtime | le profil du runtime sur lequel tournent les agents de chaque crew ([le LLM](#le-llm)) |
 | `advisor.model` | celui de la session, ce qui en fait une auto-relecture | le modèle du second avis de `/advisor` |
-| `commit.requireConfirm` | `true` | `false` laisse `/commit` s'exécuter sans sa confirmation |
+| `commit.requireConfirm` | `true` | `false` laisse `/commit` s'exécuter sans sa confirmation, comme `--yes` |
 | `spinnerVerbs` | | |
 
 Comment certaines se règlent :
@@ -407,8 +405,7 @@ maxIterations: 40`, ou sans niveau enregistré, `act — effort: none stored, th
 to glm-5.3), maxIterations: 40`.
 
 Un rôle ou un crew routé peut encore s'exécuter sur un autre modèle : les avertissements ne parlent que des cibles de
-la session. Sur un runtime antérieur à Orkeon #361 (une release `1.0.0` d'Orkeon en mode tool ou docker), rien n'est dit des niveaux du
-modèle ; avant #365, rien de ceux d'un profil.
+la session.
 
 ### Ce que les réglages de l'utilisateur restreignent
 

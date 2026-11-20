@@ -42,13 +42,16 @@ input it returns; an `"ask"` it returns is judged as an edit in `default` once t
 
 What bounds a turn, whatever the mode:
 
-- the crew budget of `main-loop`: 200 tool calls, 30 minutes, 700k context tokens (the context counted once), 40 iterations of the loop;
+- the crew budget of `main-loop`: 200 tool calls, 30 minutes, 700k context tokens (the context counted once), 8 spawned
+  explorers ([The explorer](turn.md#the-explorer)), 40 iterations of the loop at the default effort (10 to 160 with
+  `/effort`);
 - the script timeout of the settings: `Orkeon:Cli:ScriptCommands:Limits` for the REPL, `Orkeon:Scripting:Limits` for
   the `orkeon run` of a standalone run (30 minutes each in the example);
 - the host gate (`Orkeon:Security:PermissionGate:Enabled`), which checks every call against the mode behind the
   catalogue;
 - the mounts: the project on `/workspace`, the scratch mounts `/output` and `/tmp`, your `orkeonCode` block on
-  `/user-config` (read-only), nothing else;
+  `/user-config` (read-only); in the REPL also the session's folders (`/sessions`, `/session-history` read-only,
+  `/memory`) and, with speech on, `/audio` and `/transcripts` (read-only); nothing else;
 - the shell allow-list of the settings.
 
 Prefer docker mode for an unattended `bypassPermissions` turn: the shell then runs in the container, and the project
@@ -125,9 +128,11 @@ orkeon-code run main-loop --workspace ~/src/app \
   memory start empty and end with the process: one run is one turn.
 
 Every crew runs this way; its `crew.ork.ts` says in its header which `inputs` it reads (`code-review`:
-`{ files?, commit? }`; `advisor`: none). CI checks that every command and crew loads (`scripts/smoke-runtime.sh`)
-and runs one turn of `git-commit` under a mock model (`scripts/smoke-crew.sh`); an unattended turn of `main-loop`
-against a model is exercised by hand, not by CI.
+`{ files?, commit?, lenses?, passes? }`; `advisor`: none). The runtime smoke (`.github/workflows/runtime-smoke.yml`,
+on a pull request that touches the pin, the launcher, a smoke or the sources, every week and on demand) checks that
+every slash command loads (`scripts/smoke-runtime.sh`), runs one turn of `git-commit` under a mock model
+(`scripts/smoke-crew.sh`) and passes every crew through `orkeon run --validate` (`scripts/smoke-validate.sh`); an
+unattended turn of `main-loop` against a model is exercised by hand, not by CI.
 
 ## A dev crew, step after step
 
@@ -195,9 +200,12 @@ Three ways, from the simplest:
    needs esbuild on the machine, which the full release archive carries and the container image does not. Orkeon
    Code's crews have not been exercised under the daemon yet: the input a hosted procedural crew receives is the
    daemon's contract ([Orkeon service host](https://github.com/Orkeon/orkeon/blob/main/docs/architecture/service-host.md)).
-3. **In-process, in .NET: not yet.** The scripting layer that runs `.ork.ts` files (`Orkeon.Scripting`) ships inside
-   the `orkeon` tool and the REPL, not as a NuGet package, and the `Orkeon` package is the C# builder API, which does
-   not load scripts. Tracked on the [Roadmap](roadmap.md) (runtime).
+3. **In-process, in .NET.** Orkeon publishes its scripting layer on nuget.org as the `Orkeon.Scripting` package
+   (`1.3.0`, the last release): an application registers it with `services.AddOrkeonScripting()` and runs a
+   `crew.ork.ts` through `ICrewScriptRunner.RunAsync(path)`, the in-process form of `orkeon run`, without starting a
+   process ([Running a crew in-process](https://github.com/Orkeon/orkeon/blob/main/docs/reference/hosting.md#running-a-crew-in-process)).
+   esbuild is not in the package, as for the tool. Orkeon Code's crews have not been run that way yet: a host
+   example is on the [Roadmap](roadmap.md).
 
 Whatever the path, the agent's reach is the same: the mounts you give it, the shell allow-list of the settings, the
 permission mode of the input, and the host gate behind them.

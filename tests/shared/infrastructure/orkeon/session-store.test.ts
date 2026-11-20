@@ -241,6 +241,18 @@ describe("createSessionStore — state", () => {
     // Assert
     deepStrictEqual(tools.inputsOf("sessionStore"), [{ operation: "set_state", key: "k", value: null }]);
   });
+
+  it("throws when the store refuses the write", async () => {
+    // Arrange
+    const tools = new FakeTools();
+    tools.replies.sessionStore = { success: false };
+
+    // Act
+    const act = createSessionStore(tools).writeState("", "v");
+
+    // Assert
+    await rejects(act, /session_store refused to write the state key ''/);
+  });
 });
 
 describe("createSessionStore — several state keys", () => {

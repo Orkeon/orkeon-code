@@ -87,7 +87,7 @@ async function runPlanToggle(deps: ModeDeps): Promise<CommandView> {
  *
  * Baseline 04 §/plan: "Toggle plan mode … flip the boolean, persist the new
  * value". The pre-B-11 handler wrote "plan" unconditionally, so `/plan` twice left
- * the session read-only and the only way out was `/mode` or `/clear` —
+ * the session read-only and the only way out was `/mode` (or a `/clear`, which then dropped the mode) —
  * with the command still reporting success both times.
  *
  * Leaving plan returns to `default`, not to whatever preceded it: the mode before

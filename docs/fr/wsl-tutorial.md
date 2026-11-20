@@ -98,10 +98,11 @@ mkdir -p ~/audio && timeout 20 parecord --channels=1 --rate=16000 --file-format=
 
 ## 3. Orkeon depuis son paquet apt
 
-Le canal `stable` porte la dernière release d'Orkeon, `1.3.0` : c'est à ce jour le commit du `main` d'Orkeon
-contre lequel Orkeon Code est vérifié (`.orkeon-version`), si bien que le mode tool exécute l'épingle jusqu'à ce que
-l'épingle dépasse cette release ([Premiers pas](getting-started.md)). Le canal `dev` publie un paquet par commit de `main` validé par la CI, versionné
-`1.0.1~dev.<n>` (`n` est le numéro de l'exécution CI), les trois derniers builds seulement : il sert à suivre
+Le canal `stable` porte la dernière release d'Orkeon, `1.3.0` : elle est à ce jour en retard d'un correctif sur le
+commit du `main` d'Orkeon contre lequel Orkeon Code est vérifié (`.orkeon-version`, Orkeon #423, un lancement
+au-delà du budget refusé), si bien que le mode tool exécute cette release, pas l'épingle ([Premiers pas](getting-started.md)).
+Le canal `dev` publie un paquet par commit de `main` validé par la CI, versionné `<patch suivant>~dev.<n>`
+(`1.3.1~dev.<n>` après `1.3.0` ; `n` est le numéro de l'exécution CI), les trois derniers builds seulement : il sert à suivre
 `main` en avance sur l'épinglage, pas à ce tutoriel. Le paquet installe
 `/usr/bin/orkeon-repl` (le REPL, avec son `esbuild` : aucun .NET ni npm à installer) et `orkeon` (la CLI). Systèmes
 pris en charge : Debian 12 et 13, Ubuntu 22.04, 24.04 et 26.04 (`cat /etc/os-release` le dit).
@@ -485,7 +486,7 @@ pour l'en empêcher).
 | `/doctor` : `toolchain: node ❌`, ou `toolchain: dotnet ❌ 10.0.2xx [/usr/share/dotnet/sdk]` | Le mode `tool` n'a besoin ni de l'un ni de l'autre : le paquet embarque son esbuild, et rien n'appelle `dotnet` |
 | Pas de ligne `audio` dans le bandeau | Le lanceur a dit pourquoi : `uv` absent du `PATH`, un serveur `whisper` déjà déclaré dans les réglages ou l'environnement, mode docker |
 | `whisper-mcp-smoke: uv not found. Install it: …` | L'étape 4 n'a pas été faite, ou la section 10 est passée par là, ou le terminal date d'avant l'installation : `source ~/.local/bin/env` ; sinon `curl -LsSf https://astral.sh/uv/install.sh \| sh && source ~/.local/bin/env` |
-| `MCP server 'whisper' could not be connected: no answer within 30 s` au démarrage, puis `no registered tool 'whisper_info'` | Orkeon donne 30 s au serveur pour répondre |
+| `MCP server 'whisper' could not be connected: MCP server 'whisper' gave no answer within 30 s (MCP:Servers:whisper:ConnectTimeout).` au démarrage, puis `no registered tool 'whisper_info'` | Orkeon donne 30 s au serveur pour répondre |
 | `MCP server 'whisper' could not be connected: …` avec un chemin | Un chemin du fichier de réglages est faux : `Command` (`~/.local/bin/uv`), `--project` et le script (`~/orkeon-code/mcp/whisper`), les deux dossiers en double dans `Mounts` et `Env` |
 | `fail: … Failed to start MCP server process` | `uv` n'est pas sur le `PATH` du REPL : `source ~/.local/bin/env` puis relancer |
 | `Library libcublas.so.12 is not found` | `WHISPER_DEVICE=cuda` sans l'extra `cuda` : le lanceur et le smoke l'ajoutent seuls sur `WHISPER_DEVICE=cuda` ; un serveur déclaré à la main veut `--extra cuda` |
@@ -509,7 +510,7 @@ Ce que le tableau laisse de côté :
   - Pour dotnet, le `global.json` du dépôt demande le SDK `10.0.300` ou une bande supérieure (`latestFeature`) et la
     distribution a une bande plus ancienne : `sudo apt-get install --only-upgrade dotnet-sdk-10.0` (le dépôt apt de
     Microsoft, `/usr/share/dotnet`).
-- **`MCP server 'whisper' could not be connected: no answer within 30 s` au démarrage, puis `no registered tool 'whisper_info'`** :
+- **`MCP server 'whisper' could not be connected: MCP server 'whisper' gave no answer within 30 s (MCP:Servers:whisper:ConnectTimeout).` au démarrage, puis `no registered tool 'whisper_info'`** :
   - Le premier `uv run` du clone résout l'environnement (roues CUDA, minutes).
   - Préparez l'environnement hors du REPL : le smoke (section 5), ou la commande déclarée lancée une fois à la main
     avec `< /dev/null` (section 8).

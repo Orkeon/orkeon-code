@@ -140,7 +140,7 @@ export interface ToolRealityFlags {
   fileWrite: boolean;
   shell: boolean;
   web: boolean;
-  /** `spawn_agent` can reach the explorer: the modes in which the runtime does not refuse it. */
+  /** `spawn_agent` can reach the explorer: the mode and the session's rules let a spawn of it through. */
   explorer: boolean;
 }
 
@@ -186,9 +186,9 @@ export function toolRealities(f: ToolRealityFlags): string {
   if (f.explorer) {
     lines.push(
       `\`spawn_agent\` with \`agent: "${EXPLORER_CHARTER.name}"\`, the only agent it takes, hands a survey of many ` +
-        "files or a whole area to a read-only explorer: only its report returns. Not for a lookup of a few files. Few " +
-        "spawns a turn: past its budget a spawn is refused. The brief stands alone, the explorer sees nothing " +
-        "else: the goal, the paths or area, what to report. Its report is a lead: check what a change rests on.",
+        "files or a whole area to a read-only agent: only its report returns. Not for a lookup of a few files. Few " +
+        "spawns a turn: past the budget one is refused. Its `input` is the brief, all the agent sees: the goal, the " +
+        "paths or area, what to report. Its report is a lead: check what a change rests on.",
     );
   }
   return lines.join("\n");

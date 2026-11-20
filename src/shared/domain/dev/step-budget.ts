@@ -51,13 +51,14 @@ export function repairBudget(step: keyof typeof STEP_BUDGETS): StepBudget {
 
 const DIMENSIONS: readonly BudgetDimension[] = ["toolCalls", "delegationDepth", "wallTime", "tokens", "spawnedAgents", "cost"];
 
-/** The runtime's messages, by dimension. */
+/** The runtime's messages, by dimension: the delegation depth as the budget and `spawn_agent` refuse it, the spawned
+ *  agents as `spawn_agent` refuses one past the count (Orkeon #423). */
 const MESSAGES: ReadonlyArray<[BudgetDimension, RegExp]> = [
   ["toolCalls", /exceeded \d+ tool calls|tool-call budget exhausted/i],
   ["tokens", /token budget exhausted/i],
   ["wallTime", /wall time exceeded/i],
-  ["delegationDepth", /delegation depth \d+ exceeds max/i],
-  ["spawnedAgents", /exceeded \d+ spawned sub-agents/i],
+  ["delegationDepth", /delegation depth \d+ exceeds max|delegation depth budget exhausted/i],
+  ["spawnedAgents", /spawn budget spent/i],
   ["cost", /cost budget spent/i],
 ];
 

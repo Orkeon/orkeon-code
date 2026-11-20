@@ -133,6 +133,7 @@ export const RULED_CATALOGUE = {
     inert: [{ rule: { effect: "allow" as const, tool: "file_write" }, reason: "mode 'plan' does not offer 'file_write'" }],
   },
   scriptTools: ["memory_recall"],
+  rules: [{ effect: "deny" as const, tool: "file_read" }, { effect: "allow" as const, tool: "file_write" }],
 };
 
 /** Gates the host does not warn about: on, unknown, and off in bypassPermissions. */

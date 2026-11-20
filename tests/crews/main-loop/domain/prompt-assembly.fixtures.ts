@@ -7,6 +7,7 @@ import {
   buildGaugeBlock, buildHistoryBlock, buildMemoryBlock, buildUserContextBlock,
 } from "../../../../src/crews/main-loop/domain/prompt-assembly.ts";
 import type { ContextParts } from "../../../../src/crews/main-loop/domain/prompt-assembly.ts";
+import type { ExtraTool, PermissionRule } from "../../../../src/shared/domain/agent-policy/permission.ts";
 import { WORKSPACE } from "../../../../src/shared/domain/vfs.ts";
 import { COMPACTED_MARKER } from "../../../../src/shared/domain/marked-message.ts";
 import { TURN_CONTEXT_MARKER } from "../../../../src/shared/domain/markers.ts";
@@ -111,13 +112,21 @@ export const COMPACTED_IN_HISTORY_RULE: readonly string[] = [
 export const EXPLORER_RULE: readonly string[] = [
   '`spawn_agent` with `agent: "explorer"`',
   "the only agent it takes",
+  "a survey of many files or a whole area",
   "only its report returns",
   "Not for a lookup of a few files",
   "Few spawns a turn",
-  "past its budget a spawn is refused",
-  "The brief stands alone, the explorer sees nothing else",
+  "past the budget one is refused",
+  "Its `input` is the brief, all the agent sees",
+  "the goal, the paths or area, what to report",
   "Its report is a lead: check what a change rests on",
 ];
+
+/** The web tool a session adds as an extra tool (the others are built in): the longest header carries its line. */
+export const WEB_EXTRA_TOOLS: readonly ExtraTool[] = [{ name: "web_search", access: "read" }];
+
+/** The rules that give the longest header: an allow rule on spawn_agent names the explorer in dontAsk too. */
+export const LONGEST_HEADER_RULES: readonly PermissionRule[] = [{ effect: "allow", tool: "spawn_agent" }];
 
 /** The note on a refused permission: it is about the catalogue, so a header without tools does not carry it. */
 export const REFUSAL_NOTE = "change your approach instead of repeating the call";

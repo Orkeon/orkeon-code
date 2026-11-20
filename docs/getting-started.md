@@ -30,7 +30,7 @@ command, never `~/.orkeon-code/`, where an install keeps what is yours: each pro
 (`demo/`), `ORKEON_CODE_HOME` names another folder. On Windows, `install.ps1` does the same into
 `%LOCALAPPDATA%\Programs\orkeon-code` and writes `bin\orkeon-code.cmd`, which `cmd.exe` and PowerShell both find.
 
-**From npm** (Linux, macOS, Windows; Node 22 or later): the package carries the same files as the release archive,
+**From npm** (Linux, macOS, Windows; Node 24 or later, the `engines` of the package): the package carries the same files as the release archive,
 and esbuild with them.
 
 ```bash
@@ -94,7 +94,7 @@ The launcher picks the first available mode, in this order, unless `--mode` says
 
 ### Tool mode: `orkeon-repl` installed
 
-The REPL is `orkeon-repl` (`Orkeon.ConsoleApp`) of the last release, `1.3.0`, the pin at this writing. The
+The REPL is `orkeon-repl` (`Orkeon.ConsoleApp`) of the last release, `1.3.0`, one fix behind the pin at this writing (see above). The
 Debian package and the
 release archives carry it self-contained, with its own esbuild: no .NET to install.
 
@@ -129,8 +129,8 @@ overrides it).
 
 ### Docker mode: nothing to install but Docker
 
-The launcher runs `ghcr.io/orkeon/orkeon:latest`, the image of the last release (`1.3.0` at this writing, the
-pin; `ORKEON_CODE_IMAGE` names another image), which carries the
+The launcher runs `ghcr.io/orkeon/orkeon:latest`, the image of the last release (`1.3.0` at this writing, one
+fix behind the pin; `ORKEON_CODE_IMAGE` names another image), which carries the
 REPL and esbuild; the image is built for `linux/amd64` and `linux/arm64`, and Docker pulls the one of your machine. The project is mounted in the
 container; on Linux the container runs with your uid, so the files the agent writes belong to you. The shell tool
 runs inside the container.
@@ -238,7 +238,7 @@ export ORKEON_CODE_AUDIO_DIR=~/audio
 
 then, in the REPL: `/transcribe --list`, then `/transcribe daily.m4a --then "list the tasks I mention"`. With
 `ORKEON_CODE_VOICE=1` exported too, `/voice` dictates a request and `/say` reads the last answer aloud. Details,
-models, backends and how the model calls the tools itself: [Configuration](speech.md#speech-to-text).
+models, backends and how the model calls the tools itself: [Speech](speech.md#speech-to-text).
 
 ## What the agent writes in your project
 
@@ -254,7 +254,7 @@ models, backends and how the model calls the tools itself: [Configuration](speec
   the file is deleted. The launchers put that file beside the RAG's manifests, in `/output/rag/embedding-fingerprint.json`
   of the state directory, not in the project (`Orkeon:Embeddings:FingerprintPath` names another; a
   `.orkeon/embedding-fingerprint.json` left by an older launcher can be deleted). The runtime also writes `.orkeon/state` (the checkpoints and kept questions of a run, only with
-  `Orkeon:Checkpointing:Enabled`, off in every example).
+  `Orkeon:Checkpointing:Enabled`, off in every example; Orkeon #299).
 - The hook scripts you write (`.orkeon/hooks/` in the [examples](hooks.md)) are yours.
 - Add `.orkeon/` and `workbench/` to the project's `.gitignore` if you do not want to share them: `/dev-status`
   warns while they are not ignored.
@@ -281,8 +281,9 @@ models, backends and how the model calls the tools itself: [Configuration](speec
 - **No `audio` line in the banner, or `no registered tool 'transcribe_audio'`**: the launcher says why at start
   (uv missing, a `whisper` server in the settings file, docker mode). A server that cannot start costs one `fail:` line
   naming it; `bash scripts/whisper-mcp-smoke.sh` runs it alone ([mcp/whisper/README.md](../mcp/whisper/README.md#troubleshooting)).
-  `MCP server 'whisper' could not be connected: no answer within 30 s` means the smoke script above was skipped:
-  the first `uv run` resolves the server's environment in minutes, and the REPL waits 30 s.
+  `MCP server 'whisper' could not be connected: MCP server 'whisper' gave no answer within 30 s (MCP:Servers:whisper:ConnectTimeout).` means the smoke script above was skipped:
+  the first `uv run` resolves the server's environment in minutes, and the REPL waits 30 s
+  (`MCP:Servers:whisper:ConnectTimeout` in the settings waits longer).
 - **A command is missing**: the loader keeps at most `Orkeon:Cli:ScriptCommands:MaxScripts` commands (200 by
   default). `bash scripts/smoke-runtime.sh` checks that every command loads.
 - **The REPL refuses a mount and exits at start**: it refuses a mount on `/sandbox`, `/credentials`,

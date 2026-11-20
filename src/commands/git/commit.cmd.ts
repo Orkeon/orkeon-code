@@ -16,6 +16,7 @@
 //      change, untracked files too, or the paths named; never the work folder);
 //   3. a NON-interactive session without `--yes` is refused, not auto-approved —
 //      the one case where a confirmation prompt silently degrades into consent.
+//      `commit.requireConfirm` set to `false` (/config) skips the confirmation as `--yes` does.
 //
 // The gate is _lib/git/commit.ts; this file wires it to the session, the prompt and the
 // pull-request context, then launches the crew with the input it builds.
@@ -40,6 +41,7 @@ defineAsyncCommand({
       write: (line) => ctx.writeLine(line),
       log: ctx.log,
       pr: { catalogue: () => orkeonToolCatalogue(ctx.services), rules: () => createPermissionRules(ctx.services), session },
+      config: orkeonConfigStore(),
     });
     if ("refused" in outcome) return outcome;
     return launchCrew(await withRoutedProfile({ crews: createCrewHost(ctx.services), log: ctx.log }, orkeonConfigStore(), orkeonRouting(), { crew: "git-commit", brief: String(ctx.command?.rawInput ?? "") }), "git-commit", outcome.input);

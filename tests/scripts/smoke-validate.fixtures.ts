@@ -13,6 +13,12 @@ const CREWS_DIR = fileURLToPath(new URL("../../src/crews/", import.meta.url));
 /** What the runtime prints for a crew of this project: a script that never assigns globalThis.crew itself. */
 export const OK_LINE = "VALIDATION OK: crew.ork.ts (procedural script: bundled, not run)";
 export const FAILED_LINE = "VALIDATION FAILED: type errors";
+/** What the runtime prints before its verdict when it finds no `tsc`: it skips the type check and still says OK. */
+export const SKIPPED_LINE = "WARNING: type check skipped: TypeScript compiler not found.";
+/** How the smoke reports the first crew whose check was skipped: the cause, then the setting that hands a compiler. */
+export const SKIPPED_REPORT =
+  "smoke-validate: FAIL git-commit: the runtime found no TypeScript compiler and skipped the type check; " +
+  "give it one with ORKEON_Orkeon__Scripting__Toolchain__TscPath=<absolute path to tsc>";
 
 /** The crews the smoke must validate: every src/crews/<name>/crew.ork.ts, the `_` probes left out. */
 export const CREWS: string[] = readdirSync(CREWS_DIR, { withFileTypes: true })
@@ -21,14 +27,14 @@ export const CREWS: string[] = readdirSync(CREWS_DIR, { withFileTypes: true })
   .sort();
 
 // The fake runner: appends its arguments (one line per call), keeps the settings it was given,
-// prints the plan's line when there is one, exits with the plan's code.
+// prints the plan's line when there is one (a `\n` in it starts a new line), exits with the plan's code.
 const RUNNER = `#!/usr/bin/env bash
 set -u
 dir="$FAKE_DIR"
 printf '%s\\n' "$*" >> "$dir/args"
 cp "$ORKEON_CODE_SETTINGS" "$dir/settings.json"
 rc="\${FAKE_PLAN%%|*}"; line="\${FAKE_PLAN#*|}"
-if [ -n "$line" ]; then echo "$line"; fi
+if [ -n "$line" ]; then printf '%b\\n' "$line"; fi
 exit "$rc"
 `;
 
@@ -54,6 +60,11 @@ export const EXITS: ExitCase[] = [
   { name: "fails when the runner exits with an error", plan: `1|${FAILED_LINE}`, status: 1 },
   { name: "fails when the runner exits 0 without a VALIDATION OK line", plan: "0|", status: 1 },
   { name: "fails when the runner reports a failed validation yet exits 0", plan: `0|${FAILED_LINE}`, status: 1 },
+  {
+    name: "fails when the runner skipped the type check yet validated",
+    plan: `0|${SKIPPED_LINE}\\n${OK_LINE}`,
+    status: 1,
+  },
 ];
 
 /** Runs the smoke over the fake runner following `plan`. */

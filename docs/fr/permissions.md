@@ -110,8 +110,8 @@ Ce que le tableau ne dit pas, outil par outil :
 - **`spawn_agent`.** Le runtime l'offre à chaque act, quel que soit le catalogue : demandé en `default`, refusé en
   `plan` et en `dontAsk`. Une règle peut le nommer, et une règle allow sur lui vaut aussi en `dontAsk` (`/permissions`
   avertit quand vous en ajoutez une). L'enfant qu'il lance tourne sous le plus strict de son propre mode et de celui
-  de son parent. L'explorateur de la boucle principale, le seul agent qu'un tour peut lancer, nomme `plan` : il ne
-  change donc jamais rien ([tour](turn.md#lexplorateur)). Les autres enfants d'Orkeon Code n'en nomment aucun : ils
+  de son parent. L'explorateur de la boucle principale, le seul type d'agent qu'un tour peut lancer (jusqu'à 8 par
+  tour), nomme `plan` : il ne change donc jamais rien ([tour](turn.md#lexplorateur)). Les autres enfants d'Orkeon Code n'en nomment aucun : ils
   prennent celui du parent.
 
 ### Outils réseau
@@ -154,7 +154,11 @@ du catalogue.
 - **Pour la session** : `/mode acceptEdits`. `/mode` seul ouvre un panneau des modes dans la console ; sur un rejeu
   ou une console simple, il fait défiler `default`, `acceptEdits`, `plan` et `bypassPermissions`, jamais `dontAsk`
   (on y accède par `/mode dontAsk`). `/plan`, alias de `/mode`, bascule le mode plan. `/clear` le garde, avec le choix
-  de `/model` : la conversation et le reste de l'état de la session partent, le mode et le modèle restent.
+  de `/model` : la conversation et le reste de l'état de la session partent, le mode et le modèle restent. Ces deux-là
+  disent ce que la session peut faire et sur quoi elle tourne ; le reste règle la conversation que `/clear` termine,
+  et revient à sa valeur par défaut : `/effort`, `/fast`, `/passes`, `/proactive`, `/output-style`, les règles, les
+  hooks et les réglages posés avec `--session` (`permissions.fallback` compris). Un `/effort` choisi pour le modèle
+  gardé est à poser de nouveau après lui.
 - **Repli** : sans l'un ni l'autre, le mode est `default`, ou celui que fixe
   `/config set permissions.fallback <mode>` (`--session` le garde pour la seule session). Chaque tour qui utilise le
   repli dit quel mode s'est appliqué et d'où il vient.
@@ -194,7 +198,7 @@ Une règle nomme un outil, intégré ou [supplémentaire](#outils-supplémentair
 
 | Outil | Arguments qu'une règle peut nommer |
 |---|---|
-| `shell_command` | `command`, `working_directory`, `timeout_seconds` |
+| `shell_command` | `command`, `working_directory`, `timeout_seconds`, `action`, `job_id`, `tail_lines` |
 | `file_write` | `path`, `content`, `encoding`, `append`, `create_backup` |
 | `http_api` | `url`, `method`, `headers`, `body`, `content_type` |
 
@@ -342,18 +346,17 @@ sous `orkeon run`.
 `/commit` indexe par leur nom les fichiers qu'il commite (`git add -- <files>`, puis
 `git commit -F <message> -- <files>`, jamais `-A`) et, avec `--push`, pousse. Avec `--pr`, il lit origin
 (`git remote get-url origin`) et appelle lui-même `create_pr` de `github`. Il décide de cet appel comme le ferait la
-garde :
+garde, après avoir refusé `plan` et `dontAsk` avant toute étape : l'appel vient donc d'un mode d'écriture.
 
 | Cas | La pull request |
 |---|---|
-| `plan` | refusée |
-| `dontAsk` sans règle allow | refusée |
 | une règle deny couvre l'appel | refusée |
 | une règle allow (`allow github action=create_pr`) | ouverte |
 | `bypassPermissions` | ouverte |
 | vous avez répondu oui à son plan, qui nommait la pull request | ouverte |
 
-`--yes` ne demande rien : il lui faut donc la règle allow.
+`--yes` ne demande rien, pas plus que `/commit` quand `commit.requireConfirm` vaut `false` : l'un comme l'autre a
+besoin de la règle allow.
 
 Ses commandes git sont `git -c core.quotePath=false status`, `git --literal-pathspecs add` et `commit`, `git var`,
 `git rev-parse`, `git symbolic-ref` et `git push -u origin <branch>` ; pour les lots lancés dans des worktrees,

@@ -89,6 +89,16 @@ export function explorerBriefTooLong(length: number, max: number): string {
   return `explorer: the brief is ${length} characters, over ${max}; send a shorter one`;
 }
 
+/** The line above the report of an explorer whose token budget ran out: its wrap-up, made without tools. */
+export const EXPLORER_CUT_SHORT =
+  "explorer: its token budget ran out, so this report is its wrap-up, cut short: what it leaves out was not checked";
+
+/** The refusal of an explorer stopped at its cap of iterations: no report, nothing kept. */
+export function explorerOutOfIterations(iterations: number): string {
+  return `explorer: it used its ${iterations} tool-call turns without a report, and nothing it read comes back; ` +
+    "send a narrower brief (one question, fewer paths or a smaller area)";
+}
+
 /** The log line of the explorer about to act. */
 export function explorerRunning(length: number, mode: string): string {
   return `explorer: a brief of ${length} characters, in ${mode}`;

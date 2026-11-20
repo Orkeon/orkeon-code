@@ -18,7 +18,8 @@ export ORKEON_CODE_AUDIO_DIR=~/audio      # the folder of audio and video files
 ```
 
 The launcher then mounts that folder on `/audio` (read-only) and `<state>/transcripts` on `/transcripts`
-(read-only, `.crew-output/transcripts` by default), and declares the server to the REPL through the environment
+(read-only; `<state>` is `.crew-output` in a clone, `~/.orkeon-code/projects/<project>` for an install,
+`ORKEON_CODE_STATE` when set), and declares the server to the REPL through the environment
 (`ORKEON_MCP__Servers__whisper__*`), so no settings file names this checkout. The banner shows an `audio` line. The
 folder holds real files: a link in it that points outside it is refused by the file tools.
 
@@ -144,10 +145,13 @@ nothing. Piper is GPL-3.0: the server runs it as a separate process, from an opt
 - An environment that already declares one (`ORKEON_MCP__Servers__whisper__*`, docker mode's HTTP declaration
   for instance) wins the same way, with the same warning.
 - Without uv on the `PATH`, the launcher warns and starts without the server.
-- The REPL gives a server 30 s to start and answer, and the first `uv run` of `mcp/whisper` resolves its
-  environment first: one to two minutes, 2.5 GB more with the `cuda` extra. Run `bash scripts/whisper-mcp-smoke.sh`
-  once beforehand, with the `WHISPER_DEVICE` the REPL will use; otherwise the first REPL starts without the server
-  (`MCP server 'whisper' could not be connected: no answer within 30 s`), and the next ones too until the
+- The REPL gives a server 30 s to start and answer (`MCP:Servers:whisper:ConnectTimeout` in the settings raises it),
+  and the first `uv run` of `mcp/whisper` resolves its environment first: one to two minutes, 2.5 GB more with the
+  `cuda` extra. Run `bash scripts/whisper-mcp-smoke.sh --tts` once beforehand, with the `WHISPER_DEVICE` the REPL
+  will use: the launcher always adds the `tts` extra while Piper is the voice engine, the default, and the smoke adds
+  it only with `--tts`; the `voice` extra of `ORKEON_CODE_VOICE=1` is not part of the smoke, so the first REPL started
+  with it resolves that extra too. Otherwise the first REPL starts without the server
+  (`MCP server 'whisper' could not be connected: MCP server 'whisper' gave no answer within 30 s (MCP:Servers:whisper:ConnectTimeout).`), and the next ones too until the
   environment is resolved.
 - In docker mode, a `Stdio` server runs inside the container, which has neither uv nor the model: the variable is
   ignored there, with a warning. The server can run on the host over HTTP instead, for files transcribed within

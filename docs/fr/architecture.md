@@ -34,7 +34,8 @@ Le runtime exécute les sources sous des règles qui façonnent tout ce qui suit
   bundle et par exécution. Un registre, un conteneur ou un cache partagé entre les commandes et les crews ne peut pas
   exister.
 - **Le sac d'état de la session est le seul état partagé.** Commandes, crews et tours partagent ce que la session
-  détient : le tampon de conversation et le sac d'état (`session_store`), vidés par `/clear`. Le fichier de settings
+  détient : le tampon de conversation et le sac d'état (`session_store`), vidés par `/clear`, qui y réécrit le mode par
+  défaut de `/mode` et le choix de `/model`. Le fichier de settings
   (`/workspace/.orkeon/config.json`) est le stockage durable. La mémoire typée dure tant que le runtime la garde :
   par projet dans un fichier quand `Orkeon:Cli:Memory:Persist` est actif (le défaut du REPL, et celui des settings
   d'exemple), elle atteint donc une exécution suivante ; sinon dans le processus Orkeon, avec lequel elle meurt
@@ -89,7 +90,8 @@ seul mount dans lequel ils travaillent.
 
 - **Les mounts viennent du lanceur.** `orkeon-code` et `orkeon-code.ps1` démarrent le REPL avec un
   `--mount <physique>:<virtuel>:<droits>` par racine : `/workspace` (le projet, en lecture-écriture), `/output`,
-  `/tmp`, `/user-config` (lecture seule), `/sessions`, `/session-history` (lecture seule) et `/memory`. Le modèle ne
+  `/tmp`, `/user-config` (lecture seule), `/sessions`, `/session-history` (lecture seule) et `/memory`, et, quand la
+  parole est configurée, `/audio` et `/transcripts` (lecture seule). Le modèle ne
   voit jamais un chemin physique, sur aucune plateforme : un `C:\proj\src\a.ts` ou un `/home/u/proj/src/a.ts` donné à
   un outil fichier est refusé avec la liste des mounts, et les prompts écrivent un fichier du projet
   `/workspace/<path>`.
@@ -269,7 +271,7 @@ src/
 │   │                  or dispatch<Name>(tokens, deps) → a ticket or a message when the command launches a
 │   │                  crew, and their pure helpers. dev/ (dev, dev-batches, dev-implement, dev-source),
 │   │                  git/ (branch, commit, diff, review), memory/ (memory, memory-admit), project/
-│   │                  (analyze), session/ (export, resume, tasks), settings/ (advisor, agents, choices,
+│   │                  (analyze), session/ (clear, export, resume, tasks), settings/ (advisor, agents, choices,
 │   │                  config, effort, hooks, mode, model, output-style, permissions, route, session-config:
 │   │                  the toggle commands, skills, theme), speech/ (say, transcribe, voice), status/ (cache,
 │   │                  context, doctor, meta: version, messages: release notes, status, usage, usage-tools);
@@ -415,18 +417,18 @@ avec la garde du runtime), `extra-tools.ts` (le réglage `tools.extra` confront�
   remet à la garde les règles de la session suivies de celles de l'étape, sans ranger ces dernières.
 - Le prochain tour `/assistant` ne lui remet que les règles de la session.
 - La fonction pure `matchesRule`, à côté de l'analyseur de règles, reproduit la façon dont la garde lit une règle.
-- Les tests s'en servent, et s'en serviront plus tard les outils qu'Orkeon Code enveloppe autour d'un outil intégré,
-  dont la garde ne voit pas les propres appels.
+- Elle décide aussi, par `ruleDecision`, les appels que jugent les gardes propres à Orkeon Code et que la garde ne
+  voit pas : la garde des appels dev, les gardes d'outils, la clôture d'un lot et la pull request de `/commit`.
 
 ## Points d'entrée
 
 **Une commande** analyse ses arguments, appelle son cas d'usage avec les adaptateurs, et affiche la vue qu'elle reçoit
 en retour. Le cas d'usage vit dans `commands/_lib/`, prend les ports qu'il lit (un `Pick<>` d'entre eux) et rend une
-`CommandView` : un tableau et un message de clôture. `/mode` :
+`CommandView` : un tableau et un message de clôture. `/mode`, sans son commentaire d'en-tête :
 
 ```ts
 /// <reference path="../.orkeon/orkeon-cli.d.ts" />
-import { rawTokens } from "../_lib/args.ts";
+import { rawTokens, typedCommand } from "../_lib/args.ts";
 import { runMode } from "../_lib/settings/mode.ts";
 import { showView } from "../_lib/view.ts";
 import { orkeonChooser, orkeonSessionIo } from "../../shared/infrastructure/orkeon/wiring.ts";
@@ -435,9 +437,10 @@ const session = orkeonSessionIo();
 
 defineCommand({
   name: "mode",
-  description: "Choose, show or set the session-default permission mode of the assistant.",
+  aliases: ["plan"],
+  description: "Choose, show or set the session-default permission mode of the assistant; /plan toggles plan mode (read-only).",
   handler: async (args, ctx) =>
-    showView(ctx, await runMode(rawTokens(args), { session, log: ctx.log, chooser: orkeonChooser(ctx) })),
+    showView(ctx, await runMode(rawTokens(args), { session, log: ctx.log, chooser: orkeonChooser(ctx) }, typedCommand(ctx.command?.rawInput, "mode"))),
 });
 ```
 
@@ -486,7 +489,8 @@ publishCrew(CrewBuilder().name("analyze").process("sequential").withAgent(analys
   └─ assistant.cmd.ts         defineAsyncCommand: parses the "mode:" prefix; launchMainLoop resolves the
        │                      session's mode, checks tools.extra, hands the rules to the gate
        └─ script-host.runCrewAsync("main-loop", { prompt, permissionMode, permissionModeVia,
-                                                  permissionRules, extraTools, prelude?, epilogue? })
+                                                  permissionRules, extraTools, prelude?, epilogue?,
+                                                  sessionStart?, closingLine? })
             └─ /crews/main-loop/crew.ork.ts   (the first --crews-dir holding <name>/crew.ork.ts)
                  └─ agent .body(): one turn of the loop (below)
        ◀─ ticket; the REPL prints the result when the crew completes
@@ -503,7 +507,7 @@ publishCrew(CrewBuilder().name("analyze").process("sequential").withAgent(analys
 
 | Crew | Processus | Lancé par | Ce qu'il fait |
 |---|---|---|---|
-| `main-loop` | autonome, budget 200 appels d'outils / 1800 s / 700k tokens de contexte (le contexte compté une fois) | `/assistant`, le texte libre, `/summary`, `/verify`, `/transcribe --then`, `/voice send` et `--go` | La boucle interactive |
+| `main-loop` | autonome, budget 200 appels d'outils / 1800 s / 700k tokens de contexte (le contexte compté une fois) / 8 agents lancés ; un `explorer` en lecture seule (`plan`, 30 itérations) que `spawn_agent` atteint | `/assistant`, le texte libre, `/summary`, `/verify`, `/transcribe --then`, `/voice send` et `--go` | La boucle interactive |
 | `project-init` | séquentiel, sans outil (l'index lu par le port `CodeIndex`) | `/init` | Parcourt l'arborescence, détecte les conventions, lit la carte des paquets quand un index existe, écrit le fichier d'instructions (une proposition à côté quand un fichier existant a été coupé) |
 | `git-commit` | séquentiel | `/commit` | Rédige un commit conventionnel à partir du diff, commite après confirmation |
 | `code-review` | séquentiel | `/review` (`--lens` pour un seul angle, `--passes` pour les tours de ce lancement ; les alias `/security-review` et `/passes`) | Revue multi-angles des changements indexés, constats classés |

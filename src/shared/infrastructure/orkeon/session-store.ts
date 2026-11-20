@@ -8,7 +8,7 @@ import type { SessionMsg } from "../../domain/types.ts";
 import type { SessionStore, StoredMessage, TokenBudget, TokenKinds } from "../../application/ports.ts";
 import type { SessionStoreInput } from "./runtime-tools.ts";
 import { asArray, pick, withToolMessage } from "./tool-results.ts";
-import { sessionStoreRefusedAppend } from "./messages.ts";
+import { sessionStoreRefusedAppend, sessionStoreRefusedState } from "./messages.ts";
 
 /** The `{ role, content }` view of stored entries, for transcripts and history. */
 function normalizeMessages(stored: StoredMessage[]): SessionMsg[] {
@@ -74,7 +74,9 @@ export function createSessionStore(
       return out;
     },
     async writeState(key, value) {
-      await sessionStore({ operation: "set_state", key, value });
+      const resp = await sessionStore({ operation: "set_state", key, value });
+      // A refused write (a blank key) says so, as a refused append does.
+      if (pick(resp, "success", "Success") === false) throw new Error(sessionStoreRefusedState(key));
     },
     async readBudget() {
       const b = await tools.tokenBudget();

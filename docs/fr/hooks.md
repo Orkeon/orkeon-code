@@ -27,7 +27,7 @@ le registre à leur crew, comme `/tasks repair` à l'agent qu'il relance. Pour c
    résultat ;
 4. l'appel s'exécute ;
 5. chaque hook `post-tool` s'exécute, dans l'ordre. Celui qui échoue ajoute une ligne au résultat que lit le modèle
-   (`[post-tool hook #2 (node .orkeon/hooks/post.mjs file_write src/x.ts) exited 1: …]`) ; quand tous sortent avec 0,
+   (`[post-tool hook #2 (node .orkeon/hooks/post.mjs file_write /workspace/src/x.ts) exited 1: …]`) ; quand tous sortent avec 0,
    le résultat reste tel quel. Un résultat qui n'est pas du texte parvient alors au modèle en JSON compact, sur une ligne.
 
 Le temps d'exécution d'un hook compte dans le budget de temps de l'étape, à chaque appel : gardez les hooks courts.
@@ -61,9 +61,12 @@ Trois mots sont remplacés dans la commande avant qu'elle s'exécute :
 
 | Mot | Remplacé par |
 |---|---|
-| `{tool}` | le nom de l'outil que le modèle a appelé, `file_write` |
+| `{tool}` | le nom de l'outil que le modèle a appelé, `file_write`, quand il ne contient que ces mêmes caractères ; `-` sinon |
 | `{event}` | `pre-tool` ou `post-tool` |
-| `{path}` | l'argument `path` de l'appel, tel que le modèle l'a écrit, quand il ne contient que des lettres, des chiffres et `._/@+=,:-` et ne commence pas par `-` ; `-` sinon ou sans lui |
+| `{path}` | l'argument `path` de l'appel tel que l'outil le reçoit (un chemin relatif résolu sous `/workspace`, `./` et `..` repliés), quand il ne contient que des lettres, des chiffres et `._/@+=,:-` et ne commence pas par `-` ; `-` sinon ou sans lui |
+
+Pour un `edit_batch`, chaque hook s'exécute une fois par opération, `{path}` étant le chemin de cette opération : un
+hook par fichier entend chaque fichier que le lot écrit.
 
 Le programme doit être un de ceux que l'outil shell exécute : `node`, `npm`, `dotnet` et `find` sous
 `Orkeon:Tools:Shell:AllowInterpreters`, que les settings d'exemple activent, et tout autre sous

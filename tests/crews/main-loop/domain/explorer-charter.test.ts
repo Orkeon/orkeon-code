@@ -1,10 +1,11 @@
 // The main loop's explorer charter: it can run, and in plan mode it keeps every tool it names. Run:
 //   node --test tests/crews/main-loop/domain/explorer-charter.test.ts
 import { describe, it } from "node:test";
-import { deepStrictEqual } from "node:assert";
+import { deepStrictEqual, strictEqual } from "node:assert";
 
-import { EXPLORER_CHARTER, EXPLORER_TOOLS } from "../../../../src/crews/main-loop/domain/explorer-charter.ts";
+import { EXPLORER_CHARTER, EXPLORER_TOOLS, explorerReachable } from "../../../../src/crews/main-loop/domain/explorer-charter.ts";
 import { charterCatalogue, charterProblems } from "../../../../src/shared/domain/agents/charter.ts";
+import { REACHABLE_CASES } from "./explorer-charter.fixtures.ts";
 
 describe("EXPLORER_CHARTER", () => {
   it("is a charter that can run: a kebab name, a read-only mode, tools that mode offers", () => {
@@ -28,4 +29,19 @@ describe("EXPLORER_CHARTER", () => {
     // Assert
     deepStrictEqual(catalogue, [...EXPLORER_TOOLS]);
   });
+});
+
+describe("explorerReachable", () => {
+  for (const c of REACHABLE_CASES) {
+    it(c.name, () => {
+      // Arrange
+      const { mode, rules } = c;
+
+      // Act
+      const reachable = explorerReachable(mode, rules);
+
+      // Assert
+      strictEqual(reachable, c.reachable);
+    });
+  }
 });

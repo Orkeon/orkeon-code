@@ -1,9 +1,11 @@
 // The session modes, the answers to the confirmation and the pull-request context the /commit tests run over.
 import { runCommitCommand } from "../../../../src/commands/_lib/git/commit.ts";
 import type { CommitDispatch } from "../../../../src/commands/_lib/git/commit.ts";
+import { COMMIT_REQUIRE_CONFIRM_CONFIG_KEY } from "../../../../src/shared/domain/git/close.ts";
 import { GITHUB_TOOL } from "../../../../src/shared/domain/git/pull-request.ts";
 import { gateLine } from "../../../../src/shared/domain/agent-policy/permission.ts";
 import type { PermissionRule } from "../../../../src/shared/domain/agent-policy/permission.ts";
+import { FakeConfigStore } from "../../../support/doubles/fake-config-store.ts";
 import { FakeLogger } from "../../../support/doubles/fake-logger.ts";
 import { FakePermissionRules } from "../../../support/doubles/fake-permission-rules.ts";
 import { FakeToolCatalogue } from "../../../support/doubles/fake-tool-catalogue.ts";
@@ -13,6 +15,8 @@ export interface CommitSeed {
   mode?: string;
   /** What the confirmation answers; an Error is thrown, as a session that cannot prompt does. */
   answer?: unknown;
+  /** The value of the setting `commit.requireConfirm`; unset when not given. */
+  requireConfirm?: string;
 }
 
 export interface CommitHarness {
@@ -28,7 +32,8 @@ export interface CommitHarness {
 /** The session rule the pull-request context reads. */
 export const SESSION_RULE: PermissionRule = { effect: "allow", tool: "github" };
 
-/** /commit over a session in `mode`, a confirmation answering `answer`, a catalogue with the github tool and one rule. */
+/** /commit over a session in `mode`, a confirmation answering `answer`, the settings holding `requireConfirm` when
+ *  given, a catalogue with the github tool and one rule. */
 export function commitHarness(seed: CommitSeed = {}): CommitHarness {
   const written: string[] = [];
   const questions: string[] = [];
@@ -37,6 +42,8 @@ export function commitHarness(seed: CommitSeed = {}): CommitHarness {
   catalogue.tools.set(GITHUB_TOOL, {});
   const rules = new FakePermissionRules();
   rules.rules = [SESSION_RULE];
+  const config = new FakeConfigStore();
+  if (seed.requireConfirm !== undefined) config.values[COMMIT_REQUIRE_CONFIRM_CONFIG_KEY] = seed.requireConfirm;
   const session = { resolveEffectiveSessionMode: async () => ({ mode: seed.mode ?? "acceptEdits", via: "test" }) };
   const confirm = async (question: string): Promise<unknown> => {
     questions.push(question);
@@ -48,7 +55,7 @@ export function commitHarness(seed: CommitSeed = {}): CommitHarness {
     questions,
     log,
     run: (...tokens) => runCommitCommand(tokens, {
-      session, confirm, write: (line) => written.push(line), log, pr: { catalogue: () => catalogue, rules: () => rules, session },
+      session, confirm, write: (line) => written.push(line), log, pr: { catalogue: () => catalogue, rules: () => rules, session }, config,
     }),
   };
 }
@@ -75,3 +82,9 @@ export const NOTED_INPUT = { permissionMode: "acceptEdits", paths: [], push: fal
 /** The refusal of a `--note` with no text, the usage named. */
 export const NOTE_WITHOUT_TEXT_REFUSAL =
   "✗ --note takes the reason as a text. Usage: /commit [--yes] [--push] [--pr] [--note <text>] [<path>...]";
+
+/** What a `/commit --pr` launched without a question hands the crew: no pull request asked. */
+export const UNASKED_PR_INPUT = {
+  permissionMode: "acceptEdits", paths: [], push: true, pr: true,
+  prAsked: false, githubTool: true, permissionRules: [gateLine(SESSION_RULE)],
+};

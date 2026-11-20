@@ -47,7 +47,16 @@ export const RUNTIME_MESSAGES: readonly MessageCase[] = [
   },
   { name: "the wall time", failure: "Wall time exceeded (0:30:00 >= 0:30:00).", dimension: "wallTime" },
   { name: "the delegation depth", failure: "Delegation depth 3 exceeds max 2.", dimension: "delegationDepth" },
-  { name: "too many spawned agents", failure: "Agent exceeded 4 spawned sub-agents.", dimension: "spawnedAgents" },
+  {
+    name: "a spawn refused past the count, as Orkeon #423 words it",
+    failure: new Error("Spawn budget spent: 8 sub-agents already spawned (limit 8 spawnedAgents)."),
+    dimension: "spawnedAgents",
+  },
+  {
+    name: "a spawn refused at the delegation depth",
+    failure: "Delegation depth budget exhausted: cannot spawn 'explorer' (max 2).",
+    dimension: "delegationDepth",
+  },
   { name: "the host's cost budget", failure: "Cost budget spent for crew dev-plan: $2.0100 of $2.0000", dimension: "cost" },
 ];
 

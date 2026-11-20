@@ -68,15 +68,15 @@ const WEB_TOOLS: readonly string[] = ["web_search", ...NETWORK_READ_TOOLS];
  * search playbook: a read-only mode is not told how to write, and the line about the
  * shell appears only where the shell is offered. Stable per mode, so the cache holds.
  */
-function describeToolRealities(tools: readonly string[]): string {
+function describeToolRealities(tools: readonly string[], explorer: boolean): string {
   return toolRealities({
     fileRead: tools.includes("file_read"),
     editFile: tools.includes("edit_file"),
     fileWrite: tools.includes("file_write"),
     shell: tools.includes("shell_command"),
     web: WEB_TOOLS.some((tool) => tools.includes(tool)),
-    // spawn_agent is never in the catalogue: the runtime refuses it in plan and dontAsk, the modes without file_write.
-    explorer: tools.includes("file_write"),
+    // spawn_agent is never in the catalogue: whether a spawn can reach the explorer is the caller's (explorerReachable).
+    explorer,
   });
 }
 
@@ -115,6 +115,9 @@ export function buildStaticHeader(opts: {
    *  listed under Tools, but the rules that name one read them. Stable per mode, as the catalogue is. */
   scriptTools?: readonly string[];
   instructions?: InstructionsFile;
+  /** The explorer can be spawned (explorerReachable of the mode and the rules): the header names it. Stable per
+   *  session, as the mode and the rules are. */
+  explorer?: boolean;
 }): string {
   // Sorted so a differently-ordered catalogue still yields the same bytes.
   const tools = [...opts.toolNames].sort();
@@ -123,7 +126,7 @@ export function buildStaticHeader(opts: {
     FINISHING_BLOCK, ASKING_BLOCK, VERIFICATION_BLOCK, CARE_BLOCK, describeTrust([...tools, ...(opts.scriptTools ?? [])]),
   ];
   if (tools.length > 0) {
-    parts.push(toolsBlock(tools, describeToolRealities(tools)));
+    parts.push(toolsBlock(tools, describeToolRealities(tools, opts.explorer === true)));
   }
   // The playbook only makes sense when the search tools are actually granted
   // (plan/dontAsk keep them; a hypothetical catalogue without codebase_search
