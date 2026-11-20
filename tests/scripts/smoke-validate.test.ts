@@ -4,7 +4,16 @@
 import { describe, it } from "node:test";
 import { spawnSync } from "node:child_process";
 import { strictEqual } from "node:assert";
-import { CREWS, EXITS, FAILED_LINE, OK_LINE, run, SCRIPT } from "./smoke-validate.fixtures.ts";
+import {
+  CREWS,
+  EXITS,
+  FAILED_LINE,
+  OK_LINE,
+  run,
+  SCRIPT,
+  SKIPPED_LINE,
+  SKIPPED_REPORT,
+} from "./smoke-validate.fixtures.ts";
 import {
   assertEveryCrew,
   assertExit,
@@ -92,6 +101,17 @@ describe("scripts/smoke-validate.sh", () => {
 
     // Assert
     assertReports(r, `smoke-validate: FAIL git-commit (exit 1): ${FAILED_LINE}`);
+  });
+
+  it("names the setting that hands the runtime a compiler when the type check was skipped", () => {
+    // Arrange
+    const plan = `0|${SKIPPED_LINE}\\n${OK_LINE}`;
+
+    // Act
+    const r = run(plan);
+
+    // Assert
+    assertReports(r, SKIPPED_REPORT);
   });
 
   it("counts the crews judged and the failures", () => {

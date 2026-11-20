@@ -13,6 +13,13 @@
 # The runtime is the one `orkeon-code run` picks (the tool, the image, or the source mode), on the
 # demo fixture, with the example settings made keyless as the other smokes do. SMOKE_VALIDATE_RUNNER
 # names another runner (the tests give a fake one), given the crew and the arguments of `orkeon-code run`.
+#
+# The runtime type-checks with the first `tsc` it finds (Orkeon:Scripting:Toolchain:TscPath, then the
+# tools/scripting-typecheck of its checkout, then PATH) and, finding none, skips the check with a
+# warning and still says VALIDATION OK. A crew whose check was skipped fails here: the smoke proves
+# nothing about types without a compiler. Give it this project's own, after `npm ci`:
+#   ORKEON_Orkeon__Scripting__Toolchain__TscPath="$PWD/node_modules/.bin/tsc" (an absolute path)
+# The TypeScript 7 of an Orkeon checkout's tools/scripting-typecheck hits Orkeon #424 on these crews.
 set -euo pipefail
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 if [ -n "${SMOKE_VALIDATE_RUNNER:-}" ]; then RUNNER=(bash "$SMOKE_VALIDATE_RUNNER"); else RUNNER=(bash "$ROOT/orkeon-code" run); fi
@@ -48,7 +55,13 @@ for crew in "${crews[@]}"; do
   status=$?
   set -e
   verdict="$(grep -o 'VALIDATION [A-Z]*.*' "$log" | tail -n 1 || true)"
-  if [ "$status" = 0 ] && [ "${verdict#VALIDATION OK}" != "$verdict" ]; then
+  if grep -q 'type check skipped' "$log"; then
+    echo "smoke-validate: FAIL $name: the runtime found no TypeScript compiler and skipped the type check;" \
+      "give it one with ORKEON_Orkeon__Scripting__Toolchain__TscPath=<absolute path to tsc>" \
+      "(this project's own: $ROOT/node_modules/.bin/tsc after npm ci). Last lines of the run:"
+    tail -n 20 "$log"
+    failed=$((failed + 1))
+  elif [ "$status" = 0 ] && [ "${verdict#VALIDATION OK}" != "$verdict" ]; then
     echo "smoke-validate: ok $name"
   else
     echo "smoke-validate: FAIL $name (exit $status): ${verdict:-no VALIDATION line}. Last lines of the run:"

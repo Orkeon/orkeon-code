@@ -77,8 +77,13 @@ jobs:
           ORKEON_SOURCE: ${{ github.workspace }}/.orkeon-source
           ORKEON_CODE_MODE: source
         run: bash scripts/smoke-crew.sh
+      # The runtime type-checks with the TypeScript of this project's devDependencies (node_modules/.bin/tsc,
+      # installed by `npm ci` above), named by its absolute path: without a compiler it would skip the check
+      # and still say VALIDATION OK, which smoke-validate.sh refuses. Not the TypeScript 7 that Orkeon's
+      # tools/scripting-typecheck pins: under it a module that references the typings fails (Orkeon #424).
       - name: Validate every crew at the pin (orkeon run --validate)
         env:
           ORKEON_SOURCE: ${{ github.workspace }}/.orkeon-source
           ORKEON_CODE_MODE: source
+          ORKEON_Orkeon__Scripting__Toolchain__TscPath: ${{ github.workspace }}/node_modules/.bin/tsc
         run: bash scripts/smoke-validate.sh
