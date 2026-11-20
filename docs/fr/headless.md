@@ -45,13 +45,16 @@ le mode de l'act, donc refusé ici (les callbacks d'Orkeon Code ne demandent jam
 Ce qui borne un tour, quel que soit le mode :
 
 - le budget du crew `main-loop` : 200 appels d'outils, 30 minutes, 700k tokens de contexte (le contexte compté une
-  fois), 40 itérations de la boucle ;
+  fois), 8 explorateurs lancés ([L'explorateur](turn.md#lexplorateur)), 40 itérations de la boucle à l'effort par
+  défaut (10 à 160 avec `/effort`) ;
 - le délai d'exécution des scripts dans les settings : `Orkeon:Cli:ScriptCommands:Limits` pour le REPL,
   `Orkeon:Scripting:Limits` pour l'`orkeon run` d'une exécution indépendante (30 minutes chacun dans l'exemple) ;
 - la garde du runtime (`Orkeon:Security:PermissionGate:Enabled`), qui confronte chaque appel au mode derrière le
   catalogue ;
 - les montages : le projet sur `/workspace`, les montages de travail `/output` et `/tmp`, votre bloc `orkeonCode`
-  sur `/user-config` (en lecture seule), rien d'autre ;
+  sur `/user-config` (en lecture seule) ; dans le REPL aussi les dossiers de la session (`/sessions`,
+  `/session-history` en lecture seule, `/memory`) et, avec la parole activée, `/audio` et `/transcripts` (en lecture
+  seule) ; rien d'autre ;
 - la liste blanche du shell dans les settings.
 
 Préférez le mode docker pour un tour `bypassPermissions` sans opérateur : le shell tourne alors dans le conteneur, et
@@ -134,9 +137,12 @@ orkeon-code run main-loop --workspace ~/src/app \
   d'état et la mémoire typée démarrent vides et finissent avec le processus : une exécution est un tour.
 
 Chaque crew se lance ainsi ; son `crew.ork.ts` dit dans son en-tête quels `inputs` il lit (`code-review` :
-`{ files?, commit? }` ; `advisor` : aucun). La CI vérifie que chaque commande et chaque crew se charge
-(`scripts/smoke-runtime.sh`) et lance un tour de `git-commit` face à un modèle simulé (`scripts/smoke-crew.sh`) ; un
-tour sans opérateur de `main-loop` face à un modèle s'éprouve à la main, pas en CI.
+`{ files?, commit?, lenses?, passes? }` ; `advisor` : aucun). Le smoke du runtime
+(`.github/workflows/runtime-smoke.yml`, sur une pull request qui touche l'épingle, le lanceur, un smoke ou les
+sources, chaque semaine et à la demande) vérifie que chaque commande slash se charge (`scripts/smoke-runtime.sh`),
+lance un tour de `git-commit` face à un modèle simulé (`scripts/smoke-crew.sh`) et passe chaque crew par
+`orkeon run --validate` (`scripts/smoke-validate.sh`) ; un tour sans opérateur de `main-loop` face à un modèle
+s'éprouve à la main, pas en CI.
 
 ## Un crew de dev, étape après étape
 
@@ -210,9 +216,12 @@ Trois voies, de la plus simple :
    conteneur n'a pas. Les crews d'Orkeon Code n'ont pas encore été éprouvés sous le démon : l'entrée qu'un crew
    procédural hébergé reçoit est le contrat du démon
    ([hôte de service Orkeon](https://github.com/Orkeon/orkeon/blob/main/docs/architecture/service-host.md)).
-3. **En processus, en .NET : pas encore.** La couche de scripting qui exécute les fichiers `.ork.ts`
-   (`Orkeon.Scripting`) est livrée dans l'outil `orkeon` et le REPL, pas en paquet NuGet, et le paquet `Orkeon` est
-   l'API C# du builder, qui ne charge pas de scripts. Suivi dans la [Feuille de route](roadmap.md) (runtime).
+3. **En processus, en .NET.** Orkeon publie sa couche de scripting sur nuget.org, le paquet `Orkeon.Scripting`
+   (`1.3.0`, la dernière release) : une application l'enregistre avec `services.AddOrkeonScripting()` et exécute un
+   `crew.ork.ts` par `ICrewScriptRunner.RunAsync(path)`, la forme en processus d'`orkeon run`, sans lancer de
+   processus ([Running a crew in-process](https://github.com/Orkeon/orkeon/blob/main/docs/reference/hosting.md#running-a-crew-in-process)).
+   esbuild n'est pas dans le paquet, comme pour l'outil. Les crews d'Orkeon Code n'ont pas encore été lancés ainsi :
+   un exemple d'hôte est dans la [Feuille de route](roadmap.md).
 
 Quelle que soit la voie, la portée de l'agent est la même : les montages que vous lui donnez, la liste blanche du shell
 dans les settings, le mode de permission de l'entrée, et la garde du runtime derrière eux.

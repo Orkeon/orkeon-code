@@ -35,7 +35,7 @@ chaque prompt est un fichier source : modifiez-le, ou ajoutez le vôtre.
   ([Configuration](docs/fr/configuration.md#outils-supplémentaires--serveurs-mcp-et-plugins)).
 - **La transcription de la parole** : un serveur MCP Whisper est livré dans `mcp/whisper/` ; `ORKEON_CODE_AUDIO_DIR`
   l'active, et l'assistant transcrit notes vocales, réunions et vidéos d'écran sur votre machine ; `/voice` dicte une
-  requête et `/say` lit à voix haute ([Configuration](docs/fr/speech.md#transcription-de-la-parole)).
+  requête et `/say` lit à voix haute ([Voix](docs/fr/speech.md#transcription-de-la-parole)).
 - **Des crews pour les tâches récurrentes** : `/init` (décrire le projet pour l'agent), `/commit` (un commit
   conventionnel tiré du diff), `/review` (revue de code multi-angles ; `--lens security` pour le seul angle sécurité), `/analyze`
   (analyse déterministe du code), `/compact` et `/summary` (gestion du contexte), `/init-verifiers`, `/advisor`.
@@ -107,11 +107,12 @@ Le REPL est une façon de lancer les crews, pas la seule.
   `/mode` pour la session ; en mode `default`, le runtime vous demande avant une modification, une commande ou un
   appel réseau.
 - **Autonome** : en `bypassPermissions`, la boucle mène une tâche jusqu'au bout sans poser de question, sous un budget
-  (200 appels d'outils, 30 minutes, 700k tokens de contexte) et la garde du runtime. `orkeon-code run main-loop` lance le même crew en un
+  (200 appels d'outils, 30 minutes, 700k tokens de contexte, 8 explorateurs) et la garde du runtime. `orkeon-code run main-loop` lance le même crew en un
   coup depuis un shell, une ligne de cron ou un job de CI, et imprime son résultat en JSON.
 - **Embarqué** : une application lance l'outil `orkeon` (nuget.org) ou l'image `orkeon` sur un crew et lit le
   JSON ; le démon `orkeon-host` d'Orkeon peut héberger les crews derrière un canal de chat ou un point d'accès A2A.
-  L'intégration .NET en processus attend que la couche de scripting soit publiée en paquet.
+  En processus, une application .NET lance un crew par le paquet `Orkeon.Scripting` d'Orkeon (nuget.org) ; Orkeon
+  Code n'a pas encore d'exemple d'hôte pour cela.
 
 Détails et limites : [Exécutions autonomes et embarquées](docs/fr/headless.md).
 

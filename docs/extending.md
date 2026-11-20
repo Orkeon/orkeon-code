@@ -4,7 +4,7 @@ Everything the agent says and does on the TypeScript side is a source file of th
 a crew is a folder, a prompt is a string with its test under `tests/`, a permission mode is a row of a table. There is no
 build step on your side: the runtime bundles the sources with esbuild and runs them in Jint when the REPL starts, so a
 change is live at the next start. This page lists the extension points, what each one touches, and where the limits
-are. The layers, the ports and the step-by-step recipes are in [Architecture](recipes.md); the coding
+are. The layers, the ports and the step-by-step recipes are in [Recipes](recipes.md); the coding
 rules in [CONTRIBUTING.md](../CONTRIBUTING.md).
 
 ## A slash command
@@ -17,8 +17,8 @@ with `defineAsyncCommand` and prints the result when the crew completes
 `src/shared/infrastructure/orkeon/wiring.ts`, never through the globals:
 
 ```ts
-/// <reference path="./.orkeon/orkeon-cli.d.ts" />
-import { orkeonSessionIo } from "../shared/infrastructure/orkeon/wiring.ts";
+/// <reference path="../.orkeon/orkeon-cli.d.ts" />
+import { orkeonSessionIo } from "../../shared/infrastructure/orkeon/wiring.ts";
 
 const session = orkeonSessionIo();
 
@@ -114,7 +114,7 @@ session key `tools.extra` names them with their class (`<name>:read|write`)
 
 ## Prompts and behaviour
 
-Every prompt is written from a behaviour specification, [Architecture](turn.md#prompt-assembly), in this
+Every prompt is written from a behaviour specification, [How a turn runs](turn.md#prompt-assembly), in this
 project's own words ([ADR 0003](adr/0003-prompts-from-a-behaviour-specification.md)): change the specification first,
 then the text, then the marker phrases its test pins. `node scripts/render-prompts.mjs <dir>` writes every prompt as
 the model reads it, so a change is reviewed as the diff of two renders.
@@ -122,8 +122,8 @@ the model reads it, so a change is reviewed as the diff of two renders.
 - **The main loop.** `src/crews/main-loop/domain/prompt-assembly.ts` builds the static header (behaviour rules, tools
   and what they can do, search playbook, the project's instructions file) and the user body (preferences, skills,
   memory, hooks, environment, history, gauge, request): one `build<Name>Block` renderer per block, a field of
-  `PromptParts`, a place in `assemblePrompt`'s fixed order. A block's input is read in `application/context-gather.ts`,
-  through the ports, and passed in `application/prompts.ts`; the flags a session sets (`/effort`, `/passes` of `/review`,
+  `ContextParts`, a place in `assembleContext`'s fixed order. A block's input is read in `application/context-gather.ts`,
+  through the ports, and passed in `application/turn-context.ts`; the flags a session sets (`/effort`, `/passes` of `/review`,
   `/fast`, `/proactive`, `/output-style`, `answer.language`) travel the same way.
 - **Compaction and memory.** `src/shared/domain/compaction.ts` holds the summary and memory-extraction prompts and
   the markers the model later reads in its history; `src/shared/application/compaction/` runs them.

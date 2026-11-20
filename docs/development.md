@@ -25,17 +25,22 @@ runtime's typings come from, how the pin on Orkeon moves, and how a release is c
   type check, the bundle check, the provenance gate, the two command pages up to date, the documentation parity and
   the file modes (that is `npm run check` plus the file modes).
 - `runtime-smoke.yml` runs the three smokes every Monday, on demand (`workflow_dispatch`), and on a pull request
-  that touches `.orkeon-version`, `orkeon-code`, a smoke script or what it runs (`scripts/dev-run.sh`,
-  `scripts/setup-fixture.sh`, the mock answers under `tests/fixtures/llm-mock/`), `src/commands/**`, `src/crews/**`,
+  that touches `.orkeon-version`, `orkeon-code`, a smoke script or what it runs
+  (`scripts/setup-fixture.sh`, the mock answers under `tests/fixtures/llm-mock/`), `src/commands/**`, `src/crews/**`,
   `src/shared/**` or the workflow.
 - The job checks Orkeon's sources out at the pin read from `.orkeon-version`, builds the REPL and the `orkeon` tool
   and runs the source mode, the reference runtime: the REPL loads every command, then `git-commit` commits on a
   fresh copy of the demo fixture under `--llm-mock` (`scripts/smoke-crew.sh`), the model's one answer read from
   `tests/fixtures/llm-mock/git-commit.jsonl` and checked against the fixture's `HEAD`, then every crew passes
-  `orkeon run --validate` (`scripts/smoke-validate.sh`).
+  `orkeon run --validate` (`scripts/smoke-validate.sh`). The validate step hands the runtime this project's own
+  TypeScript compiler through `ORKEON_Orkeon__Scripting__Toolchain__TscPath`.
 - Locally, `ORKEON_SOURCE=<an Orkeon checkout at the pin> bash scripts/smoke-runtime.sh --mode source`, then
   `ORKEON_CODE_MODE=source bash scripts/smoke-crew.sh` and `ORKEON_CODE_MODE=source bash scripts/smoke-validate.sh`
   are the same checks.
+- `--validate` needs a TypeScript compiler: without one the runtime skips the type check, and the smoke fails that
+  crew. Give it this project's own after `npm ci`:
+  `ORKEON_Orkeon__Scripting__Toolchain__TscPath="$PWD/node_modules/.bin/tsc" ORKEON_CODE_MODE=source bash scripts/smoke-validate.sh`.
+  The TypeScript 7 an Orkeon checkout bootstraps in `tools/scripting-typecheck` fails these crews (Orkeon #424).
 - The runtime judges a crew of this project as a procedural script, since none assigns `globalThis.crew` in its own
   source: `--validate` bundles it and never runs it ([ADR 0025](adr/0025-orkeon-after-317.md)).
 
@@ -51,7 +56,7 @@ runtime's typings come from, how the pin on Orkeon moves, and how a release is c
 clone without one on PATH it uses the `orkeon` tool (`Orkeon.Scripting.Cli`, nuget.org, named by `.config/dotnet-tools.json`; the .NET SDK
 that restores and runs it is pinned by `global.json`, like Orkeon's: `10.0.300` with `rollForward: latestFeature`) or the
 `orkeon` image, on the current folder unless `--workspace` or `--demo` says otherwise. Both are a release:
-the tool is on nuget.org at `1.3.0`, the image is `ghcr.io/orkeon/orkeon:latest` (`1.3.0`), both the pin at this writing;
+the tool is on nuget.org at `1.3.0`, the image is `ghcr.io/orkeon/orkeon:latest` (`1.3.0`), both one fix behind the pin at this writing (Orkeon #423, a spawn past the budget refused);
 the tool carries no esbuild, the launcher takes the one `npm ci` installed;
 `ORKEON_CODE_MODE=source ORKEON_SOURCE=<checkout at the pin>` runs it from an Orkeon checkout, built on the spot. That tool reads its script limits from
 `Orkeon:Scripting:Limits`, not from the REPL's `Orkeon:Cli:ScriptCommands:Limits`

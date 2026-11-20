@@ -32,7 +32,7 @@ trimmed by the mode. Every command, crew and prompt is a source file: change it,
   catalogue once `tools.extra` names them ([Configuration](docs/configuration.md#extra-tools-mcp-servers-and-plugins)).
 - **Speech-to-text**: a Whisper MCP server ships in `mcp/whisper/`; `ORKEON_CODE_AUDIO_DIR` turns it on, and the
   assistant transcribes voice notes, meetings and screen recordings on your machine; `/voice` dictates a request
-  and `/say` reads aloud ([Configuration](docs/speech.md#speech-to-text)).
+  and `/say` reads aloud ([Speech](docs/speech.md#speech-to-text)).
 - **Crews for the recurring jobs**: `/init` (describe the project for the agent), `/commit` (a conventional commit
   from the diff), `/review` (multi-lens code review; `--lens security` for the security lens alone), `/analyze` (deterministic
   codebase analysis), `/compact` and `/summary` (context management), `/init-verifiers`, `/advisor`.
@@ -101,11 +101,12 @@ The REPL is one way to run the crews, not the only one.
 - **Interactive**: `./orkeon-code` on your project. `plan:` to ask, `acceptEdits:` to let it edit, `/mode` for the
   session; in `default` mode the runtime asks you before an edit, a command or a network call.
 - **Autonomous**: in `bypassPermissions` the loop runs a task to the end without a question, under a budget (200 tool
-  calls, 30 minutes, 700k context tokens) and the host gate. `orkeon-code run main-loop` runs the same crew in one shot from a shell, a
+  calls, 30 minutes, 700k context tokens, 8 explorers) and the host gate. `orkeon-code run main-loop` runs the same crew in one shot from a shell, a
   cron line or a CI job, and prints its result as JSON.
 - **Embedded**: an application starts the `orkeon` tool (nuget.org) or the `orkeon` image on a crew and reads
-  the JSON; Orkeon's `orkeon-host` daemon can host the crews behind a chat channel or an A2A endpoint. In-process
-  .NET embedding waits for the scripting layer to ship as a package.
+  the JSON; Orkeon's `orkeon-host` daemon can host the crews behind a chat channel or an A2A endpoint. In process, a
+  .NET application runs a crew through Orkeon's `Orkeon.Scripting` package (nuget.org); Orkeon Code has no host
+  example for it yet.
 
 Details and limits: [Autonomous and embedded runs](docs/headless.md).
 
