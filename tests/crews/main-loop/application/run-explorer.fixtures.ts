@@ -27,6 +27,7 @@ export const EXPLORER_RULE_MARKERS: Record<string, string> = {
   "a cut result is not the whole": "a name missing from it is not absent",
   "narrows before saying something does not exist": "before you say something does not exist",
   "stops once answered": "Stop reading once the brief is answered",
+  "reports before its last iteration": "past the last one nothing you found comes back, so report what you hold before",
   "a short report": "a few hundred words",
   "the answer first": "the answer to the brief first",
   "each fact with its path:line": "each fact with the `path:line` it rests on",
@@ -34,3 +35,9 @@ export const EXPLORER_RULE_MARKERS: Record<string, string> = {
   "no file dump": "no file content beyond the few lines a fact needs",
   "the brief's language": "Write in the language of the brief",
 };
+
+/** What the runtime resolves an act stopped at its cap with: its notice, never the model's words. */
+export const ITERATIONS_NOTICE = "(max tool-call iterations reached without a final answer)";
+
+/** The refusal of an explorer stopped at its 30 iterations: what happened, then what to send instead. */
+export const OUT_OF_ITERATIONS = /used its 30 tool-call turns without a report.*send a narrower brief/;

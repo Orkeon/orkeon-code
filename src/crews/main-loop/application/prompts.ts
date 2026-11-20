@@ -21,7 +21,8 @@ export const EXPLORER_SYSTEM =
   "Reads and searches that do not depend on each other go out together, in one message.\n" +
   "- A listing or a search that came back cut is not the whole: a name missing from it is not absent. Narrow the " +
   "call (a folder below, a `glob` pattern) before you say something does not exist.\n" +
-  "- Stop reading once the brief is answered: your iterations are counted.\n" +
+  "- Stop reading once the brief is answered: your iterations are counted, and past the last one nothing you found " +
+  "comes back, so report what you hold before.\n" +
   "- Your final answer is the report, and the whole of it enters the other agent's context, so keep it short, a " +
   "few hundred words:\n" +
   "  - the answer to the brief first;\n" +

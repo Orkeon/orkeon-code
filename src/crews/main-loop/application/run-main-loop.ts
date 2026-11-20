@@ -8,7 +8,7 @@ import type { ContextPruning } from "../../../shared/application/compaction/prun
 import {
   MEMORY_TOOLS, catalogueFor, parseStoredRule, resolvePermissionMode, scriptToolsFor,
 } from "../../../shared/domain/agent-policy/permission.ts";
-import type { CatalogueDecision, ExtraTool } from "../../../shared/domain/agent-policy/permission.ts";
+import type { CatalogueDecision, ExtraTool, PermissionRule } from "../../../shared/domain/agent-policy/permission.ts";
 import { parseExtraTools } from "../../../shared/domain/agent-policy/extra-tools.ts";
 import {
   DEFAULT_BEHAVIOR_FLAGS, describeActiveFlags, maxIterationsFor,
@@ -88,6 +88,8 @@ export interface LoadedCatalogue {
   catalogue: CatalogueDecision;
   /** Orkeon Code's own tools the mode offers under the rules (the shared memory's), attached by name. */
   scriptTools: string[];
+  /** The session's rules, as read: the header names the explorer only when they let a spawn reach it. */
+  rules: PermissionRule[];
 }
 
 /**
@@ -112,7 +114,9 @@ export function loadCatalogue(input: MainLoopInputs): LoadedCatalogue {
   const rules = (input.permissionRules ?? [])
     .map((raw) => parseStoredRule(raw, extraNames))
     .filter((r): r is NonNullable<typeof r> => r !== null);
-  return { mode, extras, catalogue: catalogueFor(mode, rules, extras), scriptTools: scriptToolsFor(mode, MEMORY_TOOLS, rules) };
+  return {
+    mode, extras, catalogue: catalogueFor(mode, rules, extras), scriptTools: scriptToolsFor(mode, MEMORY_TOOLS, rules), rules,
+  };
 }
 
 /** Where the mode of the turn came from, when the request did not name it. */
@@ -347,7 +351,7 @@ export async function runMainLoop(input: MainLoopInputs, loaded: LoadedCatalogue
   await appendTurn(session, "user", prompt);
   // Head-of-turn auto-compaction (F3): act() starts from a healthy buffer.
   await autoCompactGuarded(deps);
-  const assembled = await buildTurnPrompt(prompt, mode, flags, deps, loaded.extras, loaded.scriptTools);
+  const assembled = await buildTurnPrompt(prompt, mode, flags, deps, loaded.extras, loaded.scriptTools, loaded.rules);
   // A turn the provider failed throws (LlmFailure), as any failure of act does:
   // no answer is stored, the tail compaction does not run (the breaker counts
   // compactions, not turns), and the run fails with the provider's error, which
