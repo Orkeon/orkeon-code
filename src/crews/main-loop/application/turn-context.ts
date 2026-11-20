@@ -3,6 +3,8 @@
 // pure in shared/domain/agent-policy/permission.
 
 import { buildActPrompt, toolsetFor } from "../../../shared/domain/agent-policy/permission.ts";
+import type { PermissionRule } from "../../../shared/domain/agent-policy/permission.ts";
+import { explorerReachable } from "../domain/explorer-charter.ts";
 import { proactiveSuffix } from "../../../shared/domain/agent-policy/behavior-flags.ts";
 import type { BehaviorFlags } from "../../../shared/domain/agent-policy/behavior-flags.ts";
 import {
@@ -70,6 +72,7 @@ export async function buildTurnPrompt(
   deps: TurnContextDeps,
   extras: readonly ExtraTool[] = [],
   scriptTools: readonly string[] = [],
+  rules: readonly PermissionRule[] = [],
 ): Promise<TurnPrompt> {
   // /fast: skip the two advisory reads entirely, not just their rendering.
   // Rendering-only would keep paying for the memory listing and every skill file
@@ -92,7 +95,9 @@ export async function buildTurnPrompt(
   const today = isoDay(deps.clock());
 
   return {
-    system: buildStaticHeader({ toolNames: toolsetFor(mode, extras), scriptTools, instructions }),
+    system: buildStaticHeader({
+      toolNames: toolsetFor(mode, extras), scriptTools, instructions, explorer: explorerReachable(mode, rules),
+    }),
     context: assembleContext({
       // All volatile, all in the context. An unconfigured session renders none
       // of the optional blocks.

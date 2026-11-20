@@ -8,7 +8,7 @@ other crews in [Crew prompts](crew-prompts.md).
 
 ## One turn of the loop
 
-The `main-loop` agent's body is the loop (`crews/main-loop/application/run-main-loop.ts`):
+The body of the `main-loop` crew's agent, `coder`, is the loop (`crews/main-loop/application/run-main-loop.ts`):
 
 1. Make the launching command's prelude call, if any (`/transcribe --then`: the transcription, which follows the
    request; `/voice --go`: the dictation, which is the request), as the command's call: a failure fails the run
@@ -16,11 +16,17 @@ The `main-loop` agent's body is the loop (`crews/main-loop/application/run-main-
 2. Take the mode the launching command resolved (an explicit `mode:` prefix, else the session default set by `/mode`,
    else the fallback; `default` when launched without one) and say where it came from.
 3. Build the tool catalogue from the mode, the extra tools and the rules (at load time) and announce what the rules
-   changed.
-4. Read the behaviour flags once (`/effort`, `/passes` of `/review`, `/fast`, `/proactive`, `/output-style`).
-5. Append the user turn to the session buffer; compact first if the buffer is under pressure
+   changed. When the host says its permission gate is off, a warning says that the mode and the rules check nothing:
+   once a session (state key `gate.warned`), above the answer, never stored, and never in `bypassPermissions`.
+4. Read the behaviour flags once (`/model`, `/effort`, `/passes` of `/review`, `/fast`, `/proactive`,
+   `/output-style`). Under a session `llm.profile` the profile names the model: a `/model` choice is dropped for the
+   turn, with a warning.
+5. Run the turn-start chain (`domain/turn-chains.ts`) on the request: a guard may refuse the turn, which ends before
+   anything is stored or any model is called. On the first turn of a session, what its start script printed is
+   stored as a `[turn-context]` message just before the request.
+6. Append the user turn to the session buffer; compact first if the buffer is under pressure
    (`auto-compact.ts`).
-6. Assemble the prompt (below; `application/turn-context.ts` over the reads of `context-gather.ts`) and call the model's
+7. Assemble the prompt (below; `application/turn-context.ts` over the reads of `context-gather.ts`) and call the model's
    `act` (the `Llm` port over `ctx.llm.act()`): the runtime runs the model ⇄ tool calls cycle over the catalogue,
    every call of a model turn in order, under the crew budget and the permission gate, and returns the final answer.
    - A failed model call throws an `LlmFailure`: the turn stores no answer and fails with the provider's error.
@@ -29,7 +35,13 @@ The `main-loop` agent's body is the loop (`crews/main-loop/application/run-main-
      stores nothing after the request but the `[tools]` message of the calls that ran before the block (an edit made
      on disk stays on record), logs a warning and answers the block, its profile, stage and reason, with what to do.
    - The run does not fail.
-7. Append the turn's `[tools]` message, then the answer.
+   - An act stopped at its iteration cap answers the runtime's notice that no final answer came. An act whose token
+     budget ran out answers the wrap-up the model made without tools, followed by a line that says so, shown and
+     never stored. Neither goes through the stop chain: a second act would meet the same limit.
+   - Otherwise the stop chain reads the answer: a blank answer, or one without the line a launching command asks it
+     to end with (`closingLine`), goes back to the model once, with the reason, and the second answer stands. When
+     that second act fails, a first answer that is not blank stands, with a warning.
+8. Append the turn's `[tools]` message, then the answer.
    - The message is built from the act's `onToolResult` (`shared/domain/tool-trace.ts`) and from the calls the
      crew's own `onToolCall` denied (an error `denied: <reason>`): one line per call, the tool, its main arguments
      cut short (path, pattern, glob, mode, command…) and a one-line outcome (a count, an exit code, an error, a cut
@@ -160,14 +172,13 @@ prompt as the model reads it, to review a change as a diff.
   - Where a web tool is offered (`web_search`, `http_api`, `web_scrape`, `scrape_element`, `firefox`), the project
     comes before the web: a port, a command or an image its documentation and example settings give wins over one
     found on the web, and a value read nowhere is not given as a fact.
-  - Where the catalogue writes (the modes in which the runtime does not refuse `spawn_agent`), `spawn_agent` with
-    `agent: "explorer"` hands a brief to a read-only agent of the crew ([The explorer](#the-explorer)), the only
-    agent it takes: its reads stay in its own context and only its report comes back. It is for a survey of many
-    files or a whole area, never for a lookup of a few files. The brief stands alone, since the explorer sees
-    nothing else: the goal, the paths or the area, what to report. Its report is a lead: what a change rests on is
-    checked first.
-  - The lines about writing, editing, the shell, the web and the explorer appear only in the modes that offer those
-    tools.
+  - Where a spawn can reach the explorer (its permissions are in [The explorer](#the-explorer)), `spawn_agent` with
+    `agent: "explorer"` hands a brief to a read-only agent of the crew, the only agent it takes: its reads stay in its own context and only its report comes back. It is for a survey of many
+    files or a whole area, never for a lookup of a few files. Few spawns a turn: past the budget one is refused. The
+    call's `input` is the brief and all the explorer sees: the goal, the paths or the area, what to report. Its
+    report is a lead: what a change rests on is checked first.
+  - The lines about writing, editing, the shell and the web appear only in the modes that offer those tools, the
+    line about the explorer only where a spawn can reach it.
 - **Refusals**: a tool not offered (the script tools are offered without being listed) or a refused call is a
   decision of the mode or the user; change approach instead of repeating the call.
 #### Searching the code
@@ -258,15 +269,21 @@ it made stay in its own context.
 
 - **Its charter**: `plan` mode and the read and search tools of the code (files, their nodes, folders, `glob`,
   `grep`, the code index and its graph queries). No shell, no write, no index build, no web. It has 30 tool-call
-  iterations. It runs under the stricter of `plan` and the turn's mode, on the host's model: a `/model` choice is the
-  main loop's, and `/route` does not route it.
+  iterations. It runs under the stricter of `plan` and the turn's mode, on the session's `llm.profile`, else the
+  host's default model: neither `/model` nor `/effort` reaches it, and `/route` does not route it.
 - **How many**: a turn spawns 8 agents at most (`spawnedAgents` of `crews/main-loop/domain/turn-budget.ts`; the
   runtime allows 3 when a budget names none). The ninth `spawn_agent` is refused with a tool error the model reads,
-  and the turn carries on with the reports it holds (Orkeon #423: it used to end the whole turn). The header tells
-  the model to spawn few, and that past the budget a spawn is refused.
-  Each explorer starts with what the turn has left as its ceiling, and the turn's wall clock runs while it works.
+  and the turn carries on with the reports it holds (Orkeon #423: reaching the count used to end the turn at the
+  next model call, the reports already received lost). The header tells the model to spawn few, and that past the
+  budget a spawn is refused. The spawns run one after another, inside the turn's wall time: each explorer starts
+  with what the turn has left as its ceiling, and the turn's wall clock runs while it works.
 - **Its brief**: the `input` of the call, trimmed. An empty brief and a brief over 24 000 characters are refused
-  before any model call, and the turn reads the refusal as the call's result.
+  before any model call, and the turn reads the refusal as the call's result; the refused spawn still counts
+  against the 8.
+- **When it stops short**: an explorer whose token ceiling runs out gives the wrap-up the model made without tools,
+  under a line that says the report is cut short. One that uses its 30 iterations without a report has nothing to
+  keep (the runtime hands back its notice alone): the call is refused with what happened and a request for a
+  narrower brief. Either way the spawn counts.
 - **Its prompt** (the system message of its one act):
   - It sees the brief alone: no conversation, no project instructions, no earlier turn. It does not assume what the
     brief leaves out, and says how it read the brief.
@@ -275,14 +292,17 @@ it made stay in its own context.
     Reads and searches that do not depend on each other go out in one message.
   - A listing or a search that came back cut is not the whole: a name missing from it is not absent. It narrows the
     call (a folder below, a `glob` pattern) before it says that something does not exist.
-  - It stops reading once the brief is answered, since its iterations are counted.
+  - It stops reading once the brief is answered, since its iterations are counted: past the last one nothing it
+    found comes back, so it reports what it holds before.
   - Its final answer is the report, and the whole of it enters the turn's context, so it is short, a few hundred
     words: the answer to the brief first, each fact with the `path:line` it rests on, what it could not establish
     said as such and never guessed, no file content beyond the few lines a fact needs as evidence.
   - It writes in the language of the brief.
 - **Permissions**: `spawn_agent` is asked about in `default`, accepted in `acceptEdits` and `bypassPermissions`, and
-  refused in `plan` and `dontAsk`, where the header does not name the explorer
-  ([permissions](permissions.md#what-each-tool-declares)).
+  refused in `plan` and `dontAsk`; an allow rule on it holds in `dontAsk`, never in `plan`
+  ([permissions](permissions.md#what-each-tool-declares)). The header names the explorer only where a spawn of it
+  can get through: not in `plan`, in `dontAsk` only under an allow rule that matches it, and nowhere a deny rule
+  matches it (`explorerReachable`). A rule on the brief (`input`) matches some spawns only and changes nothing there.
 
 ## Routing a crew to a profile
 
