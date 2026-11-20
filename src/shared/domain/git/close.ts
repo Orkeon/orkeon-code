@@ -10,6 +10,9 @@ import {
 /** Q-10's switch: `true` asks the close to open the pull request itself. Omitted = false. */
 export const DEV_PR_AUTO_CONFIG_KEY = "dev.prAuto";
 
+/** The switch of /commit: `false` lets it launch without its confirmation, as --yes does. Omitted = true. */
+export const COMMIT_REQUIRE_CONFIRM_CONFIG_KEY = "commit.requireConfirm";
+
 /** Where the message goes for `git commit -F` (relative to /workspace; never tracked). */
 export const COMMIT_MESSAGE_FILE = ".git/ORKEON_COMMITMSG";
 /** In a linked worktree `.git` is a file: the message goes there instead, and is removed after the commit. */

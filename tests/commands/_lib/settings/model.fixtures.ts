@@ -70,9 +70,9 @@ export const PROFILE_SHOW_TEXT =
   `declared models (* = effective):\n${renderModelList(DECLARED, "")}\n` +
   USAGE;
 
-/** What /model show answers under the llm.profile `guarded` when the host tells it runs on deepseek-chat. */
+/** What /model show answers under the llm.profile `guarded` when the host tells it targets deepseek-chat first. */
 export const PROFILE_MODEL_SHOW_TEXT =
-  "effective model for the next turn: deepseek-chat, the model llm.profile guarded runs on " +
+  "effective model for the next turn: deepseek-chat, the first model llm.profile guarded targets " +
   "(the /model override does not apply)\n" +
   "  boot model      : kimi-k3\n" +
   "  session override: (none)\n" +

@@ -21,3 +21,9 @@ export const DECLARED_PROFILE_CASES = [
   { name: "the session's profile over a /model override", target: PROFILED },
   { name: "a profile spelled in another case, with spaces around", target: { profile: " GUARDED ", model: "" } },
 ] as const;
+
+/** The model a declared profile names, as the runtime hands it, and what the reader answers. */
+export const PROFILE_MODEL_SPELLINGS = [
+  { name: "answers nothing for the model of a profile that names an empty one", model: "", expected: null },
+  { name: "reads the model of a profile without the spaces around it", model: "  glm-5.3  ", expected: "glm-5.3" },
+] as const;

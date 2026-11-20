@@ -1,5 +1,5 @@
 /// <reference path="../.orkeon/orkeon-cli.d.ts" />
-// /clear — clear the CONVERSATION buffer (plus the screen), the permission mode kept. Deliberately shadows the
+// /clear — clear the CONVERSATION buffer (plus the screen), the permission mode and the /model choice kept. Deliberately shadows the
 // built-in screen-only clear: the scripted registry wins name resolution
 // (InteractiveRunnerBase: Specific ?? Defaults). /reset-session, the historical
 // dedicated name, is its alias.

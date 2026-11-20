@@ -1,9 +1,12 @@
 // /commit: the gate before the git-commit crew is launched (B-1). The arguments, the effective permission mode
 // (the read-only modes are refused here, so the operator learns why without a crew round-trip; the crew
-// re-checks), the plan and its confirmation, then the crew's input: the mode, the paths, push and pull request,
+// re-checks), the plan and its confirmation (skipped by --yes, or by the session key commit.requireConfirm set to
+// false), then the crew's input: the mode, the paths, push and pull request,
 // the author's note when one is given, and what the crew needs to open the pull request itself (pr-context.ts), read only when the run may reach it.
 import type { Logger } from "../../../shared/application/ports.ts";
+import type { ConfigStore } from "../../../shared/application/config-store.ts";
 import type { SessionIo } from "../../../shared/application/session-io.ts";
+import { COMMIT_REQUIRE_CONFIRM_CONFIG_KEY } from "../../../shared/domain/git/close.ts";
 import { pullRequestCrewInputs } from "../../../shared/domain/git/pull-request.ts";
 import { buildCommitPlan, isCommitPermitted, parseCommitArgs } from "../../../crews/git-commit/domain/commit.ts";
 import { commandLine, splitWords } from "../args.ts";
@@ -20,6 +23,15 @@ export interface CommitCommandDeps {
   write(line: string): void;
   log: Pick<Logger, "info">;
   pr: PullRequestContextPorts;
+  /** The settings: `commit.requireConfirm` set to `false` skips the confirmation, as --yes does. */
+  config: Pick<ConfigStore, "readValue">;
+}
+
+/** Whether the confirmation is asked: not with --yes, nor when the settings say `false`; a failed read asks. */
+async function asksConfirmation(yes: boolean, config: CommitCommandDeps["config"]): Promise<boolean> {
+  if (yes) return false;
+  const value = await config.readValue(COMMIT_REQUIRE_CONFIRM_CONFIG_KEY).then((read) => read.value, () => undefined);
+  return String(value ?? "").trim() !== "false";
 }
 
 export type CommitDispatch = { refused: string } | { input: Record<string, unknown> };
@@ -65,7 +77,8 @@ export async function runCommitCommand(tokens: readonly string[], deps: CommitCo
     return { refused: permitted.reason };
   }
 
-  if (!yes) {
+  const asked = await asksConfirmation(yes, deps.config);
+  if (asked) {
     const plan = buildCommitPlan({ push, pr, paths });
     const refusal = await confirmOrRefuse(deps, plan.notice, plan.question);
     if (refusal !== null) {
@@ -76,13 +89,14 @@ export async function runCommitCommand(tokens: readonly string[], deps: CommitCo
 
   deps.log.info(commitApproved(mode, via));
   const context: PullRequestContext | null = pr || push ? await readPullRequestContext(deps.pr) : null;
-  // A yes to a plan that named the pull request is the question the github call needs; --yes asked nothing.
+  // A yes to a plan that named the pull request is the question the github call needs; --yes, or a confirmation the
+  // settings turned off, asked nothing.
   return {
     input: {
       permissionMode: mode, paths, push, pr,
       ...(note === undefined ? {} : { note }),
       ...pullRequestCrewInputs({
-        pr, push, yes,
+        pr, push, yes: !asked,
         read: () => ({ githubTool: context?.githubTool ?? false, permissionRules: context?.permissionRules ?? [] }),
       }),
     },

@@ -94,3 +94,5 @@ export const MODEL_SETTING = "Model";
 export const settingKept = (setting: string, value: string): string => `${setting} kept: ${value}.`;
 export const settingNotKept = (setting: string, value: string): string =>
   `⚠ ${setting} ${value} could not be written back: the session is on its default.`;
+export const settingUnread = (setting: string): string =>
+  `⚠ ${setting} could not be read before the reset: the session is on its default.`;

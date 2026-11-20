@@ -7,6 +7,7 @@ export const GITHUB_SUCCESS_WITHOUT_PULL_REQUEST = "the github tool answered suc
 export const noLlmNamespace = (name: string): string =>
   `llm.profile '${name}': this host declares no llm namespace, no profile can be applied`;
 export const sessionStoreRefusedAppend = (role: string): string => `session_store refused to append a '${role}' message`;
+export const sessionStoreRefusedState = (key: string): string => `session_store refused to write the state key '${key}'`;
 export const SHELL_JOB_NEEDS_COMMAND = "a shell job needs a command";
 export const noJobIdFor = (command: string): string => `start_job answered no job id for: ${command}`;
 export const waitNotWholeSeconds = (seconds: number): string => `a wait is a whole number of seconds, at least 1: ${seconds}`;

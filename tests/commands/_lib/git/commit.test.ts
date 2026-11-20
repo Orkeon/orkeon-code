@@ -4,7 +4,7 @@
 import { describe, it } from "node:test";
 import { deepStrictEqual } from "node:assert";
 
-import { CANNOT_PROMPT_REFUSAL, NO_ANSWER_REFUSAL, NOTED_INPUT, NOTE_WITHOUT_TEXT_REFUSAL, PUSH_PR_INPUT, commitHarness } from "./commit.fixtures.ts";
+import { CANNOT_PROMPT_REFUSAL, NO_ANSWER_REFUSAL, NOTED_INPUT, NOTE_WITHOUT_TEXT_REFUSAL, PUSH_PR_INPUT, UNASKED_PR_INPUT, commitHarness } from "./commit.fixtures.ts";
 import { isCommitPermitted } from "../../../../src/crews/git-commit/domain/commit.ts";
 
 describe("runCommitCommand", () => {
@@ -95,5 +95,27 @@ describe("runCommitCommand", () => {
 
     // Assert
     deepStrictEqual([outcome, questions], [{ refused: NOTE_WITHOUT_TEXT_REFUSAL }, []]);
+  });
+
+  it("asks nothing and asks no pull request when commit.requireConfirm is false", async () => {
+    // Arrange
+    const { questions, run } = commitHarness({ requireConfirm: "false" });
+
+    // Act
+    const outcome = await run("--pr");
+
+    // Assert
+    deepStrictEqual([questions.length, outcome], [0, { input: UNASKED_PR_INPUT }]);
+  });
+
+  it("still asks when commit.requireConfirm is true", async () => {
+    // Arrange
+    const { questions, run } = commitHarness({ requireConfirm: "true", answer: false });
+
+    // Act
+    await run();
+
+    // Assert
+    deepStrictEqual(questions.length, 1);
   });
 });

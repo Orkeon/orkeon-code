@@ -336,7 +336,7 @@ export const MODEL_UNCHANGED = "model unchanged.";
 export const profileNamesModel = (profile: string): string =>
   `the one llm.profile ${profile} names (the /model override does not apply)`;
 export const profileRunsModel = (profile: string, model: string): string =>
-  `${model}, the model llm.profile ${profile} runs on (the /model override does not apply)`;
+  `${model}, the first model llm.profile ${profile} targets (the /model override does not apply)`;
 export const NO_EFFECTIVE_MODEL = "(none — see below)";
 
 // /output-style
