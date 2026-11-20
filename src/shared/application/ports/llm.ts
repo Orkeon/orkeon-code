@@ -80,7 +80,7 @@ export interface ReasoningReader {
   /** What a call on `target` asking for `level` sends; with no level, what the host's own configuration sends
    *  (`Llm:Thinking:Effort`), null when it asks for none. */
   effort(target: ReasoningTarget, level: EffortLevel | null): EffortReport | null;
-  /** The model a call on `target` runs on: a profile's own model (a decision profile's, that of the profile it
-   *  targets first; the one it escalates to is not told), null when the host cannot tell. */
+  /** The model a call on `target` runs on: a profile's own model (a decision or a fallback profile's, that of the
+   *  first profile it targets; the one it escalates or falls back to is not told), null when the host cannot tell. */
   model(target: ReasoningTarget): string | null;
 }

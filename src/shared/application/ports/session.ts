@@ -49,8 +49,8 @@ export interface SessionSwitch {
 }
 
 /** The session: its conversation buffer, its state bag (string values that survive
- *  crew runs and are cleared by /clear), the context window's budget and
- *  the session's title. */
+ *  crew runs; `reset` clears them all, and /clear writes the permission mode and the
+ *  /model choice back), the context window's budget and the session's title. */
 export interface SessionStore {
   readMessages(): Promise<SessionMessages>;
   /** Replace the conversation buffer. */
@@ -68,7 +68,7 @@ export interface SessionStore {
   readState(key: string): Promise<string | null>;
   /** Several state values in one read (Orkeon #263): every key asked, null when unset. */
   readStates(keys: readonly string[]): Promise<Record<string, string | null>>;
-  /** Set a state value; null removes the key. */
+  /** Set a state value; null removes the key. Throws when the store refuses the write. */
   writeState(key: string, value: string | null): Promise<void>;
   readBudget(): Promise<TokenBudget>;
 }

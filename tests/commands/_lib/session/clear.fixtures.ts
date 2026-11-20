@@ -17,3 +17,9 @@ export const NOTHING_KEPT_LINE =
   "conversation cleared (1 messages removed). " +
   "⚠ Permission mode bypassPermissions could not be written back: the session is on its default. " +
   "⚠ Model claude-mythos-5-2 could not be written back: the session is on its default.";
+
+/** The line /clear shows after removing 1 message when neither the mode nor the model could be read before the reset. */
+export const NOTHING_READ_LINE =
+  "conversation cleared (1 messages removed). " +
+  "⚠ Permission mode could not be read before the reset: the session is on its default. " +
+  "⚠ Model could not be read before the reset: the session is on its default.";

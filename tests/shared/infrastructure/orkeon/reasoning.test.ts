@@ -5,7 +5,7 @@ import { deepStrictEqual, strictEqual } from "node:assert";
 
 import { createReasoningReader } from "../../../../src/shared/infrastructure/orkeon/reasoning.ts";
 import { FakeLlmConfigs } from "../../../support/doubles/fake-llm-configs.ts";
-import { BOOT, DECLARED_PROFILE_CASES, DEFAULT_PROFILE, NO_PROVIDER, HOST_PROFILES, MEDIUM_ON_GLM, OVERRIDE, PROFILED, UNDECLARED_PROFILE } from "./reasoning.fixtures.ts";
+import { BOOT, DECLARED_PROFILE_CASES, DEFAULT_PROFILE, NO_PROVIDER, HOST_PROFILES, MEDIUM_ON_GLM, OVERRIDE, PROFILED, PROFILE_MODEL_SPELLINGS, UNDECLARED_PROFILE } from "./reasoning.fixtures.ts";
 
 describe("createReasoningReader — capabilities", () => {
   it("reads what the host's own model takes when the session names neither a profile nor a model", () => {
@@ -220,6 +220,21 @@ describe("createReasoningReader — model", () => {
     // Assert
     deepStrictEqual([model, host.asked], [null, []]);
   });
+
+  for (const c of PROFILE_MODEL_SPELLINGS) {
+    it(c.name, () => {
+      // Arrange
+      const host = new FakeLlmConfigs();
+      host.profileModels = { Guarded: c.model };
+      const reader = createReasoningReader(host);
+
+      // Act
+      const model = reader.model(PROFILED);
+
+      // Assert
+      strictEqual(model, c.expected);
+    });
+  }
 
   it("answers nothing for the model when the runtime refuses the configuration", () => {
     // Arrange

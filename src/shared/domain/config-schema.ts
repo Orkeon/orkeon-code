@@ -23,7 +23,7 @@ import { PRUNE_CONFIG_KEY } from "./context-prune.ts";
 import { SKILLS_SUGGEST_CONFIG_KEY } from "./skills/shortlist.ts";
 import { ROUTE_AGENTS_CONFIG_KEY, ROUTE_LADDER_CONFIG_KEY, ladderProblem } from "./agents/model-route.ts";
 import { DEV_WORK_DIR_CONFIG_KEY, workFolderProblem } from "./dev/work-folder.ts";
-import { DEV_PR_AUTO_CONFIG_KEY } from "./git/close.ts";
+import { COMMIT_REQUIRE_CONFIRM_CONFIG_KEY, DEV_PR_AUTO_CONFIG_KEY } from "./git/close.ts";
 import { LLM_PROFILE_CONFIG_KEY, llmProfileProblem } from "./llm-profile.ts";
 import {
   MEMORY_AUTO_ADMIT_CONFIG_KEY, MEMORY_DIR_CONFIG_KEY, MEMORY_PROJECT_CONFIG_KEY, memoryDirProblem, memoryProjectProblem,
@@ -76,7 +76,7 @@ export const CONFIG_KEYS: readonly ConfigKeySpec[] = [
     problem: llmProfileProblem,
   },
   {
-    key: "commit.requireConfirm",
+    key: COMMIT_REQUIRE_CONFIRM_CONFIG_KEY,
     ...COMMIT_REQUIRE_CONFIRM_DOC,
     allowed: ["true", "false"],
   },
