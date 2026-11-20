@@ -114,7 +114,7 @@ export const EXPLORER_RULE: readonly string[] = [
   "only its report returns",
   "Not for a lookup of a few files",
   "Few spawns a turn",
-  "past its budget the whole turn fails",
+  "past its budget a spawn is refused",
   "The brief stands alone, the explorer sees nothing else",
   "Its report is a lead: check what a change rests on",
 ];

@@ -20,7 +20,7 @@ profile does not see: the escalation judges an answer, the fallback replaces a c
 
 ## The runtime: source mode
 
-The pin (`d81bfab`) serves Liquid and Kev; it is the release `1.3.0`, and every release since `1.0.0` does too: the tool mode
+The pin (`30a61f8`) serves Liquid and Kev, and so does every release since `1.0.0`: the tool mode
 knows `Orkeon:Liquid`, `Orkeon:Kev` and `Orkeon:Decision:Provider`. The docker mode runs the image of
 the last release, `1.3.0` at this writing. This page was written in source mode, on an
 Orkeon checkout at the pin or after it ([Getting started](getting-started.md#source-mode-an-orkeon-checkout)):

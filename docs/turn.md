@@ -261,8 +261,9 @@ it made stay in its own context.
   iterations. It runs under the stricter of `plan` and the turn's mode, on the host's model: a `/model` choice is the
   main loop's, and `/route` does not route it.
 - **How many**: a turn spawns 8 agents at most (`spawnedAgents` of `crews/main-loop/domain/turn-budget.ts`; the
-  runtime allows 3 when a budget names none). The ninth `spawn_agent` ends the whole turn, as a spent budget does,
-  instead of being refused, so the header tells the model to spawn few, past the budget the whole turn fails.
+  runtime allows 3 when a budget names none). The ninth `spawn_agent` is refused with a tool error the model reads,
+  and the turn carries on with the reports it holds (Orkeon #423: it used to end the whole turn). The header tells
+  the model to spawn few, and that past the budget a spawn is refused.
   Each explorer starts with what the turn has left as its ceiling, and the turn's wall clock runs while it works.
 - **Its brief**: the `input` of the call, trimmed. An empty brief and a brief over 24 000 characters are refused
   before any model call, and the turn reads the refusal as the call's result.

@@ -14,9 +14,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   context. `spawn_agent` used to fail in the main loop whatever the agent: the crew held only `coder`, which the
   runtime refuses to run inside itself. The header names the explorer in the modes that do not refuse
   `spawn_agent` (`default`, `acceptEdits`, `bypassPermissions`), and its ceiling moves from 10 800 to 11 200
-  characters for that line ([turn](docs/turn.md#the-explorer)). A turn may spawn 8 agents, not the runtime's 3:
-  an audit split by area sends more than three, and the fourth used to end the whole turn ("Agent exceeded 3
-  spawned sub-agents"). The header says to spawn few, since past the budget the turn still fails.
+  characters for that line ([turn](docs/turn.md#the-explorer)). A turn may spawn 8 agents, not the runtime's 3,
+  since an audit split by area sends more than three; past them `spawn_agent` is refused and the turn carries on
+  (Orkeon #423). The fourth used to end the whole turn ("Agent exceeded 3 spawned sub-agents").
+
+### Changed — the pin moves to Orkeon `30a61f8`
+
+- The pin moves to Orkeon `main` `30a61f8` (Orkeon #423, which fixes #422): a spawn past the spawn budget is refused
+  with a tool error the model reads, where it used to end the whole turn and lose the reports already received. The
+  typings change in their comments alone. The tool and docker modes run Orkeon `1.3.0`, one fix behind the pin
+  ([ADR 0031](docs/adr/0031-orkeon-after-361.md)).
 
 ### Fixed — `/clear` keeps the permission mode and the model
 
