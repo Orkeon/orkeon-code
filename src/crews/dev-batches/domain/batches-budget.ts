@@ -21,6 +21,9 @@ export const BATCHES_BUDGET: StepBudget = { toolCalls: 120, wallTime: 1800, cont
 export const WAVE_REVIEW_CALLS = 60;
 export const WAVE_BATCH_CALLS = 20;
 
+/** The most batches a wave runs at once, which /dev-batches checks too: the driver's budget counts no more. */
+export const MAX_WAVE = 4;
+
 /** The driver's time beyond its own and the longest batch's: the harvest, the merges, the removals. */
 export const WAVE_MARGIN_SECONDS = 600;
 
@@ -41,7 +44,8 @@ export function batchLimits(steps: unknown): BatchLimits {
  *  the crew is built: the largest a batch can be sized to counts). */
 export function driverBudget(concurrency: unknown): StepBudget {
   // Whole batches: the runtime refuses a limit that is not a whole number (Orkeon #436), 2.7 × 80 calls is not one.
-  const n = Math.floor(typeof concurrency === "number" ? concurrency : Number(concurrency));
+  // No more than a wave holds: a huge count would make a limit that is not finite, which the runtime refuses too.
+  const n = Math.min(MAX_WAVE, Math.floor(typeof concurrency === "number" ? concurrency : Number(concurrency)));
   if (!(Number.isFinite(n) && n > 1)) return BATCHES_BUDGET;
   const calls = n * (WAVE_REVIEW_CALLS + WAVE_BATCH_CALLS);
   return {

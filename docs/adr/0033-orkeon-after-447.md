@@ -24,9 +24,9 @@ The tool on nuget.org and the image stay at `1.3.0`, six commits behind the pin.
 
 Three changes break what this project relies on:
 
-- **A budget refuses a limit below 1** (#436). The reader of a procedural `budget({...})` and of the `budget` option
-  of `crew.runAgent` used to skip a value of 0 or less and apply its default; it now refuses the run before its
-  first agent. Five budgets of this project set `delegationDepth: 0` (the dev-implement run and its close, the
+- **A budget refuses a limit below 1** (#436). The reader of a procedural `budget({...})` used to skip a value of 0 or less and
+  apply its default; it now refuses the run before its first agent, as the `budget` option of `crew.runAgent`
+  already did. Five budgets of this project set `delegationDepth: 0` (the dev-implement run and its close, the
   dev-batches driver and its waves, the repair run of agent-run): each crew would have stopped at its start.
 - **`auto` is a reserved profile name** (#434): a host declaring `Llm:Profiles:auto` or
   `Orkeon:Decision:Profiles:auto` is refused at start.
@@ -37,13 +37,15 @@ Three changes break what this project relies on:
 
 - **The pin moves to `5dc2ff3`**, the newest merge commit of Orkeon `main`. The typings gain `AgentEffort`
   (`EffortLevel | "auto"`), `taskBuilder().withEffort`, `crewBuilder().decision({ mode })`, the `without` relay of
-  a decision task and `"auto"` in `LlmReasoning.asked` and `notice`. The test double of the `llm` namespace keeps a
-  configuration's own effort on `with({ effort: "auto" })`, since `auto` is a pick made at a task's start.
+  a decision task and `"auto"` in `LlmReasoning.asked` and `notice`. The test double of the `llm` namespace follows the
+  typings on `with({ effort: "auto" })`: `asked` and `notice` read `"auto"`, and `sent` stays the configuration's
+  own effort, what a call outside a task sends.
 - **A budget that starts no child names no depth.** `StepBudget.delegationDepth` becomes optional and the five
   budgets leave it out. The runtime had been ignoring their 0 and applying its default depth, 2, so the runs behave
   as before; no budget can say "no child", the agents' tools hold it. A test per budget module checks that every
   limit is a whole number of 1 or more (`tests/support/assertions/budget.ts`), over the inputs a crew may be given.
-  The dev-batches driver floors its `concurrency` first: a fractional wave size made a fractional tool-call count.
+  The dev-batches driver floors its `concurrency` first and counts no more than the four batches a wave holds: a
+  fractional wave size made a fractional tool-call count, a huge one a limit that is not finite.
 - **The running-sum token cap was never ours to set.** Before #436 a budget naming `contextTokens` without `tokens`
   already left the running sum uncapped, which is why the old default of 16 000 tokens never cut a step; at the pin
   every left-out dimension is uncapped. The budgets keep the dimensions they name.

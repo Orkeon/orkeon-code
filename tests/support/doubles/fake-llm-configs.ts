@@ -22,7 +22,9 @@ function sentFor(effort: Level, taken: readonly Level[]): Level {
   return (below.at(-1) ?? taken[0]) as Level;
 }
 
-function config(model: string, effort: Level | undefined): LlmConfig {
+// `auto` (Orkeon #439): the level is the runtime's pick at a task's start. The configuration then reports `asked` and
+// `notice` as "auto", and `sent` as what a call outside a task sends: the effort it had without `auto`.
+function config(model: string, effort: Level | undefined, auto = false): LlmConfig {
   const known = model === "glm-5.3";
   const taken = known ? GLM_LEVELS : PROVIDER_LEVELS;
   const sent = effort === undefined ? undefined : sentFor(effort, taken);
@@ -30,11 +32,14 @@ function config(model: string, effort: Level | undefined): LlmConfig {
     provider: "zai",
     model,
     capabilities: { model, known, thinking: known ? "effortOnly" : "toggle", efforts: taken },
-    reasoning: effort === undefined
-      ? null
-      : { model, asked: effort, sent: sent ?? null, notice: sent !== effort ? "lowered" : known ? null : "unchecked" },
-    // `effort: "auto"` is a crew's word, picked by the runtime at a task's start: a configuration keeps its own effort.
-    with: (overrides) => config(overrides.model ?? model, overrides.effort === "auto" ? effort : overrides.effort ?? effort),
+    reasoning: auto
+      ? { model, asked: "auto", sent: sent ?? null, notice: "auto" }
+      : effort === undefined
+        ? null
+        : { model, asked: effort, sent: sent ?? null, notice: sent !== effort ? "lowered" : known ? null : "unchecked" },
+    with: (overrides) => overrides.effort === "auto" || (auto && overrides.effort === undefined)
+      ? config(overrides.model ?? model, effort, true)
+      : config(overrides.model ?? model, overrides.effort ?? effort),
   };
 }
 
