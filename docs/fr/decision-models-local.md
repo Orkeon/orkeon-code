@@ -21,7 +21,7 @@ réponse.
 
 ## Le runtime : le mode source
 
-L'épingle (`30a61f8`) sert Liquid et Kev, et chaque release depuis `1.0.0` les sert aussi : le mode
+L'épingle (`5dc2ff3`) sert Liquid et Kev, et chaque release depuis `1.0.0` les sert aussi : le mode
 tool connaît `Orkeon:Liquid`, `Orkeon:Kev` et `Orkeon:Decision:Provider`. Le mode docker exécute
 l'image de la dernière release, `1.3.0` à ce jour. Cette page a été écrite en mode source, sur
 un checkout d'Orkeon à l'épingle ou après ([Premiers pas](getting-started.md#mode-source--un-checkout-dorkeon)) :
@@ -540,7 +540,7 @@ appel est bloqué.
 
 Ce qui suit a été observé avec `kev-0.8b` et `qwen3.5:2b` dans Docker sur une RTX 3080, Orkeon à `0ea39d9` ;
 l'étape 2 compte les appels à Kev comme les fait Orkeon à `3860e9d`, où une étape qui appelle un outil n'est pas jugée après l'appel. Les lignes de journal sont celles du runtime, telles que l'exécution ci-dessous les affiche ; elles n'ont pas été
-observées de nouveau à l'épingle (`30a61f8`), mais ses sources écrivent encore chacune mot pour mot, et `Steps` vaut
+observées de nouveau à `30a61f8`, mais ses sources écrivaient encore chacune mot pour mot, et `Steps` valait
 toujours `final` par défaut.
 
 1. **Le démarrage.** Le runtime nomme le fournisseur actif :

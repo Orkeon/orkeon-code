@@ -14,7 +14,10 @@ export interface StepBudget {
   /** The context counted once (Orkeon #224): each call's completion plus what its prompt grew by, or the part the
    *  provider's cache did not serve; a spent one is reported on the `tokens` dimension, as the running sum is. */
   contextTokens: number;
-  delegationDepth: number;
+  /** Left out: the runtime's default, depth 2. The runtime refuses a limit below 1 (Orkeon #436), so a run that
+   *  starts no child leaves the key out: no budget can say "no child", the agent's tools hold it (it is given no
+   *  spawn tool). Before #436 the runtime ignored a 0 and applied the same default. */
+  delegationDepth?: number;
 }
 
 /**
@@ -44,9 +47,10 @@ export const STEP_BUDGETS: Readonly<Record<"dev-verify" | "dev-plan" | "dev-spec
 };
 
 /** The budget of a repair by a new run (/tasks repair, crew agent-run): the step's own that runs the charter as a
- *  child, so that a repaired audit or review stops where the original would; no child of its own. */
+ *  child, so that a repaired audit or review stops where the original would; no child of its own, so no depth. */
 export function repairBudget(step: keyof typeof STEP_BUDGETS): StepBudget {
-  return { ...STEP_BUDGETS[step], delegationDepth: 0 };
+  const { delegationDepth: _depth, ...limits } = STEP_BUDGETS[step];
+  return limits;
 }
 
 const DIMENSIONS: readonly BudgetDimension[] = ["toolCalls", "delegationDepth", "wallTime", "tokens", "spawnedAgents", "cost"];

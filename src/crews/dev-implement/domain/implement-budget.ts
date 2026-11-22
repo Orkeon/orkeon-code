@@ -1,6 +1,7 @@
 // The budget of one dev-implement run, sized to the steps it has to run (temp/02 G-29): each step
 // is two acts and two test runs; the batch ends with the build and the whole suite, each bounded
-// by SUITE_LIMIT_SECONDS. The close run (commit, push, pull request) gets a fixed budget. Pure.
+// by SUITE_LIMIT_SECONDS. The close run (commit, push, pull request) gets a fixed budget. Neither starts a child:
+// no depth (StepBudget.delegationDepth). Pure.
 import type { StepBudget } from "../../../shared/domain/dev/step-budget.ts";
 import { IMPLEMENTER, TEST_AUTHOR } from "./roles.ts";
 
@@ -11,7 +12,7 @@ export const SLICE_SECONDS = 20;
 export const DEFAULT_STEPS = 3;
 export const MAX_STEPS = 12;
 
-export const CLOSE_BUDGET: StepBudget = { toolCalls: 40, wallTime: 900, contextTokens: 50_000, delegationDepth: 0 };
+export const CLOSE_BUDGET: StepBudget = { toolCalls: 40, wallTime: 900, contextTokens: 50_000 };
 
 /** The steps to size for: a whole number from 1 to MAX_STEPS; DEFAULT_STEPS when not given or not a number. */
 export function stepsToSize(value: unknown): number {
@@ -25,5 +26,5 @@ export const STEP_TOOL_CALLS = TEST_AUTHOR.maxIterations + IMPLEMENTER.maxIterat
 export function implementBudget(input: { steps?: unknown; close?: unknown }): StepBudget {
   if (input.close === true) return CLOSE_BUDGET;
   const s = stepsToSize(input.steps);
-  return { toolCalls: STEP_TOOL_CALLS * s + 40, wallTime: 900 * s + 2 * SUITE_LIMIT_SECONDS, contextTokens: 150_000 * s, delegationDepth: 0 };
+  return { toolCalls: STEP_TOOL_CALLS * s + 40, wallTime: 900 * s + 2 * SUITE_LIMIT_SECONDS, contextTokens: 150_000 * s };
 }

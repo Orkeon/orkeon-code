@@ -4,7 +4,23 @@ import { describe, it } from "node:test";
 import { deepStrictEqual, strictEqual } from "node:assert";
 
 import { CLOSE_BUDGET, implementBudget, STEP_TOOL_CALLS, stepsToSize } from "../../../../src/crews/dev-implement/domain/implement-budget.ts";
-import { STEPS_CASES } from "./implement-budget.fixtures.ts";
+import { BUDGET_INPUTS, STEPS_CASES } from "./implement-budget.fixtures.ts";
+import { assertRuntimeBudget } from "../../../support/assertions/budget.ts";
+
+describe("the implement budgets the runtime reads", () => {
+  for (const c of BUDGET_INPUTS) {
+    it(`holds only limits of 1 or more, which the runtime accepts (Orkeon #436): ${c.name}`, () => {
+      // Arrange
+      const { input } = c;
+
+      // Act
+      const budget = implementBudget(input);
+
+      // Assert
+      assertRuntimeBudget(budget, c.name);
+    });
+  }
+});
 
 describe("implementBudget", () => {
   it("sizes to three steps by default", () => {
@@ -15,7 +31,7 @@ describe("implementBudget", () => {
     const budget = implementBudget(input);
 
     // Assert
-    deepStrictEqual(budget, { toolCalls: 370, wallTime: 9900, contextTokens: 450_000, delegationDepth: 0 });
+    deepStrictEqual(budget, { toolCalls: 370, wallTime: 9900, contextTokens: 450_000 });
   });
 
   it("sizes to the steps it is given", () => {

@@ -15,10 +15,10 @@ export const OK_LINE = "VALIDATION OK: crew.ork.ts (procedural script: bundled, 
 export const FAILED_LINE = "VALIDATION FAILED: type errors";
 /** What the runtime prints before its verdict when it finds no `tsc`: it skips the type check and still says OK. */
 export const SKIPPED_LINE = "WARNING: type check skipped: TypeScript compiler not found.";
-/** How the smoke reports the first crew whose check was skipped: the cause, then the setting that hands a compiler. */
+/** How the smoke reports the first crew whose check was skipped: the cause, then how to hand it a compiler. */
 export const SKIPPED_REPORT =
   "smoke-validate: FAIL git-commit: the runtime found no TypeScript compiler and skipped the type check; " +
-  "give it one with ORKEON_Orkeon__Scripting__Toolchain__TscPath=<absolute path to tsc>";
+  "give it one with npm --prefix <the Orkeon checkout>/tools/scripting-typecheck ci (the TypeScript the runtime pins)";
 
 /** The crews the smoke must validate: every src/crews/<name>/crew.ork.ts, the `_` probes left out. */
 export const CREWS: string[] = readdirSync(CREWS_DIR, { withFileTypes: true })

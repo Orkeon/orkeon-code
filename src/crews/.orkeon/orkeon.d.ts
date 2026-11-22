@@ -215,9 +215,10 @@ declare global {
          * `medium`, `high` and `max` for Z.ai; all five for Anthropic, OpenRouter, DeepSeek, Kimi, Qwen, Together AI,
          * Hugging Face, MiniMax and Mammouth AI) sends the highest it knows below the one asked, and warns. The model's
          * entry in the capability table narrows the levels further (GLM-5.3 takes `low`, `high` and `max` only).
-         * Applies to the agent's `ctx.llm` calls too, unless a call sets its own.
+         * Applies to the agent's `ctx.llm` calls too, unless a call sets its own. `"auto"` (#439) leaves the level to
+         * System One, picked at each task's start among the host's levels.
          */
-        effort(level: EffortLevel): this;
+        effort(level: AgentEffort): this;
         /**
          * YAML parity `cache:` — asks the provider's prompt cache to keep the system prompt and/or the
          * tool definitions. Only a provider whose cache is explicit (Anthropic) needs it; the others cache
@@ -902,7 +903,8 @@ declare global {
          * run with `BudgetExhaustedError`, and a child it spawns (`spawn_agent`, `ctx.spawnBackground`)
          * derives its budget from this one. `spawnedAgents` aside: past it the next spawn alone is
          * refused, not the run. An unknown key, or a count that is not a whole number of
-         * 1 or more, is refused when the run opens.
+         * 1 or more, is refused when the run opens. A key left out takes the value it has when no
+         * budget is named: no wall clock, tool-call, token or `contextTokens` cap, depth 2 and 3 spawns.
          */
         budget?: ExecutionBudget;
         /**
@@ -1017,7 +1019,10 @@ declare global {
          * refuse it, and so is a limit that is not 1 or more (zero, a negative or fractional count,
          * an unreadable `wallTime`). A key left out takes its default: no token cap, no wall time,
          * 50 tool calls (tasks handed out), 4 delegations, 10 spawns.
-         * Procedural shape: bounds `await crew.run()`.
+         * Procedural shape: bounds `await crew.run()`, which is refused, before its first agent, for a limit
+         * that is not 1 or more (as the `budget` option of `crew.runAgent` is). A key left out takes the value
+         * it has when no budget is named: no wall clock, tool-call, token or `contextTokens` cap, depth 2 and
+         * 3 spawns.
          */
         budget(opts: ExecutionBudget): this;
         verbose(value?: boolean): this;
@@ -1041,6 +1046,14 @@ declare global {
          * applies none, and says so.
          */
         maxRpm(value: number): this;
+        /**
+         * YAML parity `decision: { mode }` — whether the crew needs System One. `none` never asks it (no decision
+         * task, no `system_one_decide`, no decision profile); `optional` runs with it or without it, each decision
+         * task declaring a `without` relay; `required` is refused before its first task when the decision circuit
+         * is off (`--no-decision`, `Orkeon:Decision:Enabled=false`, no model). Left out, the crew behaves as before.
+         * Declarative shape only: the procedural `await crew.run()` neither applies nor warns about the mode.
+         */
+        decision(spec: { mode: "none" | "optional" | "required" }): this;
         /**
          * The most children (`ctx.spawnBackground`, the `spawn_agent` tool) the crew runs at once.
          * Default 4; must be 1 or more.
@@ -1405,14 +1418,17 @@ declare global {
         /**
          * What the provider and this configuration's model take for reasoning, read from the runtime's capability
          * table (the host's `Llm:ModelCapabilities` overrides included), by the rule every call is judged with.
-         * `null` when the provider cannot tell (no provider, a test double).
+         * `null` when the provider cannot tell (no provider, a test double). It judges the model, whatever the effort:
+         * a configuration on `effort: "auto"` reads the same as one on a level.
          */
         readonly capabilities: LlmCapabilities | null;
         /**
          * The effort a call on this configuration asks for and the one the provider sends — the host's
          * `Llm:Thinking:Effort` included. `null` when no effort is asked or the provider cannot tell. Inside an
          * agent, `ctx.llm` calls run on the agent's provider, model and effort, which no configuration carries:
-         * read `ctx.llm.reasoning(opts)` there, the report `extract` and `complete` cannot carry.
+         * read `ctx.llm.reasoning(opts)` there, the report `extract` and `complete` cannot carry. On
+         * `effort: "auto"`, `asked` and `notice` are `"auto"`: the level is System One's pick at each task's start, and
+         * `sent` is what a call outside a task sends, the effort it would have had without `auto` (the profile's).
          */
         readonly reasoning: LlmReasoning | null;
 
@@ -1425,6 +1441,14 @@ declare global {
 
     /** An effort level a script may ask for. */
     type EffortLevel = "low" | "medium" | "high" | "xhigh" | "max";
+
+    /**
+     * An effort for an agent or a task (#439): a level, or `"auto"`, the level System One picks at each task's start
+     * among the host's levels (`Orkeon:Decision:Effort:Levels`); the task keeps it, one step higher after a failed
+     * attempt. Never for a single `ctx.llm` call, which takes a level only. The bounds (`min`, `max`) and
+     * `enabled: auto` are YAML only.
+     */
+    type AgentEffort = EffortLevel | "auto";
 
     /** What a provider and one of its models take for reasoning, on `LlmConfig.capabilities`. */
     interface LlmCapabilities {
@@ -1456,8 +1480,11 @@ declare global {
     interface LlmReasoning {
         /** The model the call goes to. */
         readonly model: string;
-        /** The effort asked: the call's `effort`, the agent's, the configuration's, or the host's `Llm:Thinking:Effort`. */
-        readonly asked: EffortLevel;
+        /**
+         * The effort asked: the call's `effort`, the agent's, the configuration's, or the host's `Llm:Thinking:Effort`;
+         * `"auto"` on `LlmConfig.reasoning` for a configuration on `effort: "auto"`.
+         */
+        readonly asked: EffortLevel | "auto";
         /** The effort sent to the provider; `null` when none is. */
         readonly sent: EffortLevel | null;
         /**
@@ -1465,9 +1492,10 @@ declare global {
          * provider and the model both take: the highest one below was sent, or the lowest one when none lies below),
          * `dropped` (`sent` is `null`: the model takes no effort, the model or the provider has no thinking control,
          * or the provider's field carries none of the model's levels), or `unchecked` (the table does not know the
-         * model: the effort was sent as asked).
+         * model: the effort was sent as asked), or `auto` (`asked` is `"auto"`: the level is System One's pick at each task's
+         * start; `sent` is what a call outside a task sends).
          */
-        readonly notice: "lowered" | "dropped" | "unchecked" | null;
+        readonly notice: "lowered" | "dropped" | "unchecked" | "auto" | null;
     }
 
     /** What `LlmConfig.with(...)` and `llm.model(name, ...)` apply. */
@@ -1483,9 +1511,10 @@ declare global {
          * `medium`, `high` and `max` for Z.ai; all five for Anthropic, OpenRouter, DeepSeek, Kimi, Qwen, Together AI,
          * Hugging Face, MiniMax and Mammouth AI) sends the highest it knows below the one asked, and warns. The model's
          * entry in the capability table narrows the levels further (GLM-5.3 takes `low`, `high` and `max` only):
-         * `LlmConfig.capabilities` lists the levels of the model, `reasoning` says what the call sends.
+         * `LlmConfig.capabilities` lists the levels of the model, `reasoning` says what the call sends. `"auto"`
+         * leaves the level to System One at each task's start (#439).
          */
-        effort?: EffortLevel;
+        effort?: AgentEffort;
         /**
          * The prompt-cache request, as `agentBuilder().cache(...)` takes it; an object that marks nothing
          * cacheable (`{}`) turns caching off, the host default `Llm:Cache` included.
@@ -1751,6 +1780,12 @@ declare global {
          * profile. A name the host does not offer fails the load, listing the known ones.
          */
         withProfile(name: string): this;
+        /**
+         * YAML parity `llm_override: { thinking: { effort } }` (#439) — runs this task alone at this thinking level,
+         * or on `"auto"`, at the level System One picks at the task's start among the host's levels. Wins over its
+         * agent's `.effort(...)`. Anything else throws.
+         */
+        withEffort(level: AgentEffort): this;
         /** YAML parity `humanInput: true` — the task pauses for the human-input provider. */
         humanInput(value?: boolean): this;
         /**
@@ -1821,6 +1856,13 @@ declare global {
         longContext?: boolean;
         /** Question name to the answer (a string, anything else is refused at load) given when the decision circuit is off (`--no-decision`, `Orkeon:Decision:Enabled=false`, no model). */
         fallback?: Record<string, string>;
+        /**
+         * The relay of an `optional` crew (`crewBuilder().decision({ mode: 'optional' })`): the crew agent, by its
+         * name, that answers the questions when the decision circuit is off. Required on every decision task of an
+         * `optional` crew, refused in a crew with no mode or `none`, unused by a `required` crew. It makes one LLM
+         * call that gives probabilities only, checked and read as the decision model's answer.
+         */
+        without?: { agent: string; instructions?: string };
     }
 
     /** One question: a choice among described options, a score per label, or a yes/no ("noul") test. */
@@ -1831,7 +1873,8 @@ declare global {
 
     /**
      * Branch clauses: `question` maps to an option list or a threshold such as `">= 0.7"`;
-     * `"question.option"` maps to a threshold such as `">= 0.25"`.
+     * `"question.option"` maps to a threshold such as `">= 0.25"`. A yes/no question takes
+     * `["yes"]` or `["no"]` as its option list; a score question takes a threshold only.
      */
     type WhenClauses = Record<string, string[] | string>;
 

@@ -3,11 +3,42 @@
 import { describe, it } from "node:test";
 import { deepStrictEqual, ok, strictEqual } from "node:assert";
 
-import { BATCHES_BUDGET, WAVE_BATCH_CALLS, WAVE_MARGIN_SECONDS, WAVE_REVIEW_CALLS, batchLimits, driverBudget } from "../../../../src/crews/dev-batches/domain/batches-budget.ts";
+import { BATCHES_BUDGET, MAX_WAVE, WAVE_BATCH_CALLS, WAVE_MARGIN_SECONDS, WAVE_REVIEW_CALLS, batchLimits, driverBudget } from "../../../../src/crews/dev-batches/domain/batches-budget.ts";
 import { MAX_STEPS } from "../../../../src/crews/dev-implement/domain/implement-budget.ts";
 import { TOKENS_PER_CALL } from "../../../../src/shared/domain/dev/step-budget.ts";
-import { ONE_AT_A_TIME, STEP_COUNTS, WAVE_SIZES, expectedBatchLimits } from "./batches-budget.fixtures.ts";
+import { ABOVE_A_WAVE, DRIVER_CONCURRENCIES, ONE_AT_A_TIME, STEP_COUNTS, WAVE_SIZES, expectedBatchLimits } from "./batches-budget.fixtures.ts";
 import { assertRuntimeLimits } from "./batches-budget.assertions.ts";
+import { assertRuntimeBudget } from "../../../support/assertions/budget.ts";
+
+describe("the driver budgets the runtime reads", () => {
+  for (const c of DRIVER_CONCURRENCIES) {
+    it(`holds only limits of 1 or more, which the runtime accepts (Orkeon #436): ${c.name}`, () => {
+      // Arrange
+      const { concurrency } = c;
+
+      // Act
+      const budget = driverBudget(concurrency);
+
+      // Assert
+      assertRuntimeBudget(budget, c.name);
+    });
+  }
+});
+
+describe("the driver budget above a wave", () => {
+  for (const concurrency of ABOVE_A_WAVE) {
+    it(`counts the most a wave runs at once for a concurrency of ${concurrency}`, () => {
+      // Arrange
+      const most = driverBudget(MAX_WAVE);
+
+      // Act
+      const budget = driverBudget(concurrency);
+
+      // Assert
+      deepStrictEqual(budget, most);
+    });
+  }
+});
 
 describe("batchLimits", () => {
   it("sums the implement run sized to the steps, the audit and the close: tool calls, wall time and tokens", () => {
@@ -49,7 +80,7 @@ describe("driverBudget", () => {
     });
   }
 
-  it("adds the largest batch's wall time and a margin above 1, not a sum; its depth unchanged", () => {
+  it("adds the largest batch's wall time and a margin above 1, not a sum; no depth, as one at a time", () => {
     // Arrange
     const concurrency = 3;
 
@@ -58,7 +89,7 @@ describe("driverBudget", () => {
 
     // Assert
     strictEqual(b.wallTime, BATCHES_BUDGET.wallTime + batchLimits(MAX_STEPS).wallTime + WAVE_MARGIN_SECONDS);
-    strictEqual(b.delegationDepth, 0);
+    strictEqual(b.delegationDepth, undefined);
   });
 
   for (const n of WAVE_SIZES) {

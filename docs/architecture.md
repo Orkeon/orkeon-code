@@ -357,7 +357,8 @@ What the table leaves out:
 
 - **`DecisionModel`**, what it is for:
   - No model, a failed call and an unreadable answer are all `null`, so the caller does what it did without one
-    (`system_one_decide`, registered when the settings configure a decision provider, whichever it is).
+    (`system_one_decide`, registered when the settings configure a decision provider, whichever it is, and withheld
+    while the decision circuit is off).
 
 ### Wiring
 

@@ -1,4 +1,5 @@
 // The cases of shared/domain/llm-profile.ts: what is a profile name, and what a crew input names.
+import { profileIsAuto } from "../../../src/shared/domain/messages.ts";
 export const PROFILE_NAMES: readonly { readonly name: string; readonly value: string; readonly problem: string | undefined }[] = [
   { name: "accepts a plain name", value: "guarded", problem: undefined },
   { name: "accepts the reserved name of the host's default profile", value: "default", problem: undefined },
@@ -10,6 +11,7 @@ export const PROFILE_NAMES: readonly { readonly name: string; readonly value: st
     name: "refuses a settings path", value: "Orkeon:Decision:Profiles:guarded",
     problem: "'Orkeon:Decision:Profiles:guarded' holds a colon: name the profile alone, not its settings path",
   },
+  { name: "refuses the name the runtime reserves for its own pick, auto, in any case", value: " Auto ", problem: profileIsAuto(" Auto ") },
 ];
 
 export const INPUT_PROFILES: readonly { readonly name: string; readonly input: Record<string, unknown>; readonly profile: string | null }[] = [

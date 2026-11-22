@@ -10,16 +10,19 @@
 // Its own work grows with each batch of a wave: one review of its sheet (about 60 calls, as above) and the batch's
 // git and file calls (its worktree made or reused, the seed's reads and writes, the log, the merge and its rebase,
 // the harvest, the removal: about 16, 20 counted), so its tool calls and context tokens add that much per batch.
-// No batch spawns and runAgent checks no depth: delegationDepth stays 0.
+// No batch spawns and runAgent checks no depth: no delegationDepth (StepBudget).
 import type { StepBudget } from "../../../shared/domain/dev/step-budget.ts";
 import { STEP_BUDGETS, TOKENS_PER_CALL } from "../../../shared/domain/dev/step-budget.ts";
 import { CLOSE_BUDGET, MAX_STEPS, implementBudget } from "../../dev-implement/domain/implement-budget.ts";
 
-export const BATCHES_BUDGET: StepBudget = { toolCalls: 120, wallTime: 1800, contextTokens: 200_000, delegationDepth: 0 };
+export const BATCHES_BUDGET: StepBudget = { toolCalls: 120, wallTime: 1800, contextTokens: 200_000 };
 
 /** One batch of a wave, for the driver: the review of its sheet, and its git and file calls. */
 export const WAVE_REVIEW_CALLS = 60;
 export const WAVE_BATCH_CALLS = 20;
+
+/** The most batches a wave runs at once, which /dev-batches checks too: the driver's budget counts no more. */
+export const MAX_WAVE = 4;
 
 /** The driver's time beyond its own and the longest batch's: the harvest, the merges, the removals. */
 export const WAVE_MARGIN_SECONDS = 600;
@@ -40,7 +43,9 @@ export function batchLimits(steps: unknown): BatchLimits {
 /** The driver's budget for a run of `concurrency` batches at once (the steps of a wave's batches are not known when
  *  the crew is built: the largest a batch can be sized to counts). */
 export function driverBudget(concurrency: unknown): StepBudget {
-  const n = typeof concurrency === "number" ? concurrency : Number(concurrency);
+  // Whole batches: the runtime refuses a limit that is not a whole number (Orkeon #436), 2.7 × 80 calls is not one.
+  // No more than a wave holds: a huge count would make a limit that is not finite, which the runtime refuses too.
+  const n = Math.min(MAX_WAVE, Math.floor(typeof concurrency === "number" ? concurrency : Number(concurrency)));
   if (!(Number.isFinite(n) && n > 1)) return BATCHES_BUDGET;
   const calls = n * (WAVE_REVIEW_CALLS + WAVE_BATCH_CALLS);
   return {

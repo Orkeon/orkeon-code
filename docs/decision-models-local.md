@@ -20,7 +20,7 @@ profile does not see: the escalation judges an answer, the fallback replaces a c
 
 ## The runtime: source mode
 
-The pin (`30a61f8`) serves Liquid and Kev, and so does every release since `1.0.0`: the tool mode
+The pin (`5dc2ff3`) serves Liquid and Kev, and so does every release since `1.0.0`: the tool mode
 knows `Orkeon:Liquid`, `Orkeon:Kev` and `Orkeon:Decision:Provider`. The docker mode runs the image of
 the last release, `1.3.0` at this writing. This page was written in source mode, on an
 Orkeon checkout at the pin or after it ([Getting started](getting-started.md#source-mode-an-orkeon-checkout)):
@@ -523,8 +523,8 @@ which is how to check that Orkeon Code really asks Kev: stop the server and ever
 ## See it work
 
 What follows was observed with `kev-0.8b` and `qwen3.5:2b` in Docker on an RTX 3080, Orkeon at `0ea39d9`; step 2
-counts the calls to Kev the way Orkeon makes them at `3860e9d`, where a step that calls a tool is not judged after the call. The log lines are the host's, as the run below prints them; they were not observed again at the pin
-(`30a61f8`), but its sources still write each of them word for word, and `Steps` still defaults to `final`.
+counts the calls to Kev the way Orkeon makes them at `3860e9d`, where a step that calls a tool is not judged after the call. The log lines are the host's, as the run below prints them; they were not observed again at
+`30a61f8`, but its sources still wrote each of them word for word, and `Steps` still defaulted to `final`.
 
 1. **The start.** The host names the active provider:
    `Decision provider kev: model kev-latest, address http://127.0.0.1:8009/v1, named` (`deduced` for a Liquid found by

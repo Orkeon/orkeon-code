@@ -374,7 +374,7 @@ Ce que le tableau laisse de côté :
 - **`DecisionModel`**, à quoi il sert :
   - Pas de modèle, un appel en échec et une réponse illisible valent tous `null`, et l'appelant fait alors ce qu'il
     faisait sans modèle (`system_one_decide`, enregistré quand les réglages configurent un fournisseur de décision,
-    quel qu'il soit).
+    quel qu'il soit, et retenu tant que le circuit de décision est coupé).
 
 ### Câblage
 
