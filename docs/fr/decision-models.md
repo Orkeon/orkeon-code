@@ -25,9 +25,11 @@ les sources d'Orkeon à l'épingle. Les raisons de chaque choix sont dans
 ## Élaguer un long tour
 
 Les résultats d'outils d'un tour en cours restent dans le contexte du modèle jusqu'à la fin du tour : aucune
-compaction ne les atteint. Avec `compaction.prune` à `on`, au-delà de 40 % de la fenêtre de contexte, le modèle de
-décision juge les anciens résultats des outils de lecture : chacun est retiré, coupé à ses 300 premiers caractères
-ou gardé, et une ligne dit comment le retrouver.
+compaction ne les atteint. Avec `compaction.prune` à `on`, au-delà de 40 % de la fenêtre utile de l'appel, le modèle
+de décision juge les anciens résultats des outils de lecture : chacun est retiré, coupé à ses 300 premiers
+caractères ou gardé, et une ligne dit comment le retrouver. C'est le runtime qui juge
+([ADR 0034](../adr/0034-orkeon-after-470.md)) ; les mesures ci-dessous ont été prises avec le juge propre à ce
+projet, qui posait les mêmes questions avec les mêmes valeurs, sur toute la fenêtre de la session.
 
 Le même réglage élague les acts des crews dev : le relecteur de `/dev-spec`, `/dev-change`, `/dev-plan` et du
 prochain lot de `/dev-batches`, l'auteur de tests et l'implémenteur de `/dev-implement`, l'auditeur de

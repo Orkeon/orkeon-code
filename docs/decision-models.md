@@ -24,8 +24,10 @@ Orkeon's sources at the pin. The reasons behind each choice are in
 ## Pruning a long turn
 
 The tool results of a turn in progress stay in the model's context until the turn ends: no compaction reaches
-them. With `compaction.prune` on, past 40 % of the context window, the decision model judges the older results of
-the read tools: each is removed, cut to its first 300 characters or kept, and a line says how to get it back.
+them. With `compaction.prune` on, past 40 % of the call's usable window, the decision model judges the older results
+of the read tools: each is removed, cut to its first 300 characters or kept, and a line says how to get it back. The
+runtime does the judging ([ADR 0034](adr/0034-orkeon-after-470.md)); the measures below were taken on this project's
+own judge, which asked the same questions with the same numbers, against the session's whole window.
 
 The same setting prunes the acts of the dev crews: the reviewer of `/dev-spec`, `/dev-change`, `/dev-plan` and of
 the next batch of `/dev-batches`, the test author and the implementer of `/dev-implement`, the auditor of

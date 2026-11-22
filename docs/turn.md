@@ -411,34 +411,25 @@ Code: `shared/application/compaction/compact-session.ts`.
 
 Code: `shared/domain/context-prune.ts`, `shared/application/compaction/prune-context.ts`,
 `shared/application/compaction/pruned-llm.ts`, [ADR 0027](adr/0027-decision-model-optimisations.md),
-[ADR 0032](adr/0032-pruning-in-the-dev-acts.md).
+[ADR 0032](adr/0032-pruning-in-the-dev-acts.md), [ADR 0034](adr/0034-orkeon-after-470.md).
 
 - The tool results of a turn in progress live in the runtime's loop, never in the session buffer, so no compaction
   reaches them.
-- With `compaction.prune` on and a decision model on the host, the main loop's act carries the runtime's
-  `onContextPressure`: once the loop's messages pass 40 % of the window, the runtime offers the older
-  results of the read tools that ran, the last 6 messages left out.
-- A result of 600 characters or less is kept without asking.
-- For the others the decision model reads the request and the calls (tool, input, size, age; never a result's
-  content) and answers two yes/no questions per call, 8 calls per request and 24 per pressure, oldest first: is the
-  result still needed, and is it needed whole.
-- Under 0.5 on the first the result is removed, under 0.5 on the second it is cut to its first 300 characters, else
-  it stays.
-- The runtime leaves a line that says what was cut and to run the call again.
-- The requests of one pressure are sent together.
-- A verdict answered to the runtime settles a call for the rest of the loop, `keep` included, and a call without one
-  is offered again: a small result is answered `keep`, a result judged needed is left unanswered and judged again
-  once 8 more model turns have passed.
-- Each act has its own binding, the act a stop check asks for included.
+- With `compaction.prune` on and a decision model on the host, the main loop's act asks the runtime for its own
+  pruning (`act({ prune: true })`), on the host's numbers (`Orkeon:Compaction:Prune`).
+- Once the loop's estimated prompt passes 40 % of the call's usable window, the runtime offers the decision model the
+  older results of the read tools this act ran, the last 6 messages and the turn not answered yet left out.
+- The decision model reads the act's prompt and each call (tool, input, size, age), never a result's content. Each
+  result is kept, cut to its first 300 characters or removed.
+- A pruned result leaves a line that says how to get it back.
+- Each act asks for its own pruning, the act a stop check asks for included.
 - The acts of the dev crews carry it too: the reviewer of `/dev-spec`, `/dev-change`, `/dev-plan` and of the next
   batch of `/dev-batches`, the test author and the implementer of `/dev-implement`, the auditor of `/dev-verify`.
-  Their Llm binds it at each act, on the act's brief, in the agent that acts: a reviewer or an auditor run as a
-  child binds its own. An extraction carries none.
-- In a dev act the window is the session's, also when the act was routed to another profile, and a result the
-  reviewer has to read again costs one of its sixteen look-ups.
-- It fails open: the setting off or unreadable, no decision model (a warning) or a model that does not answer (a
-  warning, and no more question in that act) prune nothing.
-- A log line says what each pressure judged, removed and cut.
+  Their Llm binds it at each act, in the agent that acts: a reviewer or an auditor run as a child binds its own. An
+  extraction carries none.
+- It fails open: the setting off or unreadable, or no decision model (a warning), prune nothing. With the decision
+  circuit off, the runtime asks nothing and warns once.
+- A log line says what each act judged, removed and cut, read from the act's result.
 
 ### Summary
 

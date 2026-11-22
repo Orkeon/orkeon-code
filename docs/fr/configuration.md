@@ -170,7 +170,9 @@ l'organisation Anthropic Console liée au plan (sur claude.ai, Settings, Billing
 lien se fait une fois) ; au-delà, la clé est facturée aux tarifs à l'usage de l'API. La connexion avec le plan lui-même
 est réservée aux applications d'Anthropic : le [fournisseur `agent-cli`](#claude-sur-un-abonnement-le-fournisseur-agent-cli)
 en pilote une. L'exemple ne fixe pas de `Temperature` : la génération Claude actuelle en refuse une, et Orkeon
-n'envoie que ce que le fichier fixe.
+n'envoie que ce que le fichier fixe. Une clé liée à une identité refuse tout appel qui ne nomme pas son espace de
+travail : on le donne par `Llm:WorkspaceId`, ou sous le profil (`Llm:Profiles:<nom>:WorkspaceId`, qui n'hérite pas de
+celui de la section).
 
 ### Claude sur un abonnement : le fournisseur `agent-cli`
 

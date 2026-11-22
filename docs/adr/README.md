@@ -51,3 +51,4 @@ changes for Orkeon Code: what is adopted, what is set aside, what is removed.
 | [0030](0030-orkeon-after-356.md) | Orkeon main after #356, the findings of the release validation fixed in the runtime |
 | [0031](0031-orkeon-after-361.md) | Orkeon main after #361, `/effort` reads what the model takes |
 | [0033](0033-orkeon-after-447.md) | Orkeon main after #447, budgets the runtime now refuses, and what stays this project's own |
+| [0034](0034-orkeon-after-470.md) | Orkeon main after #470, the runtime's prune and pick, the agent-cli provider |

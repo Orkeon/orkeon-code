@@ -7,6 +7,28 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed — the pin moves to Orkeon `e7b9bdf`: the runtime prunes and routes
+
+- The pin moves to Orkeon `main` `e7b9bdf` (Orkeon #457, #462, #470) ([ADR 0034](docs/adr/0034-orkeon-after-470.md)).
+- With `compaction.prune` on, an act asks the runtime for its own pruning (`act({ prune: true })`, Orkeon #461) in
+  place of this project's judge: the same numbers, read from the host's `Orkeon:Compaction:Prune`, against the
+  call's usable window instead of the session's. The log line still says what each act judged, removed and cut
+  ([the turn](docs/turn.md#pruning-the-tool-loop)).
+- With `route.agents` on, a crew's launch and a sub-agent's act are routed by the runtime's System One pick
+  (Orkeon #460, #463) in place of this project's questions: the same ladder, floors and ceiling, the runtime's
+  threshold. `/route why` shows the runtime's reason (`circuit-off` and `no-ladder` are new) and its probability.
+- A hosted decision provider without its key now turns the decision circuit off (`no-key`): the commands say so as
+  they do without a decision model ([decision models](docs/decision-models.md)).
+- On `1.3.0` (the tool and docker modes) nothing is pruned and nothing is routed.
+
+### Added — the agent-cli provider example
+
+- `config/appsettings.agent-cli.example.json` runs Orkeon Code on a Claude subscription through Orkeon's
+  experimental `agent-cli` provider (Orkeon #470): a profile `subscription` (`/config set llm.profile subscription`)
+  that falls back on the default profile on a key. Source mode only, for personal use
+  ([configuration](docs/configuration.md#claude-on-a-subscription-the-agent-cli-provider)).
+- An Anthropic key linked to an identity names its workspace with `Llm:WorkspaceId` (Orkeon #468).
+
 ### Added — the tool bridge in docker mode
 
 - A session in Docker can drive the Firefox of your machine through Orkeon's tool bridge (`orkeon bridge serve`,

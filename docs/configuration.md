@@ -159,7 +159,8 @@ Anthropic Console organisation linked to the plan (on claude.ai, Settings, Billi
 link is made once); beyond them the key is billed at the API's usage rates. Signing in with the plan itself is reserved
 to Anthropic's own applications: the [`agent-cli` provider](#claude-on-a-subscription-the-agent-cli-provider) drives
 one of them. The example sets no `Temperature`: the current Claude generation refuses one, and Orkeon sends only what
-the file sets.
+the file sets. A key linked to an identity refuses every call that does not name its workspace: give it as
+`Llm:WorkspaceId`, or under the profile (`Llm:Profiles:<name>:WorkspaceId`, which does not inherit the section's).
 
 ### Claude on a subscription: the `agent-cli` provider
 

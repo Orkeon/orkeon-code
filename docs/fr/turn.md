@@ -454,34 +454,26 @@ Code : `shared/application/compaction/compact-session.ts`.
 
 Code : `shared/domain/context-prune.ts`, `shared/application/compaction/prune-context.ts`,
 `shared/application/compaction/pruned-llm.ts`, [ADR 0027](../adr/0027-decision-model-optimisations.md),
-[ADR 0032](../adr/0032-pruning-in-the-dev-acts.md).
+[ADR 0032](../adr/0032-pruning-in-the-dev-acts.md), [ADR 0034](../adr/0034-orkeon-after-470.md).
 
 - Les résultats d'outils d'un tour en cours vivent dans la boucle du runtime, jamais dans le tampon de session,
   aucune compaction ne les atteint donc.
-- Avec `compaction.prune` à `on` et un modèle de décision sur le runtime, l'act de la boucle principale porte le
-  `onContextPressure` du runtime : dès que les messages de la boucle dépassent 40 % de la fenêtre, le
-  runtime propose les anciens résultats des outils de lecture qui ont tourné, les 6 derniers messages exclus.
-- Un résultat de 600 caractères ou moins est gardé sans question.
-- Pour les autres, le modèle de décision lit la demande et les appels (outil, entrée, taille, âge ; jamais le contenu
-  d'un résultat) et répond à deux questions oui/non par appel, 8 appels par requête et 24 par pression, les plus
-  anciens d'abord : le résultat sert-il encore, et sert-il en entier.
-- Sous 0,5 à la première le résultat est retiré, sous 0,5 à la seconde il est coupé à ses 300 premiers caractères,
-  sinon il reste.
-- Le runtime laisse une ligne qui dit ce qui a été coupé et de relancer l'appel.
-- Les requêtes d'une pression partent ensemble.
-- Un verdict rendu au runtime règle un appel pour le reste de la boucle, `keep` compris, et un appel sans verdict
-  est proposé de nouveau : un petit résultat reçoit `keep`, un résultat jugé utile reste sans verdict et est rejugé
-  une fois 8 tours de modèle de plus passés.
-- Chaque act a sa propre liaison, celui que demande un contrôle de fin compris.
-- Les acts des crews dev la portent aussi : le relecteur de `/dev-spec`, `/dev-change`, `/dev-plan` et du prochain
+- Avec `compaction.prune` à `on` et un modèle de décision sur le runtime, l'act de la boucle principale demande au
+  runtime son propre élagage (`act({ prune: true })`), avec les valeurs du runtime (`Orkeon:Compaction:Prune`).
+- Dès que le prompt estimé de la boucle dépasse 40 % de la fenêtre utile de l'appel, le runtime soumet au modèle de
+  décision les anciens résultats des outils de lecture de cet act, sauf les 6 derniers messages et le tour pas
+  encore répondu.
+- Le modèle de décision lit le prompt de l'act et chaque appel (outil, entrée, taille, âge), jamais le contenu d'un
+  résultat. Chaque résultat est gardé, coupé à ses 300 premiers caractères ou retiré.
+- Un résultat élagué laisse une ligne qui dit comment le retrouver.
+- Chaque act demande son propre élagage, celui que demande un contrôle de fin compris.
+- Les acts des crews dev le portent aussi : le relecteur de `/dev-spec`, `/dev-change`, `/dev-plan` et du prochain
   lot de `/dev-batches`, l'auteur de tests et l'implémenteur de `/dev-implement`, l'auditeur de `/dev-verify`.
-  Leur Llm la lie à chaque act, sur le brief de l'act, dans l'agent qui agit : un relecteur ou un auditeur lancé
-  en enfant lie la sienne. Une extraction n'en porte pas.
-- Dans un act dev la fenêtre est celle de la session, même quand l'act a été routé vers un autre profil, et un
-  résultat que le relecteur doit relire lui coûte une de ses seize recherches.
-- L'élagage échoue ouvert : le réglage éteint ou illisible, pas de modèle de décision (un avertissement) ou un
-  modèle qui ne répond pas (un avertissement, et plus aucune question dans cet act) n'élaguent rien.
-- Une ligne du journal dit ce que chaque pression a jugé, retiré et coupé.
+  Leur Llm le lie à chaque act, dans l'agent qui agit : un relecteur ou un auditeur lancé en enfant lie le sien.
+  Une extraction n'en porte pas.
+- L'élagage échoue ouvert : le réglage éteint ou illisible, ou pas de modèle de décision (un avertissement),
+  n'élaguent rien. Avec le circuit de décision éteint, le runtime ne demande rien et avertit une fois.
+- Une ligne du journal dit ce que chaque act a jugé, retiré et coupé, lu dans le résultat de l'act.
 
 ### Résumé
 

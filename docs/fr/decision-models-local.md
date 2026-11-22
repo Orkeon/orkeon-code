@@ -599,7 +599,7 @@ le profil le moins cher qui convient, suggérer les skills qui conviennent à un
 | Un setting que le runtime ne connaît pas, au démarrage | Un runtime plus ancien que `1.0.0` : les settings de décision sont arrivés avec `1.0.0-rc.7` | La dernière release (mode tool ou docker), ou `--mode source` sur un checkout à l'épingle |
 | `Orkeon:Decision:Profiles:guarded: no decision model is registered; name a provider in Orkeon:Decision:Provider …` | Un profil de décision demandé sans fournisseur actif, y compris une section Kev sans `Provider` | Nommer le fournisseur |
 | `kev could not be reached at http://127.0.0.1:8009/v1: Connection refused` | Le serveur ne tourne pas ou écoute sur un autre port | Le démarrer, ou régler `Orkeon:Kev:BaseUrl` |
-| `No liquid API key: set the environment variable LIQUID_API_KEY, or Orkeon:Liquid:ApiKey.` | `LIQUID_API_KEY` pas exportée dans le shell qui a lancé Orkeon Code | L'exporter, puis relancer |
+| `the decision circuit is off: no Liquid API key: set the environment variable LIQUID_API_KEY, or Orkeon:Liquid:ApiKey`, au démarrage | `LIQUID_API_KEY` pas exportée dans le shell qui a lancé Orkeon Code : l'hôte coupe le circuit (`no-key`), et `/route`, `compaction.prune` et les suggestions de skills fonctionnent comme sans modèle de décision | L'exporter, puis relancer |
 | `{"error":{"message":"Invalid API key provided.", … "code":"invalid_api_key"}}` de `curl`, un `401` | Une clé Liquid fausse | Une clé de la console de Liquid |
 | Un `422` de Kev | Un état de plus de 65 536 tokens, ou un type de question qu'il ne prend pas | `KEV_TRUNCATE_STATES=1` |
 | La garde avertit mais ne bloque jamais | `kev-0.8b` répond sous le `BlockThreshold` | `guarded-small`, ou un modèle plus grand |
