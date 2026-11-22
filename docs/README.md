@@ -14,6 +14,7 @@ Start with [Getting started](getting-started.md); the [README](../README.md) giv
 | [Hooks](hooks.md) | Your commands around the model's tool calls in the dev steps |
 | [Shared memory](shared-memory.md) | Admitted decisions, structures, methods and mistakes the agents recall |
 | [Speech](speech.md) | Transcribing a file, dictating a request, reading an answer aloud |
+| [Tool bridge](tool-bridge.md) | The Firefox of your machine for a session in Docker |
 | [Decision models](decision-models.md) | What Orkeon Code asks a decision model: pruning a long turn, routing a crew, suggesting skills, with what was measured |
 | [Decision models locally](decision-models-local.md) | Kev on this machine and Liquid, step by step, with decision profiles to try |
 | [Autonomous and embedded runs](headless.md) | Unattended turns, one-shot runs, schedulers and CI, your application |

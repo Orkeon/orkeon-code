@@ -742,6 +742,66 @@ export Orkeon__Security__PermissionGate__Enabled="${Orkeon__Security__Permission
 # (Orkeon #404). Each variable already exported is kept; one unset takes the user.name or user.email git gives on
 # the host for the workspace, when git is there and gives one. Sets GIT_IDENTITY_VARS, the names to hand over.
 GIT_IDENTITY_VARS=(GIT_AUTHOR_NAME GIT_AUTHOR_EMAIL GIT_COMMITTER_NAME GIT_COMMITTER_EMAIL)
+# The tool bridge (Orkeon #445): settings naming Orkeon:Tools:Bridge:Address and a non-empty Allow send those tools to
+# `orkeon bridge serve` on this machine (docs/tool-bridge.md). The container receives the token by the name of its
+# variable (Orkeon:Tools:Bridge:TokenEnvVar, ORKEON_BRIDGE_TOKEN when unset), never on disk, refused here when it is
+# missing or, trimmed as the runtime trims it, shorter than the runtime takes (16 characters); an address on loopback
+# (localhost, 127.x, [::1], as the runtime's own test) puts the container on the host's network, the one way a Linux
+# engine reaches the bridge there. Keys are read without case, as the runtime's configuration does. The file is read
+# as plain JSON: one the runtime alone can read (a comment, a trailing comma) is refused when it names a bridge,
+# rather than started without its token. Sets BRIDGE_ARGS (docker mode only: the other modes run on this machine,
+# where the runtime reads the variable itself).
+BRIDGE_TOKEN_MIN=16
+bridge_args() {
+  BRIDGE_ARGS=()
+  local read="" address="" var="" loopback="" status=0
+  if command -v node >/dev/null 2>&1; then
+    read="$(node -e '
+      const fs = require("fs");
+      const at = (o, k) => {
+        if (!o || typeof o !== "object") return undefined;
+        const n = Object.keys(o).find((x) => x.toLowerCase() === k.toLowerCase());
+        return n === undefined ? undefined : o[n];
+      };
+      let b;
+      try { b = JSON.parse(fs.readFileSync(process.argv[1], "utf8")); } catch { process.exit(3); }
+      for (const k of ["Orkeon", "Tools", "Bridge"]) b = at(b, k);
+      const s = (k) => { const v = at(b, k); return typeof v === "string" ? v.trim() : ""; };
+      const allow = at(b, "Allow");
+      const address = Array.isArray(allow) && allow.length > 0 ? s("Address") : "";
+      let loopback = "";
+      try {
+        const u = new URL(address);
+        const web = u.protocol === "http:" || u.protocol === "https:";
+        if (web && (u.hostname === "localhost" || u.hostname === "[::1]" || /^127(\.\d+){3}$/.test(u.hostname))) loopback = "yes";
+      } catch { /* no address, or one the runtime refuses itself */ }
+      process.stdout.write(address + "\n" + s("TokenEnvVar") + "\n" + loopback + "\n");
+    ' "$SETTINGS" 2>/dev/null)" || status=$?
+    if [ "$status" -ne 0 ]; then
+      ! grep -qi '"bridge"' "$SETTINGS" \
+        || die "$SETTINGS names a tool bridge and is not plain JSON (a comment, a trailing comma?): the launcher cannot read Orkeon:Tools:Bridge from it (docs/tool-bridge.md)."
+      return 0
+    fi
+    { IFS= read -r address; IFS= read -r var; IFS= read -r loopback; } <<<"$read" || true
+  elif grep -qi '"bridge"' "$SETTINGS"; then
+    warn "node is not on PATH: an Orkeon:Tools:Bridge section of $SETTINGS is not read, the container gets no bridge token."
+  fi
+  [ -n "$address" ] || return 0
+  var="${var:-ORKEON_BRIDGE_TOKEN}"
+  # The value is not echoed: a token written there by mistake stays off the terminal.
+  [[ "$var" =~ ^[A-Za-z_][A-Za-z0-9_]*$ ]] \
+    || die "Orkeon:Tools:Bridge:TokenEnvVar of $SETTINGS is not the name of a variable: it names the variable that holds the token, never the token."
+  local token="${!var:-}"
+  token="${token#"${token%%[![:space:]]*}"}"
+  token="${token%"${token##*[![:space:]]}"}"
+  [ -n "$token" ] \
+    || die "$SETTINGS names the tool bridge $address, and $var is not set: export the token the bridge was started with (docs/tool-bridge.md)."
+  [ "${#token}" -ge "$BRIDGE_TOKEN_MIN" ] \
+    || die "$var is shorter than $BRIDGE_TOKEN_MIN characters, which the runtime refuses: use a long random value (openssl rand -hex 32)."
+  BRIDGE_ARGS=(-e "$var")
+  [ -z "$loopback" ] || BRIDGE_ARGS+=(--network host)
+}
+
 git_identity_env() {
   local name="" email=""
   if command -v git >/dev/null 2>&1; then
@@ -942,7 +1002,8 @@ run_crew() {
     done
     user_args=()
     if [ "$(uname -s)" = Linux ]; then user_args=(--user "$(id -u):$(id -g)"); fi
-    exec docker run --rm -i ${user_args[@]+"${user_args[@]}"} "${env_args[@]}" -w /work \
+    bridge_args
+    exec docker run --rm -i ${user_args[@]+"${user_args[@]}"} "${env_args[@]}" ${BRIDGE_ARGS[@]+"${BRIDGE_ARGS[@]}"} -w /work \
       -v "$WORKSPACE:/work/project" -v "$ROOT:/work/agent:ro" -v "$SETTINGS:/work/settings.json:ro" -v "$STATE:/work/state" \
       "$IMAGE" run "/work/agent/$rel" -s /work/settings.json \
       -m /work/project:/workspace:rw /work/state/output:/output:rw /work/state/tmp:/tmp:rw /work/state/user-config:/user-config:ro \
@@ -1289,7 +1350,8 @@ case "$MODE" in
     repl_args /work/agent/commands /work/agent/crews /work/settings.json \
       /work/project /work/state/output /work/state/tmp /work/state/user-config "$in_state"
     llm_log_args "$in_state"
-    exec docker run --rm "${tty_args[@]}" ${user_args[@]+"${user_args[@]}"} "${env_args[@]}" -w /work \
+    bridge_args
+    exec docker run --rm "${tty_args[@]}" ${user_args[@]+"${user_args[@]}"} "${env_args[@]}" ${BRIDGE_ARGS[@]+"${BRIDGE_ARGS[@]}"} -w /work \
       -v "$WORKSPACE:/work/project" \
       -v "$ROOT/src:/work/agent:ro" \
       -v "$SETTINGS:/work/settings.json:ro" \

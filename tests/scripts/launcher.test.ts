@@ -18,7 +18,7 @@ import { dirname, join } from "node:path";
 import {
   ARCHIVE_VERSION, BASH_GATE, BLOCK, BUILDING_LINE, CODE_VERSION, CORRUPT_STORES, DEB_WRAPPER, DOTNET, CONSOLE_APP_DLL, ESBUILD, EXAMPLE_SETTINGS,
   DOCKER_ENGINE_DOWN, EXAMPLE_SETTINGS_FILES, FOLLOWED_CHECKOUTS, GATE, KEPT_CHECKOUTS, KEEP_OUT_OF_RANGE, LARGE_ENV, NO_FILE_SETTINGS, NOT_AT_THE_PIN, OLLAMA_AND_EXISTING, PERSIST, PINNED_SDK, PROJECT_NAMES, PS1_ARGS_LOOP,
-  PS1_BASH_ONLY, PS1_CLONE_OR_INSTALL, PS1_DOCKER_ENGINE, PS1_DOCKER_TTY, PS1_FINGERPRINT, PS1_FROM_PROJECT, PS1_GATE, PS1_MODES, PS1_MEMORY_MOUNT, PS1_SESSION_MOUNTS, PS1_SESSIONS, PS1_SET_VARIABLES,
+  PS1_BASH_ONLY, PS1_BRIDGE, PS1_CLONE_OR_INSTALL, PS1_DOCKER_ENGINE, PS1_DOCKER_TTY, PS1_FINGERPRINT, PS1_FROM_PROJECT, PS1_GATE, PS1_MODES, PS1_MEMORY_MOUNT, PS1_SESSION_MOUNTS, PS1_SESSIONS, PS1_SET_VARIABLES,
   PS1_SETTINGS, PS1_SLUG, PS1_SPEECH, PS1_STORE_LAYOUT, PS1_SUBCOMMANDS, PS1_TRUST_CHECK, PS1_TRUST_REFUSAL, PS1_USER_SETTINGS,
   PS1_VERSION_LINES, PTY, PWSH, RESTORED_IN_FINALLY, RESTORED_NAMES, ROOTS, RUNTIME_SETTINGS, RUNTIME_SLUGS, RUNTIME_PIN, RUNTIME_REF,
   SERVER_CASES, SERVER_LEFT_OUT, FINGERPRINT, FINGERPRINT_PATH, MEMORY_DIR, SESSIONS_DIR, SETTINGS_TEXT, SETTINGS_WITH_BLOCK, SLUG_PATHS, SPEECH_TOOL, START_SCRIPT, TOOL_REPL,
@@ -34,6 +34,8 @@ import {
   assertBefore, assertEveryLineHolds, assertFreeRoots, assertKeysNotKept, assertLacks, assertMentions, assertNoReservedRoot, assertSays,
   assertTrustedAtDates, assertNoWindowsSpelling, assertPosixLaunch, assertSaysOnce, assertWslLaunch,
 } from "./launcher.assertions.ts";
+import { BRIDGE_TOKEN, LOOPBACK_BRIDGE } from "./launcher.run.fixtures.ts";
+import { assertBridgeArgs } from "./launcher.run.assertions.ts";
 import { WORKSPACE } from "../../src/shared/domain/vfs.ts";
 
 // The scratch folders every launch makes go when the file's tests are done.
@@ -353,6 +355,19 @@ describe("orkeon-code, docker mode", () => {
     ok(r.args.includes(`${GATE}=true`), r.args.join(" "));
     ok(r.args.includes(`${START_SCRIPT}=/tmp/orkeon-code/session-start.ork.ts`), r.args.join(" "));
     deepStrictEqual(mountRoots(r.args), ROOTS);
+  });
+});
+
+describe("orkeon-code, docker mode, the tool bridge (Orkeon #445)", () => {
+  it("hands the REPL's container the token by name and the host's network for a bridge on loopback", () => {
+    // Arrange
+    const start = { args: ["--mode", "docker"], bin: { docker: recorder() }, settings: LOOPBACK_BRIDGE, env: BRIDGE_TOKEN };
+
+    // Act
+    const r = launchWithNode(start);
+
+    // Assert
+    assertBridgeArgs(r, BRIDGE_TOKEN.ORKEON_BRIDGE_TOKEN, true);
   });
 });
 
@@ -1169,6 +1184,17 @@ describe("orkeon-code.ps1 follows the same rules (read here; run below, where pw
     // Assert
     assertMentions(script, PS1_DOCKER_TTY);
     ok(!script.includes("docker run --rm -it"), "never -it whatever the input");
+  });
+
+  it("hands the container the tool bridge's token by name when the settings name a bridge", () => {
+    // Arrange
+    const launcher = "orkeon-code.ps1";
+
+    // Act
+    const script = read(launcher);
+
+    // Assert
+    assertMentions(script, PS1_BRIDGE);
   });
 
   it("checks that the Docker engine answers before it runs the container", () => {

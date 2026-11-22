@@ -196,6 +196,7 @@ fournisseur. Un résultat d'outil parvient au modèle coupé à 4000 caractères
 | `Orkeon:Tools:GitHub:Token` | Le jeton de l'outil `github`, lu une fois à l'enregistrement de l'outil ; préférez la variable ci-dessous à un jeton écrit dans un fichier de settings, que les exemples laissent de côté |
 | `Orkeon:Tools:GitHub:TokenVariable` | La variable d'environnement où l'outil `github` lit son jeton quand `Token` n'est pas réglé : `GITHUB_TOKEN` par défaut, puis `GH_TOKEN` |
 | `Orkeon:Tools:Firefox:*` | L'outil `firefox`, qui pilote le Firefox de la machine hôte par WebDriver BiDi, sans rien télécharger |
+| `Orkeon:Tools:Bridge:*` | Les outils qu'une session en Docker envoie à `orkeon bridge serve` sur votre machine : `Address`, `Allow`, `HostHeader`, `TokenEnvVar` ([Pont d'outils](tool-bridge.md)) |
 | `Orkeon:Cli:ConsoleStreaming:Enabled` | Affiche la réponse au fil de sa génération |
 | `Orkeon:Cli:Tui:Theme` | La palette sur laquelle démarre la console à panneaux : `dark`, `light` ou `none` ; sans elle `dark`, ou `none` avec `NO_COLOR`. Toute autre valeur empêche le démarrage. `/theme` la change pour la session |
 | `Orkeon:Cli:ScriptCommands:MaxScripts` | Commandes que le chargeur garde : 200 par défaut, au-dessus de la surface de commandes de ce projet |

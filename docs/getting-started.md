@@ -146,6 +146,8 @@ ghcr.io/orkeon/orkeon:latest` updates it.
 The launcher checks that the engine answers before it starts the container: when Docker Desktop or the Docker service
 is stopped, it says so and starts nothing.
 
+The container has no browser: the [tool bridge](tool-bridge.md) lends it the Firefox of your machine.
+
 ### Source mode: an Orkeon checkout
 
 `ORKEON_SOURCE=~/src/orkeon ./orkeon-code --mode source` builds `src/apps/Orkeon.ConsoleApp` in that checkout
