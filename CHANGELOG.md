@@ -7,9 +7,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-### Changed — the pin moves to Orkeon `e7b9bdf`: the runtime prunes and routes
+### Changed — the pin moves to Orkeon `b42e013`: the runtime prunes and routes
 
-- The pin moves to Orkeon `main` `e7b9bdf` (Orkeon #457, #462, #470) ([ADR 0034](docs/adr/0034-orkeon-after-470.md)).
+- The pin moves to Orkeon `main` `b42e013` (Orkeon #457, #462, #470, #474) ([ADR 0034](docs/adr/0034-orkeon-after-470.md)).
 - With `compaction.prune` on, an act asks the runtime for its own pruning (`act({ prune: true })`, Orkeon #461) in
   place of this project's judge. The numbers are the host's `Orkeon:Compaction:Prune`, by default the judge's own
   (40 %, the last 6 messages, 300 characters). The threshold is a share of the call's usable window, the window
@@ -34,7 +34,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - A hosted decision provider without its key now turns the decision circuit off (`no-key`). The pruning and the
   routing then warn that the host has no decision model, as they do when no provider is named
   ([decision models locally](docs/decision-models-local.md#when-it-does-not-work)).
-- The tool and docker modes run Orkeon `1.3.0`, nine commits behind this pin: `compaction.prune` prunes nothing
+- The tool and docker modes run Orkeon `1.3.0`, ten commits behind this pin: `compaction.prune` prunes nothing
   and `route.agents` routes nothing there, without a warning of its own (a host with no decision model still gets the usual one). `/config` says so in the description of
   `compaction.prune`, and `/release-notes` names the pin as a commit of Orkeon's `main` past `1.3.0`.
 
@@ -73,7 +73,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   through `TscPath` ([development](docs/development.md)).
 - Not adopted, since every agent of this project is an act and not a task: the runtime's compaction by default, its
   pruning of a task's loop, `llm.profile: auto`, `effort: "auto"`, `decision({ mode })` and its skills. The commands
-  keep `/effort`; their pruning and `/route` go through the runtime as of the pin `e7b9bdf`, above.
+  keep `/effort`; their pruning and `/route` go through the runtime as of the pin `b42e013`, above.
 
 ### Added — the main loop's explorer
 

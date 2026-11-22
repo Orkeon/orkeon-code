@@ -177,6 +177,7 @@ the file sets. A key linked to an identity refuses every call that does not name
 - Source mode only (`ORKEON_CODE_MODE=source`, an Orkeon checkout at the pin). The release of the tool and docker
   modes has no such provider: copied there, the example stops the start on `Provider`. The image has neither
   `claude` nor its login.
+- At the pin, every verb of `orkeon` takes these settings, `orkeon runs list` among them (Orkeon #472).
 - The launcher tries the tool mode first: with `orkeon-repl` installed, force the mode.
 - [`config/appsettings.agent-cli.example.json`](../config/appsettings.agent-cli.example.json) is the example: the
   Anthropic one, its default profile on `ANTHROPIC_API_KEY`, plus a profile `subscription` on `agent-cli` whose

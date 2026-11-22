@@ -190,6 +190,7 @@ celui de la section).
 - Mode source seulement (`ORKEON_CODE_MODE=source`, un checkout d'Orkeon à l'épingle). La release des modes tool et
   docker n'a pas ce fournisseur : copié là, l'exemple arrête le démarrage sur `Provider`. L'image n'a ni `claude` ni
   sa connexion.
+- À l'épingle, chaque verbe d'`orkeon` accepte ces settings, `orkeon runs list` compris (Orkeon #472).
 - Le lanceur essaie d'abord le mode tool : avec `orkeon-repl` installé, forcez le mode.
 - [`config/appsettings.agent-cli.example.json`](../../config/appsettings.agent-cli.example.json) est l'exemple :
   celui d'Anthropic, son profil par défaut sur `ANTHROPIC_API_KEY`, plus un profil `subscription` sur `agent-cli` dont
