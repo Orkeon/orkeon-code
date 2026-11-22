@@ -164,21 +164,29 @@ the file sets. A key linked to an identity refuses every call that does not name
 
 ### Claude on a subscription: the `agent-cli` provider
 
-- **Experimental**, in Orkeon (`ORKEXP010`, Orkeon #470, its ADR-020), and for personal use: the subscription is that
-  of whoever runs it.
+- **Experimental**, in Orkeon (`ORKEXP010`, its ADR-020; [ADR 0034](adr/0034-orkeon-after-470.md) here), and for
+  personal use: the subscription is that of whoever runs it.
 - A profile written `"Provider": "agent-cli"` is answered by the `claude` command of this machine (Anthropic's agent CLI in print
   mode, `claude -p`), signed in to its own subscription. Orkeon keeps the history and the tools: the CLI runs with none
   of its own, and each tool call goes through Orkeon's pipeline and the permission gate as on any provider.
-- No API key: Orkeon removes every `ANTHROPIC_*` variable from the CLI's environment, and refuses an answer made on a
-  key rather than the login (`Llm:AgentCli:RequireLogin`, `true`).
+- The CLI gets no API key: Orkeon removes from its environment every `ANTHROPIC_*` variable and the three
+  switches that send the CLI to a cloud vendor (Bedrock, Vertex, Foundry).
+- A CLI that still runs on a key rather than its login is refused before it answers, and the call does not fall back
+  (`Llm:AgentCli:RequireLogin`, `true`).
 - Before the first run: `claude` on the `PATH`, signed in once (`claude /login`).
-- Source mode only (`ORKEON_CODE_MODE=source`, an Orkeon checkout at the pin): the docker image has neither `claude`
-  nor its login, and the 1.3.0 tool predates the provider.
+- Source mode only (`ORKEON_CODE_MODE=source`, an Orkeon checkout at the pin). The release of the tool and docker
+  modes has no such provider: copied there, the example stops the start on `Provider`. The image has neither
+  `claude` nor its login.
+- The launcher tries the tool mode first: with `orkeon-repl` installed, force the mode.
 - [`config/appsettings.agent-cli.example.json`](../config/appsettings.agent-cli.example.json) is the example: the
   Anthropic one, its default profile on `ANTHROPIC_API_KEY`, plus a profile `subscription` on `agent-cli` whose
   `Fallback` is `default`. Copy it, then `/config set llm.profile subscription`: every crew a command launches builds
   its agents on it.
-- A subscription limit reaches Orkeon as a rate limit, so `Fallback` moves the call to the profile on the key.
+- The example needs `ANTHROPIC_API_KEY` as well: a session starts on the default profile, the fallback lands on it,
+  and the host's own services (planner, Guardian, judges) stay on it.
+- With no key at all, write `"Provider": "agent-cli"` in the `Llm` section itself, with no `Fallback`.
+- `Fallback` moves a call to the profile on the key when the subscription is at its limit, which reaches Orkeon as
+  a rate limit, and also when the call timed out (`TimeoutSeconds`) or the CLI's stream broke.
 - `Llm:AgentCli` tells Orkeon how to start the CLI, shared by every profile on the provider:
   - `Engine`: `claude`, the only one;
   - `Command`: the executable, `claude` on the `PATH` or a full path;
@@ -186,10 +194,12 @@ the file sets. A key linked to an identity refuses every call that does not name
   - `MaxToolResultCharacters`: the longest tool result handed to the CLI, 100000 by default;
   - `AutocompactTokens`: where the CLI would compact on its own, kept above every window since Orkeon compacts first;
   - `RequireLogin`: above.
-- Cost: every call is priced at 0, so `/usage` and `/status` show `$0.0000`, never `unpriced`. What the call would
-  have cost on the API stays in the call's metadata as `agent_cli_notional_cost_usd`; Orkeon Code does not show it.
+- Cost: a call the CLI answered is priced at 0, so `/usage` and `/status` show `$0.0000` for it, never `unpriced`.
+  What it would have cost on the API stays in the call's metadata as `agent_cli_notional_cost_usd`; Orkeon Code
+  does not show it.
+- A call that fell back is answered on the key: it is billed there and priced as any call of that profile.
 - Options the CLI cannot receive are not sent, each warned about once per run: `Temperature`, `MaxTokens`, top-p and
-  the penalties, a seed, stop sequences, a response format, thinking and so `/effort`, cache breakpoints,
+  the penalties, a seed, stop sequences, a response format, a grammar, thinking and so `/effort`, cache breakpoints,
   `Llm:WorkspaceId`, a required tool mode.
 - `compaction.prune` and the routing of `route.agents` are judged by the host's decision model, never by this
   provider: they need a [decision provider](decision-models-local.md) as on any other LLM.
@@ -208,6 +218,7 @@ others one after the other, each call through the permission gate, and sends the
 | `Orkeon:Cli:ScriptCommands:Limits:ExecutionTimeout` | Wall-clock limit of each script engine of `orkeon-repl`: a command's, and a crew's, so an `/assistant` turn's |
 | `Orkeon:Cli:ScriptCommands:Limits:MemoryLimitBytes` | Memory limit of those engines: 64 MB by default, the example sets 2 GiB |
 | `Orkeon:Scripting:Limits:ExecutionTimeout`, `Orkeon:Scripting:Limits:MemoryLimitBytes` | The same limits for `orkeon run`, the tool `orkeon-code run` runs a crew with (30 seconds and 100 MB by default; the example sets 30 minutes and 2 GiB). `orkeon-repl` does not read them |
+| `Orkeon:Compaction:Prune:FillShare`, `KeepRecentMessages`, `HeadChars` | The numbers of `compaction.prune`: 0.4, 6 and 300 by default; `Enabled` is not read for it, the session key decides |
 | `Orkeon:Tools:Shell:AllowInterpreters` | Lets `shell_command` run interpreters (`node`, `dotnet`, `npm`...), needed to build and test most projects |
 | `Orkeon:Tools:Shell:ExtraAllowedCommands` | Commands added to the shell allow-list (`make`, `cargo`...) |
 | `Orkeon:Tools:Shell:WindowsPaths:<virtual path>` | Under WSL, the Windows spelling of a mount (`"/workspace": "C:\\proj"`): a Windows program (`cmd.exe`, `code.exe`, `git.exe` of Git for Windows) run by `shell_command` gets its arguments and results in that spelling, where a Linux program gets `/mnt/c/proj` |
@@ -364,6 +375,8 @@ What the table leaves out:
 - **`compaction.prune`** needs a [decision provider](decision-models-local.md) on the host; the mechanism is in
   [How a turn runs](turn.md#compaction-and-memory).
 - **`route.agents`** is also set by `/route on`; see [Routing a crew to a profile](turn.md#routing-a-crew-to-a-profile).
+- **Both need the runtime of the pin**, hence the source mode: in the tool and docker modes they are read and do
+  nothing, without a warning ([the modes](getting-started.md#source-mode-an-orkeon-checkout)).
 - **`skills.suggest`** is also set by `/skills suggest on`; see
   [Suggesting skills for a turn](turn.md#suggesting-skills-for-a-turn).
 - **`dev.workDir`** serves `/dev-status` and `/dev-learn` too. `/commit` reads it as well, and leaves the work folder

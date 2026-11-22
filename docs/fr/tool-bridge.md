@@ -111,7 +111,7 @@ démarrage.
 
 ## Ce qui a été vérifié
 
-Sous Linux avec un moteur Docker (29.10), une image et une CLI construites au pin `5dc2ff3` :
+Sous Linux avec un moteur Docker (29.10), une image et une CLI construites depuis Orkeon `5dc2ff3`, l'épingle de ce jour-là :
 
 - `orkeon-code run` avec un crew qui appelle `firefox` : la page s'ouvre dans le Firefox de la machine, et la capture
   enregistrée dans `/output` arrive dans le dossier de sortie de la session ;

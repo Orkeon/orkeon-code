@@ -345,53 +345,82 @@ décision sur le runtime, ce profil est choisi à chaque lancement de `/dev-spec
 `/dev-learn`, `/review`, `/analyze`, `/commit`, `/init` et `/init-verifiers` :
 
 - **L'échelle** : `route.ladder` ordonne les profils LLM du runtime, du moins cher au plus cher (`small,large` si
-  omis) : des noms de `Llm:Profiles`. Le choix du runtime refuse une échelle qui nomme un profil que le runtime ne
-  déclare pas : rien n'est routé alors, et le profil de la session reste. Un lancement routé porte aussi le profil
-  de la session, sur lequel le crew est construit si son barreau n'est finalement pas déclaré, comme sans routage.
-- **La question** (Orkeon #460) :
+  omis) : des noms de `Llm:Profiles`.
+  - `/config set` refuse moins de deux noms, un nom qui n'est pas un nom de profil, et un barreau nommé deux fois,
+    quelle que soit sa casse (`Small,small`). Une valeur enregistrée qui n'est pas une échelle se lit `small,large`.
+  - Le choix du runtime refuse une échelle qui nomme un profil que le runtime ne déclare pas : rien n'est routé
+    alors, le profil de la session reste, et un avertissement porte le message du runtime.
+  - Un lancement routé porte aussi le profil de la session, sur lequel le crew est construit si son barreau n'est
+    finalement pas déclaré, comme sans routage.
+- **La question** ([ADR 0034](../adr/0034-orkeon-after-470.md)) :
   - Le choix System One du runtime (`ctx.services.get("pick")` pour une commande, `ctx.llm.pick` dans un crew ;
-    expérimental, ORKEXP008) reçoit le nom du crew et la commande telle que tapée (coupée en son milieu au-delà de
-    4 000 caractères), l'échelle, le plancher ci-dessous, et le profil de la session comme plafond et comme repli.
+    expérimental, ORKEXP008) reçoit une ligne qui nomme le crew, puis la commande telle que tapée, entière.
+  - Le runtime pose son propre cadre autour de cette requête et la coupe à la taille que lit son modèle de décision.
+  - Avec elle partent l'échelle, le plancher ci-dessous, et le profil de la session comme plafond et comme repli.
   - Le runtime décrit les barreaux à son modèle de décision, du moins cher au plus cher, et suit le choix quand la
     probabilité que la réponse lui donne atteint 0,6 ; en dessous ou sans réponse, le repli reste.
   - Une session sur le modèle par défaut du runtime n'a pas de plafond, et son repli est le barreau du plancher
-    quand une règle en fixe un ; sans règle il est omis, et le runtime se replie alors sur son profil `default`, le
-    modèle par défaut (un repli n'est jamais relevé au plancher, d'où le barreau donné).
+    quand une règle en fixe un. Sans règle il est omis, et le runtime se replie alors sur son profil `default`, le
+    modèle par défaut.
+- **Un seul barreau restant** : une session dont le barreau est le seul restant ne demande rien. C'est une session
+  sur le barreau le plus bas, ou un plancher de règle au barreau de la session ou au-dessus. Le lancement tourne sur
+  le profil de la session ; rien n'est journalisé ni gardé. Sur le modèle par défaut du runtime, une règle dont le
+  plancher est le barreau le plus haut ne laisse aussi qu'un barreau : le runtime le répond sans appeler son modèle
+  de décision, et la ligne de journal comme `/route why` disent qu'aucun modèle n'a été interrogé.
 - **Le plancher** : `.orkeon/route-rules.json`, `{ "paths": { "<préfixe>": "<profil>" }, "crews": { "<crew>":
   "<profil>" } }`. La règle du crew, et pour chaque mot de la commande qui est le chemin d'une règle ou se trouve
   dessous (`src/billing`, `src\billing\tax.ts`, `/workspace/src/billing/tax.ts`) la règle de son ancêtre le plus
   proche, relèvent le choix à ce barreau au moins. Une session sur le modèle par défaut du runtime prend le barreau
-  du plancher même quand le modèle n'a pas été suivi. Un fichier absent, illisible ou mal formé, une règle nommant
-  un profil hors de l'échelle et une règle sur l'espace de travail lui-même (`/`, `./`) ne relèvent rien.
+  du plancher même quand le modèle n'a pas été suivi, ce barreau étant son repli. Un fichier absent, illisible ou
+  mal formé, une règle nommant un profil hors de l'échelle et une règle sur l'espace de travail lui-même (`/`, `./`)
+  ne relèvent rien.
 - **Le plafond** : jamais au-dessus du barreau de la session ; il l'emporte sur un plancher (un plancher plus haut
   est donné comme le barreau de la session, le choix refusant un plancher au-dessus de son plafond). Une session sans
   `llm.profile` dispose de toute l'échelle : routé, un lancement peut alors tourner sur un modèle plus cher que
   celui par défaut du runtime. Une session sur un profil hors de l'échelle (un profil de décision qui
-  garde ses requêtes) n'est pas routée : elle garde ce profil.
+  garde ses requêtes) n'est pas routée : elle garde ce profil, et une ligne de journal le dit.
 - **Ce qui n'est pas routé** : la boucle principale (`/assistant` : son cache de prompt suit un modèle),
   `/compact`, `/memory admit`, les crews de parole, `/advisor` (il a son propre modèle), `/dev-batches` et
   `/tasks` ; et, dans un crew, les rôles de `/dev-implement`, les agents qu'un crew démarre en arrière-plan,
   l'explorateur de la boucle principale et l'extraction de la réponse d'un sous-agent. L'effort de raisonnement reste celui de `/effort`.
 - **L'act d'un sous-agent dans un crew** ([ADR 0029](../adr/0029-orkeon-after-333.md)) :
   - Le relecteur de `/dev-spec`, `/dev-change` et `/dev-plan`, le relecteur du lot suivant de `/dev-batches` et
-    l'auditeur de `/dev-verify` font chacun un act que la même décision route.
+    l'auditeur de `/dev-verify` font chacun un act que le même choix route.
   - La question est posée sous le nom du sous-agent, avec son brief, les mêmes planchers et le profil de la
     session comme plafond.
   - Seul l'act change de profil, pour cet appel ; le crew reste sur le sien.
-  - Il ne bouge que sur une décision : un modèle qui ne répond pas ou n'est pas sûr, un choix qui est le profil du
-    crew et un barreau que le runtime ne déclare pas laissent l'act là où tourne le crew.
+  - Il bouge sur une décision : le choix du modèle, ce choix relevé à un plancher ou tenu au plafond, et le barreau
+    de la session quand il est le seul restant.
+  - Sans décision (pas de réponse, un choix incertain) l'act reste là où tourne le crew. L'exception est une session
+    sur le modèle par défaut du runtime sous le plancher d'une règle : l'act prend ce plancher, comme un lancement.
+  - Un choix qui est le profil du crew et un barreau que le runtime ne déclare pas laissent l'act là où tourne le
+    crew.
   - Un act peut monter comme descendre : un crew lancé sur `small` a sa relecture sur `large` quand le modèle le
     dit.
-  - Chacun de ces choix est journalisé et listé par `/route why` comme un lancement.
-- **Le routage échoue ouvert** :
-  - Le réglage éteint ou illisible, pas de modèle de décision (un avertissement), un runtime sans le choix, une
-    option que le choix refuse, le circuit de décision du runtime éteint (`circuit-off`) ou pas d'échelle
-    (`no-ladder`) laissent le profil de la session, sans rien journaliser ni garder ; un modèle qui ne répond pas
-    ou n'est pas sûr laisse le repli.
-  - Chaque lancement routé écrit une ligne de journal avec le profil et la raison, et les 5 derniers sont gardés
-    dans la session pour `/route why`.
+  - Chacun de ces choix est journalisé et listé par `/route why` comme un lancement, le seul barreau restant mis à
+    part.
+- **Le routage échoue ouvert** : chaque cas ci-dessous ne route rien et ne garde rien pour `/route why`. Un
+  lancement tourne sur le profil de la session, un act là où tourne son crew.
+  - Le réglage éteint ou illisible, et un runtime sans le choix : rien n'est journalisé. Les modes tool et docker
+    lancent une release sans le choix, rien n'y est donc routé
+    ([ADR 0034](../adr/0034-orkeon-after-470.md)).
+  - Pas de modèle de décision sur le runtime, qu'aucun fournisseur ne soit nommé ou que le fournisseur n'ait pas
+    sa clé : un avertissement, à chaque lancement et à chaque act.
+  - Le circuit de décision du runtime éteint (`circuit-off`) ou pas d'échelle (`no-ladder`) : un avertissement
+    qui nomme la cause.
+  - Une option que le choix refuse, une échelle comprise, ou un choix qui échoue : un avertissement qui porte le
+    message du runtime.
+- **Sans décision** : un modèle qui ne répond pas ou n'est pas sûr laisse le repli. Pour un lancement c'est le
+  profil de la session ; sur le modèle par défaut du runtime, le plancher d'une règle, sinon ce modèle par défaut.
+  Le choix est journalisé et gardé, avec ce qui est resté.
+- **La trace** :
+  - Chaque choix écrit la ligne de journal `route: <crew> on '<profile>' (<why>)`, sur le profil réellement
+    utilisé, et les 5 derniers sont gardés dans la session pour `/route why`.
+  - La raison dit pourquoi, ce qui est resté quand le choix n'a rien décidé, et le choix du modèle avec sa
+    probabilité quand il en a fait un.
   - Le choix est fait avant le lancement, un lancement que le runtime refuse ensuite (un crew déjà en cours) a donc
-    quand même interrogé le modèle et figure dans la liste.
+    quand même interrogé le choix et figure dans la liste.
+  - `/route why` écarte un enregistrement dont la raison n'est pas celle d'un choix.
   - `/route on|off` règle `route.agents` pour la session.
   - Nu, il dit où en est le routage, puis ce que le modèle de chaque échelon prend pour le raisonnement, ou ce que
     l'effort enregistré par `/effort` y devient.
@@ -459,21 +488,31 @@ Code : `shared/domain/context-prune.ts`, `shared/application/compaction/prune-co
 - Les résultats d'outils d'un tour en cours vivent dans la boucle du runtime, jamais dans le tampon de session,
   aucune compaction ne les atteint donc.
 - Avec `compaction.prune` à `on` et un modèle de décision sur le runtime, l'act de la boucle principale demande au
-  runtime son propre élagage (`act({ prune: true })`), avec les valeurs du runtime (`Orkeon:Compaction:Prune`).
-- Dès que le prompt estimé de la boucle dépasse 40 % de la fenêtre utile de l'appel, le runtime soumet au modèle de
-  décision les anciens résultats des outils de lecture de cet act, sauf les 6 derniers messages et le tour pas
-  encore répondu.
+  runtime son propre élagage (`act({ prune: true })`), avec les valeurs du runtime : la section
+  `Orkeon:Compaction:Prune`, dont les valeurs par défaut sont les chiffres ci-dessous.
+- Dès que le prompt estimé de la boucle dépasse 40 % de la fenêtre utile de l'appel (`FillShare`), le runtime
+  soumet au modèle de décision les anciens résultats des outils de lecture de cet act. Les 6 derniers messages
+  (`KeepRecentMessages`) et le tour pas encore répondu sont laissés de côté.
+- La fenêtre utile est la fenêtre du modèle moins la place gardée pour la réponse : le plafond de sortie de
+  l'appel, sinon le maximum documenté du modèle, au plus la moitié de la fenêtre.
 - Le modèle de décision lit le prompt de l'act et chaque appel (outil, entrée, taille, âge), jamais le contenu d'un
-  résultat. Chaque résultat est gardé, coupé à ses 300 premiers caractères ou retiré.
+  résultat. Chaque résultat est gardé, coupé à ses 300 premiers caractères (`HeadChars`) ou retiré.
 - Un résultat élagué laisse une ligne qui dit comment le retrouver.
 - Chaque act demande son propre élagage, celui que demande un contrôle de fin compris.
 - Les acts des crews dev le portent aussi : le relecteur de `/dev-spec`, `/dev-change`, `/dev-plan` et du prochain
   lot de `/dev-batches`, l'auteur de tests et l'implémenteur de `/dev-implement`, l'auditeur de `/dev-verify`.
   Leur Llm le lie à chaque act, dans l'agent qui agit : un relecteur ou un auditeur lancé en enfant lie le sien.
   Une extraction n'en porte pas.
-- L'élagage échoue ouvert : le réglage éteint ou illisible, ou pas de modèle de décision (un avertissement),
-  n'élaguent rien. Avec le circuit de décision éteint, le runtime ne demande rien et avertit une fois.
-- Une ligne du journal dit ce que chaque act a jugé, retiré et coupé, lu dans le résultat de l'act.
+- L'élagage échoue ouvert : le réglage éteint ou illisible, ou pas de modèle de décision, n'élaguent rien. Sans
+  modèle de décision chaque act journalise un avertissement et ne demande rien au runtime, qu'aucun fournisseur ne
+  soit nommé, que le fournisseur n'ait pas sa clé ou que le circuit de décision soit éteint : le runtime n'a alors
+  pas de modèle de décision pour un script.
+- Une liaison qui échoue coûte à l'act son élagage, jamais le tour ni le crew : l'act tourne sans élagage, sans
+  une ligne.
+- Les modes tool et docker lancent une release dont `act` ne connaît pas `prune` : rien n'y est élagué, et
+  rien ne le dit ([ADR 0034](../adr/0034-orkeon-after-470.md)).
+- Une ligne du journal dit ce qu'un act a jugé, retiré et coupé, lu dans son résultat ; un act qui n'a rien jugé
+  n'en écrit pas.
 
 ### Résumé
 

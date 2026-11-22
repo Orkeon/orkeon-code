@@ -13,7 +13,7 @@ The pin moves from `5dc2ff3` to Orkeon `main` `e7b9bdf`, three merges later:
 - **#462**, issues #448 to #468. It answers the two requests [ADR 0033](0033-orkeon-after-447.md) left open, and
   more:
   - `ctx.llm.act({ prune })` (#461, `ORKEXP009`): the runtime prunes an act's own tool loop on the host's numbers
-    (`Orkeon:Compaction:Prune`: 0.4 of the call's usable window, the last 6 messages spared, a cut keeps 300
+    (`Orkeon:Compaction:Prune`, by default 0.4 of the call's usable window, the last 6 messages spared, a cut of 300
     characters), the host's decision model judging each older result of a read tool, and hands back
     `ActResult.pruned`.
   - `ctx.llm.pick` (#460, `ORKEXP008`) for a crew, and `ctx.services.get("pick")` for a command (#463): System One's
@@ -30,15 +30,32 @@ The pin moves from `5dc2ff3` to Orkeon `main` `e7b9bdf`, three merges later:
 
 - **The pruning is the runtime's.** With `compaction.prune` on and a decision model on the host, an act carries
   `prune: true` and nothing else. This project's judge (the `onContextPressure` callback, its questions, its
-  re-judge every 8 turns, its state of verdicts) is removed. The numbers were the same; the window is now the call's
-  usable window rather than the session's. The setting, the warning when no decision model is there, the binding per
-  act and the log line, read from `result.pruned`, stay.
+  re-judge every 8 turns, its state of verdicts) is removed. The numbers are the host's, whose defaults are the
+  judge's own. The threshold is a share of the call's usable window, the window less the output reserve, where the
+  judge took the session's window: it is lower. The setting, the binding per act and the log line, read from
+  `result.pruned`, stay. So does the warning when the host has no decision model for a script: no provider named,
+  a provider without its key, a circuit off.
 - **The routing is the runtime's pick.** A crew's launch (`/route`, a command) asks `ctx.services.get("pick")`, a
   sub-agent's act (`actRoute`, in a crew) asks `ctx.llm.pick`: one algorithm for both, behind one port,
   `ProfilePicker`. This project keeps what is its own: the setting `route.agents`, `route.ladder`, the floors of
   `.orkeon/route-rules.json`, the session's profile as the ceiling and the fallback, the log line and `/route why`.
-  Its questions to `system_one_decide` and its own threshold are removed. `circuit-off`, `no-ladder` and a host
-  without the pick leave the session's profile, as a missing decision model did.
+  Its questions to `system_one_decide` and its own threshold are removed.
+- **What the pick does not decide is said, not recorded.** `circuit-off` and `no-ladder` leave the session's
+  profile, with a warning that names the cause. A pick the runtime refuses, a ladder it refuses among them, leaves
+  it too, and the runtime's message is logged as a warning. None of these is kept for `/route why`. A host without
+  the pick leaves the session's profile without a word, and a session on a profile outside the ladder keeps it with
+  one log line.
+- **One rung left asks nothing.** A session whose own rung is the one rung left (the lowest, or a rule's floor at
+  it or above) is not sent to the pick: no call, no line, no record. On the host's default model, the answer the
+  runtime gives without a model call, a rule leaving the top rung alone, is recorded as asked of no model.
+- **A choice that decides nothing says what stood.** Under the bar or without an answer, the line and the record
+  name the session's profile, a rule's floor, the host's default model or, for an act, its crew's profile.
+- **A floor holds for an act on the host's default model.** There an act of a sub-agent takes a rule's floor also
+  when the pick is unsure or missing, as a launch does. Under a session's profile such an act stays where its crew
+  runs.
+- **The request is sent whole.** One line names the crew, then the command as typed: the runtime frames it and
+  cuts it to its decision model's size. `route.ladder` refuses a rung named twice, whatever its case.
+- **The bounds follow the pick's contract.**
   The pick holds only a `model` answer between floor and ceiling, never its fallback, and throws on a floor above the
   ceiling. So the floor is capped at the session's rung. For a session on the host's default model, with no
   ceiling, the fallback is the floor's rung when a rule raises one: a missing pick would otherwise fall back on the
@@ -55,8 +72,10 @@ The pin moves from `5dc2ff3` to Orkeon `main` `e7b9bdf`, three merges later:
 
 ## Consequences
 
-- `/route why` shows the runtime's reasons and probability; a record kept before this change is still read.
-- On `1.3.0` (the tool and docker modes) `act` knows no `prune` and the host serves no `pick`: a run there prunes
-  nothing and routes nothing.
+- `/route why` shows the runtime's reason and the probability of its pick, for the choices the pick made, and what stood when it
+  decided nothing. A record kept before this change is read when its reason is one a choice carries, dropped
+  otherwise.
+- The tool and docker modes run `1.3.0`, nine commits behind the pin: `act` knows no `prune` there and the host
+  serves no `pick`. A run there prunes nothing and routes nothing, and no warning says so.
 - A pruning measured before this ADR ([decision models](../decision-models.md)) was this project's judge, against the
   session's window.

@@ -20,7 +20,7 @@ profile does not see: the escalation judges an answer, the fallback replaces a c
 
 ## The runtime: source mode
 
-The pin (`5dc2ff3`) serves Liquid and Kev, and so does every release since `1.0.0`: the tool mode
+The pin (`e7b9bdf`) serves Liquid and Kev, and so does every release since `1.0.0`: the tool mode
 knows `Orkeon:Liquid`, `Orkeon:Kev` and `Orkeon:Decision:Provider`. The docker mode runs the image of
 the last release, `1.3.0` at this writing. This page was written in source mode, on an
 Orkeon checkout at the pin or after it ([Getting started](getting-started.md#source-mode-an-orkeon-checkout)):
@@ -581,7 +581,7 @@ was measured.
 | A setting the host does not know, at start | A runtime older than `1.0.0`: the decision settings came with `1.0.0-rc.7` | The last release (tool or docker mode), or `--mode source` on a checkout at the pin |
 | `Orkeon:Decision:Profiles:guarded: no decision model is registered; name a provider in Orkeon:Decision:Provider …` | A decision profile asked for while no provider is active, a Kev section without `Provider` included | Name the provider |
 | `kev could not be reached at http://127.0.0.1:8009/v1: Connection refused` | The server is not running or listens on another port | Start it, or set `Orkeon:Kev:BaseUrl` |
-| `the decision circuit is off: no Liquid API key: set the environment variable LIQUID_API_KEY, or Orkeon:Liquid:ApiKey`, at start | `LIQUID_API_KEY` not exported in the shell that started Orkeon Code: the host turns the circuit off (`no-key`), and `/route`, `compaction.prune` and the skill suggestions work as without a decision model | Export it, then relaunch |
+| `the decision circuit is off: no Liquid API key: set the environment variable LIQUID_API_KEY, or Orkeon:Liquid:ApiKey`, in a warning of the runtime's log | `LIQUID_API_KEY` not exported in the shell that started Orkeon Code: the host turns the circuit off (`no-key`), and `/route`, `compaction.prune` and the skill suggestions work as without a decision model, the first two with their own warning | Export it, then relaunch |
 | `{"error":{"message":"Invalid API key provided.", … "code":"invalid_api_key"}}` from `curl`, a `401` | A wrong Liquid key | A key of Liquid's console |
 | A `422` from Kev | A state over 65,536 tokens, or a question type it does not take | `KEV_TRUNCATE_STATES=1` |
 | The guard warns but never blocks | `kev-0.8b` answers under the `BlockThreshold` | `guarded-small`, or a larger model |

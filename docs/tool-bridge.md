@@ -106,7 +106,7 @@ Over http the token and the calls cross Docker's virtual network in clear, and t
 
 ## What was checked
 
-On Linux with a Docker engine (29.10), an image and a CLI built from the pin `5dc2ff3`:
+On Linux with a Docker engine (29.10), an image and a CLI built from Orkeon `5dc2ff3`, the pin of that day:
 
 - `orkeon-code run` with a crew that calls `firefox`: the page opens on the machine's Firefox, and the screenshot
   saved to `/output` reaches the session's output folder;

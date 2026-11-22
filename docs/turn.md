@@ -312,28 +312,39 @@ it made stay in its own context.
 is picked at each launch of `/dev-spec` (and its alias `/dev-change`), `/dev-plan`, `/dev-learn`, `/review`, `/analyze`, `/commit`,
 `/init` and `/init-verifiers`:
 
-- **The ladder**: `route.ladder` orders the host's LLM profiles, cheapest first (`small,large` when omitted): names
-  of `Llm:Profiles`. The runtime's pick refuses a ladder that names a profile the host does not declare: nothing is
-  routed then, and the session's profile stands. A routed launch also carries the session's profile, which the crew
-  is built on if its rung is not declared after all, as without routing.
-- **The question** (Orkeon #460): the runtime's System One pick (`ctx.services.get("pick")` for a command,
-  `ctx.llm.pick` inside a crew; experimental, ORKEXP008) is given the crew's name and the command as typed (cut in
-  its middle past 4 000 characters), the ladder, the floor below, and the session's profile as the ceiling and the
-  fallback. The runtime describes the rungs to its decision model, cheapest first, and follows the pick when the
-  probability its answer gives it reaches 0.6; under it or without an answer, the fallback stands. A session on the
-  host's default model has no ceiling, and its fallback is the floor's rung when a rule sets one; with no rule it
-  is left out, and the runtime then falls back on its `default` profile, the host's default model (a fallback is
-  never raised to the floor, hence the rung given).
+- **The ladder**: `route.ladder` orders the host's LLM profiles, cheapest first (`small,large` when omitted): names of
+  `Llm:Profiles`.
+  - `/config set` refuses fewer than two names, a name that is no profile name, and a rung named twice, whatever its
+    case (`Small,small`). A stored value that is no ladder reads as `small,large`.
+  - The runtime's pick refuses a ladder that names a profile the host does not declare: nothing is routed then, the
+    session's profile stands, and a warning carries the runtime's message.
+  - A routed launch also carries the session's profile, which the crew is built on if its rung is not declared after
+    all, as without routing.
+- **The question** ([ADR 0034](adr/0034-orkeon-after-470.md)): the runtime's System One pick
+  (`ctx.services.get("pick")` for a command, `ctx.llm.pick` inside a crew; experimental, ORKEXP008) is sent one line
+  that names the crew, then the command as typed, whole. The runtime puts its own frame around that request and cuts
+  it to the size its decision model reads. With it go the ladder, the floor below, and the session's profile as the
+  ceiling and the fallback.
+  - The runtime describes the rungs to its decision model, cheapest first, and follows the pick when the probability
+    its answer gives it reaches 0.6; under it or without an answer, the fallback stands.
+  - A session on the host's default model has no ceiling, and its fallback is the floor's rung when a rule sets one.
+    With no rule it is left out, and the runtime then falls back on its `default` profile, the host's default model.
+- **One rung left**: a session whose own rung is the one rung left asks nothing. That is a session on the lowest
+  rung, or a rule's floor at the session's rung or above it. The launch runs on the session's profile; nothing is
+  logged and nothing is kept. On the host's default model, a rule whose floor is the top rung leaves one rung too:
+  the runtime answers it without a call to its decision model, and the log line and `/route why` say that no model
+  was asked.
 - **The floor**: `.orkeon/route-rules.json`, `{ "paths": { "<prefix>": "<profile>" }, "crews": { "<crew>":
   "<profile>" } }`. The crew's own rule, and for each word of the command that is a rule's path or lies under it
   (`src/billing`, `src\billing\tax.ts`, `/workspace/src/billing/tax.ts`) the rule of its closest ancestor, raise
   the pick to at least that rung. A session on the host's default model takes the floor's rung even when the
-  model was not followed. A file absent, unreadable or malformed, a rule naming a profile outside the ladder and a
-  rule on the workspace itself (`/`, `./`) raise nothing.
+  model was not followed, since that rung is its fallback. A file absent, unreadable or malformed, a rule naming a
+  profile outside the ladder and a rule on the workspace itself (`/`, `./`) raise nothing.
 - **The ceiling**: never above the session's own rung; it wins over a floor (a floor above it is given as the
   session's rung, since the pick refuses a floor above its ceiling). A session without `llm.profile` has the
-  whole ladder: routed, a launch may then run on a dearer model than the host's default. A session on a profile outside the ladder (a decision profile that guards its requests) is not
-  routed: it keeps that profile.
+  whole ladder: routed, a launch may then run on a dearer model than the host's default. A session on a profile
+  outside the ladder (a decision profile that guards its requests) is not routed: it keeps that profile, and one log
+  line says so.
 - **What is not routed**: the main loop (`/assistant`: its prompt cache follows one model), `/compact`, `/memory
   admit`, the speech crews, `/advisor` (it has its own model), `/dev-batches` and `/tasks`; and, inside a crew, the
   roles of `/dev-implement`, the agents a crew starts in the background, the main loop's explorer and the extraction
@@ -341,20 +352,36 @@ is picked at each launch of `/dev-spec` (and its alias `/dev-change`), `/dev-pla
   The reasoning effort stays `/effort`'s.
 - **A sub-agent's act inside a crew** ([ADR 0029](adr/0029-orkeon-after-333.md)): the reviewer of `/dev-spec`,
   `/dev-change` and `/dev-plan`, the reviewer of the next batch of `/dev-batches` and the auditor of `/dev-verify`
-  each make one act the same decision routes, asked under the sub-agent's name with its brief, the same floors and
-  the session's profile as the ceiling. The act alone moves, for that call; the crew stays on its profile. It moves
-  only on a decision: a model that does not answer or is not sure, a pick that is the crew's own profile and a
-  rung the host does not declare leave the act where the crew runs. An act may move up as well as down: a crew
-  launched on `small` has its review on `large` when the model says so. Each of these choices is logged and listed
-  by `/route why` like a launch.
-- **It fails open**: the setting off or unreadable, no decision model (a warning), a host without the pick, an option
-  the pick refuses, the runtime's decision circuit off (`circuit-off`) or no ladder (`no-ladder`) leave the
-  session's profile, and nothing is logged nor kept; a model that does not answer or is not sure leaves the
-  fallback. Each routed launch writes a log line with the profile and why, and the last 5 are
-  kept in the session for `/route why`; the choice is made before the launch, so a launch the host then refuses (a
-  crew already running) has still asked the model and is listed. `/route on|off` sets `route.agents` for the session; bare, it says where the
-  routing stands, then what the model of each rung takes for reasoning, or what the effort `/effort` stored becomes
-  on it.
+  each make one act the same pick routes, asked under the sub-agent's name with its brief, the same floors and
+  the session's profile as the ceiling. The act alone moves, for that call; the crew stays on its profile.
+  - It moves on a decision: the model's pick, that pick raised to a floor or held at the ceiling, and the session's
+    rung when it is the one rung left. An act may move up as well as down: a crew launched on `small` has its review
+    on `large` when the model says so.
+  - Without a decision (no answer, an unsure pick) the act stays where the crew runs. The exception is a session on
+    the host's default model under a rule's floor: the act takes that floor, as a launch does.
+  - A pick that is the crew's own profile and a rung the host does not declare leave the act where the crew runs.
+  - Each of these choices is logged and listed by `/route why` like a launch, the one rung left aside.
+- **It fails open**: each case below routes nothing and keeps nothing for `/route why`. A launch runs on the
+  session's profile, an act where its crew runs.
+  - The setting off or unreadable, and a host without the pick: nothing is logged. The tool and docker modes run a
+    release without the pick, so nothing is routed there ([ADR 0034](adr/0034-orkeon-after-470.md)).
+  - No decision model on the host, whether no provider is named or the provider lacks its key: a warning, at each
+    launch and each act.
+  - The runtime's decision circuit off (`circuit-off`) or no ladder (`no-ladder`): a warning that names the cause.
+  - An option the pick refuses, a ladder among them, or a pick that fails: a warning that carries the runtime's
+    message.
+- **No decision**: a model that does not answer or is not sure leaves the fallback. For a launch that is the
+  session's profile; on the host's default model, the floor of a rule, else that default model. The choice is
+  logged and kept, with what stood.
+- **The trace**: each choice writes the log line `route: <crew> on '<profile>' (<why>)`, on the profile really
+  used, and the last 5 are kept in the session for `/route why`.
+  - The why gives the reason, what stood when the pick decided nothing, and the model's pick with its probability
+    when it made one.
+  - The choice is made before the launch, so a launch the host then refuses (a crew already running) has still
+    asked the pick and is listed.
+  - `/route why` drops a stored record whose reason is not one a choice carries.
+  - `/route on|off` sets `route.agents` for the session; bare, it says where the routing stands, then what the model
+    of each rung takes for reasoning, or what the effort `/effort` stored becomes on it.
 
 ## Suggesting skills for a turn
 
@@ -416,20 +443,30 @@ Code: `shared/domain/context-prune.ts`, `shared/application/compaction/prune-con
 - The tool results of a turn in progress live in the runtime's loop, never in the session buffer, so no compaction
   reaches them.
 - With `compaction.prune` on and a decision model on the host, the main loop's act asks the runtime for its own
-  pruning (`act({ prune: true })`), on the host's numbers (`Orkeon:Compaction:Prune`).
-- Once the loop's estimated prompt passes 40 % of the call's usable window, the runtime offers the decision model the
-  older results of the read tools this act ran, the last 6 messages and the turn not answered yet left out.
+  pruning (`act({ prune: true })`), on the host's numbers: the section `Orkeon:Compaction:Prune`, whose defaults
+  are the figures below.
+- Once the loop's estimated prompt passes 40 % of the call's usable window (`FillShare`), the runtime offers the
+  decision model the older results of the read tools this act ran. The last 6 messages (`KeepRecentMessages`) and
+  the turn not answered yet are left out.
+- The usable window is the model's window less the room kept for the answer: the call's output cap, else the model's
+  documented maximum, at most half the window.
 - The decision model reads the act's prompt and each call (tool, input, size, age), never a result's content. Each
-  result is kept, cut to its first 300 characters or removed.
+  result is kept, cut to its first 300 characters (`HeadChars`) or removed.
 - A pruned result leaves a line that says how to get it back.
 - Each act asks for its own pruning, the act a stop check asks for included.
 - The acts of the dev crews carry it too: the reviewer of `/dev-spec`, `/dev-change`, `/dev-plan` and of the next
   batch of `/dev-batches`, the test author and the implementer of `/dev-implement`, the auditor of `/dev-verify`.
   Their Llm binds it at each act, in the agent that acts: a reviewer or an auditor run as a child binds its own. An
   extraction carries none.
-- It fails open: the setting off or unreadable, or no decision model (a warning), prune nothing. With the decision
-  circuit off, the runtime asks nothing and warns once.
-- A log line says what each act judged, removed and cut, read from the act's result.
+- It fails open: the setting off or unreadable, or no decision model, prune nothing. Without a decision model each
+  act logs a warning and asks the runtime for nothing, whether no provider is named, the provider lacks its key or
+  the decision circuit is off: the host then has no decision model for a script.
+- A binding that fails costs the act its pruning, never the turn nor the crew: the act runs unpruned, without a
+  line.
+- The tool and docker modes run a release whose `act` knows no `prune`: nothing is pruned there, and nothing says
+  so ([ADR 0034](adr/0034-orkeon-after-470.md)).
+- A log line says what an act judged, removed and cut, read from its result; an act that judged nothing writes
+  none.
 
 ### Summary
 

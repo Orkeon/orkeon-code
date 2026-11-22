@@ -1,6 +1,6 @@
 # ADR 0027: the decision model asked by Orkeon Code: prune, route, suggest
 
-- **Status**: accepted, amended 2026-11-22: the routing goes through the runtime's pick (see the end)
+- **Status**: accepted, amended 2026-11-22: the routing and the pruning are the runtime's (see the end)
 - **Date**: 2026-11-11
 
 ## Context
@@ -113,4 +113,7 @@ of a crew and the act of a sub-agent are now routed by it (the port `ProfilePick
 its own routing question through `system_one_decide`: the rungs' descriptions, the bar of 0.6, the floor and the
 ceiling are applied by the runtime. Orkeon Code still gives the ladder, the floor of `.orkeon/route-rules.json` and
 the session's profile as the ceiling and the fallback, keeps `/route why`, and fails open when the pick is absent,
-refuses an option or finds its decision circuit off. The other uses of this ADR keep the decision model.
+refuses an option or finds its decision circuit off.
+
+The pruning went the same way ([ADR 0034](0034-orkeon-after-470.md)): the runtime's `act({ prune })` replaces this
+project's judge on `onContextPressure`. The suggestion of skills alone still asks `system_one_decide`.
