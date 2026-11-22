@@ -158,7 +158,7 @@ describe("launchCrew", () => {
 });
 
 describe("withRoutedProfile", () => {
-  it("hands the launch the rung the decision model picks under the session's profile", async () => {
+  it("hands the launch the rung the runtime picks under the session's profile", async () => {
     // Arrange
     const { deps, config, routing } = routedCrewDeps({ "llm.profile": "large", "route.agents": "on" });
 

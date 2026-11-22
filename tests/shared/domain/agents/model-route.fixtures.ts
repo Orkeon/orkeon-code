@@ -1,6 +1,5 @@
-// The cases of shared/domain/agents/model-route.ts: ladders, rules, the model's picks and the profile read from them.
-import type { DecisionAnswers } from "../../../../src/shared/domain/decision/questions.ts";
-import type { RouteChoice, RouteRecord, RouteRules } from "../../../../src/shared/domain/agents/model-route.ts";
+// The cases of shared/domain/agents/model-route.ts: ladders, rules, the bounds of a pick and the records kept.
+import type { RouteBounds, RouteReason, RouteRecord, RouteRules } from "../../../../src/shared/domain/agents/model-route.ts";
 
 export const LADDER = ["small", "medium", "large"] as const;
 
@@ -51,37 +50,15 @@ export const FLOOR_CASES: readonly { readonly name: string; readonly crew: strin
   { name: "ignores a rule that names a profile outside the ladder", crew: "dev-plan", brief: "/analyze src/auth/token.ts", floor: 0 },
 ];
 
-const pick = (choice: string, confidence: number): DecisionAnswers => ({
-  profile: { type: "choice", choice, confidence, probabilities: { [choice]: confidence } },
-});
-
-/** A pick whose probability and the provider's own confidence figure differ. */
-export const SURE_PICK_LOW_FIGURE: DecisionAnswers = {
-  profile: { type: "choice", choice: "small", confidence: 0.24, probabilities: { small: 0.62, large: 0.38 } },
-};
-/** A pick without probabilities: the confidence figure is all there is. */
-export const PICK_WITHOUT_SHARES: DecisionAnswers = { profile: { type: "choice", choice: "small", confidence: 0.7, probabilities: {} } };
-
-export const ROUTE_CASES: readonly {
-  readonly name: string; readonly answers: DecisionAnswers | null; readonly session: string | null; readonly floor: number;
-  readonly expected: RouteChoice;
+export const BOUNDS_CASES: readonly {
+  readonly name: string; readonly session: string | null; readonly floor: number; readonly expected: RouteBounds;
 }[] = [
-  { name: "follows a sure pick", answers: pick("small", 0.9), session: null, floor: 0, expected: { profile: "small", reason: "model", picked: "small", confidence: 0.9 } },
-  { name: "follows a pick at exactly the confidence asked", answers: pick("small", 0.6), session: null, floor: 0, expected: { profile: "small", reason: "model", picked: "small", confidence: 0.6 } },
-  { name: "keeps the session's profile under the confidence asked", answers: pick("small", 0.59), session: "large", floor: 0, expected: { profile: "large", reason: "low-confidence", picked: "small", confidence: 0.59 } },
-  { name: "keeps the host's default model under the confidence asked", answers: pick("small", 0.4), session: null, floor: 0, expected: { profile: null, reason: "low-confidence", picked: "small", confidence: 0.4 } },
-  { name: "keeps the session's profile without an answer", answers: null, session: "medium", floor: 2, expected: { profile: "medium", reason: "no-answer" } },
-  { name: "keeps the session's profile for a pick outside the ladder", answers: pick("opus", 0.9), session: "medium", floor: 0, expected: { profile: "medium", reason: "no-answer" } },
-  { name: "keeps the session's profile for an answer that is no choice", answers: { profile: { type: "noul", probability: 0.9 } }, session: "medium", floor: 0, expected: { profile: "medium", reason: "no-answer" } },
-  { name: "raises a pick to the floor", answers: pick("small", 0.9), session: null, floor: 1, expected: { profile: "medium", reason: "floor", picked: "small", confidence: 0.9 } },
-  { name: "never goes above the session's rung, whatever the pick", answers: pick("large", 0.9), session: "medium", floor: 0, expected: { profile: "medium", reason: "ceiling", picked: "large", confidence: 0.9 } },
-  { name: "never goes above the session's rung, whatever the floor", answers: pick("small", 0.9), session: "small", floor: 2, expected: { profile: "small", reason: "ceiling", picked: "small", confidence: 0.9 } },
-  { name: "reads the bar on the probability of the pick, not on the provider's confidence figure", answers: SURE_PICK_LOW_FIGURE, session: null, floor: 0, expected: { profile: "small", reason: "model", picked: "small", confidence: 0.62 } },
-  { name: "reads the bar on the confidence figure when the answer gives no probability", answers: PICK_WITHOUT_SHARES, session: null, floor: 0, expected: { profile: "small", reason: "model", picked: "small", confidence: 0.7 } },
-  { name: "takes the floor's rung without an answer, on the host's default model", answers: null, session: null, floor: 1, expected: { profile: "medium", reason: "floor" } },
-  { name: "takes the floor's rung under the bar, on the host's default model", answers: pick("small", 0.4), session: null, floor: 2, expected: { profile: "large", reason: "floor", picked: "small", confidence: 0.4 } },
-  { name: "keeps a session's profile that is outside the ladder", answers: pick("small", 0.9), session: "guarded", floor: 0, expected: { profile: "guarded", reason: "ceiling" } },
-  { name: "goes below the session's rung", answers: pick("small", 0.9), session: "large", floor: 0, expected: { profile: "small", reason: "model", picked: "small", confidence: 0.9 } },
+  { name: "gives the ladder alone on the host's default model without a floor", session: null, floor: 0, expected: { ladder: LADDER } },
+  { name: "gives the session's profile as the ceiling and the fallback", session: "medium", floor: 0, expected: { ladder: LADDER, ceiling: "medium", fallback: "medium" } },
+  { name: "gives the floor's rung, under the session's ceiling", session: "large", floor: 1, expected: { ladder: LADDER, floor: "medium", ceiling: "large", fallback: "large" } },
+  { name: "holds a floor above the session's rung at it", session: "medium", floor: 2, expected: { ladder: LADDER, floor: "medium", ceiling: "medium", fallback: "medium" } },
+  { name: "gives no floor when it is held at the lowest rung", session: "small", floor: 2, expected: { ladder: LADDER, ceiling: "small", fallback: "small" } },
+  { name: "falls back on the floor's rung on the host's default model", session: null, floor: 1, expected: { ladder: LADDER, floor: "medium", fallback: "medium" } },
 ];
 
 export const ROUTABLE_CASES: readonly { readonly name: string; readonly session: string | null; readonly routable: boolean }[] = [
@@ -91,16 +68,29 @@ export const ROUTABLE_CASES: readonly { readonly name: string; readonly session:
 ];
 
 export function record(n: number): RouteRecord {
-  return { crew: `crew-${n}`, profile: "small", reason: "model", picked: "small", confidence: 0.9 };
+  return { crew: `crew-${n}`, profile: "small", reason: "model", picked: "small", probability: 0.9 };
 }
 
 export const LONG_BRIEF = `/dev-change ${"a".repeat(3_000)}${"z".repeat(3_000)}`;
 
-/** Which reasons of a choice are a decision, and which leave the session's profile to stand. */
-export const DECIDED_REASONS: readonly { readonly name: string; readonly reason: "model" | "floor" | "ceiling" | "low-confidence" | "no-answer"; readonly decided: boolean }[] = [
+/** A record `/route why` kept before the runtime's pick: its probability under `confidence`. */
+export const OLD_RECORD = { crew: "dev-plan", profile: "small", reason: "model", picked: "small", confidence: 0.9 };
+
+/** Which reasons of a choice are a decision, and which leave the fallback to stand. */
+export const DECIDED_REASONS: readonly { readonly name: string; readonly reason: RouteReason; readonly decided: boolean }[] = [
   { name: "reads the model's pick as a decision", reason: "model", decided: true },
   { name: "reads a pick raised by a rule as a decision", reason: "floor", decided: true },
   { name: "reads a pick held at the ceiling as a decision", reason: "ceiling", decided: true },
   { name: "reads an unsure pick as no decision", reason: "low-confidence", decided: false },
   { name: "reads a missing answer as no decision", reason: "no-answer", decided: false },
+  { name: "reads a circuit off as no decision", reason: "circuit-off", decided: false },
+  { name: "reads a missing ladder as no decision", reason: "no-ladder", decided: false },
+];
+
+/** Which reasons say the pick asked nothing. */
+export const NOT_ASKED_REASONS: readonly { readonly name: string; readonly reason: RouteReason; readonly notAsked: boolean }[] = [
+  { name: "reads a circuit off as nothing asked", reason: "circuit-off", notAsked: true },
+  { name: "reads a missing ladder as nothing asked", reason: "no-ladder", notAsked: true },
+  { name: "reads a missing answer as asked", reason: "no-answer", notAsked: false },
+  { name: "reads the model's pick as asked", reason: "model", notAsked: false },
 ];

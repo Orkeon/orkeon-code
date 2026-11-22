@@ -55,6 +55,7 @@ import type { PullRequestPolicy } from "../../application/git/open-pull-request.
 import type { PullRequestOpener } from "../../application/git/commit-files.ts";
 import { createToolCalls, createToolCatalogue } from "./tool-catalogue.ts";
 import { createDecisionModel } from "./decision-model.ts";
+import { createLlmProfilePicker, createServicesProfilePicker } from "./profile-picker.ts";
 import type { MemoryToolPorts } from "./memory-tools.ts";
 import { createSharedMemory } from "./shared-memory.ts";
 
@@ -104,9 +105,11 @@ export const orkeonToolCalls = (tools: OrkeonTools = Tools): Pick<ToolCatalogue,
 /** The host's decision model, when its settings configure one: absent, every question is left unanswered. */
 export const orkeonDecisionModel = (tools: OrkeonTools = Tools): DecisionModel => createDecisionModel(tools);
 const orkeonSessionStore = (tools: OrkeonTools = Tools): SessionStore => createSessionStore(tools);
-/** What routing a crew's launch reads besides the settings and the log (shared/application/agents/route-agent.ts). */
-export const orkeonRouting = (tools: OrkeonTools = Tools) => ({
-  decision: orkeonDecisionModel(tools), files: orkeonFiles(tools), session: orkeonSessionStore(tools),
+/** What routing a crew's launch reads besides the settings and the log (shared/application/agents/route-agent.ts):
+ *  the runtime's pick among the command's `services` (the handler's `ctx.services`, read at each pick). */
+export const orkeonRouting = (services: ServiceLocator, tools: OrkeonTools = Tools) => ({
+  decision: orkeonDecisionModel(tools), picker: createServicesProfilePicker(services), files: orkeonFiles(tools),
+  session: orkeonSessionStore(tools),
 });
 
 /** The /config store: the settings file, overridden by the session bag. */
@@ -152,14 +155,18 @@ export const orkeonAgentFactories = (): AgentFactories => {
  *  one: where every composition root starts an agent (orkeon/llm-profile.ts). */
 export const orkeonAgent = (input: Readonly<Record<string, unknown>> = inputs()): any => profiledAgent(input, orkeonAgentFactories());
 
-/** The route of a crew's sub-agent acts (a reviewer's, the auditor's): the launch's decision under the session's
- *  profile, an act moved only off the crew's own profile and only to a profile the host declares. `log` is the body's;
- *  `tools` and `root` the body's too when it runs under a working root of its own. */
+/** The route of a crew's sub-agent acts (a reviewer's, the auditor's): the runtime's pick (`ctx.llm.pick`) under the
+ *  session's profile, an act moved only off the crew's own profile and only to a profile the host declares. `ctx` is
+ *  the body's (its `llm` and `log`); `tools` and `root` the body's too when it runs under a working root of its own. */
 export const orkeonActRoute = (
-  log: Pick<Logger, "info" | "warn">, tools: OrkeonTools = Tools, root?: string, input: Readonly<Record<string, unknown>> = inputs(),
+  ctx: { llm: object; log: Pick<Logger, "info" | "warn"> }, tools: OrkeonTools = Tools, root?: string,
+  input: Readonly<Record<string, unknown>> = inputs(),
 ): ActRoute => declaredRoute(
   actRoute(
-    { decision: orkeonDecisionModel(tools), files: orkeonFiles(tools, root), session: orkeonSessionStore(tools), config: orkeonConfigStore(tools, root), log },
+    {
+      decision: orkeonDecisionModel(tools), picker: createLlmProfilePicker(ctx.llm), files: orkeonFiles(tools, root),
+      session: orkeonSessionStore(tools), config: orkeonConfigStore(tools, root), log: ctx.log,
+    },
     { session: llmSessionProfileOf(input), crew: llmProfileOf(input) },
   ),
   orkeonAgentFactories(),

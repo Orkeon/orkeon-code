@@ -44,7 +44,7 @@ defineAsyncCommand({
       config: orkeonConfigStore(),
     });
     if ("refused" in outcome) return outcome;
-    return launchCrew(await withRoutedProfile({ crews: createCrewHost(ctx.services), log: ctx.log }, orkeonConfigStore(), orkeonRouting(), { crew: "git-commit", brief: String(ctx.command?.rawInput ?? "") }), "git-commit", outcome.input);
+    return launchCrew(await withRoutedProfile({ crews: createCrewHost(ctx.services), log: ctx.log }, orkeonConfigStore(), orkeonRouting(ctx.services), { crew: "git-commit", brief: String(ctx.command?.rawInput ?? "") }), "git-commit", outcome.input);
   },
   completed: (result, ctx) => writeCompleted(ctx, result, "commit"),
 });

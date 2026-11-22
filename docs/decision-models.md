@@ -75,10 +75,13 @@ these did.
 
 A crew's agents all run on one LLM profile of the host, the session's. With `route.agents` on, at the launch of
 `/dev-spec` (and its alias `/dev-change`), `/dev-plan`, `/dev-learn`, `/review`, `/analyze`, `/commit`, `/init` and
-`/init-verifiers`, the decision model reads the command and picks a profile of `route.ladder` (`small,large` when
-omitted, cheapest first). The pick is followed when its probability reaches 0.6, is raised to the floor
-`.orkeon/route-rules.json` sets for the crew or for a path the command names, and never goes above the session's
-own profile. `/route why` shows the last five choices.
+`/init-verifiers`, the runtime's System One pick (Orkeon #460) reads the command and picks a profile of
+`route.ladder` (`small,large` when omitted, cheapest first). Orkeon Code asks no question of its own: it gives the
+pick the ladder, the floor `.orkeon/route-rules.json` sets for the crew or for a path the command names, and the
+session's own profile as the ceiling and the fallback. The runtime follows its decision model when the probability
+of the pick reaches 0.6, raises it to the floor and never above the ceiling; under the bar or without an answer the
+fallback stands. A runtime whose decision circuit is off, or a pick that refuses an option, routes nothing.
+`/route why` shows the last five choices.
 
 Inside a crew, the act of a reviewer (`/dev-spec`, `/dev-change`, `/dev-plan`, the next batch of `/dev-batches`)
 and of the auditor of `/dev-verify` is routed the same way, for that one call: see

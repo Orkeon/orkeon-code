@@ -1,14 +1,15 @@
-// Routing a crew to a profile: the ladder, the floors, what the decision model is asked and the profile read. Run:
+// Routing a crew to a profile: the ladder, the floors, what the runtime's pick is given and what is kept of it. Run:
 //   node --test tests/shared/domain/agents/model-route.test.ts
 import { describe, it } from "node:test";
 import { deepStrictEqual, strictEqual } from "node:assert";
 
 import {
-  ROUTE_BRIEF_CHARS, ladderOf, ladderProblem, parseRecords, parseRouteRules, routable, routeDecided, routeFloor, routeOf, routeOn, routeQuestions,
-  routeState, withRecord,
+  ROUTE_BRIEF_CHARS, ladderOf, ladderProblem, parseRecords, parseRouteRules, routable, routeBounds, routeDecided, routeFloor, routeNotAsked,
+  routeOn, routeState, withRecord,
 } from "../../../../src/shared/domain/agents/model-route.ts";
 import {
-  DECIDED_REASONS, FLOOR_CASES, LADDER, LADDER_CASES, LADDER_PROBLEM_CASES, LONG_BRIEF, ROOT_RULES, ROUTABLE_CASES, ROUTE_CASES, RULES, RULES_TEXT_CASES, record,
+  BOUNDS_CASES, DECIDED_REASONS, FLOOR_CASES, LADDER, LADDER_CASES, LADDER_PROBLEM_CASES, LONG_BRIEF, NOT_ASKED_REASONS, OLD_RECORD, ROOT_RULES,
+  ROUTABLE_CASES, RULES, RULES_TEXT_CASES, record,
 } from "./model-route.fixtures.ts";
 
 describe("routeOn", () => {
@@ -126,22 +127,6 @@ describe("routeState", () => {
   });
 });
 
-describe("routeQuestions", () => {
-  it("asks one choice among the rungs, the first described as the cheapest and the last as the strongest", () => {
-    // Arrange
-    const ladder = LADDER;
-
-    // Act
-    const { profile } = routeQuestions(ladder);
-
-    // Assert
-    deepStrictEqual(
-      [profile.type, Object.keys(profile.criteria), /cheapest/.test(String(Object.values(profile.criteria)[0])), /strongest/.test(String(Object.values(profile.criteria)[2]))],
-      ["choice", ["small", "medium", "large"], true, true],
-    );
-  });
-});
-
 describe("routable", () => {
   for (const c of ROUTABLE_CASES) {
     it(c.name, () => {
@@ -157,17 +142,17 @@ describe("routable", () => {
   }
 });
 
-describe("routeOf", () => {
-  for (const c of ROUTE_CASES) {
+describe("routeBounds", () => {
+  for (const c of BOUNDS_CASES) {
     it(c.name, () => {
       // Arrange
-      const answers = c.answers;
+      const floor = c.floor;
 
       // Act
-      const choice = routeOf(answers, LADDER, c.session, c.floor);
+      const bounds = routeBounds(LADDER, c.session, floor);
 
       // Assert
-      deepStrictEqual(choice, c.expected);
+      deepStrictEqual(bounds, c.expected);
     });
   }
 });
@@ -183,6 +168,21 @@ describe("routeDecided", () => {
 
       // Assert
       strictEqual(decided, c.decided);
+    });
+  }
+});
+
+describe("routeNotAsked", () => {
+  for (const c of NOT_ASKED_REASONS) {
+    it(c.name, () => {
+      // Arrange
+      const reason = c.reason;
+
+      // Act
+      const notAsked = routeNotAsked(reason);
+
+      // Assert
+      strictEqual(notAsked, c.notAsked);
     });
   }
 });
@@ -217,4 +217,17 @@ describe("parseRecords", () => {
       strictEqual(records.length, c.count);
     });
   }
+});
+
+describe("parseRecords, a record kept before the runtime's pick", () => {
+  it("reads its confidence as the probability", () => {
+    // Arrange
+    const stored = JSON.stringify([OLD_RECORD]);
+
+    // Act
+    const records = parseRecords(stored);
+
+    // Assert
+    deepStrictEqual(records, [{ crew: "dev-plan", profile: "small", reason: "model", picked: "small", probability: 0.9 }]);
+  });
 });

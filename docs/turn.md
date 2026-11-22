@@ -313,22 +313,25 @@ is picked at each launch of `/dev-spec` (and its alias `/dev-change`), `/dev-pla
 `/init` and `/init-verifiers`:
 
 - **The ladder**: `route.ladder` orders the host's LLM profiles, cheapest first (`small,large` when omitted): names
-  of `Llm:Profiles`. A command cannot read the host's profiles, so nothing checks the ladder beforehand: a routed
-  launch also carries the session's profile, and a crew routed to a rung the host does not declare is built on
-  that one, as without routing.
-- **The question**: the decision model reads the crew's name and the command as typed (cut in its middle past 4 000
-  characters) and makes one choice among the rungs, the first described as enough for a lookup or a fully specified
-  task, the last as needed for a design or a change across modules. The pick is followed when the probability the
-  answer gives it reaches 0.6 (the answer's own `confidence` figure, whose meaning is each provider's, is read
-  only when no probability comes back). Under it, without an answer or when the model throws, the session's
-  profile stands.
+  of `Llm:Profiles`. The runtime's pick refuses a ladder that names a profile the host does not declare: nothing is
+  routed then, and the session's profile stands. A routed launch also carries the session's profile, which the crew
+  is built on if its rung is not declared after all, as without routing.
+- **The question** (Orkeon #460): the runtime's System One pick (`ctx.services.get("pick")` for a command,
+  `ctx.llm.pick` inside a crew; experimental, ORKEXP008) is given the crew's name and the command as typed (cut in
+  its middle past 4 000 characters), the ladder, the floor below, and the session's profile as the ceiling and the
+  fallback. The runtime describes the rungs to its decision model, cheapest first, and follows the pick when the
+  probability its answer gives it reaches 0.6; under it or without an answer, the fallback stands. A session on the
+  host's default model has no ceiling, and its fallback is the floor's rung when a rule sets one; with no rule it
+  is left out, and the runtime then falls back on its `default` profile, the host's default model (a fallback is
+  never raised to the floor, hence the rung given).
 - **The floor**: `.orkeon/route-rules.json`, `{ "paths": { "<prefix>": "<profile>" }, "crews": { "<crew>":
   "<profile>" } }`. The crew's own rule, and for each word of the command that is a rule's path or lies under it
   (`src/billing`, `src\billing\tax.ts`, `/workspace/src/billing/tax.ts`) the rule of its closest ancestor, raise
   the pick to at least that rung. A session on the host's default model takes the floor's rung even when the
   model was not followed. A file absent, unreadable or malformed, a rule naming a profile outside the ladder and a
   rule on the workspace itself (`/`, `./`) raise nothing.
-- **The ceiling**: never above the session's own rung; it wins over a floor. A session without `llm.profile` has the
+- **The ceiling**: never above the session's own rung; it wins over a floor (a floor above it is given as the
+  session's rung, since the pick refuses a floor above its ceiling). A session without `llm.profile` has the
   whole ladder: routed, a launch may then run on a dearer model than the host's default. A session on a profile outside the ladder (a decision profile that guards its requests) is not
   routed: it keeps that profile.
 - **What is not routed**: the main loop (`/assistant`: its prompt cache follows one model), `/compact`, `/memory
@@ -344,8 +347,10 @@ is picked at each launch of `/dev-spec` (and its alias `/dev-change`), `/dev-pla
   rung the host does not declare leave the act where the crew runs. An act may move up as well as down: a crew
   launched on `small` has its review on `large` when the model says so. Each of these choices is logged and listed
   by `/route why` like a launch.
-- **It fails open**: the setting off or unreadable, no decision model (a warning) and a model that does not answer
-  leave the session's profile. Each routed launch writes a log line with the profile and why, and the last 5 are
+- **It fails open**: the setting off or unreadable, no decision model (a warning), a host without the pick, an option
+  the pick refuses, the runtime's decision circuit off (`circuit-off`) or no ladder (`no-ladder`) leave the
+  session's profile, and nothing is logged nor kept; a model that does not answer or is not sure leaves the
+  fallback. Each routed launch writes a log line with the profile and why, and the last 5 are
   kept in the session for `/route why`; the choice is made before the launch, so a launch the host then refuses (a
   crew already running) has still asked the model and is listed. `/route on|off` sets `route.agents` for the session; bare, it says where the
   routing stands, then what the model of each rung takes for reasoning, or what the effort `/effort` stored becomes

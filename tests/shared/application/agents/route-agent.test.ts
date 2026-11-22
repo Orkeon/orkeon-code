@@ -1,124 +1,142 @@
 // The profile a crew is launched on, over fakes. Run:
 //   node --test tests/shared/application/agents/route-agent.test.ts
-import { describe, it } from "node:test";
 import { deepStrictEqual, strictEqual } from "node:assert";
+import { describe, it } from "node:test";
 
 import { actRoute, routeAgent } from "../../../../src/shared/application/agents/route-agent.ts";
 import {
-  BILLING_RULES, BILLING_TASK, NO_ANSWER_LINE, NO_MODEL_WARNING, OUTSIDE_LADDER_LINE, ROUTED_SMALL_LINE, RULES_PATH, SMALL_RECORD,
-  ACT_ROUTES, REVIEW_TASK, REVIEWER_LINE, TASK, actRouteSetup, pick, routeSetup,
+  ACT_ROUTES, BILLING_TASK, NOT_ASKED, NO_ANSWER_LINE, NO_MODEL_WARNING, OPTIONS_CASES, OUTSIDE_LADDER_LINE, REASON_CASES,
+  REVIEWER_LINE, REVIEW_TASK, ROUTED_SMALL_LINE, RULES_PATH, SMALL_RECORD, TASK, actRouteSetup, answer, routeSetup,
 } from "./route-agent.fixtures.ts";
 
 describe("routeAgent", () => {
   for (const setting of ["off", null]) {
     it(`keeps the session's profile and asks nothing when route.agents is ${setting ?? "unset"}`, async () => {
       // Arrange
-      const { deps, decision } = routeSetup(setting);
+      const { deps, picker } = routeSetup(setting);
 
       // Act
       const profile = await routeAgent(deps, TASK, "large");
 
       // Assert
-      deepStrictEqual([profile, decision.asked.length], ["large", 0]);
+      deepStrictEqual([profile, picker.asked.length], ["large", 0]);
     });
   }
 
-  it("keeps the session's profile and says why when the host has no decision model", async () => {
+  it("keeps the session's profile, asks nothing and says why when the host has no decision model", async () => {
     // Arrange
-    const { deps, decision, log } = routeSetup();
+    const { deps, decision, picker, log } = routeSetup();
     decision.present = false;
 
     // Act
     const profile = await routeAgent(deps, TASK, "large");
 
     // Assert
-    deepStrictEqual([profile, log.lines], ["large", [NO_MODEL_WARNING]]);
+    deepStrictEqual([profile, picker.asked.length, log.lines], ["large", 0, [NO_MODEL_WARNING]]);
   });
 
   it("keeps a session's profile that is not on the ladder, and asks nothing", async () => {
     // Arrange
-    const { deps, decision, log } = routeSetup();
+    const { deps, picker, log } = routeSetup();
 
     // Act
     const profile = await routeAgent(deps, TASK, "guarded");
 
     // Assert
-    deepStrictEqual([profile, decision.asked.length, log.lines], ["guarded", 0, [OUTSIDE_LADDER_LINE]]);
+    deepStrictEqual([profile, picker.asked.length, log.lines], ["guarded", 0, [OUTSIDE_LADDER_LINE]]);
   });
 
-  it("launches on the rung the decision model picks, and says so", async () => {
+  it("asks the pick about the crew and the command", async () => {
     // Arrange
-    const { deps, log } = routeSetup();
-
-    // Act
-    const profile = await routeAgent(deps, TASK, "large");
-
-    // Assert
-    deepStrictEqual([profile, log.lines], ["small", [ROUTED_SMALL_LINE]]);
-  });
-
-  it("asks about the crew and the command, one choice among the ladder's profiles", async () => {
-    // Arrange
-    const { deps, decision, config } = routeSetup();
-    config.values["route.ladder"] = "fast,strong";
+    const { deps, picker } = routeSetup();
 
     // Act
     await routeAgent(deps, TASK, null);
 
     // Assert
     deepStrictEqual(
-      [String(decision.asked[0].state).endsWith("\n/dev-plan invoice-export"), Object.keys(decision.asked[0].questions.profile.criteria)],
-      [true, ["fast", "strong"]],
+      [picker.asked[0].request.includes("'dev-plan'"), picker.asked[0].request.endsWith("\n/dev-plan invoice-export")],
+      [true, true],
     );
   });
 
-  it("raises the pick to the floor of the project's rules", async () => {
+  for (const c of OPTIONS_CASES) {
+    it(c.name, async () => {
+      // Arrange
+      const { deps, picker, files, config } = routeSetup();
+      if (c.rules !== null) files.files.set(RULES_PATH, c.rules);
+      if (c.ladder !== undefined) config.values["route.ladder"] = c.ladder;
+
+      // Act
+      await routeAgent(deps, c.task, c.session);
+
+      // Assert
+      deepStrictEqual(picker.asked[0].options, c.options);
+    });
+  }
+
+  it("gives no floor when the rules file cannot be read", async () => {
     // Arrange
-    const { deps, files } = routeSetup();
-    files.files.set(RULES_PATH, BILLING_RULES);
-
-    // Act
-    const profile = await routeAgent(deps, BILLING_TASK, null);
-
-    // Assert
-    strictEqual(profile, "large");
-  });
-
-  it("applies no floor when the rules file cannot be read", async () => {
-    // Arrange
-    const { deps, files } = routeSetup();
+    const { deps, picker, files } = routeSetup();
     files.readErrors.set(RULES_PATH, new Error("access denied"));
 
     // Act
-    const profile = await routeAgent(deps, BILLING_TASK, null);
+    await routeAgent(deps, BILLING_TASK, null);
 
     // Assert
-    strictEqual(profile, "small");
+    deepStrictEqual(picker.asked[0].options, { ladder: ["small", "large"] });
   });
 
-  it("keeps the host's default model when the decision model does not answer", async () => {
+  for (const c of REASON_CASES) {
+    it(c.name, async () => {
+      // Arrange
+      const { deps, picker } = routeSetup();
+      picker.answer = c.answer;
+
+      // Act
+      const profile = await routeAgent(deps, TASK, c.session);
+
+      // Assert
+      strictEqual(profile, c.profile);
+    });
+  }
+
+  it("says on which rung the crew is launched, and why", async () => {
     // Arrange
-    const { deps, decision, log } = routeSetup();
-    decision.replies = [null];
+    const { deps, log } = routeSetup();
 
     // Act
-    const profile = await routeAgent(deps, TASK, null);
+    await routeAgent(deps, TASK, "large");
 
     // Assert
-    deepStrictEqual([profile, log.lines], [null, [NO_ANSWER_LINE]]);
+    deepStrictEqual(log.lines, [ROUTED_SMALL_LINE]);
   });
 
-  it("keeps the session's profile when the decision model throws", async () => {
+  it("says the crew runs on the host's default model when the pick falls back on it", async () => {
     // Arrange
-    const { deps, decision } = routeSetup();
-    decision.failure = new Error("connection refused");
+    const { deps, picker, log } = routeSetup();
+    picker.answer = answer(null, "no-answer");
 
     // Act
-    const profile = await routeAgent(deps, TASK, "large");
+    await routeAgent(deps, TASK, null);
 
     // Assert
-    strictEqual(profile, "large");
+    deepStrictEqual(log.lines, [NO_ANSWER_LINE]);
   });
+
+  for (const c of NOT_ASKED) {
+    it(c.name, async () => {
+      // Arrange
+      const { deps, picker, log, session } = routeSetup();
+      picker.answer = c.answer;
+
+      // Act
+      await routeAgent(deps, TASK, "large");
+
+      // Assert
+      deepStrictEqual([log.lines, session.state.has("route_recent")], [[], false]);
+    });
+  }
 
   it("keeps the choice in the session, for /route why", async () => {
     // Arrange
@@ -133,8 +151,8 @@ describe("routeAgent", () => {
 
   it("routes all the same when the choice cannot be kept", async () => {
     // Arrange
-    const { deps, session, decision } = routeSetup();
-    decision.answers = pick("large");
+    const { deps, session, picker } = routeSetup();
+    picker.answer = answer("large", "model", "large", 0.9);
     session.writeStateFailure = new Error("no session");
 
     // Act

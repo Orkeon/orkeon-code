@@ -28,8 +28,10 @@ export const ROUTE_WHY = {
   model: "the decision model's pick",
   floor: "raised by a rule of .orkeon/route-rules.json",
   ceiling: "held at the session's profile",
-  "low-confidence": "the pick was not sure enough, the session's profile stands",
-  "no-answer": "the decision model did not answer, the session's profile stands",
+  "low-confidence": "the pick was not sure enough, the session's profile (or a rule's floor) stands",
+  "no-answer": "the decision model did not answer, the session's profile (or a rule's floor) stands",
+  "circuit-off": "the runtime's decision circuit is off, the session's profile stands",
+  "no-ladder": "the runtime had no ladder to pick from, the session's profile stands",
 } as const;
-export const pickedWith = (picked: string, confidence: number): string => `picked '${picked}' at ${confidence.toFixed(2)}`;
+export const pickedWith = (picked: string, probability: number): string => `picked '${picked}' at ${probability.toFixed(2)}`;
 export const HOST_DEFAULT_MODEL = "the host's default model";

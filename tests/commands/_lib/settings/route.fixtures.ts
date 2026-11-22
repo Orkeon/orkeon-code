@@ -25,7 +25,7 @@ export const RECENT = JSON.stringify([
 ]);
 export const WHY_LINES = [
   "dev-plan on 'small': the decision model's pick; picked 'small' at 0.90",
-  "code-review on 'the host's default model': the decision model did not answer, the session's profile stands",
+  "code-review on 'the host's default model': the decision model did not answer, the session's profile (or a rule's floor) stands",
 ];
 
 /** /route on a host whose `small` rung runs a model that takes no effort and whose `large` rung runs GLM-5.3. */

@@ -9,6 +9,6 @@ defineAsyncCommand({
   name: "init-verifiers",
   description: "Detect test tooling and author verification skills for uncovered zones.",
   maxConcurrent: 1,
-  dispatch: async (_args, ctx) => launchCrew(await withRoutedProfile({ crews: createCrewHost(ctx.services), log: ctx.log }, orkeonConfigStore(), orkeonRouting(), { crew: "init-verifiers", brief: String(ctx.command?.rawInput ?? "") }), "init-verifiers", { cwd: WORKSPACE }),
+  dispatch: async (_args, ctx) => launchCrew(await withRoutedProfile({ crews: createCrewHost(ctx.services), log: ctx.log }, orkeonConfigStore(), orkeonRouting(ctx.services), { crew: "init-verifiers", brief: String(ctx.command?.rawInput ?? "") }), "init-verifiers", { cwd: WORKSPACE }),
   completed: (result, ctx) => writeCompleted(ctx, result, "init-verifiers", "✓ "),
 });

@@ -27,7 +27,7 @@ defineAsyncCommand({
       return { refused: parsed.text };
     }
     if (parsed.route === "passes") return showView(ctx, await runPasses(parsed.token, { session }));
-    return launchCrew(await withRoutedProfile({ crews: createCrewHost(ctx.services), log: ctx.log }, orkeonConfigStore(), orkeonRouting(), { crew: REVIEW_CREW, brief: String(ctx.command?.rawInput ?? "") }), REVIEW_CREW, { ...parsed.input }, {}, { exclusive: true });
+    return launchCrew(await withRoutedProfile({ crews: createCrewHost(ctx.services), log: ctx.log }, orkeonConfigStore(), orkeonRouting(ctx.services), { crew: REVIEW_CREW, brief: String(ctx.command?.rawInput ?? "") }), REVIEW_CREW, { ...parsed.input }, {}, { exclusive: true });
   },
   completed: (result, ctx) => {
     const name = typedCommand(ctx.command?.rawInput, "review");

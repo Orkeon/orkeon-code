@@ -76,10 +76,13 @@ et testé, et son effet n'est pas mesuré : il faut un lot dont un rôle lit bie
 
 Les agents d'un crew tournent tous sur un profil LLM du runtime, celui de la session. Avec `route.agents` à `on`, au
 lancement de `/dev-spec` (et son alias `/dev-change`), `/dev-plan`, `/dev-learn`, `/review`, `/analyze`, `/commit`, `/init` et
-`/init-verifiers`, le modèle de décision lit la commande et choisit un profil de `route.ladder` (`small,large` si
-omis, du moins cher au plus cher). Le choix est suivi quand sa probabilité atteint 0,6, il est relevé au plancher
-que `.orkeon/route-rules.json` fixe pour le crew ou pour un chemin que la commande nomme, et ne dépasse jamais le
-profil de la session. `/route why` montre les cinq derniers choix.
+`/init-verifiers`, le choix System One du runtime (Orkeon #460) lit la commande et choisit un profil de
+`route.ladder` (`small,large` si omis, du moins cher au plus cher). Orkeon Code ne pose aucune question à lui : il
+donne au choix l'échelle, le plancher que `.orkeon/route-rules.json` fixe pour le crew ou pour un chemin que la
+commande nomme, et le profil de la session comme plafond et comme repli. Le runtime suit son modèle de décision quand
+la probabilité du choix atteint 0,6, le relève au plancher et jamais au-dessus du plafond ; sous ce seuil ou sans
+réponse, le repli reste. Un runtime dont le circuit de décision est éteint, ou un choix qui refuse une option, ne
+route rien. `/route why` montre les cinq derniers choix.
 
 Dans un crew, l'act d'un relecteur (`/dev-spec`, `/dev-change`, `/dev-plan`, le lot suivant de `/dev-batches`) et
 celui de l'auditeur de `/dev-verify` sont routés de la même façon, pour ce seul appel : voir

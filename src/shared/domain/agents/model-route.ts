@@ -1,12 +1,12 @@
 // Routing a crew to the cheapest profile that fits its task (ADR 0027). The host declares LLM profiles
-// (`Llm:Profiles:<name>`); `route.ladder` orders some of them, cheapest first. At a crew's launch the host's
-// decision model reads the command and picks a rung; rules of the project raise a floor (a path the command names,
-// the crew itself); the session's own profile is the ceiling. Below a confidence, or without an answer, the session's
-// profile stands. Routing picks a profile, it forbids nothing. Every number is stated with its reason. Pure.
-import type { DecisionAnswers, DecisionQuestions } from "../decision/questions.ts";
+// (`Llm:Profiles:<name>`); `route.ladder` orders some of them, cheapest first. At a crew's launch the runtime's System
+// One pick reads the command and picks a rung, between the floor the project's rules raise (a path the command names,
+// the crew itself) and the session's own profile, the ceiling; under its bar, or without an answer, the fallback
+// stands. This module holds what Orkeon Code gives that pick and what it keeps of the answer. Routing picks a profile,
+// it forbids nothing. Pure.
 import { llmProfileProblem } from "../llm-profile.ts";
 import { ladderNeedsTwo, ladderRepeats } from "./messages.ts";
-import { routeRung, routeStateText } from "./prompts.ts";
+import { routeStateText } from "./prompts.ts";
 
 /** The setting that turns the routing on: `on`, anything else is off. */
 export const ROUTE_AGENTS_CONFIG_KEY = "route.agents";
@@ -14,29 +14,22 @@ export const ROUTE_AGENTS_CONFIG_KEY = "route.agents";
 export const ROUTE_LADDER_CONFIG_KEY = "route.ladder";
 /** The ladder of the example settings: their two profiles. */
 export const DEFAULT_LADDER: readonly string[] = ["small", "large"];
-/** The probability of its pick under which the model is not followed: between two rungs, a pick under 0.6 is barely
- *  ahead of the other, and the session's profile is what the user chose. The probability is the one the answer gives
- *  the option picked; the answer's `confidence` is a figure of the provider's own, read only when that one is absent. */
-export const ROUTE_MIN_CONFIDENCE = 0.6;
-/** The command, as the decision model reads it, in characters: cut in the middle, its start and its end kept. */
+/** The command, as the pick reads it, in characters: cut in the middle, its start and its end kept. */
 export const ROUTE_BRIEF_CHARS = 4_000;
 /** The choices `/route why` shows. */
 export const ROUTE_RECENT = 5;
 /** The project's floors, read at each routed launch. */
 export const ROUTE_RULES_FILE = ".orkeon/route-rules.json";
-/** The name of the question asked. */
-export const ROUTE_QUESTION = "profile";
-
-/** Why a pick stands. */
-export type RouteReason = "model" | "floor" | "ceiling" | "low-confidence" | "no-answer";
+/** Why a pick answers what it answers: the reasons of the runtime's pick, as it spells them. */
+export type RouteReason = "model" | "low-confidence" | "no-answer" | "circuit-off" | "no-ladder" | "floor" | "ceiling";
 
 export interface RouteChoice {
   /** The profile the crew runs on; null: the host's default model, as without routing. */
   profile: string | null;
   reason: RouteReason;
-  /** What the model picked and how surely, when it answered. */
+  /** What the model picked and the probability its answer gave it, when it answered one of the rungs. */
   picked?: string;
-  confidence?: number;
+  probability?: number;
 }
 
 /** The floors of a project: a profile of the ladder at least, for a path prefix or for a crew. */
@@ -127,18 +120,9 @@ function middleCut(text: string, max: number): string {
   return `${text.slice(0, head)} ... ${text.slice(text.length - (kept - head))}`;
 }
 
-/** The state the decision model judges: the crew and the command that launches it. */
+/** The request the pick reads: the crew and the command that launches it, cut in its middle. */
 export function routeState(crew: string, brief: string): string {
   return routeStateText(crew, middleCut(brief.trim(), ROUTE_BRIEF_CHARS));
-}
-
-/** One choice among the rungs, each described by its place on the ladder. */
-export function routeQuestions(ladder: readonly string[]): DecisionQuestions {
-  const criteria: Record<string, string> = {};
-  ladder.forEach((rung, i) => {
-    criteria[rung] = routeRung(i === 0 ? "lowest" : i === ladder.length - 1 ? "highest" : "middle");
-  });
-  return { [ROUTE_QUESTION]: { type: "choice", criteria } };
 }
 
 /** Whether a session on `sessionProfile` can be routed: on the default model, or on a rung of the ladder. A session on
@@ -147,31 +131,41 @@ export function routable(sessionProfile: string | null, ladder: readonly string[
   return sessionProfile === null || ladder.includes(sessionProfile);
 }
 
-/** The profile of a launch: the model's pick when it is sure enough, raised to the floor, never above the session's
- *  own rung. Without an answer, or under the bar, the session's profile; a session on the host's default model then
- *  takes the floor's rung when a rule sets one, since the rule is the project's own word. A session on a profile
- *  outside the ladder keeps it. */
-export function routeOf(
-  answers: DecisionAnswers | null, ladder: readonly string[], sessionProfile: string | null, floor: number,
-): RouteChoice {
-  if (sessionProfile !== null && !ladder.includes(sessionProfile)) return { profile: sessionProfile, reason: "ceiling" };
-  const unrouted = (reason: RouteReason): RouteChoice =>
-    sessionProfile === null && floor > 0 ? { profile: ladder[floor], reason: "floor" } : { profile: sessionProfile, reason };
-  const answer = answers?.[ROUTE_QUESTION];
-  if (answer?.type !== "choice" || !ladder.includes(answer.choice)) return unrouted("no-answer");
-  const told = { picked: answer.choice, confidence: answer.probabilities[answer.choice] ?? answer.confidence };
-  if (told.confidence < ROUTE_MIN_CONFIDENCE) return { ...unrouted("low-confidence"), ...told };
-  const ceiling = sessionProfile === null ? ladder.length - 1 : ladder.indexOf(sessionProfile);
-  const picked = ladder.indexOf(answer.choice);
-  const raised = Math.max(picked, floor);
-  const rung = Math.min(raised, ceiling);
-  const reason: RouteReason = rung < raised ? "ceiling" : raised > picked ? "floor" : "model";
-  return { profile: ladder[rung], reason, ...told };
+/** Whether a choice is a decision (the model's pick, held or raised, or the one rung the bounds leave), not the
+ *  fallback left to stand. */
+export function routeDecided(reason: RouteReason): boolean {
+  return reason === "model" || reason === "floor" || reason === "ceiling";
 }
 
-/** Whether a choice is a decision (the model's pick, held or raised), not the session's profile left to stand. */
-export function routeDecided(reason: RouteReason): boolean {
-  return reason !== "no-answer" && reason !== "low-confidence";
+/** Whether the pick asked nothing: the runtime's decision circuit is off, or it has no ladder. */
+export function routeNotAsked(reason: RouteReason): boolean {
+  return reason === "circuit-off" || reason === "no-ladder";
+}
+
+/** What the pick is given besides the request. */
+export interface RouteBounds {
+  ladder: readonly string[];
+  floor?: string;
+  ceiling?: string;
+  fallback?: string;
+}
+
+/** The bounds of a pick: the ladder; the floor's rung when a rule raises one, held at the session's rung (the pick
+ *  refuses a floor above its ceiling); the session's profile as the ceiling and the fallback. A session on the host's
+ *  default model has no ceiling, and its fallback is the floor's rung when a rule sets one, since the rule is the
+ *  project's own word: without a fallback the pick falls back on the host's default model, which no floor raises. */
+export function routeBounds(ladder: readonly string[], sessionProfile: string | null, floor: number): RouteBounds {
+  const top = sessionProfile === null ? ladder.length - 1 : Math.max(0, ladder.indexOf(sessionProfile));
+  const low = Math.min(floor, top);
+  const bounds: RouteBounds = { ladder };
+  if (low > 0) bounds.floor = ladder[low];
+  if (sessionProfile !== null) {
+    bounds.ceiling = sessionProfile;
+    bounds.fallback = sessionProfile;
+  } else if (low > 0) {
+    bounds.fallback = ladder[low];
+  }
+  return bounds;
 }
 
 /** One line of `/route why`, kept in the session. */
@@ -180,7 +174,7 @@ export interface RouteRecord {
   profile: string | null;
   reason: RouteReason;
   picked?: string;
-  confidence?: number;
+  probability?: number;
 }
 
 /** The records with `next` added, the last ROUTE_RECENT kept. */
@@ -188,11 +182,20 @@ export function withRecord(records: readonly RouteRecord[], next: RouteRecord): 
   return [...records, next].slice(-ROUTE_RECENT);
 }
 
+/** A record as read: one kept before the runtime's pick carries its probability as `confidence`. */
+function recordOf(raw: Record<string, unknown>): RouteRecord {
+  const { confidence, ...rest } = raw;
+  const record = rest as unknown as RouteRecord;
+  return record.probability === undefined && typeof confidence === "number" ? { ...record, probability: confidence } : record;
+}
+
 /** The records a stored value holds; none when it is not a list of them. */
 export function parseRecords(stored: string | null): RouteRecord[] {
   try {
     const raw: unknown = JSON.parse(stored ?? "[]");
-    return Array.isArray(raw) ? raw.filter((r): r is RouteRecord => typeof r?.crew === "string" && typeof r?.reason === "string") : [];
+    return Array.isArray(raw)
+      ? raw.filter((r) => typeof r?.crew === "string" && typeof r?.reason === "string").map(recordOf)
+      : [];
   } catch {
     return [];
   }

@@ -91,7 +91,7 @@ const builder = orkeonAgent()
     try {
       // T1: the shared memory's precedents in the draft's prompt, unless memory_recall is denied.
       const precedents = stepPrecedents({ ...ports, memory: orkeonSharedMemory(), log: ctx.log }, { on: memoryOn });
-      return await runDevSpec(inputs(), { ...ports, llm: child.llm, log: ctx.log, clock, precedents, route: orkeonActRoute(ctx.log) });
+      return await runDevSpec(inputs(), { ...ports, llm: child.llm, log: ctx.log, clock, precedents, route: orkeonActRoute(ctx) });
     } finally {
       await child.close();
     }
