@@ -7,7 +7,7 @@
 
 ## Context
 
-The pin moves from `5dc2ff3` to Orkeon `main` `b42e013`, four merges later:
+The pin moves from `5dc2ff3` to Orkeon `main` `cf521d3`, five merges later:
 
 - **#457**, provider modules: `Llm:Provider` names a provider shipped outside the core.
 - **#462**, issues #448 to #468. It answers the two requests [ADR 0033](0033-orkeon-after-447.md) left open, and
@@ -29,6 +29,8 @@ The pin moves from `5dc2ff3` to Orkeon `main` `b42e013`, four merges later:
   `email`, `drive`, `forge`) registers the `agent-cli` module, so it takes the settings `orkeon run` takes, and
   `forge` answers a settings refusal with `FORGE-SETTINGS-REFUSED` (exit 1) rather than a crash. No typing changes,
   and this project runs none of these verbs.
+- **#477**, issue #476: a crew whose decision task declares no expected output loads, where it was refused. No typing
+  changes, and no crew of this project builds a decision task.
 
 ## Decision
 
@@ -79,7 +81,7 @@ The pin moves from `5dc2ff3` to Orkeon `main` `b42e013`, four merges later:
 - `/route why` shows the runtime's reason and the probability of its pick, for the choices the pick made, and what stood when it
   decided nothing. A record kept before this change is read when its reason is one a choice carries, dropped
   otherwise.
-- The tool and docker modes run `1.3.0`, ten commits behind the pin: `act` knows no `prune` there and the host
+- The tool and docker modes run `1.3.0`, eleven commits behind the pin: `act` knows no `prune` there and the host
   serves no `pick`. A run there prunes nothing and routes nothing, and no warning says so.
 - A pruning measured before this ADR ([decision models](../decision-models.md)) was this project's judge, against the
   session's window.

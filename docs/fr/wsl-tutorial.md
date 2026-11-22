@@ -98,7 +98,7 @@ mkdir -p ~/audio && timeout 20 parecord --channels=1 --rate=16000 --file-format=
 
 ## 3. Orkeon depuis son paquet apt
 
-Le canal `stable` porte la dernière release d'Orkeon, `1.3.0` : elle est à ce jour en retard de dix commits sur le
+Le canal `stable` porte la dernière release d'Orkeon, `1.3.0` : elle est à ce jour en retard de onze commits sur le
 commit du `main` d'Orkeon contre lequel Orkeon Code est vérifié (`.orkeon-version`, depuis Orkeon #423, un lancement
 au-delà du budget refusé), si bien que le mode tool exécute cette release, pas l'épingle ([Premiers pas](getting-started.md)).
 Le canal `dev` publie un paquet par commit de `main` validé par la CI, versionné `<patch suivant>~dev.<n>`
@@ -189,8 +189,8 @@ Premier REPL, sans la voix, sur le dépôt d'exemple jetable (`--demo`), en mode
 ./orkeon-code --mode tool --demo
 ```
 
-Le bandeau affiche `orkeon-code <version> on Orkeon (tool: a release, the pin is b42e013)` : le mode tool exécute
-la release du paquet, `1.3.0` (`d81bfab`), à ce jour en retard de dix commits sur l'épingle de
+Le bandeau affiche `orkeon-code <version> on Orkeon (tool: a release, the pin is cf521d3)` : le mode tool exécute
+la release du paquet, `1.3.0` (`d81bfab`), à ce jour en retard de onze commits sur l'épingle de
 `.orkeon-version`. Viennent ensuite le projet et le fichier de
 réglages. Dans le REPL :
 
