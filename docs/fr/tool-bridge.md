@@ -62,7 +62,9 @@ orkeon bridge serve: Ctrl+C stops it.
 ```
 
 Firefox tourne avec les réglages du pont : `Orkeon:Tools:Firefox` (`Headless`, les profils) va dans ce fichier, pas
-dans celui d'Orkeon Code.
+dans celui d'Orkeon Code. Les appels qu'un agent fait pendant son tour partagent un même navigateur. Le code d'un crew
+qui appelle lui-même `firefox`, hors du tour du modèle, reçoit un navigateur neuf à chaque appel (un `read` après
+`navigate` voit `about:blank`), sauf si `"Lifetime": "Host"` garde le navigateur ouvert jusqu'à `close`.
 
 ## 3. Orkeon Code, dans le conteneur
 

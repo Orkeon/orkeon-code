@@ -60,7 +60,9 @@ orkeon bridge serve: Ctrl+C stops it.
 ```
 
 Firefox runs with the bridge's settings: `Orkeon:Tools:Firefox` (`Headless`, the profiles) goes in this file, not in
-Orkeon Code's.
+Orkeon Code's. The calls an agent makes during its turn share one browser. A crew's code that calls `firefox` itself,
+outside the model's turn, gets a fresh browser at each call (a `read` after `navigate` sees `about:blank`), unless
+`"Lifetime": "Host"` keeps the browser open until `close`.
 
 ## 3. Orkeon Code, in the container
 
