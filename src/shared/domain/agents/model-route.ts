@@ -29,7 +29,8 @@ export type RouteNotAskedReason = "circuit-off" | "no-ladder";
 export type RouteChoiceReason = Exclude<RouteReason, RouteNotAskedReason>;
 /** What stands when the pick decided nothing: the session's profile, the floor of a rule (a session on the host's
  *  default model), the host's default model, or, for a sub-agent's act, the profile its crew runs on. */
-export type RouteStands = "session" | "floor" | "default" | "crew";
+export const ROUTE_STANDS_KINDS = ["session", "floor", "default", "crew"] as const;
+export type RouteStands = typeof ROUTE_STANDS_KINDS[number];
 
 export interface RouteChoice {
   /** The profile the crew, or the act, runs on; null: the host's default model, as without routing. */
@@ -107,11 +108,17 @@ function wordsOf(brief: string): string[] {
   return brief.split(/\s+/).map((word) => bare(word.replace(/^["'`(]+|["'`),;:]+$/g, ""))).filter((word) => word.length > 0);
 }
 
+/** The rung of `profile` on the ladder, whatever its case (the host reads a profile's name so); -1 when it is none. */
+function rungOf(ladder: readonly string[], profile: string): number {
+  const wanted = profile.toLowerCase();
+  return ladder.findIndex((rung) => rung.toLowerCase() === wanted);
+}
+
 /** The rung the rules ask for at least: the crew's own, and for each word of the command that is a rule's path or lies
  *  under it, the rule of its closest ancestor; the highest of them. 0 when no rule applies; a rule naming a profile
  *  outside the ladder, or whose path is empty once written bare (`/`, `./`), is ignored. */
 export function routeFloor(rules: RouteRules, crew: string, brief: string, ladder: readonly string[]): number {
-  let floor = Math.max(0, ladder.indexOf(rules.crews[crew] ?? ""));
+  let floor = Math.max(0, rungOf(ladder, rules.crews[crew] ?? ""));
   const prefixes = Object.keys(rules.paths)
     .map((prefix) => ({ prefix: bare(prefix), profile: rules.paths[prefix] }))
     .filter(({ prefix }) => prefix.length > 0);
@@ -119,7 +126,7 @@ export function routeFloor(rules: RouteRules, crew: string, brief: string, ladde
     const closest = prefixes
       .filter(({ prefix }) => word === prefix || word.startsWith(`${prefix}/`))
       .sort((x, y) => y.prefix.length - x.prefix.length)[0];
-    if (closest !== undefined) floor = Math.max(floor, ladder.indexOf(closest.profile));
+    if (closest !== undefined) floor = Math.max(floor, rungOf(ladder, closest.profile));
   }
   return floor;
 }
@@ -133,7 +140,7 @@ export function routeState(crew: string, brief: string): string {
 /** Whether a session on `sessionProfile` can be routed: on the default model, or on a rung of the ladder. A session on
  *  another profile (a decision profile that guards its requests) keeps it. */
 export function routable(sessionProfile: string | null, ladder: readonly string[]): boolean {
-  return sessionProfile === null || ladder.includes(sessionProfile);
+  return sessionProfile === null || rungOf(ladder, sessionProfile) >= 0;
 }
 
 /** Whether a choice is a decision (the model's pick, held or raised, or the one rung the bounds leave), not the
@@ -163,7 +170,7 @@ export interface RouteBounds {
  *  the session's rung or above it. Nothing is asked then: the session's profile is the answer. */
 export function routeHeld(ladder: readonly string[], sessionProfile: string | null, floor: number): boolean {
   if (sessionProfile === null) return false;
-  const top = Math.max(0, ladder.indexOf(sessionProfile));
+  const top = Math.max(0, rungOf(ladder, sessionProfile));
   return Math.min(floor, top) === top;
 }
 
@@ -177,7 +184,7 @@ export function asOnLadder(ladder: readonly string[], profile: string): string {
  *  default model has no ceiling, and its fallback is the floor's rung when a rule sets one, since the rule is the
  *  project's own word: without a fallback the pick falls back on the host's default model, which no floor raises. */
 export function routeBounds(ladder: readonly string[], sessionProfile: string | null, floor: number): RouteBounds {
-  const top = sessionProfile === null ? ladder.length - 1 : Math.max(0, ladder.indexOf(sessionProfile));
+  const top = sessionProfile === null ? ladder.length - 1 : Math.max(0, rungOf(ladder, sessionProfile));
   const low = Math.min(floor, top);
   const bounds: RouteBounds = { ladder };
   if (low > 0) bounds.floor = ladder[low];
@@ -200,25 +207,38 @@ export function withRecord(records: readonly RouteRecord[], next: RouteRecord): 
   return [...records, next].slice(-ROUTE_RECENT);
 }
 
-/** A record as read: one kept before the runtime's pick carries its probability as `confidence`. */
-function recordOf(raw: Record<string, unknown>): RouteRecord {
-  const { confidence, ...rest } = raw;
-  const record = rest as unknown as RouteRecord;
-  return record.probability === undefined && typeof confidence === "number" ? { ...record, probability: confidence } : record;
-}
-
 /** Whether a stored reason is one a choice carries. */
 function choiceReason(reason: unknown): reason is RouteChoiceReason {
   return (ROUTE_REASONS as readonly unknown[]).includes(reason) && !routeNotAsked(reason as RouteReason);
 }
 
-/** The records a stored value holds, one whose reason no choice carries dropped; none when it is not a list of them. */
+/** A record as read; null when a field is not of its type (a crew or a pick that is no name, a probability that is no
+ *  finite number, a reason or a `stands` no choice carries). One kept before the runtime's pick carries its
+ *  probability as `confidence`; one of them with the reason `floor` is dropped: that shape kept `floor` for an act left
+ *  on a rule's floor without a sure pick, which the reason no longer says. */
+function recordOf(raw: unknown): RouteRecord | null {
+  if (typeof raw !== "object" || raw === null || Array.isArray(raw)) return null;
+  const { crew, profile, reason, picked, probability, stands, confidence } = raw as Record<string, unknown>;
+  const old = "confidence" in raw && probability === undefined;
+  if (typeof crew !== "string" || !choiceReason(reason) || (old && reason === "floor")) return null;
+  if (profile !== null && typeof profile !== "string") return null;
+  const chance = old ? confidence : probability;
+  if (picked !== undefined && typeof picked !== "string") return null;
+  if (chance !== undefined && (typeof chance !== "number" || !Number.isFinite(chance))) return null;
+  if (stands !== undefined && !(ROUTE_STANDS_KINDS as readonly unknown[]).includes(stands)) return null;
+  const record: RouteRecord = { crew, profile, reason };
+  if (picked !== undefined) record.picked = picked;
+  if (chance !== undefined) record.probability = chance;
+  if (stands !== undefined) record.stands = stands as RouteStands;
+  return record;
+}
+
+/** The records a stored value holds, one that does not read as a record of a choice dropped; none when it is not a
+ *  list of them. */
 export function parseRecords(stored: string | null): RouteRecord[] {
   try {
     const raw: unknown = JSON.parse(stored ?? "[]");
-    return Array.isArray(raw)
-      ? raw.filter((r) => typeof r?.crew === "string" && choiceReason(r?.reason)).map(recordOf)
-      : [];
+    return Array.isArray(raw) ? raw.map(recordOf).filter((r): r is RouteRecord => r !== null) : [];
   } catch {
     return [];
   }

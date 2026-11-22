@@ -21,7 +21,7 @@ export const LADDER_PROBLEM_CASES: readonly { readonly name: string; readonly va
 
 export const RULES: RouteRules = {
   paths: { "src/billing": "large", "src/billing/fixtures": "small", "docs/": "small", "src/auth": "opus" },
-  crews: { "code-review": "medium" },
+  crews: { "code-review": "medium", "security-audit": "Large" },
 };
 
 /** A rule whose path is empty once written bare: it would match every command. */
@@ -49,6 +49,7 @@ export const FLOOR_CASES: readonly { readonly name: string; readonly crew: strin
   { name: "reads a path written with backslashes", crew: "dev-plan", brief: "/analyze src\\billing\\tax.ts", floor: 2 },
   { name: "reads a path in quotes, a comma after it", crew: "dev-plan", brief: '/analyze "src/billing/tax.ts", then stop', floor: 2 },
   { name: "ignores a rule that names a profile outside the ladder", crew: "dev-plan", brief: "/analyze src/auth/token.ts", floor: 0 },
+  { name: "reads a rule's profile whatever its case", crew: "security-audit", brief: "/audit", floor: 2 },
 ];
 
 export const BOUNDS_CASES: readonly {
@@ -60,6 +61,7 @@ export const BOUNDS_CASES: readonly {
   { name: "holds a floor above the session's rung at it", session: "medium", floor: 2, expected: { ladder: LADDER, floor: "medium", ceiling: "medium", fallback: "medium" } },
   { name: "gives no floor when it is held at the lowest rung", session: "small", floor: 2, expected: { ladder: LADDER, ceiling: "small", fallback: "small" } },
   { name: "falls back on the floor's rung on the host's default model", session: null, floor: 1, expected: { ladder: LADDER, floor: "medium", fallback: "medium" } },
+  { name: "finds the rung of a session's profile spelled in another case", session: "Large", floor: 1, expected: { ladder: LADDER, floor: "medium", ceiling: "Large", fallback: "Large" } },
 ];
 
 export const HELD_CASES: readonly { readonly name: string; readonly session: string | null; readonly floor: number; readonly held: boolean }[] = [
@@ -69,6 +71,7 @@ export const HELD_CASES: readonly { readonly name: string; readonly session: str
   { name: "does not hold a session above the lowest rung without a floor", session: "medium", floor: 0, held: false },
   { name: "does not hold a session above a rule's floor", session: "large", floor: 1, held: false },
   { name: "does not hold a session on the host's default model, whatever the floor", session: null, floor: 2, held: false },
+  { name: "does not hold a session on the top rung spelled in another case", session: "Large", floor: 1, held: false },
 ];
 
 export const SPELLING_CASES: readonly { readonly name: string; readonly profile: string; readonly expected: string }[] = [
@@ -80,6 +83,7 @@ export const ROUTABLE_CASES: readonly { readonly name: string; readonly session:
   { name: "routes a session on the host's default model", session: null, routable: true },
   { name: "routes a session on a rung of the ladder", session: "medium", routable: true },
   { name: "does not route a session on a profile outside the ladder", session: "guarded", routable: false },
+  { name: "routes a session on a rung spelled in another case", session: "Large", routable: true },
 ];
 
 export function record(n: number): RouteRecord {
@@ -109,3 +113,23 @@ export const NOT_ASKED_REASONS: readonly { readonly name: string; readonly reaso
   { name: "reads a missing answer as asked", reason: "no-answer", notAsked: false },
   { name: "reads the model's pick as asked", reason: "model", notAsked: false },
 ];
+
+/** Records `/route why` cannot read: each is dropped. */
+export const MALFORMED_RECORDS: readonly { readonly name: string; readonly raw: unknown }[] = [
+  { name: "drops a record whose probability is not a number", raw: { crew: "dev-plan", profile: "small", reason: "model", picked: "small", probability: "0.9" } },
+  { name: "drops a record whose probability is not finite", raw: { crew: "dev-plan", profile: "small", reason: "model", picked: "small", probability: null } },
+  { name: "drops a record whose pick is not a name", raw: { crew: "dev-plan", profile: "small", reason: "model", picked: 3, probability: 0.9 } },
+  { name: "drops a record whose stands is none of the known ones", raw: { crew: "dev-plan", profile: "large", reason: "no-answer", stands: "everyone" } },
+  { name: "drops a record whose profile is not a name", raw: { crew: "dev-plan", profile: 2, reason: "model" } },
+  { name: "drops a record whose old confidence is not a number", raw: { crew: "dev-plan", profile: "small", reason: "model", picked: "small", confidence: "high" } },
+  { name: "drops a record that is not an object", raw: "dev-plan" },
+];
+
+/** Records kept before the runtime's pick with the reason `floor`: that reason no longer says what they meant. */
+export const OLD_FLOOR_RECORDS: readonly { readonly name: string; readonly raw: unknown }[] = [
+  { name: "drops an old record of a sure pick raised by a rule", raw: { crew: "dev-plan", profile: "large", reason: "floor", picked: "small", confidence: 0.8 } },
+  { name: "drops an old record left on a rule's floor under an unsure pick", raw: { crew: "dev-plan", profile: "large", reason: "floor", picked: "small", confidence: 0.4 } },
+];
+
+/** A record with every field of its type, `stands` included: read as it is. */
+export const FULL_RECORD = { crew: "dev-plan", profile: "large", reason: "low-confidence", picked: "small", probability: 0.4, stands: "session" };

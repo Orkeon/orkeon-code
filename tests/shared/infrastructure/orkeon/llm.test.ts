@@ -7,7 +7,7 @@ import { agentLlm, createLlm } from "../../../../src/shared/infrastructure/orkeo
 import { FakeLlmFacade } from "../../../support/doubles/fake-llm-facade.ts";
 import {
   ACT_ANSWERS, ACT_FAILURE_MARKERS, COMPLETIONS, CONTEXT_CASES, DISK_READ, EFFORTS, EFFORTS_SENT, FILE_SYSTEM_CASES, FILE_SYSTEM_SECTION, GATES,
-  PRUNED_RESULT, PRUNED_TALLY, REQUESTS, SCHEMA, VIRTUAL_READ, actCallbacksOf, llmWithCallbacks,
+  PRUNED_RESULT, PRUNED_TALLY, REQUESTS, SCHEMA, SINK_CLOSED, VIRTUAL_READ, actCallbacksOf, llmWithCallbacks, throwingOnPruned,
 } from "./llm.fixtures.ts";
 import type { PruneTally } from "../../../../src/shared/domain/context-prune.ts";
 import { windowsHost } from "../../../support/fixtures/host-context.ts";
@@ -178,6 +178,30 @@ describe("createLlm — act", () => {
 
     // Assert
     strictEqual(answer, "done");
+  });
+
+  it("answers the act when onPruned throws", async () => {
+    // Arrange
+    const facade = new FakeLlmFacade();
+    facade.actResult = { output: "done", iterations: 4, pruned: PRUNED_RESULT };
+
+    // Act
+    const answer = await createLlm(facade).act("p", { prune: true, onPruned: throwingOnPruned() });
+
+    // Assert
+    strictEqual(answer, "done");
+  });
+
+  it("rejects an act stopped at its iteration cap with its own error when onPruned throws", async () => {
+    // Arrange
+    const facade = new FakeLlmFacade();
+    facade.actResult = { output: "(max iterations)", iterations: 40, exhausted: true, pruned: PRUNED_RESULT };
+
+    // Act
+    const acted = createLlm(facade).act("p", { prune: true, onPruned: throwingOnPruned() });
+
+    // Assert
+    await rejects(acted, (error: Error) => error.message !== SINK_CLOSED);
   });
 
   it("calls no onPruned when the act's result carries no tally", async () => {

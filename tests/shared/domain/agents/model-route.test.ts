@@ -8,7 +8,7 @@ import {
   routeOn, routeState, withRecord,
 } from "../../../../src/shared/domain/agents/model-route.ts";
 import {
-  BOUNDS_CASES, DECIDED_REASONS, FLOOR_CASES, HELD_CASES, LADDER, LADDER_CASES, LADDER_PROBLEM_CASES, LONG_BRIEF, NOT_ASKED_REASONS, OLD_RECORD, ROOT_RULES,
+  BOUNDS_CASES, DECIDED_REASONS, FLOOR_CASES, FULL_RECORD, MALFORMED_RECORDS, OLD_FLOOR_RECORDS, HELD_CASES, LADDER, LADDER_CASES, LADDER_PROBLEM_CASES, LONG_BRIEF, NOT_ASKED_REASONS, OLD_RECORD, ROOT_RULES,
   ROUTABLE_CASES, RULES, RULES_TEXT_CASES, SPELLING_CASES, record,
 } from "./model-route.fixtures.ts";
 
@@ -272,4 +272,45 @@ describe("parseRecords, a record kept before the runtime's pick", () => {
     // Assert
     deepStrictEqual(records, [{ crew: "dev-plan", profile: "small", reason: "model", picked: "small", probability: 0.9 }]);
   });
+});
+
+describe("parseRecords, a record whose fields are not of their type", () => {
+  for (const c of MALFORMED_RECORDS) {
+    it(c.name, () => {
+      // Arrange
+      const stored = JSON.stringify([c.raw]);
+
+      // Act
+      const records = parseRecords(stored);
+
+      // Assert
+      deepStrictEqual(records, []);
+    });
+  }
+
+  it("reads a record whose every field is of its type, its stands included", () => {
+    // Arrange
+    const stored = JSON.stringify([FULL_RECORD]);
+
+    // Act
+    const records = parseRecords(stored);
+
+    // Assert
+    deepStrictEqual(records, [FULL_RECORD]);
+  });
+});
+
+describe("parseRecords, an old record on a rule's floor", () => {
+  for (const c of OLD_FLOOR_RECORDS) {
+    it(c.name, () => {
+      // Arrange
+      const stored = JSON.stringify([c.raw]);
+
+      // Act
+      const records = parseRecords(stored);
+
+      // Assert
+      deepStrictEqual(records, []);
+    });
+  }
 });

@@ -7,7 +7,7 @@ import { createLlmProfilePicker, createServicesProfilePicker } from "../../../..
 import { FakePickService } from "../../../support/doubles/fake-pick-service.ts";
 import { FakeServiceLocator } from "../../../support/doubles/fake-script-host.ts";
 import {
-  ALL_BOUNDS, DEFAULT_SPELLINGS, LOCATOR_GONE, MISTYPED_PICK, MODEL_PICK, OPTIONS, REFUSED_FLOOR, REFUSED_LADDER, REQUEST, UNREAD,
+  ALL_BOUNDS, CANCELLATIONS, DEFAULT_SPELLINGS, LOCATOR_GONE, MISTYPED_PICK, MODEL_PICK, NO_PICK_WIRED, OPTIONS, REFUSED_FLOOR, REFUSED_LADDER, REQUEST, UNREAD,
   llmWhosePickThrows, pickerOverLlm, pickerOverServices,
 } from "./profile-picker.fixtures.ts";
 
@@ -142,6 +142,32 @@ describe("createServicesProfilePicker", () => {
     deepStrictEqual(answer, { refused: LOCATOR_GONE });
   });
 
+  for (const c of CANCELLATIONS) {
+    it(`${c.name}, from the pick service`, async () => {
+      // Arrange
+      const { service, picker } = pickerOverServices();
+      service.failure = c.failure;
+
+      // Act
+      const answer = await picker.pick(REQUEST, OPTIONS);
+
+      // Assert
+      strictEqual(answer, null);
+    });
+  }
+
+  it("answers the runtime's sentence as a refusal when the pick service rejects with it", async () => {
+    // Arrange
+    const { service, picker } = pickerOverServices();
+    service.failure = new Error(NO_PICK_WIRED);
+
+    // Act
+    const answer = await picker.pick(REQUEST, OPTIONS);
+
+    // Assert
+    deepStrictEqual(answer, { refused: NO_PICK_WIRED });
+  });
+
   for (const c of UNREAD) {
     it(c.name, async () => {
       // Arrange
@@ -215,4 +241,30 @@ describe("createLlmProfilePicker", () => {
     // Assert
     deepStrictEqual(answer, { refused: LOCATOR_GONE });
   });
+
+  it("answers nothing, and no refusal, when ctx.llm.pick says the host wires no pick", async () => {
+    // Arrange
+    const { service, picker } = pickerOverLlm();
+    service.failure = { toString: () => NO_PICK_WIRED };
+
+    // Act
+    const answer = await picker.pick(REQUEST, OPTIONS);
+
+    // Assert
+    strictEqual(answer, null);
+  });
+
+  for (const c of CANCELLATIONS) {
+    it(`${c.name}, from ctx.llm.pick`, async () => {
+      // Arrange
+      const { service, picker } = pickerOverLlm();
+      service.failure = c.failure;
+
+      // Act
+      const answer = await picker.pick(REQUEST, OPTIONS);
+
+      // Assert
+      strictEqual(answer, null);
+    });
+  }
 });

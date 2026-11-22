@@ -32,8 +32,27 @@ export const REFUSED_FLOOR = "ctx.llm.pick { profile.floor } 'large' is above th
 /** What a locator throws when it is used outside the run that got it. */
 export const LOCATOR_GONE = "the services of this run are gone";
 
+/** What a crew's `ctx.llm.pick` rejects with on a host that wires no System One pick, as the CLR wrapper reads. */
+export const NO_PICK_WIRED = "System.AggregateException: One or more errors occurred. (ctx.llm.pick: this host wires no System One pick " +
+  "(ISystemOnePicker); run the script under orkeon run, orkeon-repl, orkeon-host or mcp serve --crew.)";
+
+/** A plain Error whose name is `name`. */
+function named(name: string, message: string): Error {
+  const error = new Error(message);
+  error.name = name;
+  return error;
+}
+
+/** The shapes a cancelled pick rejects with: all read as no pick, without a refusal. */
+export const CANCELLATIONS: readonly { readonly name: string; readonly failure: unknown }[] = [
+  { name: "answers nothing when the call is cancelled, named OperationCanceledException", failure: named("OperationCanceledException", "The operation was canceled.") },
+  { name: "answers nothing when the call is aborted", failure: named("AbortError", "This operation was aborted") },
+  { name: "answers nothing when a wrapped CLR cancellation rejects", failure: { toString: () => "System.OperationCanceledException: The operation was canceled." } },
+  { name: "answers nothing when the cancellation carries its CLR type", failure: Object.assign(new Error("stopped"), { clrType: "OperationCanceledException" }) },
+];
+
 /** A crew's `ctx.llm` whose `pick` cannot even be read. */
-export function llmWhosePickThrows(): object {
+export function llmWhosePickThrows(): Parameters<typeof createLlmProfilePicker>[0] {
   return Object.defineProperty({}, "pick", { get: () => { throw new Error(LOCATOR_GONE); } });
 }
 

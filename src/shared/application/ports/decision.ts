@@ -25,8 +25,9 @@ export interface ProfilePickRefusal {
 /** The runtime's System One pick of a profile (Orkeon #460, experimental ORKEXP008): the decision model reads the
  *  request and picks a rung; under its bar (0.6) or without an answer the fallback stands. */
 export interface ProfilePicker {
-  /** Never throws nor rejects: a host without the pick and a reply that does not read are null; an option the
-   *  runtime refuses, and any other failure of the call, is a refusal that carries the runtime's message. */
+  /** Never throws nor rejects: a host without the pick (no `pick` service, or a `ctx.llm.pick` that says the host
+   *  wires none), a cancelled call and a reply that does not read are null, without a word; an option the runtime
+   *  refuses, and any other failure of the call, is a refusal that carries the runtime's message. */
   pick(request: string, options: RouteBounds): Promise<ProfilePick | ProfilePickRefusal | null>;
 }
 

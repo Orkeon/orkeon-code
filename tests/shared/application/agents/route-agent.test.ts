@@ -35,6 +35,17 @@ describe("routeAgent", () => {
     deepStrictEqual([profile, picker.asked.length, log.lines], ["large", 0, [NO_MODEL_WARNING]]);
   });
 
+  it("routes a session whose llm.profile is a rung spelled in another case", async () => {
+    // Arrange
+    const { deps, picker } = routeSetup("on", { ladder: "small,large" });
+
+    // Act
+    await routeAgent(deps, TASK, "Large");
+
+    // Assert
+    strictEqual(picker.asked.length, 1);
+  });
+
   it("keeps a session's profile that is not on the ladder, and asks nothing", async () => {
     // Arrange
     const { deps, picker, log } = routeSetup();

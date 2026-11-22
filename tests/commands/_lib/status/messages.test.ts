@@ -55,4 +55,15 @@ describe("B-11 audit — the release notes that had gone stale", () => {
     // Assert
     deepStrictEqual(omitted, [], `RELEASE_NOTES omits ${omitted.join(" and ")}`);
   });
+
+  it("says the build is the work after the release candidate, not that candidate", () => {
+    // Arrange
+    const line = "The work after the third release candidate of 1.0.0 (released on Orkeon 1.3.0)";
+
+    // Act
+    const stated = RELEASE_NOTES.includes(line);
+
+    // Assert
+    ok(stated, `RELEASE_NOTES must say "${line}"`);
+  });
 });

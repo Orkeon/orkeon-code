@@ -159,7 +159,7 @@ export const orkeonAgent = (input: Readonly<Record<string, unknown>> = inputs())
  *  session's profile, an act moved only off the crew's own profile and only to a profile the host declares. `ctx` is
  *  the body's (its `llm` and `log`); `tools` and `root` the body's too when it runs under a working root of its own. */
 export const orkeonActRoute = (
-  ctx: { llm: object; log: Pick<Logger, "info" | "warn"> }, tools: OrkeonTools = Tools, root?: string,
+  ctx: { llm: Partial<Pick<LlmFacade, "pick">>; log: Pick<Logger, "info" | "warn"> }, tools: OrkeonTools = Tools, root?: string,
   input: Readonly<Record<string, unknown>> = inputs(),
 ): ActRoute => declaredRoute(
   actRoute(

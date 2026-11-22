@@ -61,7 +61,8 @@ export function answeredSetup(c: Ground & { answer: Answer; setting?: string | n
 
 export const NO_MODEL_WARNING =
   "warn: route.agents is on and the host has no decision model to ask: the session's profile stands " +
-  "(no Orkeon:Decision:Provider nor Orkeon:TypeSafe is set, or the provider lacks its key: the runtime's start line says which)";
+  "(no Orkeon:Decision:Provider nor Orkeon:TypeSafe is set, the provider lacks its key, or the host's decision circuit is " +
+  "off by --no-decision or Orkeon:Decision:Enabled false: the runtime's start line says which)";
 export const OUTSIDE_LADDER_LINE = "info: route.agents is on and the session's llm.profile 'guarded' is not on the ladder (small,large): it stands";
 export const SMALL_RECORD = [{ crew: "dev-plan", profile: "small", reason: "model", picked: "small", probability: 0.9 }];
 export const UNSURE_RECORD = [{ crew: "dev-plan", profile: "large", reason: "low-confidence", picked: "small", probability: 0.4, stands: "session" }];
@@ -179,8 +180,8 @@ export const NO_CHOICE: readonly { name: string; answer: Answer; lines: readonly
   {
     name: "warns that the runtime's circuit is off, and keeps nothing", answer: answer("large", "circuit-off"),
     lines: [
-      "warn: route.agents is on and the runtime's decision circuit is off (a decision provider without its key, a spent decision " +
-      "budget, a crew on decision.mode none): nothing is routed, the session's profile stands",
+      "warn: route.agents is on and the runtime's decision circuit is off for this run (a crew on decision.mode none, a run " +
+      "scope that turns the circuit off, such as a forge trial pass): nothing is routed, the session's profile stands",
     ],
   },
   {

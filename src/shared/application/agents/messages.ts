@@ -23,10 +23,11 @@ export const answerDidNotParse = (reason: string): string => `the answer did not
 export const briefTooLong = (length: number, max: number): string => `the brief is ${length} characters, over ${max}`;
 export const ROUTE_WITHOUT_DECISION_MODEL =
   "route.agents is on and the host has no decision model to ask: the session's profile stands " +
-  "(no Orkeon:Decision:Provider nor Orkeon:TypeSafe is set, or the provider lacks its key: the runtime's start line says which)";
+  "(no Orkeon:Decision:Provider nor Orkeon:TypeSafe is set, the provider lacks its key, or the host's decision circuit is " +
+  "off by --no-decision or Orkeon:Decision:Enabled false: the runtime's start line says which)";
 export const ROUTE_CIRCUIT_OFF =
-  "route.agents is on and the runtime's decision circuit is off (a decision provider without its key, a spent decision " +
-  "budget, a crew on decision.mode none): nothing is routed, the session's profile stands";
+  "route.agents is on and the runtime's decision circuit is off for this run (a crew on decision.mode none, a run " +
+  "scope that turns the circuit off, such as a forge trial pass): nothing is routed, the session's profile stands";
 export const ROUTE_NO_LADDER =
   "route.agents is on and the runtime had no usable ladder to pick from: nothing is routed, the session's profile stands";
 export const routeRefused = (message: string): string =>

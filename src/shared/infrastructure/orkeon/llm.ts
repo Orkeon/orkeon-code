@@ -141,7 +141,12 @@ export function createLlm(
       const sent = withFileSystem(withContext(withEffort), defaults.fileSystem);
       const result = await llm.act(prompt, actOptions(sent, acts));
       const tally = pruneTallyOf((result as { pruned?: unknown } | null | undefined)?.pruned);
-      if (tally !== null) request.onPruned?.(tally);
+      if (tally !== null) {
+        // The tally is a log line: a callback that throws fails neither the finished act nor hides its outcome.
+        try {
+          request.onPruned?.(tally);
+        } catch { /* the act's answer stands */ }
+      }
       return answerOrThrow(answerOf(result));
     },
     async complete(prompt, request?: CompleteRequest) {
