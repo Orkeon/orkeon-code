@@ -127,7 +127,9 @@ sortante, qui peut emporter ailleurs le contenu du dépôt.
 `firefox` est aussi un outil réseau : `plan` et `dontAsk` ne l'offrent jamais, puisque charger une page est une
 requête sortante. Là où il est offert, son `action` décide, comme le dit le tableau : `default` demande pour un
 `screenshot`, `acceptEdits` l'accepte. Sa propre politique d'URL refuse les adresses privées et de bouclage.
-L'installation est décrite dans [Configuration](configuration.md#les-settings-dont-orkeon-code-dépend).
+L'installation est décrite dans [Configuration](configuration.md#les-settings-dont-orkeon-code-dépend). Envoyé au
+[pont d'outils](tool-bridge.md), il garde son nom et ses classes d'accès : la barrière du conteneur le juge de la même
+façon, et la politique d'URL appliquée est celle du pont, sur votre machine.
 
 > [!WARNING]
 > Le texte d'une page parvient au modèle sans filtrage contre l'injection de prompt : lire une page qui n'est pas de

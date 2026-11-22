@@ -155,3 +155,33 @@ export const NO_SESSION = ["a run is one turn, with no session"];
 export const INPUTS_ARE_RUNS = ["--inputs belongs to 'orkeon-code run <crew>'"];
 export const DOCKER_OUTSIDE_SRC = ["in docker mode the crew must lie under"];
 export const INPUTS = '{"prompt":"list the files","permissionMode":"plan"}';
+
+/** A bridge token the runtime takes (16 characters or more), and one it refuses. */
+export const BRIDGE_TOKEN = { ORKEON_BRIDGE_TOKEN: "0123456789abcdef0123" };
+export const SHORT_BRIDGE_TOKEN = { ORKEON_BRIDGE_TOKEN: "0123456789abcde" };
+
+/** Settings whose caller sends `firefox` to the tool bridge at `address`, under keys spelt as `keys` gives them. */
+export function bridgeSettings(address: string, keys: readonly [string, string, string, string] = ["Orkeon", "Tools", "Bridge", "Address"]) {
+  const [orkeon, tools, bridge, at] = keys;
+  return { Llm: { Model: "m", BaseUrl: "http://127.0.0.1:9/v1" }, [orkeon]: { [tools]: { [bridge]: { [at]: address, Allow: ["firefox"] } } } };
+}
+
+/** The bridge addresses the launcher reads, and whether the container then joins the host's network. */
+export const BRIDGE_CASES = [
+  { name: "hands the token by name and joins the host's network for a bridge on 127.0.0.1", settings: bridgeSettings("http://127.0.0.1:7410/"), hostNetwork: true },
+  { name: "joins the host's network for a bridge on localhost", settings: bridgeSettings("http://localhost:7410/"), hostNetwork: true },
+  {
+    name: "hands the token and stays off the host's network for Docker Desktop's host.docker.internal, keys read without case",
+    settings: bridgeSettings("http://host.docker.internal:7410/", ["orkeon", "tools", "bridge", "address"]), hostNetwork: false,
+  },
+];
+export const LOOPBACK_BRIDGE = bridgeSettings("http://127.0.0.1:7410/");
+/** A bridge whose token lives in a variable of the user's choosing (Orkeon:Tools:Bridge:TokenEnvVar). */
+export const NAMED_TOKEN_BRIDGE = {
+  Llm: { Model: "m", BaseUrl: "http://127.0.0.1:9/v1" },
+  Orkeon: { Tools: { Bridge: { Address: "http://127.0.0.1:7410/", TokenEnvVar: "MY_BRIDGE_TOKEN", Allow: ["firefox"] } } },
+};
+export const NAMED_TOKEN = { MY_BRIDGE_TOKEN: "fedcba9876543210fedc" };
+export const NAMED_TOKEN_UNSET = ["MY_BRIDGE_TOKEN is not set"];
+export const NO_BRIDGE_TOKEN = ["names the tool bridge http://127.0.0.1:7410/", "ORKEON_BRIDGE_TOKEN is not set", "docs/tool-bridge.md"];
+export const BRIDGE_TOKEN_TOO_SHORT = ["ORKEON_BRIDGE_TOKEN is shorter than 16 characters", "openssl rand -hex 32"];

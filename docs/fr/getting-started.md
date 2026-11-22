@@ -145,6 +145,8 @@ machine et ne la tire plus jamais : `docker pull ghcr.io/orkeon/orkeon:latest` l
 Le lanceur vérifie que le moteur répond avant de démarrer le conteneur : si Docker Desktop ou le service Docker est
 arrêté, il le dit et ne démarre rien.
 
+Le conteneur n'a pas de navigateur : le [pont d'outils](tool-bridge.md) lui prête le Firefox de votre machine.
+
 ### Mode source : un checkout d'Orkeon
 
 `ORKEON_SOURCE=~/src/orkeon ./orkeon-code --mode source` construit `src/apps/Orkeon.ConsoleApp` dans ce checkout

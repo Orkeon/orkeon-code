@@ -7,6 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added — the tool bridge in docker mode
+
+- A session in Docker can drive the Firefox of your machine through Orkeon's tool bridge (`orkeon bridge serve`,
+  Orkeon #445). When the settings name `Orkeon:Tools:Bridge:Address`, `orkeon-code` and `orkeon-code.ps1` hand the
+  container the token's variable by its name (`ORKEON_BRIDGE_TOKEN`, or the one `TokenEnvVar` names). They refuse to
+  start when the token is unset or shorter than 16 characters, and run the container on the host's network when the
+  address is on loopback. The guide is [Tool bridge](docs/tool-bridge.md), the example
+  `config/appsettings.bridge.example.json`. It needs an image built from the pin (`ORKEON_CODE_IMAGE`): `1.3.0` has
+  no bridge. It was checked on a Linux engine only: not on Docker Desktop, not on Windows.
+
 ### Changed — the pin moves to Orkeon `5dc2ff3`
 
 - The pin moves to Orkeon `main` `5dc2ff3` (Orkeon #447, after #425, #428 and #438). The tool and docker modes run

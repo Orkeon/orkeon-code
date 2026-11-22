@@ -676,7 +676,7 @@ export const PS1_USER_SETTINGS: readonly Mention[] = [
 export const PS1_DOCKER_TTY: readonly Mention[] = [
   ["$ttyArgs = if ([Console]::IsInputRedirected -or [Console]::IsOutputRedirected) { @('-i') } else { @('-it') }", "-it on a tty only"],
   ["if ($IsLinux) { $userArgs = @('--user', \"$(& id -u):$(& id -g)\") }", "--user on Linux"],
-  ["& docker run --rm @ttyArgs @userArgs @envArgs -w /work", "both passed"],
+  ["& docker run --rm @ttyArgs @userArgs @envArgs @bridgeArgs -w /work", "both passed"],
 ];
 
 export const PS1_DOCKER_ENGINE: readonly Mention[] = [
@@ -685,6 +685,17 @@ export const PS1_DOCKER_ENGINE: readonly Mention[] = [
   ["$ErrorActionPreference = 'Continue'", "a warning on stderr fails nothing"],
   ["if (-not (Test-DockerEngine)) {", "the answer read"],
   ["start Docker Desktop or the Docker service", "the message says what to do"],
+];
+
+/** The ps1 wires the tool bridge (Orkeon #445) as ./orkeon-code does, before the container runs. */
+export const PS1_BRIDGE: readonly Mention[] = [
+  ["foreach ($key in @('Orkeon', 'Tools', 'Bridge')) {", "the section read from the settings, without case (-eq)"],
+  ["$bridge.TokenEnvVar.Trim() } else { 'ORKEON_BRIDGE_TOKEN' }", "the variable TokenEnvVar names, ORKEON_BRIDGE_TOKEN by default"],
+  ["is not set: export the token the bridge was started with", "an unset token refused"],
+  ["if ($bridgeToken.Length -lt 16) {", "a short token refused"],
+  ["$bridgeArgs = @('-e', $bridgeVar)", "the token handed by name"],
+  ["if ($bridgeAddress -match '^http://(127\\.0\\.0\\.1|localhost|\\[::1\\])(:|/|$)') { $bridgeArgs += '--network', 'host' }", "loopback joins the host's network"],
+  ["& docker run --rm @ttyArgs @userArgs @envArgs @bridgeArgs -w /work", "passed to the container"],
 ];
 
 /** The ps1 refuses the bash launcher's `run` and `runtime` (#114, #115), with exit 1 and where to run them. */

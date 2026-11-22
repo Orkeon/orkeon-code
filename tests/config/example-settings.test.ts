@@ -1,11 +1,11 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import {
-  commentKeysBelowRoot, DECISION_EXAMPLES, listExamples, load, NAMED_DECISION_EXAMPLES, PROMISED_EXAMPLES, RESULT_LIMITS, withoutCommentAndLlm,
+  commentKeysBelowRoot, DECISION_EXAMPLES, FRAGMENTS, listExamples, load, NAMED_DECISION_EXAMPLES, PROMISED_EXAMPLES, RESULT_LIMITS, withoutCommentAndLlm,
   withoutCommentOrkeonAndMcp, withoutCommentProfilesAndDecision,
 } from "./example-settings.fixtures.ts";
 import {
-  assertExamplesInclude, assertFallbacksKnown, assertJevExampleKeyless, assertNamedDecisionExample, assertSameAsJevButProvider,
+  assertBridgeExample, assertExamplesInclude, assertFallbacksKnown, assertJevExampleKeyless, assertNamedDecisionExample, assertSameAsJevButProvider,
   assertWhisperMounts,
 } from "./example-settings.assertions.ts";
 
@@ -15,7 +15,7 @@ import {
 // Every config/*.example.json is such an example.
 const examples = listExamples();
 
-test("the example settings exist: the default, Anthropic, Ollama, Ollama and Whisper, Jev, Kev and Liquid ones", () => {
+test("the example settings exist: the default, Anthropic, Ollama, Ollama and Whisper, Jev, Kev, Liquid and tool bridge ones", () => {
   // Arrange
   const expected = PROMISED_EXAMPLES;
 
@@ -192,7 +192,7 @@ for (const name of examples.filter((name) => load(name).Llm)) {
   });
 }
 
-for (const name of examples.filter((name) => load(name).Orkeon?.Tools)) {
+for (const name of examples.filter((name) => !FRAGMENTS.includes(name) && load(name).Orkeon?.Tools)) {
   test(`${name} states the result cut of the shell and the read calls run at once`, () => {
     // Arrange
     const file = name;
@@ -278,3 +278,14 @@ for (const file of DECISION_EXAMPLES) {
     assertFallbacksKnown(settings, name);
   });
 }
+
+test("the tool bridge example sends firefox to a bridge on loopback and holds no token", () => {
+  // Arrange
+  const file = "appsettings.bridge.example.json";
+
+  // Act
+  const settings = load(file);
+
+  // Assert
+  assertBridgeExample(settings);
+});

@@ -15,6 +15,8 @@
       href: shared-memory.md
     - name: Voix
       href: speech.md
+    - name: Pont d'outils
+      href: tool-bridge.md
     - name: Modèles de décision
       href: decision-models.md
     - name: Modèles de décision en local

@@ -742,6 +742,38 @@ export Orkeon__Security__PermissionGate__Enabled="${Orkeon__Security__Permission
 # (Orkeon #404). Each variable already exported is kept; one unset takes the user.name or user.email git gives on
 # the host for the workspace, when git is there and gives one. Sets GIT_IDENTITY_VARS, the names to hand over.
 GIT_IDENTITY_VARS=(GIT_AUTHOR_NAME GIT_AUTHOR_EMAIL GIT_COMMITTER_NAME GIT_COMMITTER_EMAIL)
+# The tool bridge (Orkeon #445): settings naming Orkeon:Tools:Bridge:Address send the tools their Allow lists to
+# `orkeon bridge serve` on this machine (docs/tool-bridge.md). The container receives the token by the name of its
+# variable (Orkeon:Tools:Bridge:TokenEnvVar, ORKEON_BRIDGE_TOKEN when unset), never on disk, refused here when it is
+# missing or shorter than the runtime takes (16 characters); an address on loopback puts the container on the host's
+# network, the one way a Linux engine reaches the bridge over http. Keys are read without case, as the runtime's
+# configuration does. Sets BRIDGE_ARGS (docker mode only: the other modes run on this machine, where the runtime
+# reads the variable itself).
+BRIDGE_TOKEN_MIN=16
+bridge_args() {
+  BRIDGE_ARGS=()
+  local read="" address="" var=""
+  if command -v node >/dev/null 2>&1; then
+    read="$(node -e 'const fs=require("fs");const at=(o,k)=>{if(!o||typeof o!=="object")return undefined;const n=Object.keys(o).find((x)=>x.toLowerCase()===k.toLowerCase());return n===undefined?undefined:o[n];};let b=JSON.parse(fs.readFileSync(process.argv[1],"utf8"));for(const k of ["Orkeon","Tools","Bridge"])b=at(b,k);const s=(k)=>{const v=at(b,k);return typeof v==="string"?v.trim():"";};process.stdout.write(s("Address")+"\n"+s("TokenEnvVar"));' "$SETTINGS" 2>/dev/null)" || read=""
+    address="${read%%$'\n'*}"
+    var="${read#*$'\n'}"; [ "$var" != "$read" ] || var=""
+  elif grep -qi '"bridge"' "$SETTINGS"; then
+    warn "node is not on PATH: an Orkeon:Tools:Bridge section of $SETTINGS is not read, the container gets no bridge token."
+  fi
+  [ -n "$address" ] || return 0
+  var="${var:-ORKEON_BRIDGE_TOKEN}"
+  [[ "$var" =~ ^[A-Za-z_][A-Za-z0-9_]*$ ]] || die "Orkeon:Tools:Bridge:TokenEnvVar of $SETTINGS is '$var', not the name of a variable."
+  [ -n "${!var:-}" ] \
+    || die "$SETTINGS names the tool bridge $address, and $var is not set: export the token the bridge was started with (docs/tool-bridge.md)."
+  local token="${!var}"
+  [ "${#token}" -ge "$BRIDGE_TOKEN_MIN" ] \
+    || die "$var is shorter than $BRIDGE_TOKEN_MIN characters, which the runtime refuses: use a long random value (openssl rand -hex 32)."
+  BRIDGE_ARGS=(-e "$var")
+  case "$address" in
+    http://127.0.0.1:*|http://127.0.0.1/*|http://localhost:*|http://localhost/*|http://\[::1\]:*) BRIDGE_ARGS+=(--network host) ;;
+  esac
+}
+
 git_identity_env() {
   local name="" email=""
   if command -v git >/dev/null 2>&1; then
@@ -942,7 +974,8 @@ run_crew() {
     done
     user_args=()
     if [ "$(uname -s)" = Linux ]; then user_args=(--user "$(id -u):$(id -g)"); fi
-    exec docker run --rm -i ${user_args[@]+"${user_args[@]}"} "${env_args[@]}" -w /work \
+    bridge_args
+    exec docker run --rm -i ${user_args[@]+"${user_args[@]}"} "${env_args[@]}" ${BRIDGE_ARGS[@]+"${BRIDGE_ARGS[@]}"} -w /work \
       -v "$WORKSPACE:/work/project" -v "$ROOT:/work/agent:ro" -v "$SETTINGS:/work/settings.json:ro" -v "$STATE:/work/state" \
       "$IMAGE" run "/work/agent/$rel" -s /work/settings.json \
       -m /work/project:/workspace:rw /work/state/output:/output:rw /work/state/tmp:/tmp:rw /work/state/user-config:/user-config:ro \
@@ -1289,7 +1322,8 @@ case "$MODE" in
     repl_args /work/agent/commands /work/agent/crews /work/settings.json \
       /work/project /work/state/output /work/state/tmp /work/state/user-config "$in_state"
     llm_log_args "$in_state"
-    exec docker run --rm "${tty_args[@]}" ${user_args[@]+"${user_args[@]}"} "${env_args[@]}" -w /work \
+    bridge_args
+    exec docker run --rm "${tty_args[@]}" ${user_args[@]+"${user_args[@]}"} "${env_args[@]}" ${BRIDGE_ARGS[@]+"${BRIDGE_ARGS[@]}"} -w /work \
       -v "$WORKSPACE:/work/project" \
       -v "$ROOT/src:/work/agent:ro" \
       -v "$SETTINGS:/work/settings.json:ro" \

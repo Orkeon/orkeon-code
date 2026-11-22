@@ -121,7 +121,9 @@ can carry the repository's content elsewhere.
 `firefox` is a network tool too: `plan` and `dontAsk` never offer it, since loading a page is an outbound request.
 Where it is offered, its `action` decides, as the table says: `default` asks for a `screenshot` and `acceptEdits`
 accepts it. Its own URL policy refuses private and loopback addresses. The setup is in
-[Configuration](configuration.md#settings-orkeon-code-relies-on).
+[Configuration](configuration.md#settings-orkeon-code-relies-on). Sent to the [tool bridge](tool-bridge.md), it keeps
+its name and its access classes: the gate of the container judges it the same way, and the URL policy applied is the
+bridge's, on your machine.
 
 > [!WARNING]
 > The text of a page reaches the model unscreened for prompt injection: a read of an untrusted page deserves the

@@ -185,6 +185,7 @@ others one after the other, each call through the permission gate, and sends the
 | `Orkeon:Tools:GitHub:Token` | The token of the `github` tool, read once when the tool is registered; prefer the variable below to a token written in a settings file, which the examples leave out |
 | `Orkeon:Tools:GitHub:TokenVariable` | The environment variable the `github` tool reads its token from when `Token` is unset: `GITHUB_TOKEN` by default, then `GH_TOKEN` |
 | `Orkeon:Tools:Firefox:*` | The `firefox` tool, which drives the Firefox of the host over WebDriver BiDi, with nothing to download |
+| `Orkeon:Tools:Bridge:*` | The tools a session in Docker sends to `orkeon bridge serve` on your machine: `Address`, `Allow`, `HostHeader`, `TokenEnvVar` ([Tool bridge](tool-bridge.md)) |
 | `Orkeon:Cli:ConsoleStreaming:Enabled` | Streams the answer as it is generated |
 | `Orkeon:Cli:Tui:Theme` | The palette the split-pane console starts on: `dark`, `light` or `none`; without it `dark`, or `none` under `NO_COLOR`. Any other value refuses the start. `/theme` changes it for the session |
 | `Orkeon:Cli:ScriptCommands:MaxScripts` | Commands the loader keeps: 200 by default, above this project's command surface |

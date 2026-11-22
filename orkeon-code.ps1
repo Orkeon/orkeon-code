@@ -899,7 +899,37 @@ try {
     # Files the agent writes in the project belong to the caller, not to root (Linux; Docker Desktop maps them itself).
     $userArgs = @()
     if ($IsLinux) { $userArgs = @('--user', "$(& id -u):$(& id -g)") }
-    & docker run --rm @ttyArgs @userArgs @envArgs -w /work `
+    # The tool bridge (Orkeon #445), as ./orkeon-code wires it: settings naming Orkeon:Tools:Bridge:Address hand the
+    # container the token by the name of its variable (TokenEnvVar, ORKEON_BRIDGE_TOKEN when unset), refused here when
+    # unset or shorter than 16 characters; an address on loopback joins the host's network (a Linux engine). Docker
+    # Desktop reaches the bridge at host.docker.internal.
+    $bridgeArgs = @()
+    $bridge = try {
+      $node = $settingsText | ConvertFrom-Json -ErrorAction Stop
+      foreach ($key in @('Orkeon', 'Tools', 'Bridge')) {
+        $node = if ($node -is [System.Management.Automation.PSCustomObject]) {
+          ($node.PSObject.Properties | Where-Object { $_.Name -eq $key } | Select-Object -First 1).Value
+        } else { $null }
+      }
+      $node
+    } catch { $null }
+    $bridgeAddress = if ($bridge -is [System.Management.Automation.PSCustomObject] -and $bridge.Address -is [string]) { $bridge.Address.Trim() } else { '' }
+    if ($bridgeAddress) {
+      $bridgeVar = if ($bridge.TokenEnvVar -is [string] -and $bridge.TokenEnvVar.Trim()) { $bridge.TokenEnvVar.Trim() } else { 'ORKEON_BRIDGE_TOKEN' }
+      if ($bridgeVar -notmatch '^[A-Za-z_][A-Za-z0-9_]*$') {
+        throw "Orkeon:Tools:Bridge:TokenEnvVar of $Settings is '$bridgeVar', not the name of a variable."
+      }
+      $bridgeToken = [Environment]::GetEnvironmentVariable($bridgeVar)
+      if (-not $bridgeToken) {
+        throw "$Settings names the tool bridge $bridgeAddress, and $bridgeVar is not set: export the token the bridge was started with (docs/tool-bridge.md)."
+      }
+      if ($bridgeToken.Length -lt 16) {
+        throw "$bridgeVar is shorter than 16 characters, which the runtime refuses: use a long random value."
+      }
+      $bridgeArgs = @('-e', $bridgeVar)
+      if ($bridgeAddress -match '^http://(127\.0\.0\.1|localhost|\[::1\])(:|/|$)') { $bridgeArgs += '--network', 'host' }
+    }
+    & docker run --rm @ttyArgs @userArgs @envArgs @bridgeArgs -w /work `
       -v "${Workspace}:/work/project" -v "$(Join-Path $Root 'src'):/work/agent:ro" `
       -v "${Settings}:/work/settings.json:ro" -v "${State}:/work/state" `
       $Image @replArgs @Extra

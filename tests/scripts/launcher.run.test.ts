@@ -11,12 +11,12 @@ import { assertLacks, assertSays } from "./launcher.assertions.ts";
 import {
   CALLER_MOCK, CALLER_MOCK_IN_DOCKER, DOCKER_CREW, DOCKER_OUTSIDE_FILE, DOCKER_OUTSIDE_SRC, DOTNET_BIN, DOWNLOADED_RAN, ELSEWHERE, MOCK_IN_CONTAINER, MOCK_ON_HOST, MOCK_ON_HOST_NO_DASHES, INPUTS, INPUTS_ARE_RUNS, LOG_TO_STDERR, NAMED_RUNTIME, NO_SESSION,
   NO_ESBUILD, NO_ESBUILD_NAMED, NO_ORKEON, NO_RUNNER, NO_SOURCE, NPM_ESBUILD, NPM_ESBUILD_FILE, ORKEON, PROBE, PROJECT_MOCK, PROJECT_MOCK_IN_CONTAINER,
-  PROJECT_MOCK_ON_HOST, RESOLVED_CASES, TOOL_MANIFEST, UNKNOWN, USAGE, agentMount, callerFile, cloneToolCalls,
+  PROJECT_MOCK_ON_HOST, RESOLVED_CASES, BRIDGE_CASES, BRIDGE_TOKEN, BRIDGE_TOKEN_TOO_SHORT, LOOPBACK_BRIDGE, NAMED_TOKEN, NAMED_TOKEN_BRIDGE, NAMED_TOKEN_UNSET, NO_BRIDGE_TOKEN, SHORT_BRIDGE_TOKEN, TOOL_MANIFEST, UNKNOWN, USAGE, agentMount, callerFile, cloneToolCalls,
   crewPath, downloadingRunStart, homeWithOrkeon, noRunnerStart, orkeonExiting, runArgs, runStart, scriptingCheckout, sourceCalls,
 } from "./launcher.run.fixtures.ts";
 import { CURL_CALL, OWN_ORKEON_RAN, pathWithoutRuntime } from "./launcher.runtime.fixtures.ts";
 import {
-  assertArgsEndWith, assertArgsHold, assertCalls, assertNoContainerRun, assertNothingRun, assertPathOrkeonRan, assertRunnerArgs,
+  assertArgsEndWith, assertArgsHold, assertBridgeArgs, assertNoBridgeArgs, assertCalls, assertNoContainerRun, assertNothingRun, assertPathOrkeonRan, assertRunnerArgs,
 } from "./launcher.run.assertions.ts";
 
 after(removeScratch);
@@ -498,5 +498,81 @@ describe("orkeon-code run, the runner", () => {
 
     // Assert
     strictEqual(existsSync(join(r.state, "user-config")), false);
+  });
+});
+
+describe("orkeon-code run, docker mode, the tool bridge (Orkeon #445)", () => {
+  for (const c of BRIDGE_CASES) {
+    it(c.name, () => {
+      // Arrange
+      const start = runStart({ bin: { docker: ORKEON.orkeon }, args: ["--mode", "docker"], settings: c.settings, env: BRIDGE_TOKEN });
+
+      // Act
+      const r = launchWithNode(start);
+
+      // Assert
+      assertBridgeArgs(r, BRIDGE_TOKEN.ORKEON_BRIDGE_TOKEN, c.hostNetwork);
+    });
+  }
+
+  it("refuses settings naming a bridge when ORKEON_BRIDGE_TOKEN is not set, running no container", () => {
+    // Arrange
+    const start = runStart({ bin: { docker: ORKEON.orkeon }, args: ["--mode", "docker"], settings: LOOPBACK_BRIDGE });
+
+    // Act
+    const r = launchWithNode(start);
+
+    // Assert
+    strictEqual(r.status, 1);
+    assertSays(r.stderr, NO_BRIDGE_TOKEN);
+    assertNoContainerRun(r);
+  });
+
+  it("refuses a bridge token shorter than 16 characters, running no container", () => {
+    // Arrange
+    const start = runStart({ bin: { docker: ORKEON.orkeon }, args: ["--mode", "docker"], settings: LOOPBACK_BRIDGE, env: SHORT_BRIDGE_TOKEN });
+
+    // Act
+    const r = launchWithNode(start);
+
+    // Assert
+    strictEqual(r.status, 1);
+    assertSays(r.stderr, BRIDGE_TOKEN_TOO_SHORT);
+    assertNoContainerRun(r);
+  });
+
+  it("hands the variable Orkeon:Tools:Bridge:TokenEnvVar names", () => {
+    // Arrange
+    const start = runStart({ bin: { docker: ORKEON.orkeon }, args: ["--mode", "docker"], settings: NAMED_TOKEN_BRIDGE, env: NAMED_TOKEN });
+
+    // Act
+    const r = launchWithNode(start);
+
+    // Assert
+    assertBridgeArgs(r, NAMED_TOKEN.MY_BRIDGE_TOKEN, true, "MY_BRIDGE_TOKEN");
+  });
+
+  it("refuses a bridge whose named variable is unset, ORKEON_BRIDGE_TOKEN set or not", () => {
+    // Arrange
+    const start = runStart({ bin: { docker: ORKEON.orkeon }, args: ["--mode", "docker"], settings: NAMED_TOKEN_BRIDGE, env: BRIDGE_TOKEN });
+
+    // Act
+    const r = launchWithNode(start);
+
+    // Assert
+    strictEqual(r.status, 1);
+    assertSays(r.stderr, NAMED_TOKEN_UNSET);
+    assertNoContainerRun(r);
+  });
+
+  it("wires no bridge when the settings name none, a token set or not", () => {
+    // Arrange
+    const start = runStart({ bin: { docker: ORKEON.orkeon }, args: ["--mode", "docker"], env: BRIDGE_TOKEN });
+
+    // Act
+    const r = launchWithNode(start);
+
+    // Assert
+    assertNoBridgeArgs(r);
   });
 });

@@ -42,3 +42,16 @@ export function assertPathOrkeonRan(r: Run): void {
   deepStrictEqual(r.args, runArgs(r), "the orkeon on PATH was not handed the run");
   deepStrictEqual(r.calls, [], `another runner started: ${r.calls.join(", ")}`);
 }
+
+/** The container gets the token's variable `name`, never its value, and joins the host's network when `hostNetwork`. */
+export function assertBridgeArgs(r: Run, token: string, hostNetwork: boolean, name = "ORKEON_BRIDGE_TOKEN"): void {
+  assertArgsHold(r, ["-e", name]);
+  ok(!r.args.some((a) => a.includes(token)), `the token's value is in the docker arguments: ${r.args.join(" ")}`);
+  const joined = r.args.some((a, i) => a === "--network" && r.args[i + 1] === "host");
+  ok(joined === hostNetwork, `--network host ${hostNetwork ? "missing" : "unexpected"}: ${r.args.join(" ")}`);
+}
+
+/** No bridge wired: neither the token's variable nor the host's network. */
+export function assertNoBridgeArgs(r: Run): void {
+  ok(!r.args.includes("ORKEON_BRIDGE_TOKEN") && !r.args.includes("--network"), `a bridge was wired: ${r.args.join(" ")}`);
+}
