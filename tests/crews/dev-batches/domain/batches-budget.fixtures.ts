@@ -35,4 +35,12 @@ export const DRIVER_CONCURRENCIES: readonly { name: string; concurrency: unknown
   { name: "a fractional concurrency", concurrency: 2.7 },
   { name: "a concurrency given as text", concurrency: "3" },
   { name: "no concurrency", concurrency: undefined },
+  { name: "a concurrency of zero", concurrency: 0 },
+  { name: "a negative concurrency", concurrency: -3 },
+  { name: "a concurrency that is no number", concurrency: "many" },
+  { name: "a concurrency past any number a limit can hold", concurrency: 1e303 },
+  { name: "an infinite concurrency", concurrency: Infinity },
 ];
+
+/** Concurrencies above the most a wave runs at once. */
+export const ABOVE_A_WAVE: readonly number[] = [5, 1e303, Infinity];

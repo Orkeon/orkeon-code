@@ -3,10 +3,10 @@
 import { describe, it } from "node:test";
 import { deepStrictEqual, ok, strictEqual } from "node:assert";
 
-import { BATCHES_BUDGET, WAVE_BATCH_CALLS, WAVE_MARGIN_SECONDS, WAVE_REVIEW_CALLS, batchLimits, driverBudget } from "../../../../src/crews/dev-batches/domain/batches-budget.ts";
+import { BATCHES_BUDGET, MAX_WAVE, WAVE_BATCH_CALLS, WAVE_MARGIN_SECONDS, WAVE_REVIEW_CALLS, batchLimits, driverBudget } from "../../../../src/crews/dev-batches/domain/batches-budget.ts";
 import { MAX_STEPS } from "../../../../src/crews/dev-implement/domain/implement-budget.ts";
 import { TOKENS_PER_CALL } from "../../../../src/shared/domain/dev/step-budget.ts";
-import { DRIVER_CONCURRENCIES, ONE_AT_A_TIME, STEP_COUNTS, WAVE_SIZES, expectedBatchLimits } from "./batches-budget.fixtures.ts";
+import { ABOVE_A_WAVE, DRIVER_CONCURRENCIES, ONE_AT_A_TIME, STEP_COUNTS, WAVE_SIZES, expectedBatchLimits } from "./batches-budget.fixtures.ts";
 import { assertRuntimeLimits } from "./batches-budget.assertions.ts";
 import { assertRuntimeBudget } from "../../../support/assertions/budget.ts";
 
@@ -21,6 +21,21 @@ describe("the driver budgets the runtime reads", () => {
 
       // Assert
       assertRuntimeBudget(budget, c.name);
+    });
+  }
+});
+
+describe("the driver budget above a wave", () => {
+  for (const concurrency of ABOVE_A_WAVE) {
+    it(`counts the most a wave runs at once for a concurrency of ${concurrency}`, () => {
+      // Arrange
+      const most = driverBudget(MAX_WAVE);
+
+      // Act
+      const budget = driverBudget(concurrency);
+
+      // Assert
+      deepStrictEqual(budget, most);
     });
   }
 });

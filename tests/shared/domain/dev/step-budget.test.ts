@@ -50,16 +50,30 @@ describe("repairBudget", () => {
 
 describe("the step budgets the runtime reads", () => {
   for (const c of STEP_CASES) {
-    it(`holds only limits of 1 or more, which the runtime accepts (Orkeon #436): ${c.step} and its repair`, () => {
+    it(`holds only limits of 1 or more, which the runtime accepts (Orkeon #436): ${c.step}`, () => {
       // Arrange
       const { step } = c;
 
       // Act
-      const budgets = { step: STEP_BUDGETS[step], repair: repairBudget(step) };
+      const budget = STEP_BUDGETS[step];
 
       // Assert
-      assertRuntimeBudget(budgets.step, step);
-      assertRuntimeBudget(budgets.repair, `repair of ${step}`);
+      assertRuntimeBudget(budget, step);
+    });
+  }
+});
+
+describe("the repair budgets the runtime reads", () => {
+  for (const c of STEP_CASES) {
+    it(`holds only limits of 1 or more, which the runtime accepts (Orkeon #436): the repair of ${c.step}`, () => {
+      // Arrange
+      const { step } = c;
+
+      // Act
+      const budget = repairBudget(step);
+
+      // Assert
+      assertRuntimeBudget(budget, `repair of ${step}`);
     });
   }
 });
