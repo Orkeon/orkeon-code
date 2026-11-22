@@ -71,3 +71,15 @@ export function assertBridgeExample(settings: any): void {
   assert.deepEqual(bridge.Allow, ["firefox"], "the bridge example does not send firefox alone");
   assert.equal(bridge.Token, undefined, "the bridge example holds a token");
 }
+
+/** The agent-cli example: its `subscription` profile runs on the agent-cli provider, names no key nor key variable,
+ *  and falls back on the default profile, which reads its key from ANTHROPIC_API_KEY; Llm:AgentCli drives `claude`. */
+export function assertAgentCliExample(settings: any): void {
+  const subscription = settings.Llm.Profiles.subscription;
+  assert.equal(subscription.Provider, "agent-cli", "Llm:Profiles:subscription is not on the agent-cli provider");
+  assert.equal(subscription.ApiKey, undefined, "Llm:Profiles:subscription holds a key");
+  assert.equal(subscription.ApiKeyEnvVar, undefined, "Llm:Profiles:subscription names a key variable");
+  assert.deepEqual(subscription.Fallback, ["default"], "Llm:Profiles:subscription does not fall back on the default profile");
+  assert.equal(settings.Llm.ApiKeyEnvVar, "ANTHROPIC_API_KEY", "the default profile does not read ANTHROPIC_API_KEY");
+  assert.equal(settings.Llm.AgentCli.Engine, "claude", "Llm:AgentCli:Engine is not claude");
+}

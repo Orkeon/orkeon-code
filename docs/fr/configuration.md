@@ -168,8 +168,48 @@ vise `https://api.anthropic.com` avec `claude-opus-5-5` et la clé dans `ANTHROP
 Max inclut des crédits API mensuels (100 USD sur Max 5x, 200 USD sur Max 20x, sans report), dépensés par une clé API de
 l'organisation Anthropic Console liée au plan (sur claude.ai, Settings, Billing, API credits, Link organization ; le
 lien se fait une fois) ; au-delà, la clé est facturée aux tarifs à l'usage de l'API. La connexion avec le plan lui-même
-est réservée aux applications d'Anthropic et n'est pas un moyen de lancer Orkeon Code. L'exemple ne fixe pas de
-`Temperature` : la génération Claude actuelle en refuse une, et Orkeon n'envoie que ce que le fichier fixe.
+est réservée aux applications d'Anthropic : le [fournisseur `agent-cli`](#claude-sur-un-abonnement-le-fournisseur-agent-cli)
+en pilote une. L'exemple ne fixe pas de `Temperature` : la génération Claude actuelle en refuse une, et Orkeon
+n'envoie que ce que le fichier fixe.
+
+### Claude sur un abonnement : le fournisseur `agent-cli`
+
+- **Expérimental**, dans Orkeon (`ORKEXP010`, Orkeon #470, son ADR-020), et pour un usage personnel : l'abonnement est
+  celui de qui le lance.
+- Un profil écrit `"Provider": "agent-cli"` reçoit ses réponses de la commande `claude` de cette machine (la CLI d'agent d'Anthropic
+  en mode print, `claude -p`), connectée à son propre abonnement. Orkeon garde l'historique et les outils : la CLI
+  tourne sans aucun des siens, et chaque appel d'outil passe par le pipeline d'Orkeon et la porte des permissions comme
+  sur tout fournisseur.
+- Aucune clé API : Orkeon retire toute variable `ANTHROPIC_*` de l'environnement de la CLI, et refuse une réponse
+  faite sur une clé plutôt que sur la connexion (`Llm:AgentCli:RequireLogin`, `true`).
+- Avant le premier lancement : `claude` sur le `PATH`, connecté une fois (`claude /login`).
+- Mode source seulement (`ORKEON_CODE_MODE=source`, un checkout d'Orkeon au pin) : l'image docker n'a ni `claude` ni sa
+  connexion, et l'outil 1.3.0 est antérieur au fournisseur.
+- [`config/appsettings.agent-cli.example.json`](../../config/appsettings.agent-cli.example.json) est l'exemple :
+  celui d'Anthropic, son profil par défaut sur `ANTHROPIC_API_KEY`, plus un profil `subscription` sur `agent-cli` dont
+  le `Fallback` est `default`. Copiez-le, puis `/config set llm.profile subscription` : chaque crew qu'une commande
+  lance construit ses agents dessus.
+- Une limite de l'abonnement arrive à Orkeon comme une limite de débit, donc `Fallback` passe l'appel au profil sur la
+  clé.
+- `Llm:AgentCli` dit à Orkeon comment démarrer la CLI, partagé par tous les profils sur le fournisseur :
+  - `Engine` : `claude`, le seul ;
+  - `Command` : l'exécutable, `claude` sur le `PATH` ou un chemin complet ;
+  - `MaxProcesses` : les processus de CLI vivants à la fois, 4 par défaut ; au-delà, un inactif est fermé, jamais
+    d'attente ;
+  - `MaxToolResultCharacters` : le plus long résultat d'outil remis à la CLI, 100000 par défaut ;
+  - `AutocompactTokens` : là où la CLI compacterait d'elle-même, gardé au-dessus de toute fenêtre puisqu'Orkeon
+    compacte d'abord ;
+  - `RequireLogin` : ci-dessus.
+- Coût : chaque appel est compté à 0, donc `/usage` et `/status` affichent `$0.0000`, jamais `unpriced`. Ce que
+  l'appel aurait coûté sur l'API reste dans les métadonnées de l'appel sous `agent_cli_notional_cost_usd` ; Orkeon
+  Code ne l'affiche pas.
+- Les options que la CLI ne peut recevoir ne sont pas envoyées, chacune signalée une fois par exécution :
+  `Temperature`, `MaxTokens`, top-p et les pénalités, une graine, des séquences d'arrêt, un format de réponse, la
+  réflexion et donc `/effort`, les points de cache, `Llm:WorkspaceId`, un mode d'outil obligatoire.
+- `compaction.prune` et le routage de `route.agents` sont jugés par le modèle de décision du runtime, jamais par ce
+  fournisseur : ils demandent un [fournisseur de décision](decision-models-local.md) comme sur tout autre LLM.
+- Les réponses peuvent différer de celles du même modèle derrière l'API : le prompt système de la CLI entoure
+  celui d'Orkeon.
 
 L'agent appelle des outils à travers chaque fournisseur : la boucle d'outils du runtime (`ctx.llm.act`) lit les appels
 d'outils des formats Anthropic et OpenAI, exécute les appels de lecture d'un tour du modèle jusqu'à

@@ -14,7 +14,7 @@ export const load = (name: string): any => JSON.parse(readFileSync(new URL(name,
 export const PROMISED_EXAMPLES: readonly string[] = [
   "appsettings.example.json", "appsettings.anthropic.example.json", "appsettings.ollama.example.json",
   "appsettings.ollama-whisper.example.json", "appsettings.jev.example.json", "appsettings.kev.example.json",
-  "appsettings.liquid.example.json", "appsettings.bridge.example.json",
+  "appsettings.liquid.example.json", "appsettings.bridge.example.json", "appsettings.agent-cli.example.json",
 ];
 
 /** The examples that are fragments to merge into a settings file, not settings a REPL starts on alone. */
@@ -48,6 +48,12 @@ export function commentKeysBelowRoot(node: unknown, path: string[] = [], found: 
     commentKeysBelowRoot(value, here, found);
   }
   return found;
+}
+
+/** The settings but for their comment, their Llm:Profiles and their Llm:AgentCli. */
+export function withoutCommentProfilesAndAgentCli(settings: any): Record<string, unknown> {
+  const { _comment, Llm: { Profiles, AgentCli, ...llm }, ...rest } = settings;
+  return { ...rest, Llm: llm };
 }
 
 /** The settings but for their comment and their Llm section. */

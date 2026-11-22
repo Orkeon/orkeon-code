@@ -157,8 +157,42 @@ targets `https://api.anthropic.com` with `claude-opus-5-5` and the key in `ANTHR
 plan includes monthly API credits (100 USD on Max 5x, 200 USD on Max 20x, no rollover), spent through an API key of the
 Anthropic Console organisation linked to the plan (on claude.ai, Settings, Billing, API credits, Link organization; the
 link is made once); beyond them the key is billed at the API's usage rates. Signing in with the plan itself is reserved
-to Anthropic's own applications and is not a way to run Orkeon Code. The example sets no `Temperature`: the current
-Claude generation refuses one, and Orkeon sends only what the file sets.
+to Anthropic's own applications: the [`agent-cli` provider](#claude-on-a-subscription-the-agent-cli-provider) drives
+one of them. The example sets no `Temperature`: the current Claude generation refuses one, and Orkeon sends only what
+the file sets.
+
+### Claude on a subscription: the `agent-cli` provider
+
+- **Experimental**, in Orkeon (`ORKEXP010`, Orkeon #470, its ADR-020), and for personal use: the subscription is that
+  of whoever runs it.
+- A profile written `"Provider": "agent-cli"` is answered by the `claude` command of this machine (Anthropic's agent CLI in print
+  mode, `claude -p`), signed in to its own subscription. Orkeon keeps the history and the tools: the CLI runs with none
+  of its own, and each tool call goes through Orkeon's pipeline and the permission gate as on any provider.
+- No API key: Orkeon removes every `ANTHROPIC_*` variable from the CLI's environment, and refuses an answer made on a
+  key rather than the login (`Llm:AgentCli:RequireLogin`, `true`).
+- Before the first run: `claude` on the `PATH`, signed in once (`claude /login`).
+- Source mode only (`ORKEON_CODE_MODE=source`, an Orkeon checkout at the pin): the docker image has neither `claude`
+  nor its login, and the 1.3.0 tool predates the provider.
+- [`config/appsettings.agent-cli.example.json`](../config/appsettings.agent-cli.example.json) is the example: the
+  Anthropic one, its default profile on `ANTHROPIC_API_KEY`, plus a profile `subscription` on `agent-cli` whose
+  `Fallback` is `default`. Copy it, then `/config set llm.profile subscription`: every crew a command launches builds
+  its agents on it.
+- A subscription limit reaches Orkeon as a rate limit, so `Fallback` moves the call to the profile on the key.
+- `Llm:AgentCli` tells Orkeon how to start the CLI, shared by every profile on the provider:
+  - `Engine`: `claude`, the only one;
+  - `Command`: the executable, `claude` on the `PATH` or a full path;
+  - `MaxProcesses`: CLI processes alive at once, 4 by default; past it an idle one is closed, never a wait;
+  - `MaxToolResultCharacters`: the longest tool result handed to the CLI, 100000 by default;
+  - `AutocompactTokens`: where the CLI would compact on its own, kept above every window since Orkeon compacts first;
+  - `RequireLogin`: above.
+- Cost: every call is priced at 0, so `/usage` and `/status` show `$0.0000`, never `unpriced`. What the call would
+  have cost on the API stays in the call's metadata as `agent_cli_notional_cost_usd`; Orkeon Code does not show it.
+- Options the CLI cannot receive are not sent, each warned about once per run: `Temperature`, `MaxTokens`, top-p and
+  the penalties, a seed, stop sequences, a response format, thinking and so `/effort`, cache breakpoints,
+  `Llm:WorkspaceId`, a required tool mode.
+- `compaction.prune` and the routing of `route.agents` are judged by the host's decision model, never by this
+  provider: they need a [decision provider](decision-models-local.md) as on any other LLM.
+- The answers may differ from the same model behind the API: the CLI's own system prompt surrounds Orkeon's.
 
 The agent calls tools through every provider: the runtime's tool loop (`ctx.llm.act`) reads the tool calls of the
 Anthropic and OpenAI formats, runs the read calls of a model turn up to `MaxParallelToolCalls` at once and the

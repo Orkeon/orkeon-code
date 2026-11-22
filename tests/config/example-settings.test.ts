@@ -2,10 +2,10 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import {
   commentKeysBelowRoot, DECISION_EXAMPLES, FRAGMENTS, listExamples, load, NAMED_DECISION_EXAMPLES, PROMISED_EXAMPLES, RESULT_LIMITS, withoutCommentAndLlm,
-  withoutCommentOrkeonAndMcp, withoutCommentProfilesAndDecision,
+  withoutCommentOrkeonAndMcp, withoutCommentProfilesAndAgentCli, withoutCommentProfilesAndDecision,
 } from "./example-settings.fixtures.ts";
 import {
-  assertBridgeExample, assertExamplesInclude, assertFallbacksKnown, assertJevExampleKeyless, assertNamedDecisionExample, assertSameAsJevButProvider,
+  assertAgentCliExample, assertBridgeExample, assertExamplesInclude, assertFallbacksKnown, assertJevExampleKeyless, assertNamedDecisionExample, assertSameAsJevButProvider,
   assertWhisperMounts,
 } from "./example-settings.assertions.ts";
 
@@ -15,7 +15,7 @@ import {
 // Every config/*.example.json is such an example.
 const examples = listExamples();
 
-test("the example settings exist: the default, Anthropic, Ollama, Ollama and Whisper, Jev, Kev, Liquid and tool bridge ones", () => {
+test("the example settings exist: the default, Anthropic, Ollama, Ollama and Whisper, Jev, Kev, Liquid, tool bridge and agent-cli ones", () => {
   // Arrange
   const expected = PROMISED_EXAMPLES;
 
@@ -66,6 +66,30 @@ test("the Anthropic example differs from the default one in its Llm section and 
   assert.equal(anthropic.Llm.ApiKeyEnvVar, "ANTHROPIC_API_KEY");
   assert.equal(anthropic.Llm.Temperature, undefined);
   assert.ok(anthropic.Llm.AvailableModels.includes(anthropic.Llm.Model));
+});
+
+// The agent-cli example is the Anthropic one with a profile on a Claude subscription (Orkeon #470, ADR-020 of Orkeon):
+// the same file but for its comment, its Llm:Profiles and its Llm:AgentCli.
+test("the agent-cli example differs from the Anthropic one in its profiles, its Llm:AgentCli and its comment only", () => {
+  // Arrange
+  const anthropic = load("appsettings.anthropic.example.json");
+
+  // Act
+  const agentCli = load("appsettings.agent-cli.example.json");
+
+  // Assert
+  assert.deepEqual(withoutCommentProfilesAndAgentCli(agentCli), withoutCommentProfilesAndAgentCli(anthropic));
+});
+
+test("the agent-cli example runs its subscription profile on agent-cli, keyless, falling back on the key-based default", () => {
+  // Arrange
+  const file = "appsettings.agent-cli.example.json";
+
+  // Act
+  const settings = load(file);
+
+  // Assert
+  assertAgentCliExample(settings);
 });
 
 // The Ollama example is the default one on a model of this machine: the same file but for its
