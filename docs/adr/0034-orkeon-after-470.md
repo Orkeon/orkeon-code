@@ -60,7 +60,7 @@ The pin moves from `5dc2ff3` to Orkeon `main` `cf521d3`, five merges later:
   when the pick is unsure or missing, as a launch does. Under a session's profile such an act stays where its crew
   runs.
 - **The request is sent whole.** One line names the crew, then the command as typed: the runtime frames it and
-  cuts it to its decision model's size. `route.ladder` refuses a rung named twice, whatever its case.
+  cuts it in its middle past 4,000 characters. `route.ladder` refuses a rung named twice, whatever its case.
 - **The bounds follow the pick's contract.**
   The pick holds only a `model` answer between floor and ceiling, never its fallback, and throws on a floor above the
   ceiling. So the floor is capped at the session's rung. For a session on the host's default model, with no
@@ -78,7 +78,7 @@ The pin moves from `5dc2ff3` to Orkeon `main` `cf521d3`, five merges later:
 
 ## Consequences
 
-- `/route why` shows the runtime's reason and the probability of its pick, for the choices the pick made, and what stood when it
+- `/route why` shows why the pick answered what it did (its reason, in words) and the probability of its pick, for the choices the pick made, and what stood when it
   decided nothing. A record kept before this change is read when its reason is one a choice carries, dropped
   otherwise.
 - The tool and docker modes run `1.3.0`, eleven commits behind the pin: `act` knows no `prune` there and the host

@@ -22,8 +22,8 @@ Orkeon Code fait ce qu'il fait réglage éteint.
 | Suggérer des skills | `/skills suggest on` | les skills du projet qui conviennent à la demande d'un tour | [le tour](turn.md#suggérer-des-skills-pour-un-tour) |
 
 L'élagage et le routage demandent le runtime de l'épingle, le mode source. Les modes tool et docker lancent la
-dernière release, où les deux réglages sont lus et ne font rien, sans avertissement qui leur soit propre : un hôte sans
-modèle de décision reçoit toujours l'habituel
+dernière release, où les deux réglages sont lus et ne font rien, sans avertissement qui leur soit propre : un
+runtime sans modèle de décision donne toujours l'avertissement habituel
 ([ADR 0034](../adr/0034-orkeon-after-470.md), en anglais).
 
 Les mesures ci-dessous sont du 2026-11-11 : `jev-latest` (le Jev hébergé) décide, `glm-5.3-flashx` (Z.AI) répond,
@@ -101,12 +101,14 @@ plus que ceux-ci.
 Les agents d'un crew tournent tous sur un profil LLM du runtime, celui de la session. Avec `route.agents` à `on`, au
 lancement de `/dev-spec` (et son alias `/dev-change`), `/dev-plan`, `/dev-learn`, `/review`, `/analyze`, `/commit`, `/init` et
 `/init-verifiers`, le choix System One du runtime lit la commande et choisit un profil de
-`route.ladder` (`small,large` si omis, du moins cher au plus cher). Orkeon Code ne pose aucune question à lui : il
-donne au choix l'échelle, le plancher que `.orkeon/route-rules.json` fixe pour le crew ou pour un chemin que la
+`route.ladder` (`small,large` si omis, du moins cher au plus cher). Orkeon Code ne pose aucune question qui lui soit
+propre : il donne au choix l'échelle, le plancher que `.orkeon/route-rules.json` fixe pour le crew ou pour un chemin que la
 commande nomme, et le profil de la session comme plafond et comme repli. Le runtime suit son modèle de décision quand
-la probabilité du choix atteint 0,6, le relève au plancher et jamais au-dessus du plafond ; sous ce seuil ou sans
-réponse, le repli reste. Une session dont le barreau est le seul restant, le plus bas ou le plancher d'une règle,
-ne demande rien et tourne sur son profil.
+la probabilité du choix atteint 0,6, le relève au plancher sans jamais dépasser le plafond ; sous ce seuil ou sans
+réponse, le repli reste. Une session sur un barreau de l'échelle dont le barreau est le seul restant (le plus bas, ou le
+plancher d'une règle à ce barreau ou au-dessus) ne demande rien et tourne sur son profil. Une session sur le modèle par
+défaut du runtime n'est jamais retenue ainsi : sous une règle dont le plancher est le barreau le plus haut, le runtime
+répond sans appeler de modèle et le lancement tourne sur ce barreau.
 
 Un runtime dont le circuit de décision est éteint, ou un choix qui refuse une option, ne route rien : un
 avertissement du journal dit pourquoi, et `/route why` ne le liste pas. `/route why` montre les cinq derniers choix

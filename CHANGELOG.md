@@ -17,19 +17,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   log line still says what each act judged, removed and cut ([the turn](docs/turn.md#pruning-the-tool-loop)).
 - With `route.agents` on, a crew's launch and a sub-agent's act are routed by the runtime's System One pick
   (Orkeon #460, #463) in place of this project's questions: the same ladder, floors and ceiling, the runtime's
-  threshold. The command is sent whole: the runtime cuts it to its decision model's size
+  threshold. The command is sent whole: the runtime frames it and cuts it in its middle past 4,000 characters
   ([the turn](docs/turn.md#routing-a-crew-to-a-profile)).
-- `/route why` and the log line show the runtime's reason, the probability of its pick and, when the pick decided
-  nothing, what stood: the session's profile, a rule's floor, the host's default model or an act's crew profile. A
-  stored record whose reason is not one of a choice is dropped.
-- A session whose own rung is the one rung left, the lowest or a rule's floor, asks nothing: no call, no log line,
+- `/route why` and the log line show why the pick answered what it did (its reason, in words), the probability of
+  its pick and, when the pick decided nothing, what stood: the session's profile, a rule's floor, the host's default model or an act's crew profile. A
+  stored record whose reason is not one of a choice, whose field has the wrong type, or kept before the pick with
+  the reason `floor`, is dropped.
+- A session on a rung of the ladder whose own rung is the one rung left (the lowest, or a rule's floor at it or
+  above) asks nothing: no call, no log line,
   no record. On the host's default model, a rule that leaves the top rung alone is shown as asked of no model.
 - On the host's default model, an act of a sub-agent takes a rule's floor also when the pick is unsure or missing.
   Under a session's profile it stays where its crew runs.
-- `route.ladder` refuses a rung named twice whatever its case (`Small,small`).
+- `route.ladder` refuses a rung named twice whatever its case (`Small,small`), and `llm.profile` and a rule's
+  profile find their rung whatever their case (`Large` on `small,large`).
 - A pick the runtime did not make routes nothing and is not listed by `/route why`: the session's profile stands,
-  and a warning names the cause. That holds for a decision circuit that is off (`circuit-off`), for no ladder
-  (`no-ladder`) and for a ladder or an option the runtime refuses, whose message the warning carries.
+  and a warning names the cause. That holds for a decision circuit the runtime finds off for the run
+  (`circuit-off`), for no ladder (`no-ladder`) and for a ladder or an option the runtime refuses, whose message the
+  warning carries. A host that wires no pick and a cancelled pick leave the session's profile without a word.
 - A pruning binding that fails costs the main loop's act its pruning, never the turn.
 - A hosted decision provider without its key now turns the decision circuit off (`no-key`). The pruning and the
   routing then warn that the host has no decision model, as they do when no provider is named

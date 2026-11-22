@@ -104,8 +104,9 @@ A crew's agents all run on one LLM profile of the host, the session's. With `rou
 pick the ladder, the floor `.orkeon/route-rules.json` sets for the crew or for a path the command names, and the
 session's own profile as the ceiling and the fallback. The runtime follows its decision model when the probability
 of the pick reaches 0.6, raises it to the floor and never above the ceiling; under the bar or without an answer the
-fallback stands. A session whose own rung is the one rung left, the lowest or a rule's floor, asks nothing and
-runs on its profile.
+fallback stands. A session on a rung of the ladder whose own rung is the one rung left (the lowest, or a rule's
+floor at it or above) asks nothing and runs on its profile. A session on the host's default model is never held so:
+under a rule whose floor is the top rung, the runtime answers without a model call and the launch runs on that rung.
 
 A runtime whose decision circuit is off, or a pick that refuses an option, routes nothing: a warning in the log
 says why, and `/route why` does not list it. `/route why` shows the last five choices
