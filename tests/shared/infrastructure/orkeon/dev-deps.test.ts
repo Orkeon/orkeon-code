@@ -207,7 +207,7 @@ describe("implementDeps and verifyDeps", () => {
     await deps.roleLlm("implementer", LAYOUT, () => undefined, []).act("go", {});
 
     // Assert
-    strictEqual(typeof asked[0].options.onContextPressure, "function");
+    strictEqual(asked[0].options.prune, true);
   });
 
   it("send the audit's act the pruning of its tool loop when compaction.prune is on and the host has a decision model", async () => {
@@ -220,7 +220,7 @@ describe("implementDeps and verifyDeps", () => {
     await verify.llm.act("Audit F2", {});
 
     // Assert
-    strictEqual(typeof asked[0].options.onContextPressure, "function");
+    strictEqual(asked[0].options.prune, true);
   });
 
   it("send a role's act no pruning when compaction.prune is not set", async () => {
@@ -233,7 +233,7 @@ describe("implementDeps and verifyDeps", () => {
     await deps.roleLlm("implementer", LAYOUT, () => undefined, []).act("go", {});
 
     // Assert
-    strictEqual("onContextPressure" in asked[0].options, false);
+    strictEqual("prune" in asked[0].options, false);
   });
 
   it("send a role's act no pruning when the host has no decision model", async () => {
@@ -247,7 +247,7 @@ describe("implementDeps and verifyDeps", () => {
     await deps.roleLlm("implementer", LAYOUT, () => undefined, []).act("go", {});
 
     // Assert
-    strictEqual("onContextPressure" in asked[0].options, false);
+    strictEqual("prune" in asked[0].options, false);
   });
 
   it("verifyDeps offers the audit's act the auditor's tools alone, never the batch agent's write tools", async () => {

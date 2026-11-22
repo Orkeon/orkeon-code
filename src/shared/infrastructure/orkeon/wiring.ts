@@ -169,6 +169,4 @@ export const orkeonActRoute = (
  *  the acts of the dev crews' sub-agents and roles. `log`, `tools` and `root` are the body's, as for orkeonActRoute.
  *  With the setting off or no decision model on the host, the acts leave as they came. */
 export const orkeonPrunedLlm = (llm: Llm, log: Pick<Logger, "info" | "warn">, tools: OrkeonTools = Tools, root?: string): Llm =>
-  prunedLlm(llm, (request) => contextPruning(
-    { config: orkeonConfigStore(tools, root), decision: orkeonDecisionModel(tools), session: orkeonSessionIo(tools), log }, request,
-  ));
+  prunedLlm(llm, () => contextPruning({ config: orkeonConfigStore(tools, root), decision: orkeonDecisionModel(tools), log }));

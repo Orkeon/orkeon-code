@@ -907,7 +907,7 @@ describe("runMainLoop — the request under the host's context", () => {
 });
 
 describe("runMainLoop — the pruning of the tool loop (compaction.prune)", () => {
-  it("hands the act what the pruning binds for the turn's request", async () => {
+  it("hands the act what the pruning binds", async () => {
     // Arrange
     const { deps, llm } = turnSetup();
     const { prune, asked } = pruneBinding();
@@ -917,8 +917,8 @@ describe("runMainLoop — the pruning of the tool loop (compaction.prune)", () =
 
     // Assert
     deepStrictEqual(
-      [asked, llm.acts[0].request.contextPressure, llm.acts[0].request.onContextPressure],
-      [["rename the port"], PRUNING.contextPressure, PRUNING.onContextPressure],
+      [asked.count, llm.acts[0].request.prune, llm.acts[0].request.onPruned],
+      [1, true, PRUNING.onPruned],
     );
   });
 
@@ -933,12 +933,12 @@ describe("runMainLoop — the pruning of the tool loop (compaction.prune)", () =
 
     // Assert
     deepStrictEqual(
-      [asked, llm.acts.map((act) => act.request.onContextPressure)],
-      [["explain", "explain"], [PRUNING.onContextPressure, PRUNING.onContextPressure]],
+      [asked.count, llm.acts.map((act) => act.request.onPruned)],
+      [2, [PRUNING.onPruned, PRUNING.onPruned]],
     );
   });
 
-  it("sends an act without a pressure callback when nothing binds the pruning", async () => {
+  it("sends an act without a pruning when nothing binds one", async () => {
     // Arrange
     const { deps, llm } = turnSetup();
 
@@ -946,7 +946,7 @@ describe("runMainLoop — the pruning of the tool loop (compaction.prune)", () =
     await runMainLoop({ prompt: "rename the port" }, DEFAULT_LOADED, deps);
 
     // Assert
-    strictEqual("onContextPressure" in llm.acts[0].request, false);
+    strictEqual("prune" in llm.acts[0].request, false);
   });
 });
 

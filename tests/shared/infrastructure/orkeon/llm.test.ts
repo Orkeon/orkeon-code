@@ -7,8 +7,9 @@ import { agentLlm, createLlm } from "../../../../src/shared/infrastructure/orkeo
 import { FakeLlmFacade } from "../../../support/doubles/fake-llm-facade.ts";
 import {
   ACT_ANSWERS, ACT_FAILURE_MARKERS, COMPLETIONS, CONTEXT_CASES, DISK_READ, EFFORTS, EFFORTS_SENT, FILE_SYSTEM_CASES, FILE_SYSTEM_SECTION, GATES,
-  REQUESTS, SCHEMA, VIRTUAL_READ, actCallbacksOf, llmWithCallbacks,
+  PRUNED_RESULT, PRUNED_TALLY, REQUESTS, SCHEMA, VIRTUAL_READ, actCallbacksOf, llmWithCallbacks,
 } from "./llm.fixtures.ts";
+import type { PruneTally } from "../../../../src/shared/domain/context-prune.ts";
 import { windowsHost } from "../../../support/fixtures/host-context.ts";
 
 describe("createLlm — act with the crew's tool callbacks", () => {
@@ -117,17 +118,53 @@ describe("createLlm — act", () => {
     deepStrictEqual(facade.calls.map((c) => c.args), [["p", { maxIterations: 5, tools: ["file_read", "run_tests"] }]]);
   });
 
-  it("hands the runtime an act's context pressure callback and its settings as they are", async () => {
+  it("hands the runtime an act's prune as it is, never its onPruned", async () => {
     // Arrange
     const facade = new FakeLlmFacade();
-    const onContextPressure = async () => ({});
-    const contextPressure = { thresholdTokens: 80_000, keepRecent: 6, headChars: 300 };
 
     // Act
-    await createLlm(facade).act("p", { onContextPressure, contextPressure });
+    await createLlm(facade).act("p", { prune: true, onPruned: () => undefined });
 
     // Assert
-    deepStrictEqual(facade.calls.map((c) => c.args), [["p", { onContextPressure, contextPressure }]]);
+    deepStrictEqual(facade.calls.map((c) => c.args), [["p", { prune: true }]]);
+  });
+
+  it("hands onPruned the tally of the act's result", async () => {
+    // Arrange
+    const facade = new FakeLlmFacade();
+    facade.actResult = { output: "done", iterations: 4, pruned: PRUNED_RESULT };
+    const tallies: PruneTally[] = [];
+
+    // Act
+    await createLlm(facade).act("p", { prune: true, onPruned: (tally) => tallies.push(tally) });
+
+    // Assert
+    deepStrictEqual(tallies, [PRUNED_TALLY]);
+  });
+
+  it("hands onPruned the tally of an act stopped at its iteration cap before it throws", async () => {
+    // Arrange
+    const facade = new FakeLlmFacade();
+    facade.actResult = { output: "(max iterations)", iterations: 40, exhausted: true, pruned: PRUNED_RESULT };
+    const tallies: PruneTally[] = [];
+
+    // Act
+    await createLlm(facade).act("p", { prune: true, onPruned: (tally) => tallies.push(tally) }).catch(() => undefined);
+
+    // Assert
+    deepStrictEqual(tallies, [PRUNED_TALLY]);
+  });
+
+  it("calls no onPruned when the act's result carries no tally", async () => {
+    // Arrange
+    const facade = new FakeLlmFacade();
+    const tallies: PruneTally[] = [];
+
+    // Act
+    await createLlm(facade).act("p", { prune: true, onPruned: (tally) => tallies.push(tally) });
+
+    // Assert
+    deepStrictEqual(tallies, []);
   });
 
   it("lets a failing call reject", async () => {

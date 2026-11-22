@@ -173,16 +173,13 @@ export const PROFILED_INPUT = { prompt: "go", permissionMode: "plan", llmProfile
 export const PROFILE_OVERRIDE_WARNING = "warn: /model override 'gpt-x' ignored: llm.profile guarded is active";
 
 /** What a bound pruning hands an act. */
-export const PRUNING = {
-  contextPressure: { thresholdTokens: 80_000, keepRecent: 6, headChars: 300 },
-  onContextPressure: async () => ({}),
-};
+export const PRUNING = { prune: true as const, onPruned: () => undefined };
 
-/** The `prune` of a turn's ports: PRUNING for every act, `asked` listing the requests it was bound for. */
+/** The `prune` of a turn's ports: PRUNING for every act, `asked.count` the bindings asked for. */
 export function pruneBinding() {
-  const asked: string[] = [];
-  const prune = async (request: string) => {
-    asked.push(request);
+  const asked = { count: 0 };
+  const prune = async () => {
+    asked.count += 1;
     return PRUNING;
   };
   return { prune, asked };
