@@ -5,7 +5,7 @@ import { describe, it } from "node:test";
 
 import { actRoute, routeAgent } from "../../../../src/shared/application/agents/route-agent.ts";
 import {
-  ACT_LINES, ACT_ROUTES, BILLING_TASK, HELD_CASES, LINE_CASES, NO_CHOICE, NO_MODEL_WARNING, OPTIONS_CASES, OUTSIDE_LADDER_LINE,
+  ACT_FLOOR_RECORD, ACT_LINES, ACT_ROUTES, ACT_UNDER_FLOOR, BILLING_TASK, HELD_CASES, LINE_CASES, NO_CHOICE, NO_MODEL_WARNING, OPTIONS_CASES, OUTSIDE_LADDER_LINE,
   REASON_CASES, REVIEW_TASK, RULES_PATH, SMALL_RECORD, TASK, UNSURE_RECORD, answer, answeredSetup, routeSetup,
 } from "./route-agent.fixtures.ts";
 
@@ -196,4 +196,15 @@ describe("actRoute", () => {
       deepStrictEqual(log.lines, c.lines);
     });
   }
+
+  it("keeps the floor an act was moved to, for /route why", async () => {
+    // Arrange
+    const { deps, session } = answeredSetup(ACT_UNDER_FLOOR);
+
+    // Act
+    await actRoute(deps, ACT_UNDER_FLOOR.profiles)(REVIEW_TASK);
+
+    // Assert
+    deepStrictEqual(JSON.parse(session.state.get("route_recent") ?? "[]"), ACT_FLOOR_RECORD);
+  });
 });

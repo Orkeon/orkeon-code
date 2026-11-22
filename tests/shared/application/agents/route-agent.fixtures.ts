@@ -199,6 +199,12 @@ export const NO_CHOICE: readonly { name: string; answer: Answer; lines: readonly
 
 export const REVIEW_TASK = { crew: "dev-reviewer", brief: "Review the plan of invoice-export" };
 
+/** An unsure pick for an act whose crew runs on `small`, under the floor `medium` of a rule, the session on `large`. */
+export const ACT_UNDER_FLOOR = {
+  answer: answer("large", "low-confidence", "small", 0.5), profiles: { session: "large", crew: "small" }, rules: REVIEWER_ON_MEDIUM, ladder: THREE_RUNGS,
+};
+export const ACT_FLOOR_RECORD = [{ crew: "dev-reviewer", profile: "medium", reason: "low-confidence", picked: "small", probability: 0.5, stands: "floor" }];
+
 interface ActRouteCase extends Ground {
   name: string;
   setting?: string | null;
@@ -227,6 +233,34 @@ export const ACT_ROUTES: readonly ActRouteCase[] = [
   {
     name: "moves an act to a rule's floor when the decision model does not answer, on the host's default model",
     answer: answer("medium", "no-answer"), profiles: { session: null, crew: null }, profile: "medium", rules: REVIEWER_ON_MEDIUM, ladder: THREE_RUNGS,
+  },
+  {
+    name: "moves an act of a crew under a rule's floor to that floor when the pick is not sure, under a session's profile",
+    answer: answer("large", "low-confidence", "small", 0.5), profiles: { session: "large", crew: "small" }, profile: "medium",
+    rules: REVIEWER_ON_MEDIUM, ladder: THREE_RUNGS,
+  },
+  {
+    name: "moves an act of a crew under a rule's floor to that floor when the decision model does not answer, under a session's profile",
+    answer: answer("large", "no-answer"), profiles: { session: "large", crew: "small" }, profile: "medium", rules: REVIEWER_ON_MEDIUM, ladder: THREE_RUNGS,
+  },
+  {
+    name: "moves an act of a crew on no rung of the ladder to a rule's floor when the pick is not sure",
+    answer: answer("large", "low-confidence", "small", 0.5), profiles: { session: "large", crew: "guarded" }, profile: "medium",
+    rules: REVIEWER_ON_MEDIUM, ladder: THREE_RUNGS,
+  },
+  {
+    name: "leaves an act of a crew on a rule's floor where it is when the pick is not sure",
+    answer: answer("large", "low-confidence", "small", 0.5), profiles: { session: "large", crew: "medium" }, profile: null,
+    rules: REVIEWER_ON_MEDIUM, ladder: THREE_RUNGS,
+  },
+  {
+    name: "leaves an act of a crew above a rule's floor where it is when the decision model does not answer",
+    answer: answer("large", "no-answer"), profiles: { session: "large", crew: "large" }, profile: null, rules: REVIEWER_ON_MEDIUM, ladder: THREE_RUNGS,
+  },
+  {
+    name: "leaves an act of a crew above a rule's floor where it is when the pick is not sure, on the host's default model",
+    answer: answer("medium", "low-confidence", "small", 0.5), profiles: { session: null, crew: "large" }, profile: null,
+    rules: REVIEWER_ON_MEDIUM, ladder: THREE_RUNGS,
   },
   { name: "leaves an act where it is when the pick is the crew's profile", answer: answer("small", "model", "small", 0.9), profiles: { session: "large", crew: "small" }, profile: null },
   { name: "leaves an act on the session's lowest rung, the crew's own", answer: null, profiles: { session: "small", crew: "small" }, profile: null },
@@ -261,6 +295,16 @@ export const ACT_LINES: readonly ActLineCase[] = [
     name: "says the act takes a rule's floor when the pick is not sure, on the host's default model",
     answer: answer("medium", "low-confidence", "small", 0.5), profiles: { session: null, crew: "small" }, rules: REVIEWER_ON_MEDIUM, ladder: THREE_RUNGS,
     lines: ["info: route: dev-reviewer on 'medium' (the pick was not sure enough, the floor of a rule of .orkeon/route-rules.json stands; picked 'small' at 0.50)"],
+  },
+  {
+    name: "says the act takes a rule's floor when the pick is not sure and its crew runs under it, under a session's profile",
+    answer: answer("large", "low-confidence", "small", 0.5), profiles: { session: "large", crew: "small" }, rules: REVIEWER_ON_MEDIUM, ladder: THREE_RUNGS,
+    lines: ["info: route: dev-reviewer on 'medium' (the pick was not sure enough, the floor of a rule of .orkeon/route-rules.json stands; picked 'small' at 0.50)"],
+  },
+  {
+    name: "says the act stays on its crew's profile when the pick is not sure and its crew runs above a rule's floor",
+    answer: answer("large", "low-confidence", "small", 0.5), profiles: { session: "large", crew: "large" }, rules: REVIEWER_ON_MEDIUM, ladder: THREE_RUNGS,
+    lines: ["info: route: dev-reviewer on 'large' (the pick was not sure enough, the act stays on its crew's profile; picked 'small' at 0.50)"],
   },
   {
     name: "says nothing of an act moved to the session's rung, the one rung a rule leaves", answer: null, profiles: { session: "medium", crew: "small" },

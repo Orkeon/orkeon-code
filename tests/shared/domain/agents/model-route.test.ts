@@ -5,11 +5,11 @@ import { deepStrictEqual, strictEqual } from "node:assert";
 
 import {
   asOnLadder, ladderOf, ladderProblem, parseRecords, parseRouteRules, routable, routeBounds, routeDecided, routeFloor, routeHeld, routeNotAsked,
-  routeOn, routeState, withRecord,
+  routeOn, routeState, underFloor, withRecord,
 } from "../../../../src/shared/domain/agents/model-route.ts";
 import {
   BOUNDS_CASES, DECIDED_REASONS, FLOOR_CASES, HELD_CASES, LADDER, LADDER_CASES, LADDER_PROBLEM_CASES, LONG_BRIEF, NOT_ASKED_REASONS, OLD_RECORD, ROOT_RULES,
-  ROUTABLE_CASES, RULES, RULES_TEXT_CASES, SPELLING_CASES, record,
+  ROUTABLE_CASES, RULES, RULES_TEXT_CASES, SPELLING_CASES, UNDER_FLOOR_CASES, record,
 } from "./model-route.fixtures.ts";
 
 describe("routeOn", () => {
@@ -135,6 +135,21 @@ describe("routeHeld", () => {
 
       // Assert
       strictEqual(held, c.held);
+    });
+  }
+});
+
+describe("underFloor", () => {
+  for (const c of UNDER_FLOOR_CASES) {
+    it(c.name, () => {
+      // Arrange
+      const profile = c.profile;
+
+      // Act
+      const under = underFloor(LADDER, profile, c.floor);
+
+      // Assert
+      strictEqual(under, c.under);
     });
   }
 });

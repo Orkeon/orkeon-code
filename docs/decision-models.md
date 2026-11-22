@@ -113,7 +113,8 @@ says why, and `/route why` does not list it. `/route why` shows the last five ch
 
 Inside a crew, the act of a reviewer (`/dev-spec`, `/dev-change`, `/dev-plan`, the next batch of `/dev-batches`)
 and of the auditor of `/dev-verify` is routed the same way, for that one call. When the pick is unsure or missing
-the act stays where its crew runs; on the host's default model it takes a rule's floor instead: see
+the act stays where its crew runs, unless the crew runs under a rule's floor: the act then takes that floor,
+whatever the session's profile: see
 [Routing a crew to a profile](turn.md#routing-a-crew-to-a-profile). Two runs of it are
 [measured below](#measured-dev-spec-then-dev-plan-routed-and-not).
 

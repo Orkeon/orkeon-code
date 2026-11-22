@@ -50,9 +50,9 @@ The pin moves from `5dc2ff3` to Orkeon `main` `e7b9bdf`, three merges later:
   runtime gives without a model call, a rule leaving the top rung alone, is recorded as asked of no model.
 - **A choice that decides nothing says what stood.** Under the bar or without an answer, the line and the record
   name the session's profile, a rule's floor, the host's default model or, for an act, its crew's profile.
-- **A floor holds for an act on the host's default model.** There an act of a sub-agent takes a rule's floor also
-  when the pick is unsure or missing, as a launch does. Under a session's profile such an act stays where its crew
-  runs.
+- **A floor is a minimum for an act.** When the pick is unsure or missing, an act of a sub-agent whose crew runs
+  under a rule's floor, on a lower rung or on no rung of the ladder, takes the floor's rung, whatever the session's
+  profile. A crew at the floor or above it keeps its act, as does every crew without a rule.
 - **The request is sent whole.** One line names the crew, then the command as typed: the runtime frames it and
   cuts it to its decision model's size. `route.ladder` refuses a rung named twice, whatever its case.
 - **The bounds follow the pick's contract.**

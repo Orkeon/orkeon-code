@@ -391,8 +391,10 @@ décision sur le runtime, ce profil est choisi à chaque lancement de `/dev-spec
   - Seul l'act change de profil, pour cet appel ; le crew reste sur le sien.
   - Il bouge sur une décision : le choix du modèle, ce choix relevé à un plancher ou tenu au plafond, et le barreau
     de la session quand il est le seul restant.
-  - Sans décision (pas de réponse, un choix incertain) l'act reste là où tourne le crew. L'exception est une session
-    sur le modèle par défaut du runtime sous le plancher d'une règle : l'act prend ce plancher, comme un lancement.
+  - Sans décision (pas de réponse, un choix incertain) et sans règle, l'act reste là où tourne le crew.
+  - Sans décision sous le plancher d'une règle, ce plancher est un minimum, quel que soit le profil de la session.
+    Un crew qui tourne dessous, sur un barreau plus bas ou hors de l'échelle, a son act sur le barreau du plancher ;
+    un crew au plancher ou au-dessus garde son act. Le plancher reste borné au barreau de la session.
   - Un choix qui est le profil du crew et un barreau que le runtime ne déclare pas laissent l'act là où tourne le
     crew.
   - Un act peut monter comme descendre : un crew lancé sur `small` a sa relecture sur `large` quand le modèle le
@@ -412,6 +414,7 @@ décision sur le runtime, ce profil est choisi à chaque lancement de `/dev-spec
     message du runtime.
 - **Sans décision** : un modèle qui ne répond pas ou n'est pas sûr laisse le repli. Pour un lancement c'est le
   profil de la session ; sur le modèle par défaut du runtime, le plancher d'une règle, sinon ce modèle par défaut.
+  Pour un act c'est le profil sur lequel tourne son crew, ou le plancher d'une règle quand le crew tourne dessous.
   Le choix est journalisé et gardé, avec ce qui est resté.
 - **La trace** :
   - Chaque choix écrit la ligne de journal `route: <crew> on '<profile>' (<why>)`, sur le profil réellement

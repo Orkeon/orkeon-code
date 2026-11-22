@@ -71,6 +71,15 @@ export const HELD_CASES: readonly { readonly name: string; readonly session: str
   { name: "does not hold a session on the host's default model, whatever the floor", session: null, floor: 2, held: false },
 ];
 
+export const UNDER_FLOOR_CASES: readonly { readonly name: string; readonly profile: string | null; readonly floor: string; readonly under: boolean }[] = [
+  { name: "puts a lower rung under a floor", profile: "small", floor: "medium", under: true },
+  { name: "puts a profile that is no rung of the ladder under a floor", profile: "guarded", floor: "medium", under: true },
+  { name: "puts the host's default model under a floor", profile: null, floor: "medium", under: true },
+  { name: "does not put the floor's own rung under it", profile: "medium", floor: "medium", under: false },
+  { name: "does not put a higher rung under a floor", profile: "large", floor: "medium", under: false },
+  { name: "reads a rung whatever its case", profile: "Large", floor: "medium", under: false },
+];
+
 export const SPELLING_CASES: readonly { readonly name: string; readonly profile: string; readonly expected: string }[] = [
   { name: "spells a rung the host answers in another case as the ladder does", profile: "Medium", expected: "medium" },
   { name: "leaves a profile that is no rung as it is", profile: "Guarded", expected: "Guarded" },
