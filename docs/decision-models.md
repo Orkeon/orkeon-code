@@ -21,7 +21,8 @@ setting off.
 | Suggesting skills | `/skills suggest on` | the project's skills that fit the request of a turn | [the turn](turn.md#suggesting-skills-for-a-turn) |
 
 The pruning and the routing need the runtime of the pin, source mode. The tool and docker modes run the last
-release, where both settings are read and do nothing, without a warning
+release, where both settings are read and do nothing, without a warning of their own: a host with no
+decision model still gets the usual one
 ([ADR 0034](adr/0034-orkeon-after-470.md)).
 
 The measures below are of 2026-11-11: `jev-latest` (the hosted Jev) decides, `glm-5.3-flashx` (Z.AI) answers,

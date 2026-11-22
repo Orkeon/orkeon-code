@@ -376,7 +376,8 @@ What the table leaves out:
   [How a turn runs](turn.md#compaction-and-memory).
 - **`route.agents`** is also set by `/route on`; see [Routing a crew to a profile](turn.md#routing-a-crew-to-a-profile).
 - **Both need the runtime of the pin**, hence the source mode: in the tool and docker modes they are read and do
-  nothing, without a warning ([the modes](getting-started.md#source-mode-an-orkeon-checkout)).
+  nothing, without a warning of their own, a host with no decision model still getting the usual one
+  ([the modes](getting-started.md#source-mode-an-orkeon-checkout)).
 - **`skills.suggest`** is also set by `/skills suggest on`; see
   [Suggesting skills for a turn](turn.md#suggesting-skills-for-a-turn).
 - **`dev.workDir`** serves `/dev-status` and `/dev-learn` too. `/commit` reads it as well, and leaves the work folder

@@ -35,7 +35,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   routing then warn that the host has no decision model, as they do when no provider is named
   ([decision models locally](docs/decision-models-local.md#when-it-does-not-work)).
 - The tool and docker modes run Orkeon `1.3.0`, nine commits behind this pin: `compaction.prune` prunes nothing
-  and `route.agents` routes nothing there, without a warning. `/config` says so in the description of
+  and `route.agents` routes nothing there, without a warning of its own (a host with no decision model still gets the usual one). `/config` says so in the description of
   `compaction.prune`, and `/release-notes` names the pin as a commit of Orkeon's `main` past `1.3.0`.
 
 ### Added — the agent-cli provider example

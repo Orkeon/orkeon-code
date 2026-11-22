@@ -22,7 +22,8 @@ Orkeon Code fait ce qu'il fait réglage éteint.
 | Suggérer des skills | `/skills suggest on` | les skills du projet qui conviennent à la demande d'un tour | [le tour](turn.md#suggérer-des-skills-pour-un-tour) |
 
 L'élagage et le routage demandent le runtime de l'épingle, le mode source. Les modes tool et docker lancent la
-dernière release, où les deux réglages sont lus et ne font rien, sans avertissement
+dernière release, où les deux réglages sont lus et ne font rien, sans avertissement qui leur soit propre : un hôte sans
+modèle de décision reçoit toujours l'habituel
 ([ADR 0034](../adr/0034-orkeon-after-470.md), en anglais).
 
 Les mesures ci-dessous sont du 2026-11-11 : `jev-latest` (le Jev hébergé) décide, `glm-5.3-flashx` (Z.AI) répond,

@@ -400,7 +400,8 @@ Ce que le tableau laisse de côté :
 - **`route.agents`** se règle aussi par `/route on` ; voir
   [Router un crew vers un profil](turn.md#router-un-crew-vers-un-profil).
 - **Les deux demandent le runtime de l'épingle**, donc le mode source : dans les modes tool et docker ils sont lus
-  et ne font rien, sans avertissement ([les modes](getting-started.md#mode-source--un-checkout-dorkeon)).
+  et ne font rien, sans avertissement qui leur soit propre, un hôte sans modèle de décision recevant toujours l'habituel
+  ([les modes](getting-started.md#mode-source--un-checkout-dorkeon)).
 - **`skills.suggest`** se règle aussi par `/skills suggest on` ; voir
   [Suggérer des skills pour un tour](turn.md#suggérer-des-skills-pour-un-tour).
 - **`dev.workDir`** sert aussi à `/dev-status` et à `/dev-learn`. `/commit` le lit également, et laisse le dossier de
