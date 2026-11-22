@@ -1,4 +1,5 @@
 // The text the compaction reports: its progress phases, its log lines and the outcome of a snip.
+import { NO_DECISION_MODEL_CAUSES } from "../messages.ts";
 
 export const PHASE_SUMMARY = "synthesizing the summary";
 export const PHASE_RECENT_FILES = "restoring recent files";
@@ -15,7 +16,6 @@ export const couldNotBeWritten = (reason: string): string => `it could not be wr
 export const snippedLine = (removed: number, kept: number): string => `snipped: ${removed} removed, ${kept} kept.`;
 export const PRUNE_WITHOUT_DECISION_MODEL =
   "compaction.prune is on and the host has no decision model to ask: nothing is pruned " +
-  "(no Orkeon:Decision:Provider nor Orkeon:TypeSafe is set, the provider lacks its key, or the host's decision circuit is " +
-  "off by --no-decision or Orkeon:Decision:Enabled false: the runtime's start line says which)";
+  NO_DECISION_MODEL_CAUSES;
 export const prunedLine = (judged: number, dropped: number, cut: number, freedTokens: number): string =>
   `context pruning: ${judged} tool result(s) judged, ${dropped} removed, ${cut} cut, about ${freedTokens} tokens freed`;

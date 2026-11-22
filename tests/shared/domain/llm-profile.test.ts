@@ -2,8 +2,8 @@
 //   node --test tests/shared/domain/llm-profile.test.ts
 import { describe, it } from "node:test";
 import { strictEqual } from "node:assert";
-import { LLM_PROFILE_CONFIG_KEY, LLM_PROFILE_INPUT_KEY, llmProfileOf, llmProfileProblem, llmSessionProfileOf } from "../../../src/shared/domain/llm-profile.ts";
-import { INPUT_PROFILES, PROFILE_NAMES, SESSION_PROFILES } from "./llm-profile.fixtures.ts";
+import { LLM_PROFILE_CONFIG_KEY, LLM_PROFILE_INPUT_KEY, llmProfileOf, llmProfileProblem, llmSessionProfileOf, takesPromptCache } from "../../../src/shared/domain/llm-profile.ts";
+import { CACHE_PROVIDERS, INPUT_PROFILES, PROFILE_NAMES, SESSION_PROFILES } from "./llm-profile.fixtures.ts";
 
 describe("llmProfileProblem", () => {
   for (const c of PROFILE_NAMES) {
@@ -57,6 +57,21 @@ describe("llmSessionProfileOf", () => {
 
       // Assert
       strictEqual(profile, c.profile);
+    });
+  }
+});
+
+describe("takesPromptCache", () => {
+  for (const c of CACHE_PROVIDERS) {
+    it(c.name, () => {
+      // Arrange
+      const provider = c.provider;
+
+      // Act
+      const takes = takesPromptCache(provider);
+
+      // Assert
+      strictEqual(takes, c.takes);
     });
   }
 });

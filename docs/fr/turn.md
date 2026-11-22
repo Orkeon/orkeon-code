@@ -410,7 +410,10 @@ décision sur le runtime, ce profil est choisi à chaque lancement de `/dev-spec
     ([ADR 0034](../adr/0034-orkeon-after-470.md)).
   - Pas de modèle de décision pour un script, qu'aucun fournisseur ne soit nommé, que le fournisseur n'ait pas sa
     clé ou que le circuit de décision du runtime soit éteint (`--no-decision`, `Orkeon:Decision:Enabled=false`) :
-    le runtime retient alors `system_one_decide`, et un avertissement le dit à chaque lancement et à chaque act.
+    le runtime retient alors `system_one_decide`, et un avertissement le dit à chaque lancement et à chaque act. Le
+    runtime ne dit pas à un script laquelle de ces causes joue : l'avertissement nomme ce qu'il faut vérifier,
+    `Orkeon:Decision:Provider`, `Orkeon:Decision:Enabled` et la clé de la section du fournisseur (la variable que
+    nomme son `ApiKeyEnvVar`, `TYPESAFE_API_KEY` ou `LIQUID_API_KEY` par défaut, ou son `ApiKey`).
   - Le circuit propre au choix éteint pour l'exécution (`circuit-off` : un crew en `decision.mode: none`, une portée
     d'exécution qui éteint le circuit, comme une passe d'essai de la forge) ou pas d'échelle (`no-ladder`) : un avertissement qui dit lequel.
   - Une option que le choix refuse, une échelle comprise, ou un choix qui échoue autrement que par une annulation :
@@ -514,7 +517,7 @@ Code : `shared/domain/context-prune.ts`, `shared/application/compaction/prune-co
 - L'élagage échoue ouvert : le réglage éteint ou illisible, ou pas de modèle de décision, n'élaguent rien. Sans
   modèle de décision chaque act journalise un avertissement et ne demande rien au runtime, qu'aucun fournisseur ne
   soit nommé, que le fournisseur n'ait pas sa clé ou que le circuit de décision soit éteint : le runtime n'a alors
-  pas de modèle de décision pour un script.
+  pas de modèle de décision pour un script. L'avertissement nomme ce qu'il faut vérifier, comme celui du routage.
 - Une liaison qui échoue coûte à l'act son élagage, jamais le tour ni le crew : l'act tourne sans élagage, sans
   ligne de journal.
 - Les modes tool et docker lancent une release dont `act` ne connaît pas `prune` : rien n'y est élagué, et

@@ -37,10 +37,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - A pruning binding that fails costs the main loop's act its pruning, never the turn.
 - A hosted decision provider without its key now turns the decision circuit off (`no-key`). The pruning and the
   routing then warn that the host has no decision model, as they do when no provider is named
-  ([decision models locally](docs/decision-models-local.md#when-it-does-not-work)).
+  ([decision models locally](docs/decision-models-local.md#when-it-does-not-work)). The runtime does not tell a
+  script which cause it is: the warning names what to check, `Orkeon:Decision:Provider`, `Orkeon:Decision:Enabled`
+  and the key of the provider's section, where it used to send you to a start line that does not say it.
 - The tool and docker modes run Orkeon `1.3.0`, eleven commits behind this pin: `compaction.prune` prunes nothing
   and `route.agents` routes nothing there, without a warning of its own (a host with no decision model still gets the usual one). `/config` says so in the description of
   `compaction.prune`, and `/release-notes` names the pin as a commit of Orkeon's `main` past `1.3.0`.
+
+### Fixed — `/analyze` without `--parallel` says nothing
+
+- `/analyze` left without `--parallel` no longer warns `--parallel null is not a whole number of at least 1`: a flag
+  left out gives the runtime's default silently, and only a value given that is no whole number of at least 1 warns.
 
 ### Added — the agent-cli provider example
 
@@ -49,6 +56,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   that falls back on the default profile on a key. Source mode only, for personal use
   ([configuration](docs/configuration.md#claude-on-a-subscription-the-agent-cli-provider)).
 - An Anthropic key linked to an identity names its workspace with `Llm:WorkspaceId` (Orkeon #468).
+- An agent whose profile, or the host's default model, runs on `agent-cli` requests no prompt cache: the runtime no
+  longer warns at each call that the provider ignores the cache breakpoints. Every other provider keeps the request.
 
 ### Added — the tool bridge in docker mode
 

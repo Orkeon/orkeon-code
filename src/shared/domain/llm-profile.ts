@@ -46,3 +46,13 @@ export function llmProfileOf(input: Readonly<Record<string, unknown>>): string |
   const value = input[LLM_PROFILE_INPUT_KEY];
   return typeof value === "string" && llmProfileProblem(value) === undefined ? value.trim() : null;
 }
+
+/** The host providers that take no prompt-cache request: the runtime says at each call that it ignores one (the
+ *  `agent-cli` provider, Orkeon #470, which drives a CLI that caches by its own rules). */
+export const PROVIDERS_WITHOUT_PROMPT_CACHE: readonly string[] = ["agent-cli"];
+
+/** Whether an agent on `provider` (`LlmConfig.provider`, in any case) requests the prompt cache; true when the
+ *  provider is not known. */
+export function takesPromptCache(provider: string | undefined): boolean {
+  return provider === undefined || !PROVIDERS_WITHOUT_PROMPT_CACHE.includes(provider.trim().toLowerCase());
+}

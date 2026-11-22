@@ -99,7 +99,8 @@ Une option qu'un fournisseur ne peut pas honorer produit un avertissement, jamai
 - Anthropic ne met en cache que ce qu'une requête marque : chaque agent d'Orkeon Code marque son prompt système et
   ses définitions d'outils (`.cache({ systemPrompt: true, tools: true })`), un préfixe que ses prompts gardent
   identique d'un tour à l'autre, donc dès le deuxième appel d'une session `cacheRead` compte ce qu'Anthropic a servi
-  depuis son cache.
+  depuis son cache. Un agent dont le profil, ou le modèle par défaut de l'hôte, tourne sur `agent-cli` ne marque
+  rien (la CLI gère son cache selon ses propres règles).
 - La demande de l'agent l'emporte sur un réglage par défaut `Llm:Cache` du runtime.
 
 ### Ce que compte `/usage`
@@ -216,7 +217,9 @@ celui de la section).
 - Un appel passé par le repli reçoit sa réponse sur la clé : il y est facturé, et compté comme tout appel de ce profil.
 - Les options que la CLI ne peut recevoir ne sont pas envoyées, chacune signalée une fois par exécution :
   `Temperature`, `MaxTokens`, top-p et les pénalités, une graine, des séquences d'arrêt, un format de réponse, une grammaire, la
-  réflexion et donc `/effort`, les points de cache, `Llm:WorkspaceId`, un mode d'outil obligatoire.
+  réflexion et donc `/effort`, les points de cache, `Llm:WorkspaceId`, un mode d'outil obligatoire. Un agent sur ce
+  fournisseur ne demande aucun point de cache, si bien que cet avertissement ne vient jamais d'Orkeon Code : la CLI
+  gère son cache selon ses propres règles.
 - `compaction.prune` et le routage de `route.agents` sont jugés par le modèle de décision du runtime, jamais par ce
   fournisseur : ils demandent un [fournisseur de décision](decision-models-local.md) comme sur tout autre LLM.
 - Les réponses peuvent différer de celles du même modèle derrière l'API : le prompt système de la CLI entoure

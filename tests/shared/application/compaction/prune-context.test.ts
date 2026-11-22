@@ -5,7 +5,7 @@ import { deepStrictEqual, strictEqual } from "node:assert";
 
 import { contextPruning } from "../../../../src/shared/application/compaction/prune-context.ts";
 import { PRUNE_WITHOUT_DECISION_MODEL, prunedLine } from "../../../../src/shared/application/compaction/messages.ts";
-import { FIVE_JUDGED, NONE_JUDGED, pruneSetup } from "./prune-context.fixtures.ts";
+import { FIVE_JUDGED, NONE_JUDGED, NO_MODEL_WARNING, pruneSetup } from "./prune-context.fixtures.ts";
 
 describe("contextPruning", () => {
   for (const setting of ["off", null]) {
@@ -43,6 +43,18 @@ describe("contextPruning", () => {
 
     // Assert
     deepStrictEqual([pruning, log.lines], [{}, [`warn: ${PRUNE_WITHOUT_DECISION_MODEL}`]]);
+  });
+
+  it("names the settings and the key variables to check when the host has no decision model", async () => {
+    // Arrange
+    const { deps, decision, log } = pruneSetup();
+    decision.present = false;
+
+    // Act
+    await contextPruning(deps);
+
+    // Assert
+    deepStrictEqual(log.lines, [NO_MODEL_WARNING]);
   });
 
   it("asks the runtime for its pruning when the setting is on", async () => {

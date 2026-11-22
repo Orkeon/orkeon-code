@@ -1,6 +1,7 @@
 // The text the agent services report: the lines of a background child, the problems of a sub-agent's answer and the
 // lines of the routing.
 import type { RouteChoiceReason, RouteStands } from "../../domain/agents/model-route.ts";
+import { NO_DECISION_MODEL_CAUSES } from "../messages.ts";
 
 // child-agent.ts
 export const CHILD_FAILED = "the child failed";
@@ -23,8 +24,7 @@ export const answerDidNotParse = (reason: string): string => `the answer did not
 export const briefTooLong = (length: number, max: number): string => `the brief is ${length} characters, over ${max}`;
 export const ROUTE_WITHOUT_DECISION_MODEL =
   "route.agents is on and the host has no decision model to ask: the session's profile stands " +
-  "(no Orkeon:Decision:Provider nor Orkeon:TypeSafe is set, the provider lacks its key, or the host's decision circuit is " +
-  "off by --no-decision or Orkeon:Decision:Enabled false: the runtime's start line says which)";
+  NO_DECISION_MODEL_CAUSES;
 export const ROUTE_CIRCUIT_OFF =
   "route.agents is on and the runtime's decision circuit is off for this run (a crew on decision.mode none, a run " +
   "scope that turns the circuit off, such as a forge trial pass): nothing is routed, the session's profile stands";

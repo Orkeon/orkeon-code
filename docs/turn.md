@@ -371,7 +371,10 @@ is picked at each launch of `/dev-spec` (and its alias `/dev-change`), `/dev-pla
     nothing is routed there ([ADR 0034](adr/0034-orkeon-after-470.md)).
   - No decision model for a script, whether no provider is named, the provider lacks its key or the host's
     decision circuit is off (`--no-decision`, `Orkeon:Decision:Enabled=false`): the host then withholds
-    `system_one_decide`, and a warning says so at each launch and each act.
+    `system_one_decide`, and a warning says so at each launch and each act. The runtime does not tell a script
+    which cause it is: the warning names what to check, `Orkeon:Decision:Provider`, `Orkeon:Decision:Enabled` and
+    the key of the provider's section (the variable its `ApiKeyEnvVar` names, `TYPESAFE_API_KEY` or
+    `LIQUID_API_KEY` by default, or its `ApiKey`).
   - The pick's own circuit off for the run (`circuit-off`: a crew on `decision.mode: none`, a run scope that turns
     the circuit off, such as a forge trial pass) or no ladder (`no-ladder`): a warning that says which.
   - An option the pick refuses, a ladder among them, or a pick that fails other than by a cancellation: a warning
@@ -468,7 +471,8 @@ Code: `shared/domain/context-prune.ts`, `shared/application/compaction/prune-con
   extraction carries none.
 - It fails open: the setting off or unreadable, or no decision model, prune nothing. Without a decision model each
   act logs a warning and asks the runtime for nothing, whether no provider is named, the provider lacks its key or
-  the decision circuit is off: the host then has no decision model for a script.
+  the decision circuit is off: the host then has no decision model for a script. The warning names what to check,
+  as the routing's does.
 - A binding that fails costs the act its pruning, never the turn nor the crew: the act runs unpruned, without a
   log line.
 - The tool and docker modes run a release whose `act` knows no `prune`: nothing is pruned there, and nothing says

@@ -91,7 +91,8 @@ An option a provider cannot honour produces a warning, never a silent drop.
   rate).
 - Anthropic caches only what a request marks: every agent of Orkeon Code marks its system prompt and its tool
   definitions (`.cache({ systemPrompt: true, tools: true })`), a prefix its prompts keep identical turn after turn,
-  so from a session's second call `cacheRead` counts what Anthropic served from its cache.
+  so from a session's second call `cacheRead` counts what Anthropic served from its cache. An agent whose profile,
+  or the host's default model, runs on `agent-cli` marks nothing (the CLI caches by its own rules).
 - The agent's request wins over a host default `Llm:Cache`.
 
 ### What `/usage` counts
@@ -201,7 +202,8 @@ the file sets. A key linked to an identity refuses every call that does not name
 - A call that fell back is answered on the key: it is billed there and priced as any call of that profile.
 - Options the CLI cannot receive are not sent, each warned about once per run: `Temperature`, `MaxTokens`, top-p and
   the penalties, a seed, stop sequences, a response format, a grammar, thinking and so `/effort`, cache breakpoints,
-  `Llm:WorkspaceId`, a required tool mode.
+  `Llm:WorkspaceId`, a required tool mode. An agent on this provider asks for no cache breakpoint, so that warning
+  never comes from Orkeon Code: the CLI caches by its own rules.
 - `compaction.prune` and the routing of `route.agents` are judged by the host's decision model, never by this
   provider: they need a [decision provider](decision-models-local.md) as on any other LLM.
 - The answers may differ from the same model behind the API: the CLI's own system prompt surrounds Orkeon's.

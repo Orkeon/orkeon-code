@@ -6,12 +6,14 @@
 // the crew's load, as `llm.profile` does, listing the profiles the host knows. Every agent asks the provider to cache
 // its system prompt and its tool definitions (Orkeon #254): the prompts are assembled so that this prefix stays
 // byte-identical turn after turn. Only a provider whose cache is explicit (Anthropic) needs the request; the others
-// cache by their own rules. A sub-agent's act routed to a rung the host does not declare stays on the crew's profile
+// cache by their own rules. An agent whose profile, or the host's default model, runs on a provider that takes no
+// request (`agent-cli`, which warns at each call that asks one) requests none: the provider is `LlmConfig.provider`,
+// the host's default read as `llm.profile("default")`. A sub-agent's act routed to a rung the host does not declare stays on the crew's profile
 // (declaredRoute), as a crew launched on one does: the runtime throws on an unknown profile name an
 // `InvalidScriptError` (Orkeon #364, #366), which `refusal` recognises. Any other failure of `llm.profile` is no
 // undeclared name: it is thrown as it came.
 
-import { llmProfileFallbackOf, llmProfileOf } from "../../domain/llm-profile.ts";
+import { llmProfileFallbackOf, llmProfileOf, takesPromptCache } from "../../domain/llm-profile.ts";
 import { noLlmNamespace } from "./messages.ts";
 import type { ActRoute } from "../../application/agents/route-agent.ts";
 
@@ -25,20 +27,41 @@ export interface AgentFactories {
 
 /** The prompt cache every agent requests: the system prompt and the tools, for the vendor's default lifetime. */
 export const PROMPT_CACHE: LlmCacheOptions = { systemPrompt: true, tools: true };
+/** The name `llm.profile` takes for the host's own provider. */
+const DEFAULT_PROFILE = "default";
 
 export function profiledAgent(input: Readonly<Record<string, unknown>>, factories: AgentFactories): any {
-  const builder = factories.agent().cache(PROMPT_CACHE);
+  const builder = factories.agent();
+  const config = profileConfigOf(input, factories);
+  const configured = config === null ? builder : builder.llm(config);
+  return takesPromptCache(config === null ? defaultProvider(factories) : config.provider)
+    ? configured.cache(PROMPT_CACHE)
+    : configured;
+}
+
+/** The host profile the input names, or null for the host's default model. */
+function profileConfigOf(input: Readonly<Record<string, unknown>>, factories: AgentFactories): LlmConfig | null {
   const name = llmProfileOf(input);
-  if (name === null) return builder;
+  if (name === null) return null;
   if (factories.profile === undefined) throw new Error(noLlmNamespace(name));
   const fallback = llmProfileFallbackOf(input);
-  if (fallback === undefined) return builder.llm(factories.profile(name));
+  if (fallback === undefined) return factories.profile(name);
   // A routed name the host does not declare: the crew runs as it would have without the routing.
   try {
-    return builder.llm(factories.profile(name));
+    return factories.profile(name);
   } catch (error) {
     if (!factories.refusal(error)) throw error;
-    return fallback === null ? builder : builder.llm(factories.profile(fallback));
+    return fallback === null ? null : factories.profile(fallback);
+  }
+}
+
+/** The provider of the host's default model; undefined on a host without `llm`, or when the runtime cannot say. */
+function defaultProvider({ profile }: AgentFactories): string | undefined {
+  if (profile === undefined) return undefined;
+  try {
+    return profile(DEFAULT_PROFILE).provider;
+  } catch {
+    return undefined;
   }
 }
 
