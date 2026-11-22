@@ -78,12 +78,16 @@ Then start Orkeon Code in docker mode on the pin's image, with the token exporte
 ORKEON_CODE_IMAGE=orkeon-local:pin ./orkeon-code --mode docker
 ```
 
-When the settings name `Orkeon:Tools:Bridge:Address`, the launcher (both the REPL and `orkeon-code run`):
+When the settings name `Orkeon:Tools:Bridge:Address` and at least one tool in `Allow`, the launcher (both the REPL
+and `orkeon-code run`):
 
 - hands the container the token's variable by its name (`-e ORKEON_BRIDGE_TOKEN`), never its value;
 - refuses to start when the variable is unset or shorter than 16 characters, and says which;
-- runs the container on the host's network (`--network host`) when the address is on loopback: the container's
-  loopback is then your machine's, the one way a Linux engine reaches the bridge over http.
+- runs the container on the host's network (`--network host`) when the address is on loopback (`localhost`, `127.x`,
+  `[::1]`): the container's loopback is then your machine's, the one way a Linux engine reaches the bridge there.
+
+The launcher reads the settings as plain JSON. The runtime also takes comments and trailing commas; the launcher
+refuses such a file when it names a bridge, rather than start a container without its token.
 
 At start the runtime logs `Tool bridge: Orkeon:Tools:Bridge selects firefox`. A bridge that cannot be reached stops
 the start: `the tool bridge at http://127.0.0.1:7410/ cannot be reached (Connection refused …)`.
@@ -91,8 +95,8 @@ the start: `the tool bridge at http://127.0.0.1:7410/ cannot be reached (Connect
 ### Docker Desktop (Windows, macOS)
 
 `host.docker.internal` reaches the bridge's loopback listener; the launcher then adds no `--network host`. The
-listener answers only the host its prefix names, so set `HostHeader`: `localhost:7410` under Windows,
-`127.0.0.1:7410` under macOS.
+listener answers only the host its prefix names. The runtime sends `127.0.0.1:7410` by itself, which suits macOS;
+under Windows the listener's prefix is `http://localhost:7410/`, so set `HostHeader` to `localhost:7410`:
 
 ```json
 { "Orkeon": { "Tools": { "Bridge": { "Address": "http://host.docker.internal:7410/", "HostHeader": "localhost:7410", "Allow": ["firefox"] } } } }

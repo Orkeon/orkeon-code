@@ -51,7 +51,16 @@ export function assertBridgeArgs(r: Run, token: string, hostNetwork: boolean, na
   ok(joined === hostNetwork, `--network host ${hostNetwork ? "missing" : "unexpected"}: ${r.args.join(" ")}`);
 }
 
-/** No bridge wired: neither the token's variable nor the host's network. */
+/** A container ran with no bridge wired: neither the token's variable nor the host's network. */
 export function assertNoBridgeArgs(r: Run): void {
+  strictEqual(r.status, 0, r.stderr);
+  assertArgsHold(r, ["run", "--rm"]);
   ok(!r.args.includes("ORKEON_BRIDGE_TOKEN") && !r.args.includes("--network"), `a bridge was wired: ${r.args.join(" ")}`);
+}
+
+/** The launcher refused with `said` and never printed `secret`. */
+export function assertRefusedWithout(r: Run, said: readonly string[], secret: string): void {
+  strictEqual(r.status, 1, r.stderr);
+  for (const s of said) ok(r.stderr.includes(s), `not said: ${s}\n${r.stderr}`);
+  ok(!(r.stderr + r.stdout).includes(secret), `the value was printed:\n${r.stderr}${r.stdout}`);
 }

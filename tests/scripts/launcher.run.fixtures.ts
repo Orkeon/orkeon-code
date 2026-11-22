@@ -25,14 +25,14 @@ export const orkeonExiting = (code: number) => ({ orkeon: `${recorder()}exit ${c
 
 export interface RunStart {
   crew?: string; args?: string[]; bin?: Record<string, string>; env?: Record<string, string>; files?: Record<string, string>;
-  install?: boolean; trusted?: boolean; systemPath?: string; settings?: Record<string, unknown>; checkoutInArgs?: boolean;
+  install?: boolean; trusted?: boolean; systemPath?: string; settings?: Record<string, unknown>; settingsText?: string; checkoutInArgs?: boolean;
 }
 
 /** `orkeon-code run <crew> --settings … --workspace …` from a clone, `orkeon` on PATH by default. */
 export function runStart(o: RunStart = {}): LaunchOptions {
   return {
     before: ["run", o.crew ?? "main-loop"], args: o.args ?? [], bin: o.bin ?? ORKEON, env: { ...ESBUILD, ...o.env },
-    files: { ...CREWS, ...o.files }, install: o.install, trusted: o.trusted, systemPath: o.systemPath, settings: o.settings,
+    files: { ...CREWS, ...o.files }, install: o.install, trusted: o.trusted, systemPath: o.systemPath, settings: o.settings, settingsText: o.settingsText,
     checkoutInArgs: o.checkoutInArgs,
   };
 }
@@ -170,6 +170,11 @@ export function bridgeSettings(address: string, keys: readonly [string, string, 
 export const BRIDGE_CASES = [
   { name: "hands the token by name and joins the host's network for a bridge on 127.0.0.1", settings: bridgeSettings("http://127.0.0.1:7410/"), hostNetwork: true },
   { name: "joins the host's network for a bridge on localhost", settings: bridgeSettings("http://localhost:7410/"), hostNetwork: true },
+  { name: "joins the host's network for a bridge on the IPv6 loopback", settings: bridgeSettings("http://[::1]:7410/"), hostNetwork: true },
+  { name: "joins the host's network for another address of 127.0.0.0/8", settings: bridgeSettings("http://127.0.0.2:7410/"), hostNetwork: true },
+  { name: "joins the host's network for a loopback bridge over https", settings: bridgeSettings("https://127.0.0.1:7410/"), hostNetwork: true },
+  { name: "joins the host's network for a loopback address in capitals with no port", settings: bridgeSettings("HTTP://LOCALHOST/"), hostNetwork: true },
+  { name: "stays off the host's network for a host whose name only starts like loopback", settings: bridgeSettings("https://127.0.0.1.example.org/"), hostNetwork: false },
   {
     name: "hands the token and stays off the host's network for Docker Desktop's host.docker.internal, keys read without case",
     settings: bridgeSettings("http://host.docker.internal:7410/", ["orkeon", "tools", "bridge", "address"]), hostNetwork: false,
@@ -185,3 +190,22 @@ export const NAMED_TOKEN = { MY_BRIDGE_TOKEN: "fedcba9876543210fedc" };
 export const NAMED_TOKEN_UNSET = ["MY_BRIDGE_TOKEN is not set"];
 export const NO_BRIDGE_TOKEN = ["names the tool bridge http://127.0.0.1:7410/", "ORKEON_BRIDGE_TOKEN is not set", "docs/tool-bridge.md"];
 export const BRIDGE_TOKEN_TOO_SHORT = ["ORKEON_BRIDGE_TOKEN is shorter than 16 characters", "openssl rand -hex 32"];
+
+/** A token long enough only with the blanks around it, which the runtime trims before it counts. */
+export const PADDED_SHORT_BRIDGE_TOKEN = { ORKEON_BRIDGE_TOKEN: "  0123456789abcde   " };
+/** An address and no tool in Allow: the runtime bridges nothing, so the launcher wires nothing. */
+export const BRIDGE_WITHOUT_TOOLS = {
+  Llm: { Model: "m", BaseUrl: "http://127.0.0.1:9/v1" },
+  Orkeon: { Tools: { Bridge: { Address: "http://127.0.0.1:7410/", Allow: [] } } },
+};
+/** A token written where the name of its variable goes. */
+export const TOKEN_AS_VARIABLE_NAME = "s3cret-token-written-in-the-file";
+export const TOKEN_IN_SETTINGS_BRIDGE = {
+  Llm: { Model: "m", BaseUrl: "http://127.0.0.1:9/v1" },
+  Orkeon: { Tools: { Bridge: { Address: "http://127.0.0.1:7410/", TokenEnvVar: TOKEN_AS_VARIABLE_NAME, Allow: ["firefox"] } } },
+};
+export const TOKEN_ENV_VAR_NOT_A_NAME = ["Orkeon:Tools:Bridge:TokenEnvVar", "is not the name of a variable"];
+/** Settings the runtime reads (a comment) and `JSON.parse` does not, with and without a bridge. */
+export const COMMENTED_BRIDGE_SETTINGS = `// my settings\n${JSON.stringify(LOOPBACK_BRIDGE)}`;
+export const COMMENTED_SETTINGS = `// my settings\n${JSON.stringify({ Llm: { Model: "m", BaseUrl: "http://127.0.0.1:9/v1" } })}`;
+export const BRIDGE_SETTINGS_NOT_PLAIN_JSON = ["names a tool bridge and is not plain JSON", "docs/tool-bridge.md"];

@@ -162,6 +162,8 @@ export const PTY = process.platform === "linux" && spawnSync("sh", ["-c", "scrip
 export interface LaunchOptions {
   args: string[]; bin: Record<string, string>; env?: Record<string, string>; projectFiles?: Record<string, string>;
   settings?: Record<string, unknown>; shell?: "bash" | "pwsh";
+  /** The settings file's text as it is, for a file that is not plain JSON; `settings` otherwise. */
+  settingsText?: string;
   /** An install (no `.git` beside the launcher) rather than a clone (the default). */
   install?: boolean;
   /** No --settings, --workspace nor ORKEON_CODE_STATE: the launcher's own defaults apply, from the project. */
@@ -207,7 +209,7 @@ export function launch(opts: LaunchOptions): Run {
     writeFileSync(join(codeHome, "trusted-folders.json"), trustStore([base]));
   }
   const settings = join(base, "settings.json");
-  writeFileSync(settings, JSON.stringify(opts.settings ?? { Llm: { Model: "m", BaseUrl: "http://127.0.0.1:9/v1" } }));
+  writeFileSync(settings, opts.settingsText ?? JSON.stringify(opts.settings ?? { Llm: { Model: "m", BaseUrl: "http://127.0.0.1:9/v1" } }));
   for (const [name, body] of Object.entries(opts.bin)) {
     writeFileSync(join(bin, name), body);
     chmodSync(join(bin, name), 0o755);
@@ -690,11 +692,15 @@ export const PS1_DOCKER_ENGINE: readonly Mention[] = [
 /** The ps1 wires the tool bridge (Orkeon #445) as ./orkeon-code does, before the container runs. */
 export const PS1_BRIDGE: readonly Mention[] = [
   ["foreach ($key in @('Orkeon', 'Tools', 'Bridge')) {", "the section read from the settings, without case (-eq)"],
+  ["if (-not $bridgeRead -and $settingsText -match '\"bridge\"') {", "settings that are not plain JSON and name a bridge refused"],
+  ["@($bridge.Allow | Where-Object { $null -ne $_ }).Count -gt 0) { $bridge.Address.Trim() } else { '' }", "no bridge without a tool in Allow, as the runtime"],
   ["$bridge.TokenEnvVar.Trim() } else { 'ORKEON_BRIDGE_TOKEN' }", "the variable TokenEnvVar names, ORKEON_BRIDGE_TOKEN by default"],
+  ["is not the name of a variable: it names the variable that holds the token, never the token.", "a TokenEnvVar that is no name refused, its value not echoed"],
+  ["$bridgeToken = \"$([Environment]::GetEnvironmentVariable($bridgeVar))\".Trim()", "the token trimmed, as the runtime trims it"],
   ["is not set: export the token the bridge was started with", "an unset token refused"],
   ["if ($bridgeToken.Length -lt 16) {", "a short token refused"],
   ["$bridgeArgs = @('-e', $bridgeVar)", "the token handed by name"],
-  ["if ($bridgeAddress -match '^http://(127\\.0\\.0\\.1|localhost|\\[::1\\])(:|/|$)') { $bridgeArgs += '--network', 'host' }", "loopback joins the host's network"],
+  ["if ($bridgeAddress -match '^https?://(localhost|127(\\.\\d+){3}|\\[::1\\])(:|/|$)') { $bridgeArgs += '--network', 'host' }", "loopback joins the host's network"],
   ["& docker run --rm @ttyArgs @userArgs @envArgs @bridgeArgs -w /work", "passed to the container"],
 ];
 
