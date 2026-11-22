@@ -74,8 +74,9 @@ agent loops), and `ctx.llm.act` offers only the `onContextPressure` callback (#3
 - **Skills** (#434) are for YAML agents.
 - **The tool bridge** (#445) is not wired in the launcher yet: a separate change.
 
-A request to give `ctx.llm.act` the runtime's pruning and a profile and effort pick is prepared for Orkeon, so that
-this project can drop its own copies of the algorithm later.
+Two requests are open on Orkeon so that this project can drop its own copies of the algorithm later: the runtime's
+pruning as an option of `ctx.llm.act` (Orkeon #461), and a profile and effort pick a script can ask for
+(Orkeon #460).
 
 ## Consequences
 
