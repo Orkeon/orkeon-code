@@ -7,6 +7,25 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed — the pin moves to Orkeon `5dc2ff3`
+
+- The pin moves to Orkeon `main` `5dc2ff3` (Orkeon #447, after #425, #428 and #438). The tool and docker modes run
+  Orkeon `1.3.0`, six commits behind it ([ADR 0033](docs/adr/0033-orkeon-after-447.md)).
+- `/dev-implement`, `/dev-batches` and a repair by `/tasks repair` start again on the pin. The runtime now refuses a
+  budget limit below 1, and their budgets said `delegationDepth: 0`, which the runtime used to ignore: they name no
+  depth now and run as they did. A fractional `--concurrency` no longer gives the driver a fractional tool-call count.
+- `llm.profile` and `route.ladder` refuse the name `auto`, in any case: the runtime keeps it for its own pick at a
+  task's start and refuses a host that declares a profile of that name.
+- With the decision circuit off (`--no-decision`, `Orkeon:Decision:Enabled=false`) the host withholds
+  `system_one_decide`; a `tools.extra` naming it is left out with a warning, and the commands work without a
+  decision model, as on a host with no provider ([permissions](docs/permissions.md)).
+- The runtime smoke type-checks the crews with the TypeScript the Orkeon checkout pins
+  (`tools/scripting-typecheck`), which fails them no more (Orkeon #425, fixing #424), in place of this project's own
+  through `TscPath` ([development](docs/development.md)).
+- Not adopted, since every agent of this project is an act and not a task: the runtime's compaction by default, its
+  pruning, `llm.profile: auto`, `effort: "auto"`, `decision({ mode })` and its skills. The commands keep their own
+  pruning, `/route` and `/effort`.
+
 ### Added — the main loop's explorer
 
 - A turn can hand a survey to a read-only agent: `spawn_agent` with `agent: "explorer"` runs the brief in `plan`

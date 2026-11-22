@@ -5,6 +5,7 @@ import { deepStrictEqual, strictEqual } from "node:assert";
 
 import { readBudgetExhausted, repairBudget, STEP_BUDGETS } from "../../../../src/shared/domain/dev/step-budget.ts";
 import { budgetError, OTHER_FAILURES, REPAIR_CASES, RUNTIME_MESSAGES, STEP_CASES } from "./step-budget.fixtures.ts";
+import { assertRuntimeBudget } from "../../../support/assertions/budget.ts";
 
 describe("STEP_BUDGETS", () => {
   for (const c of STEP_CASES) {
@@ -43,6 +44,22 @@ describe("repairBudget", () => {
 
       // Assert
       deepStrictEqual(budget, c.budget);
+    });
+  }
+});
+
+describe("the step budgets the runtime reads", () => {
+  for (const c of STEP_CASES) {
+    it(`holds only limits of 1 or more, which the runtime accepts (Orkeon #436): ${c.step} and its repair`, () => {
+      // Arrange
+      const { step } = c;
+
+      // Act
+      const budgets = { step: STEP_BUDGETS[step], repair: repairBudget(step) };
+
+      // Assert
+      assertRuntimeBudget(budgets.step, step);
+      assertRuntimeBudget(budgets.repair, `repair of ${step}`);
     });
   }
 });

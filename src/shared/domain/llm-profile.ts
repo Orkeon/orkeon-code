@@ -4,9 +4,11 @@
 // in its input, under `llmProfile`; the crew's composition root builds every agent on it
 // (shared/infrastructure/orkeon/llm-profile.ts). Omitted, the agents run on the host's default model,
 // as they always did.
-import { PROFILE_NAME_EXPECTED, profileHoldsColon, profileHoldsSpace } from "./messages.ts";
+import { PROFILE_NAME_EXPECTED, profileHoldsColon, profileHoldsSpace, profileIsAuto } from "./messages.ts";
 
 export const LLM_PROFILE_CONFIG_KEY = "llm.profile";
+/** The name the runtime reserves for its own pick of a profile per task (Orkeon #434), in any case. */
+export const RESERVED_AUTO_PROFILE = "auto";
 /** The field of a crew input that carries the profile's name. */
 export const LLM_PROFILE_INPUT_KEY = "llmProfile";
 /** The field of a crew input that marks `llmProfile` as picked by the routing, and carries the session's own profile
@@ -34,6 +36,8 @@ export function llmProfileProblem(value: string): string | undefined {
   if (name === "") return PROFILE_NAME_EXPECTED;
   if (/\s/.test(name)) return profileHoldsSpace(value);
   if (name.includes(":")) return profileHoldsColon(value);
+  // The runtime refuses a host profile of that name (Orkeon #434): no host can declare one.
+  if (name.toLowerCase() === RESERVED_AUTO_PROFILE) return profileIsAuto(value);
   return undefined;
 }
 

@@ -33,7 +33,8 @@ function config(model: string, effort: Level | undefined): LlmConfig {
     reasoning: effort === undefined
       ? null
       : { model, asked: effort, sent: sent ?? null, notice: sent !== effort ? "lowered" : known ? null : "unchecked" },
-    with: (overrides) => config(overrides.model ?? model, overrides.effort ?? effort),
+    // `effort: "auto"` is a crew's word, picked by the runtime at a task's start: a configuration keeps its own effort.
+    with: (overrides) => config(overrides.model ?? model, overrides.effort === "auto" ? effort : overrides.effort ?? effort),
   };
 }
 

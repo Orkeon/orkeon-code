@@ -27,3 +27,12 @@ export const ONE_AT_A_TIME: readonly { name: string; concurrency: number | undef
 
 /** Wave sizes the driver's tool calls and tokens grow with. */
 export const WAVE_SIZES: readonly number[] = [2, 3, 4];
+
+/** Concurrencies the driver may be given, a fractional one included: 2.7 × 80 calls is no whole number. */
+export const DRIVER_CONCURRENCIES: readonly { name: string; concurrency: unknown }[] = [
+  { name: "one at a time", concurrency: 1 },
+  { name: "a wave of four", concurrency: 4 },
+  { name: "a fractional concurrency", concurrency: 2.7 },
+  { name: "a concurrency given as text", concurrency: "3" },
+  { name: "no concurrency", concurrency: undefined },
+];

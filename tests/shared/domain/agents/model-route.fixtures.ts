@@ -16,6 +16,7 @@ export const LADDER_PROBLEM_CASES: readonly { readonly name: string; readonly va
   { name: "refuses one profile alone", value: "small", problem: true },
   { name: "refuses a profile named twice", value: "small,large,small", problem: true },
   { name: "refuses a name that holds a space", value: "small,very large", problem: true },
+  { name: "refuses the name the runtime reserves for its own pick as a rung", value: "small,auto", problem: true },
 ];
 
 export const RULES: RouteRules = {

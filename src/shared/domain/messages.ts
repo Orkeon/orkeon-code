@@ -263,6 +263,9 @@ export const PROFILE_NAME_EXPECTED = "a profile name is expected";
 export const profileHoldsSpace = (value: string): string =>
   `'${value}' holds a space: a profile is one name, as the host's settings spell it`;
 export const profileHoldsColon = (value: string): string => `'${value}' holds a colon: name the profile alone, not its settings path`;
+export const profileIsAuto = (value: string): string =>
+  `'${value}' is no profile: the runtime keeps the name for its own pick of a profile at a task's start, which the agents ` +
+  `of the commands never get (they are acts, not tasks); name a profile of the host, or /route for a pick per launch`;
 export const modelNotDeclared = (name: string, models: string): string =>
   `'${name}' is not among the models this host declares (${models}). ` +
   "Setting it anyway — the list comes from Llm:AvailableModels in the settings and may be " +

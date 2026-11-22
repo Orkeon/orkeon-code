@@ -18,10 +18,10 @@ export const STEP_CASES: readonly StepCase[] = [
   { step: "dev-change", budget: { toolCalls: 200, wallTime: 3600, contextTokens: 700_000, delegationDepth: 1 } },
 ];
 
-/** A repair runs with the step's budget and no child of its own. */
+/** A repair runs with the step's budget and no child of its own: no depth, the runtime refuses a 0 (Orkeon #436). */
 export const REPAIR_CASES: readonly StepCase[] = [
-  { step: "dev-verify", budget: { toolCalls: 200, wallTime: 3600, contextTokens: 700_000, delegationDepth: 0 } },
-  { step: "dev-plan", budget: { toolCalls: 240, wallTime: 1800, contextTokens: 840_000, delegationDepth: 0 } },
+  { step: "dev-verify", budget: { toolCalls: 200, wallTime: 3600, contextTokens: 700_000 } },
+  { step: "dev-plan", budget: { toolCalls: 240, wallTime: 1800, contextTokens: 840_000 } },
 ];
 
 /** A BudgetExhaustedError carrying its dimension. */

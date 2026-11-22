@@ -547,7 +547,9 @@ interrogé.
 
 `system_one_decide`, le modèle de décision System One du runtime (TypeSafe, Liquid ou Kev), en est un : il est
 enregistré quand un fournisseur de décision est actif (sa section, sa clé ou `Orkeon:Decision:Provider`) et n'est
-dans aucune liste intégrée. L'utilisateur dont le runtime l'a le liste dans `tools.extra`.
+dans aucune liste intégrée. L'utilisateur dont le runtime l'a le liste dans `tools.extra`. Le circuit de décision
+coupé (`--no-decision`, `Orkeon:Decision:Enabled=false`, ou aucun fournisseur), le runtime le retient : le nom est
+alors écarté avec l'avertissement ci-dessus, et les commandes font ce qu'elles font sans modèle de décision.
 
 Il déclare une lecture à la garde, et s'exécute donc sans question partout où le catalogue l'offre. Gardez-le en
 écriture dans la liste : il envoie l'état qu'on lui donne à l'API du fournisseur de décision, ce que `plan` et
