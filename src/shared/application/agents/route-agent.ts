@@ -11,9 +11,8 @@
 // which the crew falls back on when the host declares no profile of the rung's name (orkeon/llm-profile.ts). Each
 // choice is logged, on the profile really used, and kept for `/route why`. The act of a sub-agent inside a crew (a
 // reviewer, the auditor) is routed by the same pick, under its charter's name (actRoute): a decision moves it, off the
-// crew's profile; without a decision it stays on the crew's profile, save when that profile is under a rule's floor
-// (a lower rung, or no rung of the ladder): the act then takes the floor's rung, whatever the session's profile. The
-// floor is a minimum, capped at the session's rung: a crew at or above it keeps its act.
+// crew's profile; without a decision it stays on the crew's profile, save under a rule's floor on the host's default
+// model, which it takes as a launch does.
 import type { DecisionModel, Files, Logger, ProfilePick, ProfilePicker, SessionStore } from "../ports.ts";
 import type { ConfigStore } from "../config-store.ts";
 import { WORKSPACE } from "../../domain/vfs.ts";
@@ -21,7 +20,7 @@ import { ROUTE_RECENT_STATE_KEY } from "../../domain/session-keys.ts";
 import type { RouteChoice, RouteChoiceReason, RouteRules, RouteStands } from "../../domain/agents/model-route.ts";
 import {
   NO_ROUTE_RULES, ROUTE_AGENTS_CONFIG_KEY, ROUTE_LADDER_CONFIG_KEY, ROUTE_RULES_FILE, asOnLadder, ladderOf, parseRecords,
-  parseRouteRules, routable, routeBounds, routeDecided, routeFloor, routeHeld, routeNotAsked, routeOn, routeState, underFloor, withRecord,
+  parseRouteRules, routable, routeBounds, routeDecided, routeFloor, routeHeld, routeNotAsked, routeOn, routeState, withRecord,
 } from "../../domain/agents/model-route.ts";
 import {
   HOST_DEFAULT_MODEL, ROUTE_CIRCUIT_OFF, ROUTE_NO_LADDER, ROUTE_STANDS, ROUTE_WHY, ROUTE_WHY_RULE_ALONE,
@@ -72,10 +71,8 @@ export function routeWhy(choice: Pick<RouteChoice, "reason" | "picked" | "probab
 interface Asked {
   /** The answer, as the ladder spells its profiles. */
   choice: RouteChoice;
-  /** The ladder the pick chose from. */
-  ladder: readonly string[];
-  /** The rung a rule's floor sets, capped at the session's rung; undefined without a rule that raises one. */
-  floor?: string;
+  /** Whether a rule's floor is the fallback: a session on the host's default model, under a rule. */
+  floored: boolean;
   /** Whether the answer is worth a line and a record; not when nothing was asked at all. */
   said: boolean;
 }
@@ -103,7 +100,7 @@ async function ask(deps: RouteDeps, task: RouteTask, sessionProfile: string | nu
   }
   const floor = routeFloor(await rulesOf(deps.files), task.crew, task.brief, ladder);
   // The session's rung is the one rung left: the answer without a call, and nothing to say.
-  if (routeHeld(ladder, sessionProfile, floor)) return { choice: { profile: sessionProfile, reason: "ceiling" }, ladder, said: false };
+  if (routeHeld(ladder, sessionProfile, floor)) return { choice: { profile: sessionProfile, reason: "ceiling" }, floored: false, said: false };
   const bounds = routeBounds(ladder, sessionProfile, floor);
   const answer = await deps.picker.pick(routeState(task.crew, task.brief), bounds);
   if (answer === null) return null;
@@ -116,7 +113,7 @@ async function ask(deps: RouteDeps, task: RouteTask, sessionProfile: string | nu
     deps.log.warn(reason === "circuit-off" ? ROUTE_CIRCUIT_OFF : ROUTE_NO_LADDER);
     return null;
   }
-  return { choice: choiceOf(answer, reason, ladder), ladder, floor: bounds.floor, said: true };
+  return { choice: choiceOf(answer, reason, ladder), floored: sessionProfile === null && bounds.floor !== undefined, said: true };
 }
 
 async function remember(session: RouteDeps["session"], crew: string, choice: RouteChoice): Promise<void> {
@@ -139,8 +136,7 @@ export async function routeAgent(deps: RouteDeps, task: RouteTask, sessionProfil
   const asked = await ask(deps, task, sessionProfile);
   if (asked === null) return sessionProfile;
   const { profile } = asked.choice;
-  // The fallback the pick answered: the session's profile, at or above any floor; without one, a rule's floor.
-  await settle(deps, task.crew, asked, profile, sessionProfile !== null ? "session" : asked.floor !== undefined ? "floor" : "default");
+  await settle(deps, task.crew, asked, profile, sessionProfile !== null ? "session" : asked.floored ? "floor" : "default");
   return profile;
 }
 
@@ -154,18 +150,16 @@ export interface ActProfiles {
 }
 
 /** The route of a crew's sub-agent acts: the launch's pick, with the session's profile as the ceiling. A decision
- *  (routeDecided) moves the act. Without one (no answer, an unsure pick) a rule's floor is a minimum, whatever the
- *  session's profile: a crew under it has its act on the floor's rung, a crew at or above it keeps its act, as does
- *  every crew without a rule. Nothing asked leaves the act where the crew runs, as does an answer that is the crew's
- *  own profile. */
+ *  (routeDecided) moves the act, as does, without one, the floor of a rule for a session on the host's default model
+ *  (the fallback the pick answers then); nothing asked, and no answer or an unsure pick otherwise, leave the act where
+ *  the crew runs, as does an answer that is the crew's own profile. */
 export function actRoute(deps: RouteDeps, profiles: ActProfiles): ActRoute {
   return async (task) => {
     const asked = await ask(deps, task, profiles.session);
     if (asked === null) return null;
-    const { choice, ladder, floor } = asked;
-    const raised = !routeDecided(choice.reason) && floor !== undefined && underFloor(ladder, profiles.crew, floor);
-    const profile = routeDecided(choice.reason) ? choice.profile : raised ? floor : profiles.crew;
-    await settle(deps, task.crew, asked, profile, raised ? "floor" : "crew");
+    const moves = routeDecided(asked.choice.reason) || asked.floored;
+    const profile = moves ? asked.choice.profile : profiles.crew;
+    await settle(deps, task.crew, asked, profile, asked.floored ? "floor" : "crew");
     return profile === profiles.crew ? null : profile;
   };
 }

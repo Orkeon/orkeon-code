@@ -357,10 +357,8 @@ is picked at each launch of `/dev-spec` (and its alias `/dev-change`), `/dev-pla
   - It moves on a decision: the model's pick, that pick raised to a floor or held at the ceiling, and the session's
     rung when it is the one rung left. An act may move up as well as down: a crew launched on `small` has its review
     on `large` when the model says so.
-  - Without a decision (no answer, an unsure pick) and without a rule, the act stays where the crew runs.
-  - Without a decision under a rule's floor, that floor is a minimum, whatever the session's profile. A crew that
-    runs under it, on a lower rung or on no rung of the ladder, has its act on the floor's rung; a crew at the floor
-    or above it keeps its act. The floor stays capped at the session's rung.
+  - Without a decision (no answer, an unsure pick) the act stays where the crew runs. The exception is a session on
+    the host's default model under a rule's floor: the act takes that floor, as a launch does.
   - A pick that is the crew's own profile and a rung the host does not declare leave the act where the crew runs.
   - Each of these choices is logged and listed by `/route why` like a launch, the one rung left aside.
 - **It fails open**: each case below routes nothing and keeps nothing for `/route why`. A launch runs on the
@@ -373,9 +371,8 @@ is picked at each launch of `/dev-spec` (and its alias `/dev-change`), `/dev-pla
   - An option the pick refuses, a ladder among them, or a pick that fails: a warning that carries the runtime's
     message.
 - **No decision**: a model that does not answer or is not sure leaves the fallback. For a launch that is the
-  session's profile; on the host's default model, the floor of a rule, else that default model. For an act it is
-  the profile its crew runs on, or the floor of a rule when the crew runs under it. The choice is logged and kept,
-  with what stood.
+  session's profile; on the host's default model, the floor of a rule, else that default model. The choice is
+  logged and kept, with what stood.
 - **The trace**: each choice writes the log line `route: <crew> on '<profile>' (<why>)`, on the profile really
   used, and the last 5 are kept in the session for `/route why`.
   - The why gives the reason, what stood when the pick decided nothing, and the model's pick with its probability

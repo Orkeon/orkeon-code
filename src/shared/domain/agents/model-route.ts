@@ -27,9 +27,8 @@ export type RouteReason = typeof ROUTE_REASONS[number];
 export type RouteNotAskedReason = "circuit-off" | "no-ladder";
 /** The reasons a choice can carry: a pick that asked nothing makes no choice. */
 export type RouteChoiceReason = Exclude<RouteReason, RouteNotAskedReason>;
-/** What stands when the pick decided nothing: the session's profile, the floor of a rule (a launch on the host's
- *  default model, an act whose crew runs under that floor), the host's default model, or, for a sub-agent's act, the
- *  profile its crew runs on. */
+/** What stands when the pick decided nothing: the session's profile, the floor of a rule (a session on the host's
+ *  default model), the host's default model, or, for a sub-agent's act, the profile its crew runs on. */
 export type RouteStands = "session" | "floor" | "default" | "crew";
 
 export interface RouteChoice {
@@ -171,13 +170,6 @@ export function routeHeld(ladder: readonly string[], sessionProfile: string | nu
 /** A profile as the ladder spells it: the runtime answers a rung as the host declares it (`Small` for `small`). */
 export function asOnLadder(ladder: readonly string[], profile: string): string {
   return ladder.find((rung) => rung.toLowerCase() === profile.toLowerCase()) ?? profile;
-}
-
-/** Whether `profile` runs under the rung `floor` of the ladder: on a lower rung, or on no rung at all (a profile the
- *  ladder does not name, the host's default model). A floor that is no rung has nothing under it. */
-export function underFloor(ladder: readonly string[], profile: string | null, floor: string): boolean {
-  const rung = profile === null ? -1 : ladder.indexOf(asOnLadder(ladder, profile));
-  return rung < ladder.indexOf(asOnLadder(ladder, floor));
 }
 
 /** The bounds of a pick: the ladder; the floor's rung when a rule raises one, held at the session's rung (the pick

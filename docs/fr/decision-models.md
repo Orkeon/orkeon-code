@@ -114,8 +114,8 @@ avertissement du journal dit pourquoi, et `/route why` ne le liste pas. `/route 
 
 Dans un crew, l'act d'un relecteur (`/dev-spec`, `/dev-change`, `/dev-plan`, le lot suivant de `/dev-batches`) et
 celui de l'auditeur de `/dev-verify` sont routés de la même façon, pour ce seul appel. Quand le choix est incertain
-ou absent, l'act reste là où tourne son crew, sauf si le crew tourne sous le plancher d'une règle : l'act prend
-alors ce plancher, quel que soit le profil de la session : voir
+ou absent, l'act reste là où tourne son crew ; sur le modèle par défaut du runtime il prend plutôt le plancher d'une
+règle : voir
 [Router un crew vers un profil](turn.md#router-un-crew-vers-un-profil). Deux exécutions en sont
 [mesurées plus bas](#mesuré--dev-spec-puis-dev-plan-routés-ou-non).
 

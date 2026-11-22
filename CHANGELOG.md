@@ -24,8 +24,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   stored record whose reason is not one of a choice is dropped.
 - A session whose own rung is the one rung left, the lowest or a rule's floor, asks nothing: no call, no log line,
   no record. On the host's default model, a rule that leaves the top rung alone is shown as asked of no model.
-- A rule's floor is a minimum for an act of a sub-agent, whatever the session's profile: when the pick is unsure or
-  missing, a crew that runs under the floor has its act on the floor's rung, a crew at or above it keeps its act.
+- On the host's default model, an act of a sub-agent takes a rule's floor also when the pick is unsure or missing.
+  Under a session's profile it stays where its crew runs.
 - `route.ladder` refuses a rung named twice whatever its case (`Small,small`).
 - A pick the runtime did not make routes nothing and is not listed by `/route why`: the session's profile stands,
   and a warning names the cause. That holds for a decision circuit that is off (`circuit-off`), for no ladder
