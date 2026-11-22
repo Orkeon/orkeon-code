@@ -61,7 +61,7 @@ export async function withLlmProfile<D extends LaunchDeps & { log: Pick<CommandL
 }
 
 /** `deps` with the profile the launch of `task.crew` runs on: the session's `llm.profile`, then, with `route.agents`
- *  on, the rung of the ladder the host's decision model picks for the command (shared/application/agents/route-agent). */
+ *  on, the rung of `route.ladder` the runtime's System One pick answers for the command (shared/application/agents/route-agent). */
 export async function withRoutedProfile<D extends LaunchDeps & { log: Pick<CommandLog, "warn" | "info"> }>(
   deps: D, config: Pick<ConfigStore, "readValue" | "readFile">, routing: Omit<RouteDeps, "config" | "log">, task: RouteTask,
 ): Promise<D & { llmProfile: string | null }> {

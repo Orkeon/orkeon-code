@@ -19,7 +19,7 @@ import { budgetExhaustedAnswer, iterationsExhausted, llmFailureOf } from "../../
 import {
   BARE_TURN_CONTEXT, BLOCKED_ANSWER, blockedRequest, DEFAULT_LOADED, DENYING_CHAINS, DICTATION, EXPLICIT_PLAN, EXTRAS, EXTRA_RULES, EXTRA_TOOLS_INPUT, PARSED_RULES,
   REQUEST_WITH_TRANSCRIPT, RULED_CATALOGUE, SCRIPT_TOOLS_CASES, SESSION_START, SILENT_GATES, SPEAK, SPEAKER_FAILURE,
-  attachSkill, PRUNING, pruneBinding, STORED_RULES, suggestBinding, TRANSCRIPT, TRANSCRIPTION_PRELUDE, turnSetup, PROFILED_INPUT, PROFILE_OVERRIDE_WARNING,
+  attachSkill, PRUNING, failingPrune, pruneBinding, STORED_RULES, suggestBinding, TRANSCRIPT, TRANSCRIPTION_PRELUDE, turnSetup, PROFILED_INPUT, PROFILE_OVERRIDE_WARNING,
   EFFORT_LOG_CASES,
 } from "./run-main-loop.fixtures.ts";
 import {
@@ -936,6 +936,17 @@ describe("runMainLoop — the pruning of the tool loop (compaction.prune)", () =
       [asked.count, llm.acts.map((act) => act.request.onPruned)],
       [2, [PRUNING.onPruned, PRUNING.onPruned]],
     );
+  });
+
+  it("answers the turn, its act without a pruning, when the binding fails", async () => {
+    // Arrange
+    const { deps, llm } = turnSetup();
+
+    // Act
+    await runMainLoop({ prompt: "rename the port" }, DEFAULT_LOADED, { ...deps, prune: failingPrune });
+
+    // Assert
+    deepStrictEqual([llm.acts.length, "prune" in llm.acts[0].request], [1, false]);
   });
 
   it("sends an act without a pruning when nothing binds one", async () => {

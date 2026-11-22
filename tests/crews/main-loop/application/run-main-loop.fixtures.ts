@@ -185,6 +185,11 @@ export function pruneBinding() {
   return { prune, asked };
 }
 
+/** The `prune` of a turn's ports when the binding fails: a setting store that rejects. */
+export const failingPrune = async (): Promise<never> => {
+  throw new Error("the settings cannot be read");
+};
+
 /** A skill a suggestion hands a turn. */
 export const SUGGESTED_SKILL = { path: "/workspace/.orkeon/skills/release.md", content: "SUGGESTED BODY" };
 export const ATTACHED_SKILL = { path: "/workspace/docs/attached.md", content: "ATTACHED BODY" };

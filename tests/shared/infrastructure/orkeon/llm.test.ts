@@ -155,6 +155,31 @@ describe("createLlm — act", () => {
     deepStrictEqual(tallies, [PRUNED_TALLY]);
   });
 
+  it("hands onPruned the tally of an act stopped at its budget before it throws", async () => {
+    // Arrange
+    const facade = new FakeLlmFacade();
+    facade.actResult = { output: "partial", iterations: 3, budgetExhausted: true, pruned: PRUNED_RESULT };
+    const tallies: PruneTally[] = [];
+
+    // Act
+    await createLlm(facade).act("p", { prune: true, onPruned: (tally) => tallies.push(tally) }).catch(() => undefined);
+
+    // Assert
+    deepStrictEqual(tallies, [PRUNED_TALLY]);
+  });
+
+  it("answers an act whose result carries a tally nobody asked to hear", async () => {
+    // Arrange
+    const facade = new FakeLlmFacade();
+    facade.actResult = { output: "done", iterations: 4, pruned: PRUNED_RESULT };
+
+    // Act
+    const answer = await createLlm(facade).act("p", { prune: true });
+
+    // Assert
+    strictEqual(answer, "done");
+  });
+
   it("calls no onPruned when the act's result carries no tally", async () => {
     // Arrange
     const facade = new FakeLlmFacade();

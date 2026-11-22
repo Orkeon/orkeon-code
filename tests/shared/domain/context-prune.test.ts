@@ -4,7 +4,7 @@ import { describe, it } from "node:test";
 import { deepStrictEqual, strictEqual } from "node:assert";
 
 import { pruneOn, pruneTallyOf } from "../../../src/shared/domain/context-prune.ts";
-import { NO_TALLY_CASES, ON_CASES, RUNTIME_PRUNED, RUNTIME_TALLY } from "./context-prune.fixtures.ts";
+import { FRACTIONAL_PRUNED, NO_TALLY_CASES, ON_CASES, RUNTIME_PRUNED, RUNTIME_TALLY } from "./context-prune.fixtures.ts";
 
 describe("pruneOn", () => {
   for (const c of ON_CASES) {
@@ -25,6 +25,17 @@ describe("pruneTallyOf", () => {
   it("reads the counts of the runtime's tally", () => {
     // Arrange
     const pruned = RUNTIME_PRUNED;
+
+    // Act
+    const tally = pruneTallyOf(pruned);
+
+    // Assert
+    deepStrictEqual(tally, RUNTIME_TALLY);
+  });
+
+  it("rounds a count that is not whole down", () => {
+    // Arrange
+    const pruned = FRACTIONAL_PRUNED;
 
     // Act
     const tally = pruneTallyOf(pruned);

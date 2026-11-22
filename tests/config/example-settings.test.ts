@@ -1,7 +1,7 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import {
-  commentKeysBelowRoot, DECISION_EXAMPLES, FRAGMENTS, listExamples, load, NAMED_DECISION_EXAMPLES, PROMISED_EXAMPLES, RESULT_LIMITS, withoutCommentAndLlm,
+  AGENT_CLI_SECTION, commentKeysBelowRoot, DECISION_EXAMPLES, FRAGMENTS, listExamples, load, NAMED_DECISION_EXAMPLES, PROMISED_EXAMPLES, RESULT_LIMITS, SUBSCRIPTION_PROFILE, withoutCommentAndLlm,
   withoutCommentOrkeonAndMcp, withoutCommentProfilesAndAgentCli, withoutCommentProfilesAndDecision,
 } from "./example-settings.fixtures.ts";
 import {
@@ -90,6 +90,30 @@ test("the agent-cli example runs its subscription profile on agent-cli, keyless,
 
   // Assert
   assertAgentCliExample(settings);
+});
+
+// The page and the example's comment state the values of Llm:AgentCli and what the profile holds: a drift of either
+// fails here.
+test("the agent-cli example writes Llm:AgentCli at the runtime's defaults", () => {
+  // Arrange
+  const file = "appsettings.agent-cli.example.json";
+
+  // Act
+  const section = load(file).Llm.AgentCli;
+
+  // Assert
+  assert.deepEqual(section, AGENT_CLI_SECTION, "Llm:AgentCli drifted from the values the documentation states");
+});
+
+test("the agent-cli example's subscription profile holds its provider, model, timeout and fallback only", () => {
+  // Arrange
+  const file = "appsettings.agent-cli.example.json";
+
+  // Act
+  const profile = load(file).Llm.Profiles.subscription;
+
+  // Assert
+  assert.deepEqual(profile, SUBSCRIPTION_PROFILE, "Llm:Profiles:subscription holds another key or value than the documented ones");
 });
 
 // The Ollama example is the default one on a model of this machine: the same file but for its

@@ -30,12 +30,16 @@ export class FakeScriptHost implements ScriptHostFacade {
 
 export class FakeServiceLocator implements ServiceLocator {
   services = new Map<string, unknown>();
+  /** When set, thrown by every lookup: a locator used outside the run that got it. */
+  failure: Error | null = null;
 
   get<T = unknown>(name: string): T {
+    if (this.failure) throw this.failure;
     return this.services.get(name) as T;
   }
 
   has(name: string): boolean {
+    if (this.failure) throw this.failure;
     return this.services.has(name);
   }
 }

@@ -56,6 +56,25 @@ export function withoutCommentProfilesAndAgentCli(settings: any): Record<string,
   return { ...rest, Llm: llm };
 }
 
+/** Llm:AgentCli as the agent-cli example writes it: the defaults of Orkeon's AgentCliOptions at the pin, which the
+ *  example's comment and docs/configuration.md state. */
+export const AGENT_CLI_SECTION = {
+  Engine: "claude",
+  Command: "claude",
+  MaxProcesses: 4,
+  MaxToolResultCharacters: 100000,
+  RequireLogin: true,
+};
+
+/** Llm:Profiles:subscription of the agent-cli example, whole: no address, no key, and no wait on a rate limit, which
+ *  the provider never reads. */
+export const SUBSCRIPTION_PROFILE = {
+  Provider: "agent-cli",
+  Model: "claude-opus-5-5",
+  TimeoutSeconds: 600,
+  Fallback: ["default"],
+};
+
 /** The settings but for their comment and their Llm section. */
 export const withoutCommentAndLlm = ({ _comment, Llm, ...rest }: Record<string, unknown>) => rest;
 

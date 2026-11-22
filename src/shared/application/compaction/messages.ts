@@ -14,6 +14,7 @@ export const stateNotWritten = (reason: string): string => `the state of the bat
 export const couldNotBeWritten = (reason: string): string => `it could not be written (${reason})`;
 export const snippedLine = (removed: number, kept: number): string => `snipped: ${removed} removed, ${kept} kept.`;
 export const PRUNE_WITHOUT_DECISION_MODEL =
-  "compaction.prune is on and the host has no decision model: nothing is pruned (set Orkeon:Decision:Provider, or Orkeon:TypeSafe)";
+  "compaction.prune is on and the host has no decision model to ask: nothing is pruned " +
+  "(no Orkeon:Decision:Provider nor Orkeon:TypeSafe is set, or the provider lacks its key: the runtime's start line says which)";
 export const prunedLine = (judged: number, dropped: number, cut: number, freedTokens: number): string =>
   `context pruning: ${judged} tool result(s) judged, ${dropped} removed, ${cut} cut, about ${freedTokens} tokens freed`;

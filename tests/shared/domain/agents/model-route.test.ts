@@ -4,12 +4,12 @@ import { describe, it } from "node:test";
 import { deepStrictEqual, strictEqual } from "node:assert";
 
 import {
-  ROUTE_BRIEF_CHARS, ladderOf, ladderProblem, parseRecords, parseRouteRules, routable, routeBounds, routeDecided, routeFloor, routeNotAsked,
+  asOnLadder, ladderOf, ladderProblem, parseRecords, parseRouteRules, routable, routeBounds, routeDecided, routeFloor, routeHeld, routeNotAsked,
   routeOn, routeState, withRecord,
 } from "../../../../src/shared/domain/agents/model-route.ts";
 import {
-  BOUNDS_CASES, DECIDED_REASONS, FLOOR_CASES, LADDER, LADDER_CASES, LADDER_PROBLEM_CASES, LONG_BRIEF, NOT_ASKED_REASONS, OLD_RECORD, ROOT_RULES,
-  ROUTABLE_CASES, RULES, RULES_TEXT_CASES, record,
+  BOUNDS_CASES, DECIDED_REASONS, FLOOR_CASES, HELD_CASES, LADDER, LADDER_CASES, LADDER_PROBLEM_CASES, LONG_BRIEF, NOT_ASKED_REASONS, OLD_RECORD, ROOT_RULES,
+  ROUTABLE_CASES, RULES, RULES_TEXT_CASES, SPELLING_CASES, record,
 } from "./model-route.fixtures.ts";
 
 describe("routeOn", () => {
@@ -109,10 +109,10 @@ describe("routeState", () => {
     const state = routeState("code-review", brief);
 
     // Assert
-    strictEqual(state, "A coding assistant is about to run its crew 'code-review' for this command of its user:\n/review --lens security");
+    strictEqual(state, "Run the crew 'code-review' of a coding assistant for this command of its user:\n/review --lens security");
   });
 
-  it("cuts a long command in its middle, at 4 000 characters", () => {
+  it("gives a long command whole, the cut being the runtime's", () => {
     // Arrange
     const brief = LONG_BRIEF;
 
@@ -120,11 +120,38 @@ describe("routeState", () => {
     const state = routeState("dev-change", brief);
 
     // Assert
-    deepStrictEqual(
-      [state.split("\n")[1].length, state.includes("aaa ... zzz"), state.endsWith("zzz")],
-      [ROUTE_BRIEF_CHARS, true, true],
-    );
+    strictEqual(state.split("\n")[1], LONG_BRIEF);
   });
+});
+
+describe("routeHeld", () => {
+  for (const c of HELD_CASES) {
+    it(c.name, () => {
+      // Arrange
+      const session = c.session;
+
+      // Act
+      const held = routeHeld(LADDER, session, c.floor);
+
+      // Assert
+      strictEqual(held, c.held);
+    });
+  }
+});
+
+describe("asOnLadder", () => {
+  for (const c of SPELLING_CASES) {
+    it(c.name, () => {
+      // Arrange
+      const profile = c.profile;
+
+      // Act
+      const spelled = asOnLadder(LADDER, profile);
+
+      // Assert
+      strictEqual(spelled, c.expected);
+    });
+  }
 });
 
 describe("routable", () => {
@@ -215,6 +242,21 @@ describe("parseRecords", () => {
 
       // Assert
       strictEqual(records.length, c.count);
+    });
+  }
+});
+
+describe("parseRecords, a record whose reason no choice carries", () => {
+  for (const reason of ["circuit-off", "no-ladder", "guess"]) {
+    it(`drops a record kept with the reason ${reason}`, () => {
+      // Arrange
+      const stored = JSON.stringify([{ crew: "dev-plan", profile: "large", reason }]);
+
+      // Act
+      const records = parseRecords(stored);
+
+      // Assert
+      deepStrictEqual(records, []);
     });
   }
 });

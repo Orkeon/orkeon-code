@@ -23,9 +23,15 @@ export const RECENT = JSON.stringify([
   { crew: "dev-plan", profile: "small", reason: "model", picked: "small", confidence: 0.9 },
   { crew: "code-review", profile: null, reason: "no-answer" },
 ]);
+/** What a session may hold from before: a record whose reason no choice carries any more, and one that says what stood. */
+export const RECENT_WITH_CIRCUIT_OFF = JSON.stringify([
+  { crew: "dev-plan", profile: "large", reason: "circuit-off" },
+  { crew: "dev-reviewer", profile: "small", reason: "low-confidence", picked: "large", probability: 0.4, stands: "crew" },
+]);
+export const WHY_STANDS_LINES = ["dev-reviewer on 'small': the pick was not sure enough, the act stays on its crew's profile; picked 'large' at 0.40"];
 export const WHY_LINES = [
   "dev-plan on 'small': the decision model's pick; picked 'small' at 0.90",
-  "code-review on 'the host's default model': the decision model did not answer, the session's profile (or a rule's floor) stands",
+  "code-review on 'the host's default model': the decision model did not answer",
 ];
 
 /** /route on a host whose `small` rung runs a model that takes no effort and whose `large` rung runs GLM-5.3. */

@@ -8,7 +8,8 @@ export const REPAIR_INSTRUCTION =
   "only what follows. Answer the operator's message below, then give the whole report again in the shape the previous brief asked for.";
 export const noReport = (state: string, error: string): string => `(none: the instance ${state}${error})`;
 
-// ── Routing a crew to a profile: the request the runtime's pick reads (it describes the rungs itself) ──────────
+// ── Routing a crew to a profile: the task the runtime's pick reads, inside the runtime's own frame ("An agent with
+//    the role '…' is about to carry out this task:"); the runtime describes the rungs itself ─────────────────────
 
 export const routeStateText = (crew: string, command: string): string =>
-  `A coding assistant is about to run its crew '${crew}' for this command of its user:\n${command}`;
+  `Run the crew '${crew}' of a coding assistant for this command of its user:\n${command}`;

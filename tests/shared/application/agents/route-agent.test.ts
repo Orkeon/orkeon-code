@@ -5,8 +5,8 @@ import { describe, it } from "node:test";
 
 import { actRoute, routeAgent } from "../../../../src/shared/application/agents/route-agent.ts";
 import {
-  ACT_ROUTES, BILLING_TASK, NOT_ASKED, NO_ANSWER_LINE, NO_MODEL_WARNING, OPTIONS_CASES, OUTSIDE_LADDER_LINE, REASON_CASES,
-  REVIEWER_LINE, REVIEW_TASK, ROUTED_SMALL_LINE, RULES_PATH, SMALL_RECORD, TASK, actRouteSetup, answer, routeSetup,
+  ACT_LINES, ACT_ROUTES, BILLING_TASK, HELD_CASES, LINE_CASES, NO_CHOICE, NO_MODEL_WARNING, OPTIONS_CASES, OUTSIDE_LADDER_LINE,
+  REASON_CASES, REVIEW_TASK, RULES_PATH, SMALL_RECORD, TASK, UNSURE_RECORD, answer, answeredSetup, routeSetup,
 } from "./route-agent.fixtures.ts";
 
 describe("routeAgent", () => {
@@ -46,7 +46,20 @@ describe("routeAgent", () => {
     deepStrictEqual([profile, picker.asked.length, log.lines], ["guarded", 0, [OUTSIDE_LADDER_LINE]]);
   });
 
-  it("asks the pick about the crew and the command", async () => {
+  for (const c of HELD_CASES) {
+    it(c.name, async () => {
+      // Arrange
+      const { deps, picker, log, session } = routeSetup("on", c);
+
+      // Act
+      const profile = await routeAgent(deps, c.task, c.session);
+
+      // Assert
+      deepStrictEqual([profile, picker.asked.length, log.lines, session.state.has("route_recent")], [c.session, 0, [], false]);
+    });
+  }
+
+  it("sends the pick one lead line that names the crew, then the command", async () => {
     // Arrange
     const { deps, picker } = routeSetup();
 
@@ -54,18 +67,13 @@ describe("routeAgent", () => {
     await routeAgent(deps, TASK, null);
 
     // Assert
-    deepStrictEqual(
-      [picker.asked[0].request.includes("'dev-plan'"), picker.asked[0].request.endsWith("\n/dev-plan invoice-export")],
-      [true, true],
-    );
+    strictEqual(picker.asked[0].request, "Run the crew 'dev-plan' of a coding assistant for this command of its user:\n/dev-plan invoice-export");
   });
 
   for (const c of OPTIONS_CASES) {
     it(c.name, async () => {
       // Arrange
-      const { deps, picker, files, config } = routeSetup();
-      if (c.rules !== null) files.files.set(RULES_PATH, c.rules);
-      if (c.ladder !== undefined) config.values["route.ladder"] = c.ladder;
+      const { deps, picker } = routeSetup("on", c);
 
       // Act
       await routeAgent(deps, c.task, c.session);
@@ -90,8 +98,7 @@ describe("routeAgent", () => {
   for (const c of REASON_CASES) {
     it(c.name, async () => {
       // Arrange
-      const { deps, picker } = routeSetup();
-      picker.answer = c.answer;
+      const { deps } = answeredSetup(c);
 
       // Act
       const profile = await routeAgent(deps, TASK, c.session);
@@ -101,40 +108,29 @@ describe("routeAgent", () => {
     });
   }
 
-  it("says on which rung the crew is launched, and why", async () => {
-    // Arrange
-    const { deps, log } = routeSetup();
-
-    // Act
-    await routeAgent(deps, TASK, "large");
-
-    // Assert
-    deepStrictEqual(log.lines, [ROUTED_SMALL_LINE]);
-  });
-
-  it("says the crew runs on the host's default model when the pick falls back on it", async () => {
-    // Arrange
-    const { deps, picker, log } = routeSetup();
-    picker.answer = answer(null, "no-answer");
-
-    // Act
-    await routeAgent(deps, TASK, null);
-
-    // Assert
-    deepStrictEqual(log.lines, [NO_ANSWER_LINE]);
-  });
-
-  for (const c of NOT_ASKED) {
+  for (const c of LINE_CASES) {
     it(c.name, async () => {
       // Arrange
-      const { deps, picker, log, session } = routeSetup();
-      picker.answer = c.answer;
+      const { deps, log } = answeredSetup(c);
+
+      // Act
+      await routeAgent(deps, TASK, c.session);
+
+      // Assert
+      deepStrictEqual(log.lines, c.lines);
+    });
+  }
+
+  for (const c of NO_CHOICE) {
+    it(c.name, async () => {
+      // Arrange
+      const { deps, log, session } = answeredSetup(c);
 
       // Act
       await routeAgent(deps, TASK, "large");
 
       // Assert
-      deepStrictEqual([log.lines, session.state.has("route_recent")], [[], false]);
+      deepStrictEqual([log.lines, session.state.has("route_recent")], [c.lines, false]);
     });
   }
 
@@ -147,6 +143,17 @@ describe("routeAgent", () => {
 
     // Assert
     deepStrictEqual(JSON.parse(session.state.get("route_recent") ?? "[]"), SMALL_RECORD);
+  });
+
+  it("keeps what stood with a choice that decided nothing", async () => {
+    // Arrange
+    const { deps, session } = answeredSetup({ answer: answer("large", "low-confidence", "small", 0.4) });
+
+    // Act
+    await routeAgent(deps, TASK, "large");
+
+    // Assert
+    deepStrictEqual(JSON.parse(session.state.get("route_recent") ?? "[]"), UNSURE_RECORD);
   });
 
   it("routes all the same when the choice cannot be kept", async () => {
@@ -167,7 +174,7 @@ describe("actRoute", () => {
   for (const c of ACT_ROUTES) {
     it(c.name, async () => {
       // Arrange
-      const { deps } = actRouteSetup(c);
+      const { deps } = answeredSetup(c);
 
       // Act
       const profile = await actRoute(deps, c.profiles)(REVIEW_TASK);
@@ -177,14 +184,16 @@ describe("actRoute", () => {
     });
   }
 
-  it("asks under the sub-agent's name and says where its act runs", async () => {
-    // Arrange
-    const { deps, log } = routeSetup();
+  for (const c of ACT_LINES) {
+    it(c.name, async () => {
+      // Arrange
+      const { deps, log } = answeredSetup(c);
 
-    // Act
-    await actRoute(deps, { session: "large", crew: "large" })(REVIEW_TASK);
+      // Act
+      await actRoute(deps, c.profiles)(REVIEW_TASK);
 
-    // Assert
-    deepStrictEqual(log.lines, [REVIEWER_LINE]);
-  });
+      // Assert
+      deepStrictEqual(log.lines, c.lines);
+    });
+  }
 });

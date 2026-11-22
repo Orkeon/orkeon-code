@@ -14,6 +14,7 @@ export const LADDER_PROBLEM_CASES: readonly { readonly name: string; readonly va
   { name: "accepts two profiles", value: "small,large", problem: false },
   { name: "refuses one profile alone", value: "small", problem: true },
   { name: "refuses a profile named twice", value: "small,large,small", problem: true },
+  { name: "refuses a profile named twice in two cases, one profile for the host", value: "Small,small", problem: true },
   { name: "refuses a name that holds a space", value: "small,very large", problem: true },
   { name: "refuses the name the runtime reserves for its own pick as a rung", value: "small,auto", problem: true },
 ];
@@ -59,6 +60,20 @@ export const BOUNDS_CASES: readonly {
   { name: "holds a floor above the session's rung at it", session: "medium", floor: 2, expected: { ladder: LADDER, floor: "medium", ceiling: "medium", fallback: "medium" } },
   { name: "gives no floor when it is held at the lowest rung", session: "small", floor: 2, expected: { ladder: LADDER, ceiling: "small", fallback: "small" } },
   { name: "falls back on the floor's rung on the host's default model", session: null, floor: 1, expected: { ladder: LADDER, floor: "medium", fallback: "medium" } },
+];
+
+export const HELD_CASES: readonly { readonly name: string; readonly session: string | null; readonly floor: number; readonly held: boolean }[] = [
+  { name: "holds a session on the lowest rung", session: "small", floor: 0, held: true },
+  { name: "holds a session whose rung a rule's floor reaches", session: "medium", floor: 1, held: true },
+  { name: "holds a session whose rung a rule's floor is above", session: "medium", floor: 2, held: true },
+  { name: "does not hold a session above the lowest rung without a floor", session: "medium", floor: 0, held: false },
+  { name: "does not hold a session above a rule's floor", session: "large", floor: 1, held: false },
+  { name: "does not hold a session on the host's default model, whatever the floor", session: null, floor: 2, held: false },
+];
+
+export const SPELLING_CASES: readonly { readonly name: string; readonly profile: string; readonly expected: string }[] = [
+  { name: "spells a rung the host answers in another case as the ladder does", profile: "Medium", expected: "medium" },
+  { name: "leaves a profile that is no rung as it is", profile: "Guarded", expected: "Guarded" },
 ];
 
 export const ROUTABLE_CASES: readonly { readonly name: string; readonly session: string | null; readonly routable: boolean }[] = [

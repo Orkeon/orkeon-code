@@ -2,19 +2,7 @@
 // pick of a profile. Types only, re-exported by ../ports.ts.
 
 import type { DecisionAnswers, DecisionQuestions } from "../../domain/decision/questions.ts";
-import type { RouteReason } from "../../domain/agents/model-route.ts";
-
-/** What a profile pick is given besides its request: profiles the host declares, cheapest first, and the bounds. */
-export interface ProfilePickOptions {
-  /** Two or more profiles, each once. */
-  ladder: readonly string[];
-  /** The lowest rung the answer may be; a rung of the ladder. */
-  floor?: string;
-  /** The highest rung the answer may be; a rung of the ladder. */
-  ceiling?: string;
-  /** What stands without a pick; left out, the host's default model. */
-  fallback?: string;
-}
+import type { RouteBounds, RouteReason } from "../../domain/agents/model-route.ts";
 
 /** The answer of a profile pick. */
 export interface ProfilePick {
@@ -28,11 +16,18 @@ export interface ProfilePick {
   probability: number | null;
 }
 
+/** A pick the runtime refused (a rung the host does not declare, a floor above the ceiling), or that failed. */
+export interface ProfilePickRefusal {
+  /** The runtime's own message: it names the option and what is wrong with it. */
+  refused: string;
+}
+
 /** The runtime's System One pick of a profile (Orkeon #460, experimental ORKEXP008): the decision model reads the
  *  request and picks a rung; under its bar (0.6) or without an answer the fallback stands. */
 export interface ProfilePicker {
-  /** Never throws: a host without the pick, an option it refuses and a reply that does not read are all null. */
-  pick(request: string, options: ProfilePickOptions): Promise<ProfilePick | null>;
+  /** Never throws nor rejects: a host without the pick and a reply that does not read are null; an option the
+   *  runtime refuses, and any other failure of the call, is a refusal that carries the runtime's message. */
+  pick(request: string, options: RouteBounds): Promise<ProfilePick | ProfilePickRefusal | null>;
 }
 
 /** The decision model the host's settings configure (`Orkeon:Decision`), whichever provider serves it. A use case

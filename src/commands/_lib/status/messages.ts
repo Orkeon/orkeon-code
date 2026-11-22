@@ -78,7 +78,7 @@ export const noToolCallHolds = (text: string): string => `no tool call holds '${
 export const RELEASE_NOTES = [
   `${CLI_NAME} ${CLI_VERSION} (${CLI_BUILD})`,
   "",
-  `Third release candidate of 1.0.0, on Orkeon 1.3.0 (main ${ORKEON_RUNTIME_PIN}).`,
+  `Third release candidate of 1.0.0, on Orkeon's main at commit ${ORKEON_RUNTIME_PIN}, past Orkeon 1.3.0 (the release the tool manifest installs).`,
   "",
   "Crews: main-loop (the interactive loop behind /assistant), code-review, git-commit,",
   "       project-init, init-verifiers, session-compact, advisor, analyze, speech,",

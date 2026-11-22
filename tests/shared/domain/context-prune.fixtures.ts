@@ -16,11 +16,16 @@ export const RUNTIME_PRUNED = { offered: 6, judged: 5, kept: 2, cut: 1, dropped:
 
 export const RUNTIME_TALLY: PruneTally = { judged: 5, dropped: 2, cut: 1, freedTokens: 4_100 };
 
+/** A tally whose counts are not whole: the runtime's estimate of the tokens freed, as a fraction. */
+export const FRACTIONAL_PRUNED = { ...RUNTIME_PRUNED, freedTokens: 4_100.9 };
+
 export const NO_TALLY_CASES: readonly { readonly name: string; readonly pruned: unknown }[] = [
   { name: "nothing", pruned: undefined },
   { name: "null", pruned: null },
   { name: "a number", pruned: 3 },
   { name: "a count that is no number", pruned: { ...RUNTIME_PRUNED, cut: "1" } },
   { name: "a negative count", pruned: { ...RUNTIME_PRUNED, dropped: -1 } },
+  { name: "a count that is not a number", pruned: { ...RUNTIME_PRUNED, judged: Number.NaN } },
+  { name: "a count without end", pruned: { ...RUNTIME_PRUNED, freedTokens: Number.POSITIVE_INFINITY } },
   { name: "a count left out", pruned: { judged: 5, dropped: 2, cut: 1 } },
 ];

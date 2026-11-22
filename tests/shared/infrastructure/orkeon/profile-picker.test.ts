@@ -4,8 +4,12 @@ import { deepStrictEqual, strictEqual } from "node:assert";
 import { describe, it } from "node:test";
 
 import { createLlmProfilePicker, createServicesProfilePicker } from "../../../../src/shared/infrastructure/orkeon/profile-picker.ts";
+import { FakePickService } from "../../../support/doubles/fake-pick-service.ts";
 import { FakeServiceLocator } from "../../../support/doubles/fake-script-host.ts";
-import { MODEL_PICK, OPTIONS, REQUEST, UNREAD, pickerOverLlm, pickerOverServices } from "./profile-picker.fixtures.ts";
+import {
+  ALL_BOUNDS, DEFAULT_SPELLINGS, LOCATOR_GONE, MISTYPED_PICK, MODEL_PICK, OPTIONS, REFUSED_FLOOR, REFUSED_LADDER, REQUEST, UNREAD,
+  llmWhosePickThrows, pickerOverLlm, pickerOverServices,
+} from "./profile-picker.fixtures.ts";
 
 describe("createServicesProfilePicker", () => {
   it("answers nothing on a host that serves no pick", async () => {
@@ -52,28 +56,90 @@ describe("createServicesProfilePicker", () => {
     deepStrictEqual(answer, MODEL_PICK);
   });
 
-  it("reads the runtime's default profile as the host's default model", async () => {
+  for (const spelling of DEFAULT_SPELLINGS) {
+    it(`reads the runtime's default profile, spelled ${JSON.stringify(spelling)}, as the host's default model`, async () => {
+      // Arrange
+      const { service, picker } = pickerOverServices();
+      service.reply = { profile: { value: spelling, reason: "no-answer", picked: null, probability: null } };
+
+      // Act
+      const answer = await picker.pick(REQUEST, OPTIONS);
+
+      // Assert
+      deepStrictEqual(answer, { value: null, reason: "no-answer", picked: null, probability: null });
+    });
+  }
+
+  it("reads a pick and a probability of the wrong type as absent", async () => {
     // Arrange
     const { service, picker } = pickerOverServices();
-    service.reply = { profile: { value: "default", reason: "no-answer", picked: null, probability: null } };
+    service.reply = MISTYPED_PICK;
 
     // Act
     const answer = await picker.pick(REQUEST, OPTIONS);
 
     // Assert
-    deepStrictEqual(answer, { value: null, reason: "no-answer", picked: null, probability: null });
+    deepStrictEqual(answer, { value: "small", reason: "model", picked: null, probability: null });
   });
 
-  it("answers nothing when the runtime refuses an option", async () => {
+  it("sends the floor with the other bounds", async () => {
     // Arrange
     const { service, picker } = pickerOverServices();
-    service.failure = new Error("services.get(\"pick\").pick { profile.ladder } 'tiny' is not a profile");
+
+    // Act
+    await picker.pick(REQUEST, ALL_BOUNDS);
+
+    // Assert
+    deepStrictEqual(service.calls[0].options, { profile: { ladder: ["small", "medium", "large"], floor: "medium", ceiling: "large", fallback: "large" } });
+  });
+
+  it("looks the service up at each pick, not when it is created", async () => {
+    // Arrange
+    const services = new FakeServiceLocator();
+    const picker = createServicesProfilePicker(services);
+    services.services.set("pick", new FakePickService());
 
     // Act
     const answer = await picker.pick(REQUEST, OPTIONS);
+
+    // Assert
+    deepStrictEqual(answer, MODEL_PICK);
+  });
+
+  it("answers nothing when the service has no pick to call", async () => {
+    // Arrange
+    const services = new FakeServiceLocator();
+    services.services.set("pick", {});
+
+    // Act
+    const answer = await createServicesProfilePicker(services).pick(REQUEST, OPTIONS);
 
     // Assert
     strictEqual(answer, null);
+  });
+
+  it("answers the runtime's message as a refusal when it refuses an option", async () => {
+    // Arrange
+    const { service, picker } = pickerOverServices();
+    service.failure = new Error(REFUSED_LADDER);
+
+    // Act
+    const answer = await picker.pick(REQUEST, OPTIONS);
+
+    // Assert
+    deepStrictEqual(answer, { refused: REFUSED_LADDER });
+  });
+
+  it("answers a refusal, and throws nothing, when the lookup of the service throws", async () => {
+    // Arrange
+    const { services, picker } = pickerOverServices();
+    services.failure = new Error(LOCATOR_GONE);
+
+    // Act
+    const answer = await picker.pick(REQUEST, OPTIONS);
+
+    // Assert
+    deepStrictEqual(answer, { refused: LOCATOR_GONE });
   });
 
   for (const c of UNREAD) {
@@ -114,15 +180,39 @@ describe("createLlmProfilePicker", () => {
     deepStrictEqual(answer, MODEL_PICK);
   });
 
-  it("answers nothing when ctx.llm.pick throws", async () => {
+  it("sends ctx.llm.pick the request, and the options as the profile part", async () => {
     // Arrange
     const { service, picker } = pickerOverLlm();
-    service.failure = new Error("ctx.llm.pick { profile.floor } 'large' is above the ceiling 'small'");
+
+    // Act
+    await picker.pick(REQUEST, ALL_BOUNDS);
+
+    // Assert
+    deepStrictEqual(service.calls, [
+      { request: REQUEST, options: { profile: { ladder: ["small", "medium", "large"], floor: "medium", ceiling: "large", fallback: "large" } } },
+    ]);
+  });
+
+  it("answers the runtime's message as a refusal when ctx.llm.pick throws", async () => {
+    // Arrange
+    const { service, picker } = pickerOverLlm();
+    service.failure = new Error(REFUSED_FLOOR);
 
     // Act
     const answer = await picker.pick(REQUEST, OPTIONS);
 
     // Assert
-    strictEqual(answer, null);
+    deepStrictEqual(answer, { refused: REFUSED_FLOOR });
+  });
+
+  it("answers a refusal, and throws nothing, when ctx.llm.pick cannot be read", async () => {
+    // Arrange
+    const picker = createLlmProfilePicker(llmWhosePickThrows());
+
+    // Act
+    const answer = await picker.pick(REQUEST, OPTIONS);
+
+    // Assert
+    deepStrictEqual(answer, { refused: LOCATOR_GONE });
   });
 });
