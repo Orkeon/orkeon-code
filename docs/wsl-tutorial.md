@@ -98,11 +98,10 @@ mkdir -p ~/audio && timeout 20 parecord --channels=1 --rate=16000 --file-format=
 
 ## 3. Orkeon from its apt package
 
-The `stable` channel carries the last release of Orkeon, `1.3.0`: at this writing it is eleven commits behind the commit
-of Orkeon's `main` Orkeon Code is checked against (`.orkeon-version`, from Orkeon #423, a spawn past the budget refused, on),
-so the tool mode runs that release, not the pin ([Getting started](getting-started.md)). The
+The `stable` channel carries the last release of Orkeon, `1.4.0`: at this writing it is the commit Orkeon Code is
+checked against (`.orkeon-version`), so the tool mode runs the pin ([Getting started](getting-started.md)). The
 `dev` channel publishes one package per commit of `main` the CI validated, versioned `<next patch>~dev.<n>`
-(`1.3.1~dev.<n>` after `1.3.0`; `n` is the number of the CI run), the last three builds only: it is for following `main` ahead of the pin, not for this
+(`1.4.1~dev.<n>` after `1.4.0`; `n` is the number of the CI run), the last three builds only: it is for following `main` ahead of the pin, not for this
 tutorial. The package installs `/usr/bin/orkeon-repl` (the REPL, with its
 `esbuild`: no .NET and no npm to install) and `orkeon` (the CLI). Supported systems: Debian 12 and 13, Ubuntu 22.04,
 24.04 and 26.04 (`cat /etc/os-release` says which you have).
@@ -148,7 +147,7 @@ sudo apt-get update && sudo apt-get install -y orkeon orkeon-archive-keyring
 orkeon --version && command -v orkeon-repl
 ```
 
-Expected: `1.3.0` and `/usr/bin/orkeon-repl`. Later, the next
+Expected: `1.4.0` and `/usr/bin/orkeon-repl`. Later, the next
 release comes with `sudo apt update && sudo apt upgrade`; `apt list -a orkeon` lists the channel's, and
 `/status` says whether the one running is the commit of `.orkeon-version`.
 
@@ -190,8 +189,8 @@ A first REPL, without speech, on the throwaway sample repository (`--demo`), in 
 ./orkeon-code --mode tool --demo
 ```
 
-The banner shows `orkeon-code <version> on Orkeon (tool: a release, the pin is cf521d3)`: the tool mode runs the
-package's release, `1.3.0` (`d81bfab`), eleven commits behind the pin of `.orkeon-version` at this writing. Then come the project and the settings file. In the REPL:
+The banner shows `orkeon-code <version> on Orkeon (tool: a release, the pin is 0389fd2)`: the tool mode runs the
+package's release, `1.4.0`, the commit of the pin of `.orkeon-version` at this writing. Then come the project and the settings file. In the REPL:
 
 | Command | Expected |
 |---|---|

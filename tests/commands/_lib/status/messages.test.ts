@@ -4,7 +4,7 @@
 import { describe, it } from "node:test";
 import { deepStrictEqual, ok } from "node:assert";
 
-import { CLI_VERSION } from "../../../../src/commands/_lib/status/meta.ts";
+import { CLI_VERSION, ORKEON_RUNTIME_PIN } from "../../../../src/commands/_lib/status/meta.ts";
 import { RELEASE_NOTES } from "../../../../src/commands/_lib/status/messages.ts";
 import { commandCount, crewNames, runtimeFacts } from "./messages.fixtures.ts";
 
@@ -56,9 +56,9 @@ describe("B-11 audit — the release notes that had gone stale", () => {
     deepStrictEqual(omitted, [], `RELEASE_NOTES omits ${omitted.join(" and ")}`);
   });
 
-  it("says the build is the work after the release candidate, not that candidate", () => {
+  it("names the stable release and the Orkeon release it runs on", () => {
     // Arrange
-    const line = "The work after the third release candidate of 1.0.0 (released on Orkeon 1.3.0)";
+    const line = `First stable release, on Orkeon 1.4.0 (main ${ORKEON_RUNTIME_PIN}), the release every mode runs.`;
 
     // Act
     const stated = RELEASE_NOTES.includes(line);

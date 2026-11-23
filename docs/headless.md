@@ -201,7 +201,7 @@ Three ways, from the simplest:
    Code's crews have not been exercised under the daemon yet: the input a hosted procedural crew receives is the
    daemon's contract ([Orkeon service host](https://github.com/Orkeon/orkeon/blob/main/docs/architecture/service-host.md)).
 3. **In-process, in .NET.** Orkeon publishes its scripting layer on nuget.org as the `Orkeon.Scripting` package
-   (`1.3.0`, the last release): an application registers it with `services.AddOrkeonScripting()` and runs a
+   (`1.4.0`, the last release): an application registers it with `services.AddOrkeonScripting()` and runs a
    `crew.ork.ts` through `ICrewScriptRunner.RunAsync(path)`, the in-process form of `orkeon run`, without starting a
    process ([Running a crew in-process](https://github.com/Orkeon/orkeon/blob/main/docs/reference/hosting.md#running-a-crew-in-process)).
    esbuild is not in the package, as for the tool. Orkeon Code's crews have not been run that way yet: a host

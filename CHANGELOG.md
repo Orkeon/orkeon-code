@@ -7,6 +7,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.0.0] - 2026-11-23
+
+### Changed — the pin moves to Orkeon 1.4.0
+
+- The pin moves to Orkeon `main` `0389fd2` (Orkeon #471, #478, #479), the tagged commit of Orkeon `1.4.0`: the
+  source, tool, docker and package modes run the same runtime again, and `.config/dotnet-tools.json` names `1.4.0`.
+  The typings do not change and nothing is adopted: `1.4.0` is the commit `cf521d3` this release was built on, its
+  changelog dated and its public API shipped.
+- In the tool and docker modes, `compaction.prune` prunes, `route.agents` routes and a spawn past the budget is
+  refused, as in the source mode; in docker mode, the tool bridge carries the host's Firefox into the container.
+- `/release-notes` names `1.0.0` as the first stable release, on Orkeon `1.4.0`.
+
 ### Changed — the pin moves to Orkeon `cf521d3`: the runtime prunes and routes
 
 - The pin moves to Orkeon `main` `cf521d3` (Orkeon #457, #462, #470, #474, #477) ([ADR 0034](docs/adr/0034-orkeon-after-470.md)).
@@ -40,9 +52,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   ([decision models locally](docs/decision-models-local.md#when-it-does-not-work)). The runtime does not tell a
   script which cause it is: the warning names what to check, `Orkeon:Decision:Provider`, `Orkeon:Decision:Enabled`
   and the key of the provider's section, where it used to send you to a start line that does not say it.
-- The tool and docker modes run Orkeon `1.3.0`, eleven commits behind this pin: `compaction.prune` prunes nothing
-  and `route.agents` routes nothing there, without a warning of its own (a host with no decision model still gets the usual one). `/config` says so in the description of
-  `compaction.prune`, and `/release-notes` names the pin as a commit of Orkeon's `main` past `1.3.0`.
+- A runtime older than Orkeon `1.4.0` ignores `compaction.prune` and `route.agents` without a word: `/config` says
+  so in the description of `compaction.prune`.
 
 ### Fixed — `/analyze` without `--parallel` says nothing
 
@@ -2052,7 +2063,8 @@ First release as a standalone project, on Orkeon `1.0.0-rc.5`.
 - Checks: unit tests on Node's native type stripping, type check, bundle check with the runtime's esbuild flags,
   provenance gate, runtime smoke.
 
-[Unreleased]: https://github.com/Orkeon/orkeon-code/compare/v1.0.0-rc.3...HEAD
+[Unreleased]: https://github.com/Orkeon/orkeon-code/compare/v1.0.0...HEAD
+[1.0.0]: https://github.com/Orkeon/orkeon-code/releases/tag/v1.0.0
 [1.0.0-rc.3]: https://github.com/Orkeon/orkeon-code/releases/tag/v1.0.0-rc.3
 [1.0.0-rc.2]: https://github.com/Orkeon/orkeon-code/releases/tag/v1.0.0-rc.2
 [1.0.0-rc.1]: https://github.com/Orkeon/orkeon-code/releases/tag/v1.0.0-rc.1
