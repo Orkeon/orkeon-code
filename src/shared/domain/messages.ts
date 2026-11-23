@@ -108,9 +108,12 @@ export const ANSWER_LANGUAGE_DOC: ConfigKeyDoc = {
 
 export const PRUNE_DOC: ConfigKeyDoc = {
   description:
-    "'on' lets the host's decision model prune the tool loop of a turn: past 40 % of the context window, an older " +
-    "result of a read tool that is no longer needed is removed or cut to its first 300 characters, with a note that says how " +
-    "to get it back. Needs a decision provider on the host; without one nothing is pruned. Omitted = 'off'.",
+    "'on' lets the host's decision model prune the tool loop of a turn: past a share of the call's usable window, an older " +
+    "result of a read tool that is no longer needed is removed or cut to its first characters, with a note that says how " +
+    "to get it back. Both numbers are the host's (Orkeon:Compaction:Prune FillShare and HeadChars): 0.4 of the window and " +
+    "300 characters unless the host sets others. Needs a decision provider on the host; without one nothing is pruned. The runtime does the pruning: " +
+    "one older than the commit .orkeon-version pins (Orkeon 1.3.0 included) ignores the setting and prunes nothing, without a word. " +
+    "Omitted = 'off'.",
   consumedBy:
     "/assistant, /summary, /transcribe --then, /voice send and /voice --go (the tool results of a turn in progress); " +
     "/dev-spec, /dev-change, /dev-plan, /dev-implement, /dev-verify and /dev-batches (the acts of their reviewer, roles and auditor)",

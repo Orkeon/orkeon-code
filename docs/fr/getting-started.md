@@ -79,22 +79,26 @@ avec le lanceur bash ([tutoriel WSL](wsl-tutorial.md)). Sur les deux, un chemin 
 dans les appels du modèle et dans ce qu'une commande imprime ([architecture](architecture.md#le-vfs-et-la-plateforme-hôte)) ;
 sous WSL un programme Windows n'est joignable que sans confinement, et reçoit encore des chemins `/mnt/c/…`.
 
-- Orkeon Code est vérifié contre les sources d'Orkeon au commit de `.orkeon-version` (`5dc2ff3`, le `main` après
-  Orkeon/orkeon#447, six commits après Orkeon `1.3.0`, 2026-11-21) : le [mode source](#mode-source--un-checkout-dorkeon) exécute ce commit, le runtime
+- Orkeon Code est vérifié contre les sources d'Orkeon au commit de `.orkeon-version` (`cf521d3`, le `main` après
+  Orkeon/orkeon#477, onze commits après Orkeon `1.3.0`, 2026-11-22) : le [mode source](#mode-source--un-checkout-dorkeon) exécute ce commit, le runtime
   de référence.
 - Le [mode tool](#mode-tool--orkeon-repl-installé) (le paquet Debian sur le canal apt `stable`, les archives de
   release) exécute la dernière release d'Orkeon, `1.3.0` (`d81bfab`), et le
   [mode docker](#mode-docker--rien-à-installer-sauf-docker) son image, `ghcr.io/orkeon/orkeon:latest` : les deux sont
-  à ce jour en retard de six commits sur l'épingle (depuis Orkeon/orkeon#423, un lancement au-delà du budget refusé) : `/status` dit lequel
-  ([ADR 0013](../adr/0013-pin-on-orkeon-commit.md)). Ce qui manque à une release plus ancienne est listé dans
-  l'[ADR 0030](../adr/0030-orkeon-after-356.md) et l'[ADR 0031](../adr/0031-orkeon-after-361.md).
+  à ce jour en retard de onze commits sur l'épingle (depuis Orkeon/orkeon#423, un lancement au-delà du budget refusé) : `/status` dit lequel
+  ([ADR 0013](../adr/0013-pin-on-orkeon-commit.md)). Ce qui manque à la release est listé dans
+  l'[ADR 0030](../adr/0030-orkeon-after-356.md), l'[ADR 0031](../adr/0031-orkeon-after-361.md) et
+  l'[ADR 0034](../adr/0034-orkeon-after-470.md).
+- Dans les modes tool et docker, `compaction.prune` n'élague rien et `route.agents` ne route rien, sans
+  avertissement, et un profil sur le [fournisseur `agent-cli`](configuration.md#claude-sur-un-abonnement--le-fournisseur-agent-cli)
+  arrête le démarrage : les trois demandent le mode source.
 - Les typings sont ceux de l'épingle ([Développement](development.md#typings)).
 
 Le lanceur prend le premier mode disponible, dans cet ordre, sauf si `--mode` en décide autrement.
 
 ### Mode tool : `orkeon-repl` installé
 
-Le REPL est `orkeon-repl` (`Orkeon.ConsoleApp`) de la dernière release, `1.3.0`, à ce jour en retard de six commits sur l'épingle (voir plus haut). Le paquet Debian et les
+Le REPL est `orkeon-repl` (`Orkeon.ConsoleApp`) de la dernière release, `1.3.0`, à ce jour en retard de onze commits sur l'épingle (voir plus haut). Le paquet Debian et les
 archives de release le livrent autonome, avec son propre esbuild : aucun .NET à installer.
 
 **Debian et Ubuntu** (amd64, arm64) : le paquet `orkeon` installe `/usr/bin/orkeon-repl`. Ajoutez la source apt
@@ -129,7 +133,7 @@ celui que npm a installé (`ORKEON_ESBUILD_PATH` le remplace).
 ### Mode docker : rien à installer sauf Docker
 
 Le lanceur exécute `ghcr.io/orkeon/orkeon:latest`, l'image de la dernière release (`1.3.0` à ce jour,
-en retard de six commits sur l'épingle ; `ORKEON_CODE_IMAGE` nomme une autre image), qui porte le
+en retard de onze commits sur l'épingle ; `ORKEON_CODE_IMAGE` nomme une autre image), qui porte le
 REPL et esbuild ; l'image est construite pour `linux/amd64` et `linux/arm64`, et Docker tire celle de votre machine. Le projet est monté dans le
 conteneur ; sous Linux, le conteneur tourne avec votre uid, si bien que les fichiers que l'agent écrit vous
 appartiennent. L'outil shell tourne dans le conteneur.
@@ -159,9 +163,9 @@ ce checkout, ou `ORKEON_ESBUILD_PATH`.
 Le checkout devrait être au commit de `.orkeon-version`, celui contre lequel les commandes ont été vérifiées. Le
 lanceur l'y amène lui-même quand rien de vous n'est en jeu : aucun fichier suivi modifié, sur `main` ou détaché, et en
 retard sur l'épingle (récupéré depuis `origin main` s'il manque). Il dit alors `orkeon-code: ORKEON_SOURCE moved from
-<sha7> to the pin 5dc2ff3.` et le build restaure la solution. Sinon (une branche à vous, du travail non commité, des
+<sha7> to the pin cf521d3.` et le build restaure la solution. Sinon (une branche à vous, du travail non commité, des
 commits en avance sur l'épingle, ou `ORKEON_SOURCE_FOLLOW_PIN=0`), il laisse le checkout tel quel, avertit
-(`orkeon-code: warning: ORKEON_SOURCE is at <sha7>, the pin of .orkeon-version is 5dc2ff3: the commands were checked
+(`orkeon-code: warning: ORKEON_SOURCE is at <sha7>, the pin of .orkeon-version is cf521d3: the commands were checked
 against the pin.`) et lance quand même.
 
 ### Aucun runtime sur la machine : celui qu'Orkeon Code télécharge

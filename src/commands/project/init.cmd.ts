@@ -9,6 +9,6 @@ defineAsyncCommand({
   name: "init",
   description: "Analyse the workspace and write AGENTS.md, the instructions file (an existing CLAUDE.md is merged).",
   maxConcurrent: 1,
-  dispatch: async (_args, ctx) => launchCrew(await withRoutedProfile({ crews: createCrewHost(ctx.services), log: ctx.log }, orkeonConfigStore(), orkeonRouting(), { crew: "project-init", brief: String(ctx.command?.rawInput ?? "") }), "project-init", { cwd: WORKSPACE }),
+  dispatch: async (_args, ctx) => launchCrew(await withRoutedProfile({ crews: createCrewHost(ctx.services), log: ctx.log }, orkeonConfigStore(), orkeonRouting(ctx.services), { crew: "project-init", brief: String(ctx.command?.rawInput ?? "") }), "project-init", { cwd: WORKSPACE }),
   completed: (result, ctx) => writeCompleted(ctx, result, "init", "✓ "),
 });

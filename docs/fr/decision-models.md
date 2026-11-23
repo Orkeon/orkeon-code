@@ -7,10 +7,13 @@ fournisseur de décision, le Jev hébergé de TypeSafe, le Kev à poids ouverts,
 et Liquid sur votre machine).
 
 Il sert de deux façons. Le runtime l'emploie par un *profil de décision*, qui garde une requête, la route ou vérifie
-sa réponse : ce sont les réglages du runtime, et les deux pages ci-dessus en traitent. Orkeon Code lui pose aussi
-trois questions de son cru, que couvre cette page. Chacune est un réglage, éteint par défaut, qui marche avec le
-fournisseur que le runtime configure, quel qu'il soit, et ne demande aucun profil de décision. Chacune échoue
-ouverte : sans modèle de décision, ou quand il ne répond pas, Orkeon Code fait ce qu'il faisait avant.
+sa réponse : ce sont les réglages du runtime, et les deux pages ci-dessus en traitent. Trois réglages d'Orkeon Code
+le mettent aussi au travail, et cette page les couvre. Le runtime lui demande quels résultats d'outils élaguer et
+sur quel profil lancer un crew, et Orkeon Code lui demande quels skills conviennent à un tour.
+
+Chaque réglage est éteint par défaut, marche avec le fournisseur que le runtime configure, quel qu'il soit, et ne
+demande aucun profil de décision. Chacun échoue ouvert : sans modèle de décision, ou quand il ne répond pas,
+Orkeon Code fait ce qu'il fait réglage éteint.
 
 | Quoi | L'allumer | Le modèle de décision décide | Détails |
 |---|---|---|---|
@@ -18,16 +21,30 @@ ouverte : sans modèle de décision, ou quand il ne répond pas, Orkeon Code fai
 | Router un crew | `/route on` | le profil LLM le moins cher qui convient à la commande | [le tour](turn.md#router-un-crew-vers-un-profil) |
 | Suggérer des skills | `/skills suggest on` | les skills du projet qui conviennent à la demande d'un tour | [le tour](turn.md#suggérer-des-skills-pour-un-tour) |
 
+L'élagage et le routage demandent le runtime de l'épingle, le mode source. Les modes tool et docker lancent la
+dernière release, où les deux réglages sont lus et ne font rien, sans avertissement qui leur soit propre : un
+runtime sans modèle de décision donne toujours l'avertissement habituel
+([ADR 0034](../adr/0034-orkeon-after-470.md), en anglais).
+
 Les mesures ci-dessous sont du 2026-11-11 : `jev-latest` (le Jev hébergé) décide, `glm-5.3-flashx` (Z.AI) répond,
-les sources d'Orkeon à l'épingle. Les raisons de chaque choix sont dans
-[l'ADR 0027](../adr/0027-decision-model-optimisations.md) (en anglais).
+les sources d'Orkeon à l'épingle de ce jour-là. Orkeon Code posait alors lui-même les questions d'élagage et de
+routage : ces mesures sont historiques, et aucune n'a été refaite sur l'élagage et le choix du runtime. Les raisons
+de chaque choix sont dans [l'ADR 0027](../adr/0027-decision-model-optimisations.md) (en anglais).
 
 ## Élaguer un long tour
 
 Les résultats d'outils d'un tour en cours restent dans le contexte du modèle jusqu'à la fin du tour : aucune
-compaction ne les atteint. Avec `compaction.prune` à `on`, au-delà de 40 % de la fenêtre de contexte, le modèle de
-décision juge les anciens résultats des outils de lecture : chacun est retiré, coupé à ses 300 premiers caractères
-ou gardé, et une ligne dit comment le retrouver.
+compaction ne les atteint. Avec `compaction.prune` à `on`, dès que le prompt dépasse une part de la fenêtre utile de
+l'appel, le modèle de décision juge les anciens résultats des outils de lecture : chacun est retiré, coupé à ses
+premiers caractères ou gardé, et une ligne dit comment le retrouver.
+
+C'est le runtime qui juge, avec ses propres valeurs (`Orkeon:Compaction:Prune`). Par défaut il commence à 40 % de
+la fenêtre utile, épargne les 6 derniers messages et coupe à 300 caractères
+([le tour](turn.md#élagage-de-la-boucle-doutils)).
+
+Les deux mesures ci-dessous sont historiques. Elles ont été prises avec un juge propre à ce projet, retiré depuis
+([ADR 0034](../adr/0034-orkeon-after-470.md)) : il posait les mêmes questions avec les mêmes valeurs, sur toute la
+fenêtre de la session, et non sur la fenêtre utile de l'appel.
 
 Le même réglage élague les acts des crews dev : le relecteur de `/dev-spec`, `/dev-change`, `/dev-plan` et du
 prochain lot de `/dev-batches`, l'auteur de tests et l'implémenteur de `/dev-implement`, l'auditeur de
@@ -49,11 +66,11 @@ plupart des résultats sont du poids mort, deux ne le sont pas.
 | Temps de ces requêtes, cumulé (la plus lente) | | 0,54 s (0,20 s) | |
 | Le tour entier | 25,4 s | 17,7 s | 30,2 % |
 
-Le modèle a demandé les 26 lectures dans son premier appel. Avant le second, la boucle dépassait 40 % de la
-fenêtre : 20 résultats ont été proposés (les 6 derniers messages sont épargnés), envoyés au modèle de décision en
-3 requêtes parties ensemble, et 15 ont été retirés, 4 coupés à leurs 300 premiers caractères et 1 gardé, environ
-107 000 tokens libérés. Les deux réponses citent les deux mêmes titres : le résultat du premier fichier est passé
-entier. Net des 0,2 s du modèle de décision, le tour a passé 7,3 s de moins dans le modèle.
+Le modèle a demandé les 26 lectures dans son premier appel. Avant le second, la boucle dépassait 40 % de la fenêtre de
+la session : 20 résultats ont été proposés (les 6 derniers messages sont épargnés), envoyés au modèle de décision en 3
+requêtes parties ensemble, et 15 ont été retirés, 4 coupés à leurs 300 premiers caractères et 1 gardé, environ 107 000
+tokens libérés. Les deux réponses citent les deux mêmes titres : le résultat du premier fichier est passé entier. Net
+des 0,2 s du modèle de décision, le tour a passé 7,3 s de moins dans le modèle.
 
 Un second essai, sur le seul dernier fichier du tour, n'a pas de jumeau auquel le comparer : il figure sous
 [Ce que ces mesures ne montrent pas](#ce-que-ces-mesures-ne-montrent-pas).
@@ -61,7 +78,7 @@ Un second essai, sur le seul dernier fichier du tour, n'a pas de jumeau auquel l
 ### Mesuré : les acts des crews dev
 
 Mesuré le 2026-11-16, une exécution, élagage éteint, pour lire jusqu'où ces acts grossissent. Le seuil le plus bas
-est de 51 200 tokens (40 % d'une fenêtre de 128 000).
+était alors de 51 200 tokens : 40 % d'une fenêtre de session de 128 000.
 
 | Act | Appels au modèle | Plus gros appel, en tokens |
 | --- | ---: | ---: |
@@ -69,20 +86,38 @@ est de 51 200 tokens (40 % d'une fenêtre de 128 000).
 | Le relecteur de `/dev-spec`, sur six exécutions dans ce dépôt | 4 à 9 | 43 000 |
 | Le relecteur de `/dev-plan`, sur quatre exécutions | 7 à 10 | 43 000 |
 
-Aucun de ces acts n'atteint le seuil : réglage allumé, rien n'y aurait été élagué. L'élagage d'un act dev est câblé
-et testé, et son effet n'est pas mesuré : il faut un lot dont un rôle lit bien plus que ceux-ci.
+Aucun de ces acts n'atteignait ce seuil : réglage allumé, ce juge n'y aurait rien élagué.
+
+Le seuil du runtime est plus bas, puisque c'est une part de la fenêtre utile. Pour une fenêtre de 128 000 et la
+part par défaut, il va de 25 600 tokens (un plafond de sortie de la moitié de la fenêtre ou plus) à environ 49 600
+(aucun plafond connu). Les acts de relecture de 43 000 tokens peuvent le passer, selon le plafond de sortie de leur
+appel : ce n'est pas mesuré.
+
+L'élagage d'un act dev est câblé et testé, et son effet n'est pas mesuré : il faut un lot dont un rôle lit bien
+plus que ceux-ci.
 
 ## Router un crew
 
 Les agents d'un crew tournent tous sur un profil LLM du runtime, celui de la session. Avec `route.agents` à `on`, au
 lancement de `/dev-spec` (et son alias `/dev-change`), `/dev-plan`, `/dev-learn`, `/review`, `/analyze`, `/commit`, `/init` et
-`/init-verifiers`, le modèle de décision lit la commande et choisit un profil de `route.ladder` (`small,large` si
-omis, du moins cher au plus cher). Le choix est suivi quand sa probabilité atteint 0,6, il est relevé au plancher
-que `.orkeon/route-rules.json` fixe pour le crew ou pour un chemin que la commande nomme, et ne dépasse jamais le
-profil de la session. `/route why` montre les cinq derniers choix.
+`/init-verifiers`, le choix System One du runtime lit la commande et choisit un profil de
+`route.ladder` (`small,large` si omis, du moins cher au plus cher). Orkeon Code ne pose aucune question qui lui soit
+propre : il donne au choix l'échelle, le plancher que `.orkeon/route-rules.json` fixe pour le crew ou pour un chemin que la
+commande nomme, et le profil de la session comme plafond et comme repli. Le runtime suit son modèle de décision quand
+la probabilité du choix atteint 0,6, le relève au plancher sans jamais dépasser le plafond ; sous ce seuil ou sans
+réponse, le repli reste. Une session sur un barreau de l'échelle dont le barreau est le seul restant (le plus bas, ou le
+plancher d'une règle à ce barreau ou au-dessus) ne demande rien et tourne sur son profil. Une session sur le modèle par
+défaut du runtime n'est jamais retenue ainsi : sous une règle dont le plancher est le barreau le plus haut, le runtime
+répond sans appeler de modèle et le lancement tourne sur ce barreau.
+
+Un runtime dont le circuit de décision est éteint, ou un choix qui refuse une option, ne route rien : un
+avertissement du journal dit pourquoi, et `/route why` ne le liste pas. `/route why` montre les cinq derniers choix
+([ADR 0034](../adr/0034-orkeon-after-470.md)).
 
 Dans un crew, l'act d'un relecteur (`/dev-spec`, `/dev-change`, `/dev-plan`, le lot suivant de `/dev-batches`) et
-celui de l'auditeur de `/dev-verify` sont routés de la même façon, pour ce seul appel : voir
+celui de l'auditeur de `/dev-verify` sont routés de la même façon, pour ce seul appel. Quand le choix est incertain
+ou absent, l'act reste là où tourne son crew ; sur le modèle par défaut du runtime il prend plutôt le plancher d'une
+règle : voir
 [Router un crew vers un profil](turn.md#router-un-crew-vers-un-profil). Deux exécutions en sont
 [mesurées plus bas](#mesuré--dev-spec-puis-dev-plan-routés-ou-non).
 
@@ -196,8 +231,8 @@ requêtes du tour élagué ont pris 0,54 s cumulées et sont parties ensemble (0
   revue de style envoyée vers `large`), 79 ms par requête sur cette machine.
 - Ses probabilités sont proches des seuils (0,52 à 0,82 pour les skills, 0,60 à 0,85 pour les routes) là où celles
   du Jev hébergé sont proches de 1.
-- Sur les questions d'élagage, une sonde de quatre appels a répondu entre 0,42 et 0,69, trop près du seuil de 0,5
-  pour s'y fier.
+- Sur les questions d'élagage que posait alors le juge de ce projet, une sonde de quatre appels a répondu entre
+  0,42 et 0,69, trop près du seuil de 0,5 de ce juge pour s'y fier. L'élagage du runtime n'y a pas été sondé.
 
 ## Ce que ces mesures ne montrent pas
 
@@ -208,7 +243,7 @@ requêtes du tour élagué ont pris 0,54 s cumulées et sont parties ensemble (0
   jour où son plus grand modèle était lent : elles montrent que le routage peut faire la différence entre une
   exécution qui aboutit et une qui n'aboutit pas, pas de combien il raccourcit une exécution qui aurait abouti. Les
   autres commandes routées ont été mesurées sur leurs seuls choix.
-- Aucun act dev mesuré n'a atteint le seuil d'élagage : ce que l'élagage y économise, et ce qu'il coûte en
+- Aucun act dev mesuré n'a atteint le seuil d'élagage de ce jour-là : ce que l'élagage y économise, et ce qu'il coûte en
   résultats relus, n'est pas connu.
 - Pour l'élagage, un modèle qui lit un fichier par appel au lieu de tous d'un coup dépense ses tokens autrement, et
   la demande dit quels fichiers comptent, le cas facile pour le juge. Le même tour interrogé sur son seul dernier
@@ -228,7 +263,7 @@ ORKEON_CODE_MODE=source ORKEON_SOURCE=~/src/orkeon \
 grep -o "context pruning: [^\"]*\|call used [0-9]* tokens\|HttpClient\.[A-Za-z]*\.LogicalHandler\[101\] End[^-]*ms" run.log
 ```
 
-Le premier motif est la ligne de chaque pression, le deuxième les tokens de chaque appel au modèle, le troisième
+Le premier motif est la ligne de chaque act qui a élagué, le deuxième les tokens de chaque appel au modèle, le troisième
 le temps de chaque requête, celles du modèle et celles du modèle de décision (la ligne nomme le client). `-- -v 2`
 monte le journal d'`orkeon run` au niveau où ces lignes s'écrivent : par défaut, il ne montre que les avertissements.
 

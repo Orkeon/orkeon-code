@@ -236,3 +236,14 @@ export const FILE_SYSTEM_CASES: readonly FileSystemCase[] = [
   },
 ];
 
+
+/** The runtime's `result.pruned` of an act that judged five results, and the tally the adapter reads from it. */
+export const PRUNED_RESULT = { offered: 6, judged: 5, kept: 2, cut: 1, dropped: 2, freedTokens: 4_100 };
+export const PRUNED_TALLY = { judged: 5, dropped: 2, cut: 1, freedTokens: 4_100 };
+
+/** What an onPruned whose log sink is closed throws. */
+export const SINK_CLOSED = "the log sink is closed";
+/** An onPruned that throws SINK_CLOSED. */
+export function throwingOnPruned(): () => never {
+  return () => { throw new Error(SINK_CLOSED); };
+}

@@ -19,7 +19,7 @@ describe("prunedLlm", () => {
     deepStrictEqual(llm.acts, [{ prompt: BRIEF, request: { ...REQUEST, ...BINDING } }]);
   });
 
-  it("asks for the binding on the act's prompt", async () => {
+  it("asks for one binding per act", async () => {
     // Arrange
     const { prune, asked } = bindingOf(BINDING);
 
@@ -27,7 +27,7 @@ describe("prunedLlm", () => {
     await prunedLlm(inlineLlm(), prune).act(BRIEF, REQUEST);
 
     // Assert
-    deepStrictEqual(asked, [BRIEF]);
+    strictEqual(asked.count, 1);
   });
 
   it("answers what the act answered", async () => {
@@ -64,7 +64,7 @@ describe("prunedLlm", () => {
     strictEqual(llm.acts[0].request, REQUEST);
   });
 
-  it("leaves a request that carries a callback of its own", async () => {
+  it("leaves a request that names a pruning of its own", async () => {
     // Arrange
     const llm = inlineLlm();
     const { prune } = bindingOf(BINDING);
@@ -76,7 +76,7 @@ describe("prunedLlm", () => {
     strictEqual(llm.acts[0].request, BOUND_REQUEST);
   });
 
-  it("asks for no binding on a request that carries a callback of its own", async () => {
+  it("asks for no binding on a request that names a pruning of its own", async () => {
     // Arrange
     const { prune, asked } = bindingOf(BINDING);
 
@@ -84,7 +84,7 @@ describe("prunedLlm", () => {
     await prunedLlm(inlineLlm(), prune).act(BRIEF, BOUND_REQUEST);
 
     // Assert
-    deepStrictEqual(asked, []);
+    strictEqual(asked.count, 0);
   });
 
   it("asks for no binding on an extraction", async () => {
@@ -95,7 +95,7 @@ describe("prunedLlm", () => {
     await prunedLlm(inlineLlm(), prune).extract("the verdict", { type: "object" });
 
     // Assert
-    deepStrictEqual(asked, []);
+    strictEqual(asked.count, 0);
   });
 
   it("hands an extraction to the Llm as it came", async () => {

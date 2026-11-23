@@ -22,7 +22,7 @@ defineAsyncCommand({
     }
     const a = parsed.args;
     if (a.kind === "accept" || a.kind === "refuse") return { message: await runDevLearnDecision(a, deps) };
-    return launchCrew(await withRoutedProfile({ crews: createCrewHost(ctx.services), log: ctx.log }, orkeonConfigStore(), orkeonRouting(), { crew: "dev-learn", brief: String(ctx.command?.rawInput ?? "") }), "dev-learn",
+    return launchCrew(await withRoutedProfile({ crews: createCrewHost(ctx.services), log: ctx.log }, orkeonConfigStore(), orkeonRouting(ctx.services), { crew: "dev-learn", brief: String(ctx.command?.rawInput ?? "") }), "dev-learn",
       { axis: a.axis, list: a.kind === "list" });
   },
   completed: (result, ctx) => writeCompleted(ctx, result, "dev-learn"),

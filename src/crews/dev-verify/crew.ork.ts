@@ -84,7 +84,7 @@ const verifier = orkeonAgent()
         wrapLlm: (llm) => withChildAct(llm, ctx, crew, { board, clock, log: ctx.log, effort },
           { agent: AUDITOR_CHARTER.name, charter: AUDITOR_CHARTER.name, task: `audit of ${String(inputs().batch ?? "the batch")}`, builder: auditorChild }),
       });
-      return await runDevVerify(inputs(), { ...deps, route: orkeonActRoute(ctx.log, ctx.tools) });
+      return await runDevVerify(inputs(), { ...deps, route: orkeonActRoute(ctx, ctx.tools) });
     } finally {
       await board.close();
     }

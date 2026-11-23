@@ -202,8 +202,8 @@ export interface MainLoopDeps extends TurnContextDeps, Omit<AutoCompactDeps, "se
    *  before anything reads them; absent, the identity. */
   host?: HostSource;
   /** What the act carries to prune its loop's stale tool results (shared/application/compaction/prune-context),
-   *  for the request it works on; absent, nothing is pruned. */
-  prune?: (request: string) => Promise<ContextPruning>;
+   *  one binding per act; absent, nothing is pruned. */
+  prune?: () => Promise<ContextPruning>;
 }
 
 /** The request once the prelude's call answered (applyPrelude). */
@@ -361,8 +361,15 @@ export async function runMainLoop(input: MainLoopInputs, loaded: LoadedCatalogue
   // ran before it (an edit made on disk stays on record), the run not failed.
   // The calls of a head-of-turn compaction are not the answer's: the trace starts with the act.
   deps.trace?.take();
-  // One binding per act: the runtime numbers the calls of each act from 1, and the binding remembers them.
-  const pruningOf = async (): Promise<ContextPruning> => deps.prune === undefined ? {} : await deps.prune(prompt);
+  // One binding per act, the act a stop check asks for included: each asks the runtime for its own pruning. A binding
+  // that fails costs the act its pruning, never the turn (as pruned-llm.ts does for the dev crews).
+  const pruningOf = async (): Promise<ContextPruning> => {
+    try {
+      return deps.prune === undefined ? {} : await deps.prune();
+    } catch {
+      return {};
+    }
+  };
   let checked: { answer: string; cut: boolean };
   try {
     checked = await stopChecked(deps, assembled, mode, flags, prompt, readClosingLine(input.closingLine), pruningOf);

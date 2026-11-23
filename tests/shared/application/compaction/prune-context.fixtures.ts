@@ -1,70 +1,27 @@
-// The ports of shared/application/compaction/prune-context.ts over fakes, and the pressures a runtime hands.
-import type { ContextPressure, PressureCall } from "../../../../src/shared/domain/context-prune.ts";
-import type { DecisionAnswers } from "../../../../src/shared/domain/decision/questions.ts";
+// The ports of shared/application/compaction/prune-context.ts over fakes.
 import { FakeConfigStore } from "../../../support/doubles/fake-config-store.ts";
 import { FakeDecisionModel } from "../../../support/doubles/fake-decision-model.ts";
 import { FakeLogger } from "../../../support/doubles/fake-logger.ts";
-import { FakeSessionStore } from "../../../support/doubles/fake-session-store.ts";
 
-export const REQUEST = "Rename the port";
-
-/** The ports with the pruning on, a decision model present and a window of 200 000 tokens. */
+/** The ports with the pruning set to `setting` (null: unset) and a decision model present. */
 export function pruneSetup(setting: string | null = "on") {
   const config = new FakeConfigStore();
   if (setting !== null) config.values["compaction.prune"] = setting;
   const decision = new FakeDecisionModel();
-  const session = new FakeSessionStore();
-  session.budget = { used: 90_000, window: 200_000 };
   const log = new FakeLogger();
-  return { config, decision, session, log, deps: { config, decision, session, log } };
+  return { config, decision, log, deps: { config, decision, log } };
 }
 
-function calls(count: number, resultChars: number, from = 1, older = 0): PressureCall[] {
-  return Array.from({ length: count }, (_, i) => ({
-    id: `call-${from + i}`, name: "file_read", input: { path: `/workspace/f${from + i}.ts` }, resultChars, age: count - i + older,
-  }));
-}
+/** What an act that judged five results hands back. */
+export const FIVE_JUDGED = { judged: 5, dropped: 2, cut: 1, freedTokens: 4_100 };
 
-export function pressure(offered: readonly PressureCall[]): ContextPressure {
-  return { usedTokens: 90_000, thresholdTokens: 80_000, calls: offered };
-}
+/** What an act that judged nothing hands back. */
+export const NONE_JUDGED = { judged: 0, dropped: 0, cut: 0, freedTokens: 0 };
 
-/** Two large results and a small one. */
-export const TWO_LARGE_ONE_SMALL = pressure([...calls(2, 12_000), ...calls(1, 400, 3)]);
-
-/** Thirty large results: more than one pressure judges. */
-export const THIRTY_LARGE = pressure(calls(30, 12_000));
-
-const noul = (probability: number) => ({ type: "noul" as const, probability });
-
-/** Every call of a batch of `count` is no longer needed. */
-export function noneNeeded(count: number): DecisionAnswers {
-  const answers: DecisionAnswers = {};
-  for (let n = 1; n <= count; n += 1) {
-    answers[`needed_${n}`] = noul(0.1);
-    answers[`whole_${n}`] = noul(0.1);
-  }
-  return answers;
-}
-
-export const PRUNED_TWO = "context pruning: 2 tool result(s) judged, 2 removed, 0 cut, about 5850 tokens freed";
-
-/** The two large results of TWO_LARGE_ONE_SMALL, `older` model turns later, the small one settled. */
-export function twoLargeLater(older: number): ContextPressure {
-  return pressure(calls(2, 12_000, 1, older));
-}
-
-/** Every call of a batch of `count` is needed whole. */
-export function allNeededWhole(count: number): DecisionAnswers {
-  const answers: DecisionAnswers = {};
-  for (let n = 1; n <= count; n += 1) {
-    answers[`needed_${n}`] = noul(0.9);
-    answers[`whole_${n}`] = noul(0.9);
-  }
-  return answers;
-}
-
-export const REJUDGE_CASES: readonly { readonly name: string; readonly later: number; readonly requests: number }[] = [
-  { name: "does not ask again about a result judged needed 7 turns earlier", later: 7, requests: 1 },
-  { name: "asks again about a result judged needed 8 turns earlier", later: 8, requests: 2 },
-];
+/** The warning without a decision model, written out: it names what to check, not a runtime line. */
+export const NO_MODEL_WARNING =
+  "warn: compaction.prune is on and the host has no decision model to ask: nothing is pruned " +
+  "(no Orkeon:Decision:Provider nor Orkeon:TypeSafe is set, the provider lacks its key, or the host's decision circuit is " +
+  "off by --no-decision or Orkeon:Decision:Enabled false: check Orkeon:Decision:Provider and Orkeon:Decision:Enabled, " +
+  "then the key of the provider's section, read from the variable its ApiKeyEnvVar names (TYPESAFE_API_KEY or " +
+  "LIQUID_API_KEY by default) or from its ApiKey)";

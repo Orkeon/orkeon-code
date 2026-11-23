@@ -23,7 +23,8 @@ export function orkeonToolVersion(): string {
   return manifest.tools["orkeon.scripting.cli"].version;
 }
 
-/** The facts the notes must state besides the counts: the Orkeon release they run on and the headless runner. */
+/** The facts the notes must state besides the counts: the Orkeon release the tool manifest installs, named as that
+ *  and not as the runtime the pin is (a commit of Orkeon's main past it), and the headless runner. */
 export function runtimeFacts(): string[] {
-  return [`on Orkeon ${orkeonToolVersion()} `, "Headless: orkeon-code run <crew>"];
+  return [`past Orkeon ${orkeonToolVersion()} (the release the tool manifest installs)`, "Headless: orkeon-code run <crew>"];
 }

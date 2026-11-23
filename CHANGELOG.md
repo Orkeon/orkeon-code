@@ -7,6 +7,58 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed — the pin moves to Orkeon `cf521d3`: the runtime prunes and routes
+
+- The pin moves to Orkeon `main` `cf521d3` (Orkeon #457, #462, #470, #474, #477) ([ADR 0034](docs/adr/0034-orkeon-after-470.md)).
+- With `compaction.prune` on, an act asks the runtime for its own pruning (`act({ prune: true })`, Orkeon #461) in
+  place of this project's judge. The numbers are the host's `Orkeon:Compaction:Prune`, by default the judge's own
+  (40 %, the last 6 messages, 300 characters). The threshold is a share of the call's usable window, the window
+  less the room kept for the answer, where it was a share of the session's window: an act is pruned earlier. The
+  log line still says what each act judged, removed and cut ([the turn](docs/turn.md#pruning-the-tool-loop)).
+- With `route.agents` on, a crew's launch and a sub-agent's act are routed by the runtime's System One pick
+  (Orkeon #460, #463) in place of this project's questions: the same ladder, floors and ceiling, the runtime's
+  threshold. The command is sent whole: the runtime frames it and cuts it in its middle past 4,000 characters
+  ([the turn](docs/turn.md#routing-a-crew-to-a-profile)).
+- `/route why` and the log line show why the pick answered what it did (its reason, in words), the probability of
+  its pick and, when the pick decided nothing, what stood: the session's profile, a rule's floor, the host's default model or an act's crew profile. A
+  stored record whose reason is not one of a choice, whose field has the wrong type, or kept before the pick with
+  the reason `floor`, is dropped.
+- A session on a rung of the ladder whose own rung is the one rung left (the lowest, or a rule's floor at it or
+  above) asks nothing: no call, no log line,
+  no record. On the host's default model, a rule that leaves the top rung alone is shown as asked of no model.
+- On the host's default model, an act of a sub-agent takes a rule's floor also when the pick is unsure or missing.
+  Under a session's profile it stays where its crew runs.
+- `route.ladder` refuses a rung named twice whatever its case (`Small,small`), and `llm.profile` and a rule's
+  profile find their rung whatever their case (`Large` on `small,large`).
+- A pick the runtime did not make routes nothing and is not listed by `/route why`: the session's profile stands,
+  and a warning names the cause. That holds for a decision circuit the runtime finds off for the run
+  (`circuit-off`), for no ladder (`no-ladder`) and for a ladder or an option the runtime refuses, whose message the
+  warning carries. A host that wires no pick and a cancelled pick leave the session's profile without a word.
+- A pruning binding that fails costs the main loop's act its pruning, never the turn.
+- A hosted decision provider without its key now turns the decision circuit off (`no-key`). The pruning and the
+  routing then warn that the host has no decision model, as they do when no provider is named
+  ([decision models locally](docs/decision-models-local.md#when-it-does-not-work)). The runtime does not tell a
+  script which cause it is: the warning names what to check, `Orkeon:Decision:Provider`, `Orkeon:Decision:Enabled`
+  and the key of the provider's section, where it used to send you to a start line that does not say it.
+- The tool and docker modes run Orkeon `1.3.0`, eleven commits behind this pin: `compaction.prune` prunes nothing
+  and `route.agents` routes nothing there, without a warning of its own (a host with no decision model still gets the usual one). `/config` says so in the description of
+  `compaction.prune`, and `/release-notes` names the pin as a commit of Orkeon's `main` past `1.3.0`.
+
+### Fixed — `/analyze` without `--parallel` says nothing
+
+- `/analyze` left without `--parallel` no longer warns `--parallel null is not a whole number of at least 1`: a flag
+  left out gives the runtime's default silently, and only a value given that is no whole number of at least 1 warns.
+
+### Added — the agent-cli provider example
+
+- `config/appsettings.agent-cli.example.json` runs Orkeon Code on a Claude subscription through Orkeon's
+  experimental `agent-cli` provider (Orkeon #470): a profile `subscription` (`/config set llm.profile subscription`)
+  that falls back on the default profile on a key. Source mode only, for personal use
+  ([configuration](docs/configuration.md#claude-on-a-subscription-the-agent-cli-provider)).
+- An Anthropic key linked to an identity names its workspace with `Llm:WorkspaceId` (Orkeon #468).
+- An agent whose profile, or the host's default model, runs on `agent-cli` requests no prompt cache: the runtime no
+  longer warns at each call that the provider ignores the cache breakpoints. Every other provider keeps the request.
+
 ### Added — the tool bridge in docker mode
 
 - A session in Docker can drive the Firefox of your machine through Orkeon's tool bridge (`orkeon bridge serve`,
@@ -20,7 +72,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed — the pin moves to Orkeon `5dc2ff3`
 
 - The pin moves to Orkeon `main` `5dc2ff3` (Orkeon #447, after #425, #428 and #438). The tool and docker modes run
-  Orkeon `1.3.0`, six commits behind it ([ADR 0033](docs/adr/0033-orkeon-after-447.md)).
+  Orkeon `1.3.0`, six commits behind that pin ([ADR 0033](docs/adr/0033-orkeon-after-447.md)).
 - `/dev-implement`, `/dev-batches` and a repair by `/tasks repair` start again on the pin. The runtime now refuses a
   budget limit below 1, and their budgets said `delegationDepth: 0`, which the runtime used to ignore: they name no
   depth now and run as they did. A fractional `--concurrency` no longer gives the driver a fractional tool-call count.
@@ -33,8 +85,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   (`tools/scripting-typecheck`), which fails them no more (Orkeon #425, fixing #424), in place of this project's own
   through `TscPath` ([development](docs/development.md)).
 - Not adopted, since every agent of this project is an act and not a task: the runtime's compaction by default, its
-  pruning, `llm.profile: auto`, `effort: "auto"`, `decision({ mode })` and its skills. The commands keep their own
-  pruning, `/route` and `/effort`.
+  pruning of a task's loop, `llm.profile: auto`, `effort: "auto"`, `decision({ mode })` and its skills. The commands
+  keep `/effort`; their pruning and `/route` go through the runtime as of the pin `cf521d3`, above.
 
 ### Added — the main loop's explorer
 
@@ -55,7 +107,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - The pin moves to Orkeon `main` `30a61f8` (Orkeon #423, which fixes #422): a spawn past the spawn budget is refused
   with a tool error the model reads, where it used to end the whole turn and lose the reports already received. The
-  typings change in their comments alone. The tool and docker modes run Orkeon `1.3.0`, one fix behind the pin, and
+  typings change in their comments alone. The tool and docker modes run Orkeon `1.3.0`, one fix behind that pin, and
   the guides and the contribution guide now say so where they called `1.3.0` the pin
   ([ADR 0031](docs/adr/0031-orkeon-after-361.md)).
 - A dev step whose spawn is refused past the budget (`Spawn budget spent`) or at the delegation depth reads it as a

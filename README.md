@@ -132,7 +132,7 @@ are written in English only.
 | [Configuration](docs/configuration.md) | LLM providers, settings file, environment variables |
 | [Speech](docs/speech.md) | Transcribing a file, dictating a request, reading an answer aloud |
 | [Tool bridge](docs/tool-bridge.md) | The Firefox of your machine for a session in Docker |
-| [Decision models](docs/decision-models.md) | What Orkeon Code asks a decision model: pruning a long turn, routing a crew, suggesting skills, with what was measured |
+| [Decision models](docs/decision-models.md) | What a decision model does for Orkeon Code: pruning a long turn, routing a crew, suggesting skills, with what was measured |
 | [Decision models locally](docs/decision-models-local.md) | Kev on this machine and Liquid, step by step, with decision profiles to try |
 | [Permissions](docs/permissions.md) | Modes, rules, what the agent can touch |
 | [Permissions reference](docs/permissions-reference.md) | The order of the checks, what a rule reads, every rule of the dev steps' rule sets |

@@ -521,8 +521,8 @@ catalogue naming a tool the host did not register fails the act before the model
 `system_one_decide`, the host's System One decision model (TypeSafe, Liquid or Kev), is one: it is registered when a
 decision provider is active (its section, its key or `Orkeon:Decision:Provider`) and is in no built-in list. A user
 whose host has it lists it in `tools.extra`. With the decision circuit off (`--no-decision`,
-`Orkeon:Decision:Enabled=false`, or no provider) the host withholds it: the name is then left out with the warning
-above, and the commands do what they do without a decision model.
+`Orkeon:Decision:Enabled=false`, no provider, or a hosted provider without its key) the host withholds it: the name is
+then left out with the warning above, and the commands do what they do without a decision model.
 
 It declares a read to the gate, so it runs without a question wherever the catalogue offers it. Keep it a write in
 the listing: it sends the state it is given to the decision provider's API, which `plan` and `dontAsk` promise

@@ -29,3 +29,11 @@ export const SESSION_PROFILES: readonly { readonly name: string; readonly input:
   { name: "names the input's profile when the launch was not routed", input: { llmProfile: "large" }, profile: "large" },
   { name: "names the host's default model on an input without a profile", input: { prompt: "hi" }, profile: null },
 ];
+
+/** Whether an agent on a provider requests the prompt cache. */
+export const CACHE_PROVIDERS: readonly { readonly name: string; readonly provider: string | undefined; readonly takes: boolean }[] = [
+  { name: "requests the prompt cache on a provider whose cache is explicit", provider: "anthropic", takes: true },
+  { name: "requests the prompt cache when the provider is not known", provider: undefined, takes: true },
+  { name: "requests no prompt cache on the agent-cli provider", provider: "agent-cli", takes: false },
+  { name: "requests no prompt cache on the agent-cli provider whatever its case", provider: " Agent-CLI ", takes: false },
+];

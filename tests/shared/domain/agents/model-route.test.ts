@@ -1,14 +1,15 @@
-// Routing a crew to a profile: the ladder, the floors, what the decision model is asked and the profile read. Run:
+// Routing a crew to a profile: the ladder, the floors, what the runtime's pick is given and what is kept of it. Run:
 //   node --test tests/shared/domain/agents/model-route.test.ts
 import { describe, it } from "node:test";
 import { deepStrictEqual, strictEqual } from "node:assert";
 
 import {
-  ROUTE_BRIEF_CHARS, ladderOf, ladderProblem, parseRecords, parseRouteRules, routable, routeDecided, routeFloor, routeOf, routeOn, routeQuestions,
-  routeState, withRecord,
+  asOnLadder, ladderOf, ladderProblem, parseRecords, parseRouteRules, routable, routeBounds, routeDecided, routeFloor, routeHeld, routeNotAsked,
+  routeOn, routeState, withRecord,
 } from "../../../../src/shared/domain/agents/model-route.ts";
 import {
-  DECIDED_REASONS, FLOOR_CASES, LADDER, LADDER_CASES, LADDER_PROBLEM_CASES, LONG_BRIEF, ROOT_RULES, ROUTABLE_CASES, ROUTE_CASES, RULES, RULES_TEXT_CASES, record,
+  BOUNDS_CASES, DECIDED_REASONS, FLOOR_CASES, FULL_RECORD, MALFORMED_RECORDS, OLD_FLOOR_RECORDS, HELD_CASES, LADDER, LADDER_CASES, LADDER_PROBLEM_CASES, LONG_BRIEF, NOT_ASKED_REASONS, OLD_RECORD, ROOT_RULES,
+  ROUTABLE_CASES, RULES, RULES_TEXT_CASES, SPELLING_CASES, record,
 } from "./model-route.fixtures.ts";
 
 describe("routeOn", () => {
@@ -108,10 +109,10 @@ describe("routeState", () => {
     const state = routeState("code-review", brief);
 
     // Assert
-    strictEqual(state, "A coding assistant is about to run its crew 'code-review' for this command of its user:\n/review --lens security");
+    strictEqual(state, "Run the crew 'code-review' of a coding assistant for this command of its user:\n/review --lens security");
   });
 
-  it("cuts a long command in its middle, at 4 000 characters", () => {
+  it("gives a long command whole, the cut being the runtime's", () => {
     // Arrange
     const brief = LONG_BRIEF;
 
@@ -119,27 +120,38 @@ describe("routeState", () => {
     const state = routeState("dev-change", brief);
 
     // Assert
-    deepStrictEqual(
-      [state.split("\n")[1].length, state.includes("aaa ... zzz"), state.endsWith("zzz")],
-      [ROUTE_BRIEF_CHARS, true, true],
-    );
+    strictEqual(state.split("\n")[1], LONG_BRIEF);
   });
 });
 
-describe("routeQuestions", () => {
-  it("asks one choice among the rungs, the first described as the cheapest and the last as the strongest", () => {
-    // Arrange
-    const ladder = LADDER;
+describe("routeHeld", () => {
+  for (const c of HELD_CASES) {
+    it(c.name, () => {
+      // Arrange
+      const session = c.session;
 
-    // Act
-    const { profile } = routeQuestions(ladder);
+      // Act
+      const held = routeHeld(LADDER, session, c.floor);
 
-    // Assert
-    deepStrictEqual(
-      [profile.type, Object.keys(profile.criteria), /cheapest/.test(String(Object.values(profile.criteria)[0])), /strongest/.test(String(Object.values(profile.criteria)[2]))],
-      ["choice", ["small", "medium", "large"], true, true],
-    );
-  });
+      // Assert
+      strictEqual(held, c.held);
+    });
+  }
+});
+
+describe("asOnLadder", () => {
+  for (const c of SPELLING_CASES) {
+    it(c.name, () => {
+      // Arrange
+      const profile = c.profile;
+
+      // Act
+      const spelled = asOnLadder(LADDER, profile);
+
+      // Assert
+      strictEqual(spelled, c.expected);
+    });
+  }
 });
 
 describe("routable", () => {
@@ -157,17 +169,17 @@ describe("routable", () => {
   }
 });
 
-describe("routeOf", () => {
-  for (const c of ROUTE_CASES) {
+describe("routeBounds", () => {
+  for (const c of BOUNDS_CASES) {
     it(c.name, () => {
       // Arrange
-      const answers = c.answers;
+      const floor = c.floor;
 
       // Act
-      const choice = routeOf(answers, LADDER, c.session, c.floor);
+      const bounds = routeBounds(LADDER, c.session, floor);
 
       // Assert
-      deepStrictEqual(choice, c.expected);
+      deepStrictEqual(bounds, c.expected);
     });
   }
 });
@@ -183,6 +195,21 @@ describe("routeDecided", () => {
 
       // Assert
       strictEqual(decided, c.decided);
+    });
+  }
+});
+
+describe("routeNotAsked", () => {
+  for (const c of NOT_ASKED_REASONS) {
+    it(c.name, () => {
+      // Arrange
+      const reason = c.reason;
+
+      // Act
+      const notAsked = routeNotAsked(reason);
+
+      // Assert
+      strictEqual(notAsked, c.notAsked);
     });
   }
 });
@@ -215,6 +242,75 @@ describe("parseRecords", () => {
 
       // Assert
       strictEqual(records.length, c.count);
+    });
+  }
+});
+
+describe("parseRecords, a record whose reason no choice carries", () => {
+  for (const reason of ["circuit-off", "no-ladder", "guess"]) {
+    it(`drops a record kept with the reason ${reason}`, () => {
+      // Arrange
+      const stored = JSON.stringify([{ crew: "dev-plan", profile: "large", reason }]);
+
+      // Act
+      const records = parseRecords(stored);
+
+      // Assert
+      deepStrictEqual(records, []);
+    });
+  }
+});
+
+describe("parseRecords, a record kept before the runtime's pick", () => {
+  it("reads its confidence as the probability", () => {
+    // Arrange
+    const stored = JSON.stringify([OLD_RECORD]);
+
+    // Act
+    const records = parseRecords(stored);
+
+    // Assert
+    deepStrictEqual(records, [{ crew: "dev-plan", profile: "small", reason: "model", picked: "small", probability: 0.9 }]);
+  });
+});
+
+describe("parseRecords, a record whose fields are not of their type", () => {
+  for (const c of MALFORMED_RECORDS) {
+    it(c.name, () => {
+      // Arrange
+      const stored = JSON.stringify([c.raw]);
+
+      // Act
+      const records = parseRecords(stored);
+
+      // Assert
+      deepStrictEqual(records, []);
+    });
+  }
+
+  it("reads a record whose every field is of its type, its stands included", () => {
+    // Arrange
+    const stored = JSON.stringify([FULL_RECORD]);
+
+    // Act
+    const records = parseRecords(stored);
+
+    // Assert
+    deepStrictEqual(records, [FULL_RECORD]);
+  });
+});
+
+describe("parseRecords, an old record on a rule's floor", () => {
+  for (const c of OLD_FLOOR_RECORDS) {
+    it(c.name, () => {
+      // Arrange
+      const stored = JSON.stringify([c.raw]);
+
+      // Act
+      const records = parseRecords(stored);
+
+      // Assert
+      deepStrictEqual(records, []);
     });
   }
 });

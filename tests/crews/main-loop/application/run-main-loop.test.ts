@@ -19,7 +19,7 @@ import { budgetExhaustedAnswer, iterationsExhausted, llmFailureOf } from "../../
 import {
   BARE_TURN_CONTEXT, BLOCKED_ANSWER, blockedRequest, DEFAULT_LOADED, DENYING_CHAINS, DICTATION, EXPLICIT_PLAN, EXTRAS, EXTRA_RULES, EXTRA_TOOLS_INPUT, PARSED_RULES,
   REQUEST_WITH_TRANSCRIPT, RULED_CATALOGUE, SCRIPT_TOOLS_CASES, SESSION_START, SILENT_GATES, SPEAK, SPEAKER_FAILURE,
-  attachSkill, PRUNING, pruneBinding, STORED_RULES, suggestBinding, TRANSCRIPT, TRANSCRIPTION_PRELUDE, turnSetup, PROFILED_INPUT, PROFILE_OVERRIDE_WARNING,
+  attachSkill, PRUNING, failingPrune, pruneBinding, STORED_RULES, suggestBinding, TRANSCRIPT, TRANSCRIPTION_PRELUDE, turnSetup, PROFILED_INPUT, PROFILE_OVERRIDE_WARNING,
   EFFORT_LOG_CASES,
 } from "./run-main-loop.fixtures.ts";
 import {
@@ -907,7 +907,7 @@ describe("runMainLoop — the request under the host's context", () => {
 });
 
 describe("runMainLoop — the pruning of the tool loop (compaction.prune)", () => {
-  it("hands the act what the pruning binds for the turn's request", async () => {
+  it("hands the act what the pruning binds", async () => {
     // Arrange
     const { deps, llm } = turnSetup();
     const { prune, asked } = pruneBinding();
@@ -917,8 +917,8 @@ describe("runMainLoop — the pruning of the tool loop (compaction.prune)", () =
 
     // Assert
     deepStrictEqual(
-      [asked, llm.acts[0].request.contextPressure, llm.acts[0].request.onContextPressure],
-      [["rename the port"], PRUNING.contextPressure, PRUNING.onContextPressure],
+      [asked.count, llm.acts[0].request.prune, llm.acts[0].request.onPruned],
+      [1, true, PRUNING.onPruned],
     );
   });
 
@@ -933,12 +933,23 @@ describe("runMainLoop — the pruning of the tool loop (compaction.prune)", () =
 
     // Assert
     deepStrictEqual(
-      [asked, llm.acts.map((act) => act.request.onContextPressure)],
-      [["explain", "explain"], [PRUNING.onContextPressure, PRUNING.onContextPressure]],
+      [asked.count, llm.acts.map((act) => act.request.onPruned)],
+      [2, [PRUNING.onPruned, PRUNING.onPruned]],
     );
   });
 
-  it("sends an act without a pressure callback when nothing binds the pruning", async () => {
+  it("answers the turn, its act without a pruning, when the binding fails", async () => {
+    // Arrange
+    const { deps, llm } = turnSetup();
+
+    // Act
+    await runMainLoop({ prompt: "rename the port" }, DEFAULT_LOADED, { ...deps, prune: failingPrune });
+
+    // Assert
+    deepStrictEqual([llm.acts.length, "prune" in llm.acts[0].request], [1, false]);
+  });
+
+  it("sends an act without a pruning when nothing binds one", async () => {
     // Arrange
     const { deps, llm } = turnSetup();
 
@@ -946,7 +957,7 @@ describe("runMainLoop — the pruning of the tool loop (compaction.prune)", () =
     await runMainLoop({ prompt: "rename the port" }, DEFAULT_LOADED, deps);
 
     // Assert
-    strictEqual("onContextPressure" in llm.acts[0].request, false);
+    strictEqual("prune" in llm.acts[0].request, false);
   });
 });
 

@@ -5,8 +5,8 @@ import { deepStrictEqual, strictEqual } from "node:assert";
 
 import { runRoute } from "../../../../src/commands/_lib/settings/route.ts";
 import {
-  CUSTOM_LADDER, RECENT, SET_OFF, STATUS_CUSTOM_WITH_HIGH, SET_ON, SET_ON_NO_MODEL, STATUS_OFF, STATUS_ON_NO_MODEL, STATUS_WITH_MEDIUM, STATUS_WITH_RUNGS,
-  WHY_LINES, routeCommandSetup, routeOnGlmSetup,
+  CUSTOM_LADDER, RECENT, RECENT_WITH_CIRCUIT_OFF, SET_OFF, STATUS_CUSTOM_WITH_HIGH, SET_ON, SET_ON_NO_MODEL, STATUS_OFF, STATUS_ON_NO_MODEL, STATUS_WITH_MEDIUM, STATUS_WITH_RUNGS,
+  WHY_LINES, WHY_STANDS_LINES, routeCommandSetup, routeOnGlmSetup,
 } from "./route.fixtures.ts";
 import { EFFORT_STATE_KEY } from "../../../../src/shared/domain/session-keys.ts";
 
@@ -81,6 +81,18 @@ describe("runRoute", () => {
 
     // Assert
     deepStrictEqual(view.lines, WHY_LINES);
+  });
+
+  it("shows what stood with a choice that decided nothing, and no record of a pick that asked nothing", async () => {
+    // Arrange
+    const { deps, session } = routeCommandSetup();
+    session.state.set("route_recent", RECENT_WITH_CIRCUIT_OFF);
+
+    // Act
+    const view = await runRoute(["why"], deps);
+
+    // Assert
+    deepStrictEqual(view.lines, WHY_STANDS_LINES);
   });
 
   it("says nothing was routed yet", async () => {

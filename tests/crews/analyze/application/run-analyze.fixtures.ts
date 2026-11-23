@@ -88,6 +88,8 @@ export const PARALLEL_ASKED: readonly { readonly name: string; readonly value: u
 export const PARALLEL_ABSENT: readonly { readonly name: string; readonly value: unknown }[] = [
   { name: "none", value: undefined },
   { name: "an empty text", value: "" },
+  { name: "null, as the command passes a flag left out", value: null },
+  { name: "a blank text", value: "  " },
 ];
 
 /** A parallelism that is no whole number of at least 1: the runtime's default, and a warning naming the value. */

@@ -343,6 +343,7 @@ rend le texte, ou le message d'échec propre à l'outil sans l'enrobage du runti
 | `ShellJobs` | Une commande longue lancée détachée, son état, la fin de son journal, et une attente entre deux regards (`shell_command` `start_job`, `job_status`, `job_tail`) | `shell-jobs.ts` | `fake-shell-jobs.ts` |
 | `SharedMemory` | L'index RAG de la [mémoire partagée](shared-memory.md) : chercher dans une collection, indexer avec élagage (l'espace `rag`, sinon `rag_search`, `rag_ingest`) | `shared-memory.ts` | `fake-shared-memory.ts` |
 | `DecisionModel` | Le modèle de décision du runtime, auquel on pose des questions typées sur un état : une option parmi des options décrites, un niveau sur une échelle, la probabilité d'un oui | `decision-model.ts` | `fake-decision-model.ts` |
+| `ProfilePicker` | Le choix System One du runtime d'un profil sur une échelle, entre un plancher et un plafond, avec un repli (`ctx.services.get("pick")` pour une commande, `ctx.llm.pick` dans un crew) | `profile-picker.ts` | `fake-profile-picker.ts` |
 | `ChildRuntime` | Les enfants d'une exécution de crew : en lancer un en arrière-plan, lister, arrêter, lire ce qu'il a laissé (`ctx.spawnBackground`, `instances()`/`stop()` du crew, sa mémoire) | `child-agents.ts` | `fake-child-runtime.ts` |
 | `HumanInput` | Une question à la personne : un choix, un texte, une sélection multiple ; personne ne répondant est une réponse en soi (`human_input`) | `human-input.ts` | `fake-human-input.ts` |
 | `Chooser` | Un panneau dans la console : une option parmi plusieurs, avec un réglage facultatif sur les flèches latérales ; `interactive` dit si un panneau peut s'ouvrir (`ctx.prompt`, `ctx.interactive`) | `chooser.ts` | `fake-chooser.ts` |
@@ -374,7 +375,8 @@ Ce que le tableau laisse de côté :
 - **`DecisionModel`**, à quoi il sert :
   - Pas de modèle, un appel en échec et une réponse illisible valent tous `null`, et l'appelant fait alors ce qu'il
     faisait sans modèle (`system_one_decide`, enregistré quand les réglages configurent un fournisseur de décision,
-    quel qu'il soit, et retenu tant que le circuit de décision est coupé).
+    quel qu'il soit, et retenu tant que le circuit de décision est coupé, un fournisseur hébergé sans sa clé
+    compris).
 
 ### Câblage
 

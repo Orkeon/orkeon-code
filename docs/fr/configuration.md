@@ -99,7 +99,8 @@ Une option qu'un fournisseur ne peut pas honorer produit un avertissement, jamai
 - Anthropic ne met en cache que ce qu'une requête marque : chaque agent d'Orkeon Code marque son prompt système et
   ses définitions d'outils (`.cache({ systemPrompt: true, tools: true })`), un préfixe que ses prompts gardent
   identique d'un tour à l'autre, donc dès le deuxième appel d'une session `cacheRead` compte ce qu'Anthropic a servi
-  depuis son cache.
+  depuis son cache. Un agent dont le profil, ou le modèle par défaut de l'hôte, tourne sur `agent-cli` ne marque
+  rien (la CLI gère son cache selon ses propres règles).
 - La demande de l'agent l'emporte sur un réglage par défaut `Llm:Cache` du runtime.
 
 ### Ce que compte `/usage`
@@ -168,8 +169,61 @@ vise `https://api.anthropic.com` avec `claude-opus-5-5` et la clé dans `ANTHROP
 Max inclut des crédits API mensuels (100 USD sur Max 5x, 200 USD sur Max 20x, sans report), dépensés par une clé API de
 l'organisation Anthropic Console liée au plan (sur claude.ai, Settings, Billing, API credits, Link organization ; le
 lien se fait une fois) ; au-delà, la clé est facturée aux tarifs à l'usage de l'API. La connexion avec le plan lui-même
-est réservée aux applications d'Anthropic et n'est pas un moyen de lancer Orkeon Code. L'exemple ne fixe pas de
-`Temperature` : la génération Claude actuelle en refuse une, et Orkeon n'envoie que ce que le fichier fixe.
+est réservée aux applications d'Anthropic : le [fournisseur `agent-cli`](#claude-sur-un-abonnement--le-fournisseur-agent-cli)
+en pilote une. L'exemple ne fixe pas de `Temperature` : la génération Claude actuelle en refuse une, et Orkeon
+n'envoie que ce que le fichier fixe. Une clé liée à une identité refuse tout appel qui ne nomme pas son espace de
+travail : on le donne par `Llm:WorkspaceId`, ou sous le profil (`Llm:Profiles:<nom>:WorkspaceId`, qui n'hérite pas de
+celui de la section).
+
+### Claude sur un abonnement : le fournisseur `agent-cli`
+
+- **Expérimental**, dans Orkeon (`ORKEXP010`, son ADR-020 ; ici l'[ADR 0034](../adr/0034-orkeon-after-470.md)), et
+  pour un usage personnel : l'abonnement est celui de qui le lance.
+- Un profil écrit `"Provider": "agent-cli"` reçoit ses réponses de la commande `claude` de cette machine (la CLI d'agent d'Anthropic
+  en mode print, `claude -p`), connectée à son propre abonnement. Orkeon garde l'historique et les outils : la CLI
+  tourne sans aucun des siens, et chaque appel d'outil passe par le pipeline d'Orkeon et la porte des permissions comme
+  sur tout fournisseur.
+- La CLI ne reçoit aucune clé API : Orkeon retire de son environnement toute variable `ANTHROPIC_*` et les trois
+  bascules qui envoient la CLI vers un fournisseur cloud (Bedrock, Vertex, Foundry).
+- Une CLI qui tourne malgré tout sur une clé plutôt que sur sa connexion est refusée avant de répondre, et l'appel
+  ne bascule pas (`Llm:AgentCli:RequireLogin`, `true`).
+- Avant le premier lancement : `claude` sur le `PATH`, connecté une fois (`claude /login`).
+- Mode source seulement (`ORKEON_CODE_MODE=source`, un checkout d'Orkeon à l'épingle). La release des modes tool et
+  docker n'a pas ce fournisseur : copié là, l'exemple arrête le démarrage sur `Provider`. L'image n'a ni `claude` ni
+  sa connexion.
+- À l'épingle, chaque verbe d'`orkeon` accepte ces settings, `orkeon runs list` compris (Orkeon #472).
+- Le lanceur essaie d'abord le mode tool : avec `orkeon-repl` installé, forcez le mode.
+- [`config/appsettings.agent-cli.example.json`](../../config/appsettings.agent-cli.example.json) est l'exemple :
+  celui d'Anthropic, son profil par défaut sur `ANTHROPIC_API_KEY`, plus un profil `subscription` sur `agent-cli` dont
+  le `Fallback` est `default`. Copiez-le, puis `/config set llm.profile subscription` : chaque crew qu'une commande
+  lance construit ses agents dessus.
+- L'exemple demande aussi `ANTHROPIC_API_KEY` : une session démarre sur le profil par défaut, le repli y arrive, et
+  les services propres au runtime (planificateur, Guardian, juges) y restent.
+- Sans aucune clé, écrivez `"Provider": "agent-cli"` dans la section `Llm` elle-même, sans `Fallback`.
+- `Fallback` passe un appel au profil sur la clé quand l'abonnement est à sa limite, qu'Orkeon reçoit comme une
+  limite de débit, et aussi quand l'appel a dépassé son délai (`TimeoutSeconds`) ou que le flux de la CLI s'est rompu.
+- `Llm:AgentCli` dit à Orkeon comment démarrer la CLI, partagé par tous les profils sur le fournisseur :
+  - `Engine` : `claude`, le seul ;
+  - `Command` : l'exécutable, `claude` sur le `PATH` ou un chemin complet ;
+  - `MaxProcesses` : les processus de CLI vivants à la fois, 4 par défaut ; au-delà, un inactif est fermé, jamais
+    d'attente ;
+  - `MaxToolResultCharacters` : le plus long résultat d'outil remis à la CLI, 100000 par défaut ;
+  - `AutocompactTokens` : là où la CLI compacterait d'elle-même, gardé au-dessus de toute fenêtre puisqu'Orkeon
+    compacte d'abord ;
+  - `RequireLogin` : ci-dessus.
+- Coût : un appel auquel la CLI a répondu est compté à 0, donc `/usage` et `/status` affichent `$0.0000` pour lui,
+  jamais `unpriced`. Ce qu'il aurait coûté sur l'API reste dans les métadonnées de l'appel sous
+  `agent_cli_notional_cost_usd` ; Orkeon Code ne l'affiche pas.
+- Un appel passé par le repli reçoit sa réponse sur la clé : il y est facturé, et compté comme tout appel de ce profil.
+- Les options que la CLI ne peut recevoir ne sont pas envoyées, chacune signalée une fois par exécution :
+  `Temperature`, `MaxTokens`, top-p et les pénalités, une graine, des séquences d'arrêt, un format de réponse, une grammaire, la
+  réflexion et donc `/effort`, les points de cache, `Llm:WorkspaceId`, un mode d'outil obligatoire. Un agent sur ce
+  fournisseur ne demande aucun point de cache, si bien que cet avertissement ne vient jamais d'Orkeon Code : la CLI
+  gère son cache selon ses propres règles.
+- `compaction.prune` et le routage de `route.agents` sont jugés par le modèle de décision du runtime, jamais par ce
+  fournisseur : ils demandent un [fournisseur de décision](decision-models-local.md) comme sur tout autre LLM.
+- Les réponses peuvent différer de celles du même modèle derrière l'API : le prompt système de la CLI entoure
+  celui d'Orkeon.
 
 L'agent appelle des outils à travers chaque fournisseur : la boucle d'outils du runtime (`ctx.llm.act`) lit les appels
 d'outils des formats Anthropic et OpenAI, exécute les appels de lecture d'un tour du modèle jusqu'à
@@ -184,6 +238,7 @@ fournisseur. Un résultat d'outil parvient au modèle coupé à 4000 caractères
 | `Orkeon:Cli:ScriptCommands:Limits:ExecutionTimeout` | Limite de temps réel de chaque moteur de script d'`orkeon-repl` : celui d'une commande, et celui d'un crew, donc d'un tour d'`/assistant` |
 | `Orkeon:Cli:ScriptCommands:Limits:MemoryLimitBytes` | Limite de mémoire de ces moteurs : 64 Mo par défaut, l'exemple met 2 Gio |
 | `Orkeon:Scripting:Limits:ExecutionTimeout`, `Orkeon:Scripting:Limits:MemoryLimitBytes` | Les mêmes limites pour `orkeon run`, l'outil avec lequel `orkeon-code run` lance un crew (30 secondes et 100 Mo par défaut ; l'exemple met 30 minutes et 2 Gio). `orkeon-repl` ne les lit pas |
+| `Orkeon:Compaction:Prune:FillShare`, `KeepRecentMessages`, `HeadChars` | Les nombres de `compaction.prune` : 0,4, 6 et 300 par défaut ; `Enabled` n'est pas lu pour lui, la clé de session décide |
 | `Orkeon:Tools:Shell:AllowInterpreters` | Laisse `shell_command` lancer des interpréteurs (`node`, `dotnet`, `npm`...), nécessaire pour construire et tester la plupart des projets |
 | `Orkeon:Tools:Shell:ExtraAllowedCommands` | Commandes ajoutées à la liste blanche du shell (`make`, `cargo`...) |
 | `Orkeon:Tools:Shell:WindowsPaths:<chemin virtuel>` | Sous WSL, l'écriture Windows d'un montage (`"/workspace": "C:\\proj"`) |
@@ -348,6 +403,10 @@ Ce que le tableau laisse de côté :
   est décrit dans [Le déroulement d'un tour](turn.md#compaction-et-mémoire).
 - **`route.agents`** se règle aussi par `/route on` ; voir
   [Router un crew vers un profil](turn.md#router-un-crew-vers-un-profil).
+- **Les deux demandent le runtime de l'épingle**, donc le mode source : dans les modes tool et docker ils sont lus
+  et ne font rien, sans avertissement qui leur soit propre, un runtime sans modèle de décision donnant toujours
+  l'avertissement habituel
+  ([les modes](getting-started.md#mode-source--un-checkout-dorkeon)).
 - **`skills.suggest`** se règle aussi par `/skills suggest on` ; voir
   [Suggérer des skills pour un tour](turn.md#suggérer-des-skills-pour-un-tour).
 - **`dev.workDir`** sert aussi à `/dev-status` et à `/dev-learn`. `/commit` le lit également, et laisse le dossier de

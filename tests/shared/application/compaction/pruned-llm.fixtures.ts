@@ -9,14 +9,11 @@ export const BRIEF = "Review the plan of the batch";
 /** A request as a sub-agent's act sends one. */
 export const REQUEST = { system: "You review.", maxIterations: 20 };
 
-/** The binding of an act with the pruning on: the settings and the callback. */
-export const BINDING: ContextPruning = {
-  contextPressure: { thresholdTokens: 80_000, keepRecent: 6, headChars: 300 },
-  onContextPressure: async () => ({}),
-};
+/** The binding of an act with the pruning on: the runtime's pruning and the tally's line. */
+export const BINDING: ContextPruning = { prune: true, onPruned: () => undefined };
 
-/** A request that already carries a callback of its own. */
-export const BOUND_REQUEST = { ...REQUEST, onContextPressure: async () => undefined };
+/** A request that already names a pruning of its own. */
+export const BOUND_REQUEST = { ...REQUEST, prune: true as const };
 
 /** An Llm that answers "done" and keeps what it was asked. */
 export function inlineLlm(): FakeLlm {
@@ -27,10 +24,10 @@ export function inlineLlm(): FakeLlm {
   return llm;
 }
 
-/** What binds `binding` to each act, the requests it was asked on kept in `asked`. */
-export function bindingOf(binding: ContextPruning): { prune: PruningFor; asked: string[] } {
-  const asked: string[] = [];
-  return { asked, prune: async (request) => { asked.push(request); return binding; } };
+/** What binds `binding` to each act, the number of bindings asked for kept in `asked`. */
+export function bindingOf(binding: ContextPruning): { prune: PruningFor; asked: { count: number } } {
+  const asked = { count: 0 };
+  return { asked, prune: async () => { asked.count += 1; return binding; } };
 }
 
 /** A binding that cannot be made: the settings or the session failed. */

@@ -27,11 +27,14 @@
 // An act that carries a system prompt ends it with the runtime's `## File system` section (`ctx.fileSystem.prompt`,
 // Orkeon #378): the paths this agent may touch, their rights and where relative paths resolve, read at each act and
 // left out when the runtime gives none. The entry points build the adapter from the agent's context (`agentLlm(ctx)`).
+// The request's `prune` is the runtime's `act({prune})` (Orkeon #461); its `onPruned` stays here: it is handed the
+// tally of the act's result (`result.pruned`), on every outcome, before a spent budget or iteration cap is thrown.
 
 import type { ActRequest, CompleteRequest, Llm, ModelOverride } from "../../application/ports.ts";
 import type { PermissionMode } from "../../domain/permission-modes.ts";
 import { budgetExhaustedAnswer, iterationsExhausted, llmFailureOf } from "../../domain/llm-failure.ts";
 import { effortReportOf } from "../../domain/agent-policy/reasoning.ts";
+import { pruneTallyOf } from "../../domain/context-prune.ts";
 import { hostCallbacks } from "../../application/dev/tool-callbacks.ts";
 import type { ActCallbacks, ToolCallbacks } from "../../application/dev/tool-callbacks.ts";
 import type { HostSource } from "../../application/host-context.ts";
@@ -56,7 +59,7 @@ function callOptions(override: ModelOverride | undefined): LlmCallOptions | unde
 /** The runtime's act() options: the request as given (its `tools` subset copied), its profile and model as the `llm`
  *  patch, and the act's callbacks, when it has any. */
 function actOptions(request: ActRequest, callbacks: ActCallbacks | undefined): ActOptions {
-  const { model, profile, tools, ...given } = request as ModeActRequest;
+  const { model, profile, tools, onPruned: _onPruned, ...given } = request as ModeActRequest;
   const rest = tools === undefined ? given : { ...given, tools: [...tools] };
   const llm = llmPatch(profile, model);
   const options: ActOptions = llm === undefined ? rest : { ...rest, llm };
@@ -136,7 +139,15 @@ export function createLlm(
       const own = callbacks?.forAct(request.permissionMode ?? "default", permissionGateEnabled());
       const acts = hostCallbacks(own, await host());
       const sent = withFileSystem(withContext(withEffort), defaults.fileSystem);
-      return answerOrThrow(answerOf(await llm.act(prompt, actOptions(sent, acts))));
+      const result = await llm.act(prompt, actOptions(sent, acts));
+      const tally = pruneTallyOf((result as { pruned?: unknown } | null | undefined)?.pruned);
+      if (tally !== null) {
+        // The tally is a log line: a callback that throws fails neither the finished act nor hides its outcome.
+        try {
+          request.onPruned?.(tally);
+        } catch { /* the act's answer stands */ }
+      }
+      return answerOrThrow(answerOf(result));
     },
     async complete(prompt, request?: CompleteRequest) {
       // A system message needs the message-array call: `complete` takes a prompt only.

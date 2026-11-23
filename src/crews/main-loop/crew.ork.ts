@@ -112,7 +112,7 @@ const coder = orkeonAgent()
       clock,
       host: orkeonHostContext,
       suggest: (request, attached) => suggestSkills({ config: ports.config, decision: orkeonDecisionModel(), files: ports.files, session: ports.session, log }, request, attached),
-      prune: (request) => contextPruning({ config: ports.config, decision: orkeonDecisionModel(), session: ports.session, log }, request),
+      prune: () => contextPruning({ config: ports.config, decision: orkeonDecisionModel(), log }),
       compact: turnCompaction(ports.config, (trigger) => compactSession(
         { force: false, trigger },
         orkeonCompactionDeps({ llm, log }, { ...ports, progress }, clock),

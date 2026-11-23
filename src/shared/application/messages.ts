@@ -12,3 +12,9 @@ export const SESSION_DEFAULT_VIA_MODE = "session default via /mode";
 export const cannotBeRead = (path: string, reason: string): string => `${path} cannot be read (${reason})`;
 export const prefixedCannotBeRead = (prefix: string, path: string, reason: string): string => `${prefix}: ${path} cannot be read (${reason})`;
 export const couldNotRun = (command: string, reason: string): string => `${command} could not run: ${reason}`;
+/** Why a script finds no decision model, and what to check: the runtime tells a script none of it. */
+export const NO_DECISION_MODEL_CAUSES =
+  "(no Orkeon:Decision:Provider nor Orkeon:TypeSafe is set, the provider lacks its key, or the host's decision circuit is " +
+  "off by --no-decision or Orkeon:Decision:Enabled false: check Orkeon:Decision:Provider and Orkeon:Decision:Enabled, " +
+  "then the key of the provider's section, read from the variable its ApiKeyEnvVar names (TYPESAFE_API_KEY or " +
+  "LIQUID_API_KEY by default) or from its ApiKey)";

@@ -1,7 +1,8 @@
 // The agent factories profiledAgent builds over (wiring.ts hands it the runtime's): a builder that records the LLM config and the cache it is given,
 // and a `llm.profile` that answers a config naming the profile (or none, as a command engine declares no `llm`). A
 // name the host does not declare throws a ScriptRefusal, as the runtime throws its `InvalidScriptError`; a `broken`
-// name throws a plain error, a failure that is no refusal.
+// name throws a plain error, a failure that is no refusal. A profile runs on the provider `host` unless `providers`
+// names another for it (`default`: the host's default model).
 import type { AgentFactories } from "../../../../src/shared/infrastructure/orkeon/llm-profile.ts";
 
 export class RecordingAgentBuilder {
@@ -20,8 +21,8 @@ export class RecordingAgentBuilder {
 }
 
 /** A config as `llm.profile(name)` answers it. */
-export const profileConfig = (name: string): LlmConfig => ({
-  provider: "host", profile: name, model: "", capabilities: null, reasoning: null, with: () => profileConfig(name),
+export const profileConfig = (name: string, provider = "host"): LlmConfig => ({
+  provider, profile: name, model: "", capabilities: null, reasoning: null, with: () => profileConfig(name, provider),
 });
 
 /** The refusal of the fixture host: what `refusal` recognises. */
@@ -29,12 +30,13 @@ export class ScriptRefusal extends Error {}
 
 export function factories(
   withProfile = true, unknown: readonly string[] = [], broken: readonly string[] = [],
+  providers: Readonly<Record<string, string>> = {},
 ): AgentFactories & { built: RecordingAgentBuilder[] } {
   const built: RecordingAgentBuilder[] = [];
   const profile = (name: string): LlmConfig => {
     if (unknown.includes(name)) throw new ScriptRefusal(`unknown LLM profile '${name}'`);
     if (broken.includes(name)) throw new Error(`the profile '${name}' cannot be read`);
-    return profileConfig(name);
+    return profileConfig(name, providers[name]);
   };
   return {
     built,
@@ -55,6 +57,16 @@ export const FALLBACK_CASES: { name: string; input: Record<string, unknown>; pro
 export const CACHE_CASES: { name: string; input: Record<string, unknown> }[] = [
   { name: "requests the prompt cache of the system prompt and the tools on a profile", input: { llmProfile: "guarded" } },
   { name: "requests the prompt cache of the system prompt and the tools on the host's default model", input: {} },
+];
+
+/** The inputs that request no prompt cache: their agent runs on the agent-cli provider. */
+export const NO_CACHE_CASES: { name: string; input: Record<string, unknown>; providers: Record<string, string> }[] = [
+  { name: "requests no prompt cache on a profile that runs on agent-cli", input: { llmProfile: "subscription" }, providers: { subscription: "agent-cli" } },
+  { name: "requests no prompt cache when the host's default model runs on agent-cli", input: {}, providers: { default: "agent-cli" } },
+  {
+    name: "requests no prompt cache when a routed profile falls back on a session's profile on agent-cli",
+    input: { llmProfile: "small", llmProfileFallback: "subscription" }, providers: { subscription: "agent-cli" },
+  },
 ];
 
 export const TASK = { crew: "dev-reviewer", brief: "Review the plan" };

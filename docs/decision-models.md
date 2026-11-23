@@ -6,10 +6,13 @@ hosted Jev of TypeSafe, the open-weights Kev, or Liquid's d1 ([Configuration](co
 [Decision models locally](decision-models-local.md) sets up Kev and Liquid on your machine).
 
 It is used in two ways. The host uses it through a *decision profile*, which guards a request, routes it or
-verifies its answer: that is the host's settings, and the two pages above cover it. Orkeon Code also asks it three
-questions of its own, which this page covers. Each is a setting, off by default, that works with whichever
-provider the host configures and needs no decision profile. Each fails open: without a decision model, or when it
-does not answer, Orkeon Code does what it did before.
+verifies its answer: that is the host's settings, and the two pages above cover it. Three settings of Orkeon Code
+also put it to work, which this page covers. The runtime asks it which tool results to prune and which profile a
+crew runs on, and Orkeon Code asks it which skills fit a turn.
+
+Each setting is off by default, works with whichever provider the host configures and needs no decision profile.
+Each fails open: without a decision model, or when it does not answer, Orkeon Code does what it does with the
+setting off.
 
 | What | Turn it on | The decision model decides | Details |
 |---|---|---|---|
@@ -17,15 +20,30 @@ does not answer, Orkeon Code does what it did before.
 | Routing a crew | `/route on` | the cheapest LLM profile that fits the command | [the turn](turn.md#routing-a-crew-to-a-profile) |
 | Suggesting skills | `/skills suggest on` | the project's skills that fit the request of a turn | [the turn](turn.md#suggesting-skills-for-a-turn) |
 
+The pruning and the routing need the runtime of the pin, source mode. The tool and docker modes run the last
+release, where both settings are read and do nothing, without a warning of their own: a host with no
+decision model still gets the usual one
+([ADR 0034](adr/0034-orkeon-after-470.md)).
+
 The measures below are of 2026-11-11: `jev-latest` (the hosted Jev) decides, `glm-5.3-flashx` (Z.AI) answers,
-Orkeon's sources at the pin. The reasons behind each choice are in
-[ADR 0027](adr/0027-decision-model-optimisations.md).
+Orkeon's sources at the pin of that day. Orkeon Code then asked the pruning and the routing questions itself: these
+measures are historical, and none was taken again on the runtime's pruning and pick. The reasons behind each
+choice are in [ADR 0027](adr/0027-decision-model-optimisations.md).
 
 ## Pruning a long turn
 
 The tool results of a turn in progress stay in the model's context until the turn ends: no compaction reaches
-them. With `compaction.prune` on, past 40 % of the context window, the decision model judges the older results of
-the read tools: each is removed, cut to its first 300 characters or kept, and a line says how to get it back.
+them. With `compaction.prune` on, once the prompt passes a share of the call's usable window, the decision model
+judges the older results of the read tools: each is removed, cut to its first characters or kept, and a line says
+how to get it back.
+
+The runtime does the judging, on the host's numbers (`Orkeon:Compaction:Prune`). By default it starts at 40 % of
+the usable window, spares the last 6 messages and cuts to 300 characters
+([the turn](turn.md#pruning-the-tool-loop)).
+
+The two measures below are historical. They were taken on a judge of this project, removed since
+([ADR 0034](adr/0034-orkeon-after-470.md)): it asked the same questions with the same numbers, against the
+session's whole window, not the call's usable one.
 
 The same setting prunes the acts of the dev crews: the reviewer of `/dev-spec`, `/dev-change`, `/dev-plan` and of
 the next batch of `/dev-batches`, the test author and the implementer of `/dev-implement`, the auditor of
@@ -47,7 +65,8 @@ dead weight, two are not.
 | Time of those requests, summed (the slowest) | | 0.54 s (0.20 s) | |
 | The whole turn | 25.4 s | 17.7 s | 30.2 % |
 
-The model asked for the 26 reads in its first call. Before the second, the loop stood past 40 % of the window:
+The model asked for the 26 reads in its first call. Before the second, the loop stood past 40 % of the session's
+window:
 20 results were offered (the last 6 messages are spared), sent to the decision model in 3 requests that ran
 together, and 15 were removed, 4 cut to their first 300 characters and 1 kept, about 107,000 tokens freed. Both
 answers quote the same two titles: the first file's result came through whole. Net of the decision model's 0.2 s,
@@ -58,8 +77,8 @@ A second run, on the turn's last file alone, has no twin to compare it with: it 
 
 ### Measured: the acts of the dev crews
 
-Measured on 2026-11-16, one run, pruning off, to read how large these acts grow. The lowest threshold is 51,200
-tokens (40 % of a window of 128,000).
+Measured on 2026-11-16, one run, pruning off, to read how large these acts grow. The lowest threshold was then
+51,200 tokens: 40 % of a session's window of 128,000.
 
 | Act | Model calls | Largest call, in tokens |
 | --- | ---: | ---: |
@@ -67,21 +86,35 @@ tokens (40 % of a window of 128,000).
 | The reviewer of `/dev-spec`, over six runs on this repository | 4 to 9 | 43,000 |
 | The reviewer of `/dev-plan`, over four runs | 7 to 10 | 43,000 |
 
-None of these acts reaches the threshold: with the setting on, nothing would have been pruned in them. The pruning
-of a dev act is wired and tested, and its effect is not measured: it needs a batch whose role reads far more than
-these did.
+None of these acts reached that threshold: with the setting on, that judge would have pruned nothing in them.
+
+The runtime's threshold is lower, since it is a share of the usable window. For a window of 128,000 and the default
+share, it runs from 25,600 tokens (an output cap of half the window or more) to about 49,600 (no cap known). The
+reviewer acts of 43,000 tokens may pass it, by the output cap of their call: that is not measured.
+
+The pruning of a dev act is wired and tested, and its effect is not measured: it needs a batch whose role reads far
+more than these did.
 
 ## Routing a crew
 
 A crew's agents all run on one LLM profile of the host, the session's. With `route.agents` on, at the launch of
 `/dev-spec` (and its alias `/dev-change`), `/dev-plan`, `/dev-learn`, `/review`, `/analyze`, `/commit`, `/init` and
-`/init-verifiers`, the decision model reads the command and picks a profile of `route.ladder` (`small,large` when
-omitted, cheapest first). The pick is followed when its probability reaches 0.6, is raised to the floor
-`.orkeon/route-rules.json` sets for the crew or for a path the command names, and never goes above the session's
-own profile. `/route why` shows the last five choices.
+`/init-verifiers`, the runtime's System One pick reads the command and picks a profile of
+`route.ladder` (`small,large` when omitted, cheapest first). Orkeon Code asks no question of its own: it gives the
+pick the ladder, the floor `.orkeon/route-rules.json` sets for the crew or for a path the command names, and the
+session's own profile as the ceiling and the fallback. The runtime follows its decision model when the probability
+of the pick reaches 0.6, raises it to the floor and never above the ceiling; under the bar or without an answer the
+fallback stands. A session on a rung of the ladder whose own rung is the one rung left (the lowest, or a rule's
+floor at it or above) asks nothing and runs on its profile. A session on the host's default model is never held so:
+under a rule whose floor is the top rung, the runtime answers without a model call and the launch runs on that rung.
+
+A runtime whose decision circuit is off, or a pick that refuses an option, routes nothing: a warning in the log
+says why, and `/route why` does not list it. `/route why` shows the last five choices
+([ADR 0034](adr/0034-orkeon-after-470.md)).
 
 Inside a crew, the act of a reviewer (`/dev-spec`, `/dev-change`, `/dev-plan`, the next batch of `/dev-batches`)
-and of the auditor of `/dev-verify` is routed the same way, for that one call: see
+and of the auditor of `/dev-verify` is routed the same way, for that one call. When the pick is unsure or missing
+the act stays where its crew runs; on the host's default model it takes a rule's floor instead: see
 [Routing a crew to a profile](turn.md#routing-a-crew-to-a-profile). Two runs of it are
 [measured below](#measured-dev-spec-then-dev-plan-routed-and-not).
 
@@ -189,8 +222,9 @@ the pruned turn took 0.54 s summed and ran together (0.20 s the slowest).
 (three that fitted were not suggested, none was suggested wrongly, the one kept for a person was never offered),
 eight routes of twelve (three picks under the bar, so the session's profile stood; one style review sent to
 `large`), 79 ms a request on this machine. Its probabilities sit close to the bars (0.52 to 0.82 for the skills,
-0.60 to 0.85 for the routes) where the hosted Jev's are near 1. On the pruning questions a probe of four calls
-answered between 0.42 and 0.69, too close to the 0.5 threshold to trust.
+0.60 to 0.85 for the routes) where the hosted Jev's are near 1. On the pruning questions this
+project's judge asked then, a probe of four calls answered between 0.42 and 0.69, too close to that judge's 0.5
+threshold to trust. The runtime's pruning was not probed on it.
 
 ## What these measures do not show
 
@@ -201,8 +235,8 @@ answered between 0.42 and 0.69, too close to the 0.5 threshold to trust.
   larger model was slow: they show that routing can make the difference between a run that ends and one that does
   not, not by how much it shortens a run that would have ended. The other routed commands were measured on their
   choices alone.
-- No dev act measured reached the pruning threshold, so what pruning saves there, and what it costs in results
-  read again, is not known.
+- No dev act measured reached the pruning threshold of the day, so what pruning saves there, and what it costs in
+  results read again, is not known.
 - For the pruning, a model that reads one file per call instead of all at once spends its tokens differently, and
   the request says which files matter, the easy case for the judge. The same turn asked about its last file only
   had all 20 results removed (about 115,000 tokens) and answered rightly, in 57,515 input tokens; its twin without
@@ -221,7 +255,7 @@ ORKEON_CODE_MODE=source ORKEON_SOURCE=~/src/orkeon \
 grep -o "context pruning: [^\"]*\|call used [0-9]* tokens\|HttpClient\.[A-Za-z]*\.LogicalHandler\[101\] End[^-]*ms" run.log
 ```
 
-The first pattern is the line of each pressure, the second the tokens of each model call, the third the time of
+The first pattern is the line of each act that pruned, the second the tokens of each model call, the third the time of
 each request, the model's and the decision model's (the line names the client). `-- -v 2` raises the log of `orkeon run`
 to the level these lines are written at: by default it shows the warnings alone.
 

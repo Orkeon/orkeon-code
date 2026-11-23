@@ -4,12 +4,8 @@ import { describe, it } from "node:test";
 import { deepStrictEqual, strictEqual } from "node:assert";
 
 import { contextPruning } from "../../../../src/shared/application/compaction/prune-context.ts";
-import {
-  PRUNE_DECISION_FAILED, PRUNE_WITHOUT_DECISION_MODEL,
-} from "../../../../src/shared/application/compaction/messages.ts";
-import {
-  PRUNED_TWO, REJUDGE_CASES, REQUEST, THIRTY_LARGE, TWO_LARGE_ONE_SMALL, allNeededWhole, noneNeeded, pruneSetup, twoLargeLater,
-} from "./prune-context.fixtures.ts";
+import { PRUNE_WITHOUT_DECISION_MODEL, prunedLine } from "../../../../src/shared/application/compaction/messages.ts";
+import { FIVE_JUDGED, NONE_JUDGED, NO_MODEL_WARNING, pruneSetup } from "./prune-context.fixtures.ts";
 
 describe("contextPruning", () => {
   for (const setting of ["off", null]) {
@@ -18,12 +14,24 @@ describe("contextPruning", () => {
       const { deps } = pruneSetup(setting);
 
       // Act
-      const pruning = await contextPruning(deps, REQUEST);
+      const pruning = await contextPruning(deps);
 
       // Assert
       deepStrictEqual(pruning, {});
     });
   }
+
+  it("adds nothing when the setting cannot be read", async () => {
+    // Arrange
+    const { deps, config } = pruneSetup();
+    config.failure = new Error("unreadable");
+
+    // Act
+    const pruning = await contextPruning(deps);
+
+    // Assert
+    deepStrictEqual(pruning, {});
+  });
 
   it("adds nothing and says why when the host has no decision model", async () => {
     // Arrange
@@ -31,145 +39,69 @@ describe("contextPruning", () => {
     decision.present = false;
 
     // Act
-    const pruning = await contextPruning(deps, REQUEST);
+    const pruning = await contextPruning(deps);
 
     // Assert
     deepStrictEqual([pruning, log.lines], [{}, [`warn: ${PRUNE_WITHOUT_DECISION_MODEL}`]]);
   });
 
-  it("asks from 40 % of the session's window", async () => {
+  it("names the settings and the key variables to check when the host has no decision model", async () => {
+    // Arrange
+    const { deps, decision, log } = pruneSetup();
+    decision.present = false;
+
+    // Act
+    await contextPruning(deps);
+
+    // Assert
+    deepStrictEqual(log.lines, [NO_MODEL_WARNING]);
+  });
+
+  it("asks the runtime for its pruning when the setting is on", async () => {
     // Arrange
     const { deps } = pruneSetup();
 
     // Act
-    const pruning = await contextPruning(deps, REQUEST);
+    const pruning = await contextPruning(deps);
 
     // Assert
-    deepStrictEqual(pruning.contextPressure, { thresholdTokens: 80_000, keepRecent: 6, headChars: 300 });
+    strictEqual(pruning.prune, true);
   });
 
-  it("falls back on a window of 128 000 tokens when the budget reports none", async () => {
+  it("asks the decision model nothing itself", async () => {
     // Arrange
-    const { deps, session } = pruneSetup();
-    session.budget = { used: 0, window: 0 };
+    const { deps, decision } = pruneSetup();
 
     // Act
-    const pruning = await contextPruning(deps, REQUEST);
+    await contextPruning(deps);
 
     // Assert
-    strictEqual(pruning.contextPressure?.thresholdTokens, 51_200);
+    deepStrictEqual(decision.asked, []);
   });
 });
 
-describe("the callback of contextPruning", () => {
-  it("keeps a small result without asking and answers the decision model's verdict for the others", async () => {
+describe("the tally handed to contextPruning's binding", () => {
+  it("says what the act pruned", async () => {
     // Arrange
-    const { deps, decision } = pruneSetup();
-    decision.answers = noneNeeded(2);
-    const pruning = await contextPruning(deps, REQUEST);
+    const { deps, log } = pruneSetup();
+    const pruning = await contextPruning(deps);
 
     // Act
-    const verdicts = await pruning.onContextPressure?.(TWO_LARGE_ONE_SMALL);
+    pruning.onPruned?.(FIVE_JUDGED);
 
     // Assert
-    deepStrictEqual(verdicts, { "call-3": "keep", "call-1": "drop", "call-2": "drop" });
+    deepStrictEqual(log.lines, [`info: ${prunedLine(5, 2, 1, 4_100)}`]);
   });
 
-  it("says what it pruned", async () => {
+  it("says nothing when the act judged no result", async () => {
     // Arrange
-    const { deps, decision, log } = pruneSetup();
-    decision.answers = noneNeeded(2);
-    const pruning = await contextPruning(deps, REQUEST);
+    const { deps, log } = pruneSetup();
+    const pruning = await contextPruning(deps);
 
     // Act
-    await pruning.onContextPressure?.(TWO_LARGE_ONE_SMALL);
+    pruning.onPruned?.(NONE_JUDGED);
 
     // Assert
-    deepStrictEqual(log.lines, [`info: ${PRUNED_TWO}`]);
+    deepStrictEqual(log.lines, []);
   });
-
-  it("judges 24 calls at most, by requests of 8", async () => {
-    // Arrange
-    const { deps, decision } = pruneSetup();
-    decision.answers = noneNeeded(8);
-    const pruning = await contextPruning(deps, REQUEST);
-
-    // Act
-    const verdicts = await pruning.onContextPressure?.(THIRTY_LARGE);
-
-    // Assert
-    deepStrictEqual(
-      [decision.asked.map((a) => Object.keys(a.questions).length), Object.keys(verdicts ?? {}).length],
-      [[16, 16, 16], 24],
-    );
-  });
-
-  it("prunes nothing when the decision model does not answer", async () => {
-    // Arrange
-    const { deps, decision, log } = pruneSetup();
-    decision.replies = [null];
-    const pruning = await contextPruning(deps, REQUEST);
-
-    // Act
-    const verdicts = await pruning.onContextPressure?.(TWO_LARGE_ONE_SMALL);
-
-    // Assert
-    deepStrictEqual([verdicts, log.lines], [{ "call-3": "keep" }, [`warn: ${PRUNE_DECISION_FAILED}`]]);
-  });
-
-  it("does not ask again in the act once the decision model failed", async () => {
-    // Arrange
-    const { deps, decision } = pruneSetup();
-    decision.replies = [null];
-    const pruning = await contextPruning(deps, REQUEST);
-    await pruning.onContextPressure?.(TWO_LARGE_ONE_SMALL);
-
-    // Act
-    await pruning.onContextPressure?.(THIRTY_LARGE);
-
-    // Assert
-    strictEqual(decision.asked.length, 1);
-  });
-
-  it("keeps the verdicts of the requests answered when another one fails", async () => {
-    // Arrange
-    const { deps, decision } = pruneSetup();
-    decision.replies = [noneNeeded(8), null, noneNeeded(8)];
-    const pruning = await contextPruning(deps, REQUEST);
-
-    // Act
-    const verdicts = await pruning.onContextPressure?.(THIRTY_LARGE);
-
-    // Assert
-    strictEqual(Object.values(verdicts ?? {}).filter((verdict) => verdict === "drop").length, 16);
-  });
-
-  it("answers nothing for a result judged needed whole, so the runtime offers it again", async () => {
-    // Arrange
-    const { deps, decision } = pruneSetup();
-    decision.answers = allNeededWhole(2);
-    const pruning = await contextPruning(deps, REQUEST);
-
-    // Act
-    const verdicts = await pruning.onContextPressure?.(TWO_LARGE_ONE_SMALL);
-
-    // Assert
-    deepStrictEqual(verdicts, { "call-3": "keep" });
-  });
-
-  for (const c of REJUDGE_CASES) {
-    it(c.name, async () => {
-      // Arrange
-      const { deps, decision } = pruneSetup();
-      decision.answers = allNeededWhole(2);
-      const pruning = await contextPruning(deps, REQUEST);
-      await pruning.onContextPressure?.(TWO_LARGE_ONE_SMALL);
-
-      // Act
-      await pruning.onContextPressure?.(twoLargeLater(c.later));
-
-      // Assert
-      strictEqual(decision.asked.length, c.requests);
-    });
-  }
 });

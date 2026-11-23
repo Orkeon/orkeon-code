@@ -26,7 +26,7 @@ defineAsyncCommand({
   },
   dispatch: async (args, ctx) => {
     const config = orkeonConfigStore();
-    return launchCrew(await withRoutedProfile({ crews: createCrewHost(ctx.services), log: ctx.log }, config, orkeonRouting(), { crew: "analyze", brief: String(ctx.command?.rawInput ?? "") }), "analyze", await analyzeInput(args, config));
+    return launchCrew(await withRoutedProfile({ crews: createCrewHost(ctx.services), log: ctx.log }, config, orkeonRouting(ctx.services), { crew: "analyze", brief: String(ctx.command?.rawInput ?? "") }), "analyze", await analyzeInput(args, config));
   },
   completed: (result, ctx) => writeCompleted(ctx, result, "analyze", "✓ analyze →\n"),
 });

@@ -41,6 +41,11 @@ export interface AnalyzeInputs {
   language?: unknown;
 }
 
+/** Whether `--parallel` was given at all: a flag left out arrives as null, undefined or an empty text. */
+function parallelGiven(value: unknown): boolean {
+  return value !== undefined && value !== null && !(typeof value === "string" && value.trim() === "");
+}
+
 function readParallel(value: unknown): number | undefined {
   const n = typeof value === "string" && value.trim() !== "" ? Number(value) : value;
   return typeof n === "number" && Number.isInteger(n) && n >= 1 ? n : undefined;
@@ -65,7 +70,7 @@ export async function runAnalyze(input: AnalyzeInputs, deps: AnalyzeDeps): Promi
     //    runtime reloads the index an earlier session saved. `rebuild` skips both.
     await progress.report(phase(1, PHASE_INDEXING));
     if (rebuild || (await index.rootCount()) === 0) {
-      if (parallel === undefined && input.parallel !== undefined && input.parallel !== "") {
+      if (parallel === undefined && parallelGiven(input.parallel)) {
         log.warn(parallelIgnored(String(input.parallel)));
       }
       const opts = { ...(parallel === undefined ? {} : { parallel }), ...(rebuild ? { rebuild } : {}) };

@@ -2,7 +2,7 @@
 // Types only, re-exported by ../ports.ts.
 import type { EffortLevel } from "../../domain/agent-policy/behavior-flags.ts";
 import type { EffortReport, ReasoningCapabilities, ReasoningTarget } from "../../domain/agent-policy/reasoning.ts";
-import type { ContextPressure, PressureSettings, PruneVerdict } from "../../domain/context-prune.ts";
+import type { PruneTally } from "../../domain/context-prune.ts";
 
 /** What one model call may change, for that call only. */
 export interface ModelOverride {
@@ -40,12 +40,13 @@ export interface ActRequest extends ModelOverride {
   effort?: EffortLevel;
   /** The agent's tools offered for this call (a role's subset); all of them when absent. */
   tools?: readonly string[];
-  /** Asked by the runtime before a model turn once the loop's messages pass `contextPressure.thresholdTokens`
-   *  (Orkeon #327): the older results of the read tools that ran, answered by call id. A call left out keeps its
-   *  result; a callback that throws prunes nothing. Absent: nothing is pruned. */
-  onContextPressure?: (pressure: ContextPressure) => Promise<Record<string, PruneVerdict> | void>;
-  /** When `onContextPressure` runs and what a `head` verdict keeps; the runtime's defaults when absent. */
-  contextPressure?: PressureSettings;
+  /** The runtime's pruning of the loop's older read-tool results (`act({ prune: true })`, Orkeon #461), on the host's
+   *  numbers (`Orkeon:Compaction:Prune`): past a share of the call's usable window, the host's decision model judges
+   *  each result from its call, and the runtime keeps, cuts or drops it. Absent: nothing is pruned. */
+  prune?: true;
+  /** Handed what the pruning did over the loop (`result.pruned`) once the act returns, on every outcome; not called
+   *  when the act's result carries no tally. */
+  onPruned?: (tally: PruneTally) => void;
 }
 
 /** The model, as the crews call it. Every call throws when the host's provider

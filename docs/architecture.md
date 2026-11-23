@@ -327,6 +327,7 @@ the text, or the tool's own failure message without the runtime's wrapping, and 
 | `ShellJobs` | A long command run detached, its status, the tail of its log, and a wait between two looks (`shell_command` `start_job`, `job_status`, `job_tail`) | `shell-jobs.ts` | `fake-shell-jobs.ts` |
 | `SharedMemory` | The RAG index of the [shared memory](shared-memory.md): search a collection, ingest with prune (the `rag` namespace, else `rag_search`, `rag_ingest`) | `shared-memory.ts` | `fake-shared-memory.ts` |
 | `DecisionModel` | The host's decision model, asked typed questions about a state: one option among described ones, a level on a scale, the probability of a yes | `decision-model.ts` | `fake-decision-model.ts` |
+| `ProfilePicker` | The runtime's System One pick of a profile on a ladder, between a floor and a ceiling, with a fallback (`ctx.services.get("pick")` for a command, `ctx.llm.pick` in a crew) | `profile-picker.ts` | `fake-profile-picker.ts` |
 | `ChildRuntime` | The children of a crew run: spawn one in the background, list, stop, read what it left (`ctx.spawnBackground`, the crew's `instances()`/`stop()`, its memory) | `child-agents.ts` | `fake-child-runtime.ts` |
 | `HumanInput` | A question to the person: a choice, a text, a multi-select; nobody answering is an answer of its own (`human_input`) | `human-input.ts` | `fake-human-input.ts` |
 | `Chooser` | A panel in the console: one option among several, with an optional control on the side arrows; `interactive` says whether one can open (`ctx.prompt`, `ctx.interactive`) | `chooser.ts` | `fake-chooser.ts` |
@@ -358,7 +359,7 @@ What the table leaves out:
 - **`DecisionModel`**, what it is for:
   - No model, a failed call and an unreadable answer are all `null`, so the caller does what it did without one
     (`system_one_decide`, registered when the settings configure a decision provider, whichever it is, and withheld
-    while the decision circuit is off).
+    while the decision circuit is off, a hosted provider without its key included).
 
 ### Wiring
 

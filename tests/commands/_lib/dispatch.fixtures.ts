@@ -14,6 +14,7 @@ import { FakeCrewHost } from "../../support/doubles/fake-crew-host.ts";
 import { FakeDecisionModel } from "../../support/doubles/fake-decision-model.ts";
 import { FakeFiles } from "../../support/doubles/fake-files.ts";
 import { FakeLogger } from "../../support/doubles/fake-logger.ts";
+import { FakeProfilePicker } from "../../support/doubles/fake-profile-picker.ts";
 import { FakePermissionRules } from "../../support/doubles/fake-permission-rules.ts";
 import { FakeSessionStore } from "../../support/doubles/fake-session-store.ts";
 import { FakeToolCatalogue } from "../../support/doubles/fake-tool-catalogue.ts";
@@ -62,15 +63,16 @@ export function profiledCrewDeps(value?: string) {
   return { ...base, config };
 }
 
-/** crewDeps over the user settings `settings`, with what routing reads: a decision model that picks `small`. */
+/** crewDeps over the user settings `settings`, with what routing reads: a decision model on the host and a pick that
+ *  answers `small`. */
 export function routedCrewDeps(settings: Record<string, string>) {
   const base = crewDeps();
   const files = new FakeFiles();
   files.files.set(USER_CONFIG_FILE_PATH, JSON.stringify(settings));
   const session = new FakeSessionStore();
   const decision = new FakeDecisionModel();
-  decision.answers = { profile: { type: "choice", choice: "small", confidence: 0.9, probabilities: { small: 0.9 } } };
-  return { ...base, config: createConfigStore({ files, session }), routing: { decision, files, session } };
+  const picker = new FakeProfilePicker();
+  return { ...base, config: createConfigStore({ files, session }), routing: { decision, picker, files, session } };
 }
 
 export const NOT_A_PROFILE_WARNING = "llm.profile: 'a b' holds a space: a profile is one name, as the host's settings spell it; the host's default model this launch";
