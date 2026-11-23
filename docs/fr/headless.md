@@ -217,7 +217,7 @@ Trois voies, de la plus simple :
    procédural hébergé reçoit est le contrat du démon
    ([hôte de service Orkeon](https://github.com/Orkeon/orkeon/blob/main/docs/architecture/service-host.md)).
 3. **En processus, en .NET.** Orkeon publie sa couche de scripting sur nuget.org, le paquet `Orkeon.Scripting`
-   (`1.3.0`, la dernière release) : une application l'enregistre avec `services.AddOrkeonScripting()` et exécute un
+   (`1.4.0`, la dernière release) : une application l'enregistre avec `services.AddOrkeonScripting()` et exécute un
    `crew.ork.ts` par `ICrewScriptRunner.RunAsync(path)`, la forme en processus d'`orkeon run`, sans lancer de
    processus ([Running a crew in-process](https://github.com/Orkeon/orkeon/blob/main/docs/reference/hosting.md#running-a-crew-in-process)).
    esbuild n'est pas dans le paquet, comme pour l'outil. Les crews d'Orkeon Code n'ont pas encore été lancés ainsi :

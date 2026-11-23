@@ -55,7 +55,7 @@ runtime's typings come from, how the pin on Orkeon moves, and how a release is c
 clone without one on PATH it uses the `orkeon` tool (`Orkeon.Scripting.Cli`, nuget.org, named by `.config/dotnet-tools.json`; the .NET SDK
 that restores and runs it is pinned by `global.json`, like Orkeon's: `10.0.300` with `rollForward: latestFeature`) or the
 `orkeon` image, on the current folder unless `--workspace` or `--demo` says otherwise. Both are a release:
-the tool is on nuget.org at `1.3.0`, the image is `ghcr.io/orkeon/orkeon:latest` (`1.3.0`), both eleven commits behind the pin at this writing (from Orkeon #423, a spawn past the budget refused, on);
+the tool is on nuget.org at `1.4.0`, the image is `ghcr.io/orkeon/orkeon:latest` (`1.4.0`), both at the commit of the pin;
 the tool carries no esbuild, the launcher takes the one `npm ci` installed;
 `ORKEON_CODE_MODE=source ORKEON_SOURCE=<checkout at the pin>` runs it from an Orkeon checkout, built on the spot. That tool reads its script limits from
 `Orkeon:Scripting:Limits`, not from the REPL's `Orkeon:Cli:ScriptCommands:Limits`

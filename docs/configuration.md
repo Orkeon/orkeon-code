@@ -175,11 +175,9 @@ the file sets. A key linked to an identity refuses every call that does not name
 - A CLI that still runs on a key rather than its login is refused before it answers, and the call does not fall back
   (`Llm:AgentCli:RequireLogin`, `true`).
 - Before the first run: `claude` on the `PATH`, signed in once (`claude /login`).
-- Source mode only (`ORKEON_CODE_MODE=source`, an Orkeon checkout at the pin). The release of the tool and docker
-  modes has no such provider: copied there, the example stops the start on `Provider`. The image has neither
-  `claude` nor its login.
-- At the pin, every verb of `orkeon` takes these settings, `orkeon runs list` among them (Orkeon #472).
-- The launcher tries the tool mode first: with `orkeon-repl` installed, force the mode.
+- Any mode but docker: Orkeon `1.4.0`, the pin, carries the provider, so the tool and source modes run it. The image
+  has neither `claude` nor its login.
+- Every verb of `orkeon` takes these settings, `orkeon runs list` among them (Orkeon #472).
 - [`config/appsettings.agent-cli.example.json`](../config/appsettings.agent-cli.example.json) is the example: the
   Anthropic one, its default profile on `ANTHROPIC_API_KEY`, plus a profile `subscription` on `agent-cli` whose
   `Fallback` is `default`. Copy it, then `/config set llm.profile subscription`: every crew a command launches builds

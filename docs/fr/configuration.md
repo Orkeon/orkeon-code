@@ -188,11 +188,9 @@ celui de la section).
 - Une CLI qui tourne malgré tout sur une clé plutôt que sur sa connexion est refusée avant de répondre, et l'appel
   ne bascule pas (`Llm:AgentCli:RequireLogin`, `true`).
 - Avant le premier lancement : `claude` sur le `PATH`, connecté une fois (`claude /login`).
-- Mode source seulement (`ORKEON_CODE_MODE=source`, un checkout d'Orkeon à l'épingle). La release des modes tool et
-  docker n'a pas ce fournisseur : copié là, l'exemple arrête le démarrage sur `Provider`. L'image n'a ni `claude` ni
-  sa connexion.
-- À l'épingle, chaque verbe d'`orkeon` accepte ces settings, `orkeon runs list` compris (Orkeon #472).
-- Le lanceur essaie d'abord le mode tool : avec `orkeon-repl` installé, forcez le mode.
+- Tout mode sauf docker : Orkeon `1.4.0`, l'épingle, porte le fournisseur, si bien que les modes tool et source
+  l'exécutent. L'image n'a ni `claude` ni sa connexion.
+- Chaque verbe d'`orkeon` accepte ces settings, `orkeon runs list` compris (Orkeon #472).
 - [`config/appsettings.agent-cli.example.json`](../../config/appsettings.agent-cli.example.json) est l'exemple :
   celui d'Anthropic, son profil par défaut sur `ANTHROPIC_API_KEY`, plus un profil `subscription` sur `agent-cli` dont
   le `Fallback` est `default`. Copiez-le, puis `/config set llm.profile subscription` : chaque crew qu'une commande

@@ -13,15 +13,18 @@ Les modes outil et source n'en ont pas besoin : le runtime tourne sur votre mach
 
 ## Ce qu'il faut
 
-- Les deux côtés au même commit d'Orkeon : le pont refuse un outil dont le contrat diffère. Le pont est arrivé après
-  `1.3.0`, donc pour l'instant c'est le pin de `.orkeon-version` :
-  - dans le conteneur, une image construite au pin, nommée par `ORKEON_CODE_IMAGE` (l'image de la dernière version,
-    `ghcr.io/orkeon/orkeon:latest`, n'a pas encore le pont) ;
-  - sur votre machine, la CLI `orkeon` du même checkout.
+- Les deux côtés au même commit d'Orkeon : le pont refuse un outil dont le contrat diffère. Orkeon `1.4.0`, le pin de
+  `.orkeon-version`, porte le pont :
+  - dans le conteneur, l'image de la dernière version, `ghcr.io/orkeon/orkeon:latest` (`docker pull` si la vôtre est
+    plus ancienne) ;
+  - sur votre machine, la CLI `orkeon` de la même version (le paquet Debian `orkeon`, une archive de release d'Orkeon
+    ou le `.msi`).
 - Firefox sur votre machine.
 
-Depuis un checkout d'Orkeon au pin (`git -C ~/src/orkeon checkout "$(cat .orkeon-version)"`, lancé depuis ce
-checkout-ci) :
+Quand le pin devance la release, construisez les deux côtés depuis un checkout d'Orkeon au pin
+(`git -C ~/src/orkeon checkout "$(cat .orkeon-version)"`, lancé depuis ce checkout-ci), puis nommez l'image par
+`ORKEON_CODE_IMAGE=orkeon-local:pin` et servez avec
+`dotnet ~/src/orkeon/src/scripting/Orkeon.Scripting.Cli/bin/Debug/net10.0/orkeon.dll` à la place d'`orkeon` :
 
 ```bash
 cd ~/src/orkeon
@@ -52,7 +55,7 @@ Dans un dossier à lui, un `appsettings.json` qui sert `firefox` :
 Puis, depuis ce dossier :
 
 ```bash
-dotnet ~/src/orkeon/src/scripting/Orkeon.Scripting.Cli/bin/Debug/net10.0/orkeon.dll bridge serve
+orkeon bridge serve
 ```
 
 ```text
@@ -74,10 +77,10 @@ Fusionnez [`config/appsettings.bridge.example.json`](../../config/appsettings.br
 { "Orkeon": { "Tools": { "Bridge": { "Address": "http://127.0.0.1:7410/", "Allow": ["firefox"] } } } }
 ```
 
-Puis lancez Orkeon Code en mode docker sur l'image du pin, le jeton exporté :
+Puis lancez Orkeon Code en mode docker, le jeton exporté :
 
 ```bash
-ORKEON_CODE_IMAGE=orkeon-local:pin ./orkeon-code --mode docker
+./orkeon-code --mode docker
 ```
 
 Quand les réglages nomment `Orkeon:Tools:Bridge:Address` et au moins un outil dans `Allow`, le lanceur (le REPL

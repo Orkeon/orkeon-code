@@ -12,14 +12,18 @@ Tool and source modes need none of this: the runtime runs on your machine and dr
 
 ## What you need
 
-- Both sides at the same Orkeon commit: the bridge refuses a tool whose contract differs. The bridge appeared after
-  `1.3.0`, so for now this means the pin of `.orkeon-version`:
-  - in the container, an image built from the pin, named by `ORKEON_CODE_IMAGE` (the image of the last release,
-    `ghcr.io/orkeon/orkeon:latest`, has no bridge yet);
-  - on your machine, the `orkeon` CLI of the same checkout.
+- Both sides at the same Orkeon commit: the bridge refuses a tool whose contract differs. Orkeon `1.4.0`, the pin of
+  `.orkeon-version`, carries the bridge:
+  - in the container, the image of the last release, `ghcr.io/orkeon/orkeon:latest` (`docker pull` it if yours is
+    older);
+  - on your machine, the `orkeon` CLI of the same release (the `orkeon` Debian package, an Orkeon release archive or
+    the `.msi`).
 - Firefox on your machine.
 
-From an Orkeon checkout at the pin (`git -C ~/src/orkeon checkout "$(cat .orkeon-version)"`, run from this checkout):
+When the pin runs ahead of the release, build both sides from an Orkeon checkout at the pin
+(`git -C ~/src/orkeon checkout "$(cat .orkeon-version)"`, run from this checkout), then name the image with
+`ORKEON_CODE_IMAGE=orkeon-local:pin` and serve with
+`dotnet ~/src/orkeon/src/scripting/Orkeon.Scripting.Cli/bin/Debug/net10.0/orkeon.dll` in place of `orkeon`:
 
 ```bash
 cd ~/src/orkeon
@@ -50,7 +54,7 @@ In a folder of its own, an `appsettings.json` that serves `firefox`:
 Then, from that folder:
 
 ```bash
-dotnet ~/src/orkeon/src/scripting/Orkeon.Scripting.Cli/bin/Debug/net10.0/orkeon.dll bridge serve
+orkeon bridge serve
 ```
 
 ```text
@@ -72,10 +76,10 @@ Merge [`config/appsettings.bridge.example.json`](../config/appsettings.bridge.ex
 { "Orkeon": { "Tools": { "Bridge": { "Address": "http://127.0.0.1:7410/", "Allow": ["firefox"] } } } }
 ```
 
-Then start Orkeon Code in docker mode on the pin's image, with the token exported:
+Then start Orkeon Code in docker mode, with the token exported:
 
 ```bash
-ORKEON_CODE_IMAGE=orkeon-local:pin ./orkeon-code --mode docker
+./orkeon-code --mode docker
 ```
 
 When the settings name `Orkeon:Tools:Bridge:Address` and at least one tool in `Allow`, the launcher (both the REPL
