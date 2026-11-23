@@ -54,6 +54,19 @@ export function recorder(extra = ""): string {
 /** A docker whose client works and whose engine does not answer: `docker version` fails, as with Docker Desktop stopped. */
 export const DOCKER_ENGINE_DOWN = recorder('if [ "$1" = version ]; then echo "failed to connect to the docker API" >&2; exit 1; fi\n');
 
+const IMAGE = "ghcr.io/orkeon/orkeon:latest";
+const imageSaying = (line: string): string =>
+  recorder(`if [ "$1" = run ]; then [ "$2 $3 $4 $5" = "--pull=never --rm --network none" ] || exit 1; ${line}; exit 0; fi\n`);
+
+/** What `--version` says of the docker image, by what docker answers: `bin` holds the docker stand-in. */
+export const VERSION_OF_IMAGE: readonly { name: string; bin: Record<string, string>; found: string }[] = [
+  { name: "the Orkeon of an image on the machine", bin: { docker: imageSaying('echo "orkeon 1.4.0+0389fd2"') }, found: `1.4.0 (image ${IMAGE}, docker mode)` },
+  { name: "unknown for an image that does not say its Orkeon", bin: { docker: imageSaying("echo no") }, found: `unknown (image ${IMAGE}, docker mode)` },
+  { name: "unknown for an image whose orkeon does not run", bin: { docker: imageSaying("exit 125") }, found: `unknown (image ${IMAGE}, docker mode)` },
+  { name: "an image that is not on the machine", bin: { docker: recorder('if [ "$1" = image ]; then exit 1; fi\n') }, found: `image ${IMAGE} (docker mode, not on this machine)` },
+  { name: "an engine that does not answer", bin: { docker: DOCKER_ENGINE_DOWN }, found: `image ${IMAGE} (docker mode, the Docker engine does not answer)` },
+];
+
 /** The Debian package's /usr/bin/orkeon-repl, as scripts/package-deb.sh writes it, recording instead of exec. */
 export const DEB_WRAPPER = recorder(
   'ORKEON_HOME=/usr/lib/orkeon\nif [ -z "${ORKEON_ESBUILD_PATH:-}" ] && [ -x "$ORKEON_HOME/esbuild-bin/esbuild" ]; then\n' +
@@ -646,7 +659,7 @@ export const PS1_CLONE_OR_INSTALL: readonly Mention[] = [
 export const PS1_VERSION_LINES: readonly Mention[] = [
   ["orkeon-code $codeVersion ($kind`: $Root)", "the first line"],
   ["Orkeon $OrkeonPin expected, found: $found", "the second line"],
-  ["$found = if ($Mode -eq 'docker') { \"image $Image (docker mode, not pulled)\" }", "the forced docker mode names its image first"],
+  ["$found = if ($Mode -eq 'docker') { Get-ImageFound }", "the forced docker mode reads its image first"],
 ];
 
 export const PS1_FROM_PROJECT: readonly Mention[] = [
