@@ -467,12 +467,32 @@ try {
     }
   }
 
+  # Whether the Docker engine answers. Its own function, so the launcher's 'Stop' does not turn a warning on stderr
+  # into a failure.
+  function Test-DockerEngine {
+    $ErrorActionPreference = 'Continue'
+    & docker version --format '{{.Server.Version}}' 2>$null | Out-Null
+    $LASTEXITCODE -eq 0
+  }
+
   if ($Version -or ($Extra -contains '--version')) {
-    # The Orkeon found, said without starting anything: the REPL has no --version flag, and docker pulls nothing.
+    # The Orkeon found, said without starting the REPL (it has no --version flag) and without pulling an image.
+    # The Orkeon of the local image: its own `orkeon --version`, in a container with no network and no mount. Its own
+    # function, so the launcher's 'Stop' does not turn a line on stderr into a failure.
+    function Get-ImageFound {
+      $ErrorActionPreference = 'Continue'
+      if (-not (Get-Command docker -ErrorAction SilentlyContinue)) { return "image $Image (docker mode, docker not found)" }
+      if (-not (Test-DockerEngine)) { return "image $Image (docker mode, the Docker engine does not answer)" }
+      & docker image inspect $Image 2>$null | Out-Null
+      if ($LASTEXITCODE -ne 0) { return "image $Image (docker mode, not on this machine)" }
+      $said = "$(& docker run --pull=never --rm --network none --entrypoint orkeon $Image --version 2>$null)"
+      if ($LASTEXITCODE -eq 0 -and $said -match '^orkeon ([0-9][0-9A-Za-z.-]*)') { return "$($Matches[1]) (image $Image, docker mode)" }
+      "unknown (image $Image, docker mode)"
+    }
     $replName = if ($env:ORKEON_REPL) { ($env:ORKEON_REPL -split ' ')[0] } else { 'orkeon-repl' }
     $replFound = Get-Command $replName -ErrorAction SilentlyContinue | Select-Object -First 1
     # A mode forced by -Mode or ORKEON_CODE_MODE names its runtime; otherwise the auto-detection order speaks.
-    $found = if ($Mode -eq 'docker') { "image $Image (docker mode, not pulled)" }
+    $found = if ($Mode -eq 'docker') { Get-ImageFound }
     elseif ($replFound -and $replFound.Source) {
       $replPath = (Get-Item -LiteralPath $replFound.Source).FullName
       $target = (Get-Item -LiteralPath $replPath).Target
@@ -481,7 +501,7 @@ try {
       $versionFile = Join-Path (Split-Path (Split-Path $replPath -Parent) -Parent) 'VERSION'
       if (Test-Path -LiteralPath $versionFile) { "$((Get-Content -LiteralPath $versionFile -Raw).Trim()) ($replName, $versionFile)" }
       else { "unknown ($replPath)" }
-    } elseif (Get-Command docker -ErrorAction SilentlyContinue) { "image $Image (docker mode, not pulled)" }
+    } elseif (Get-Command docker -ErrorAction SilentlyContinue) { Get-ImageFound }
     else { 'none (see docs/getting-started.md)' }
     $kind = if ($IsClone) { 'clone' } else { 'install' }
     Write-Output "orkeon-code $codeVersion ($kind`: $Root)"
@@ -850,14 +870,6 @@ try {
     # An explicit --llm-log-path wins: a bare --llm-log beside it is dropped (the runtime keeps the last path it reads).
     $named = @($Extra | Where-Object { "$_" -ceq '--llm-log-path' -or "$_".StartsWith('--llm-log-path=', [StringComparison]::Ordinal) }).Count -gt 0
     foreach ($a in $Extra) { if ($a -ceq '--llm-log') { if (-not $named) { '--llm-log-path'; "$projectState/llm-logs" } } else { $a } }
-  }
-
-  # Whether the Docker engine answers. Its own function, so the launcher's 'Stop' does not turn a warning on stderr
-  # into a failure.
-  function Test-DockerEngine {
-    $ErrorActionPreference = 'Continue'
-    & docker version --format '{{.Server.Version}}' 2>$null | Out-Null
-    $LASTEXITCODE -eq 0
   }
 
   if ($Mode -eq 'docker') {

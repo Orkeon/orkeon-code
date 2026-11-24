@@ -20,7 +20,7 @@ import {
   DOCKER_ENGINE_DOWN, EXAMPLE_SETTINGS_FILES, FOLLOWED_CHECKOUTS, GATE, KEPT_CHECKOUTS, KEEP_OUT_OF_RANGE, LARGE_ENV, NO_FILE_SETTINGS, NOT_AT_THE_PIN, OLLAMA_AND_EXISTING, PERSIST, PINNED_SDK, PROJECT_NAMES, PS1_ARGS_LOOP,
   PS1_BASH_ONLY, PS1_BRIDGE, PS1_CLONE_OR_INSTALL, PS1_DOCKER_ENGINE, PS1_DOCKER_TTY, PS1_FINGERPRINT, PS1_FROM_PROJECT, PS1_GATE, PS1_MODES, PS1_MEMORY_MOUNT, PS1_SESSION_MOUNTS, PS1_SESSIONS, PS1_SET_VARIABLES,
   PS1_SETTINGS, PS1_SLUG, PS1_SPEECH, PS1_STORE_LAYOUT, PS1_SUBCOMMANDS, PS1_TRUST_CHECK, PS1_TRUST_REFUSAL, PS1_USER_SETTINGS,
-  PS1_VERSION_LINES, PTY, PWSH, RESTORED_IN_FINALLY, RESTORED_NAMES, ROOTS, RUNTIME_SETTINGS, RUNTIME_SLUGS, RUNTIME_PIN, RUNTIME_REF,
+  PS1_VERSION_LINES, VERSION_OF_IMAGE, PTY, PWSH, RESTORED_IN_FINALLY, RESTORED_NAMES, ROOTS, RUNTIME_SETTINGS, RUNTIME_SLUGS, RUNTIME_PIN, RUNTIME_REF,
   SERVER_CASES, SERVER_LEFT_OUT, FINGERPRINT, FINGERPRINT_PATH, MEMORY_DIR, SESSIONS_DIR, SETTINGS_TEXT, SETTINGS_WITH_BLOCK, SLUG_PATHS, SPEECH_TOOL, START_SCRIPT, TOOL_REPL,
   TOOL_START, USER_SETTINGS, WHISPER, audioEnv, bashOf, checkoutHead, ciStarts, corruptHome, fullHistory, gitAt, launch, launchWithNode, orkeonCheckoutAtAnotherCommit, orkeonCheckoutBehindThePin,
   leftBeside, linkedFolder, modeStart, mostWhisperArgs, mountOf, mountRoots, namedProjectStart, nestedTrust, orkeonCheckout,
@@ -900,7 +900,7 @@ describe("orkeon-code, the host and the mounts' bases on /user-config (launch.js
 describe("orkeon-code, a clone or an install", () => {
   it("--version names Code's version, where a clone runs from and the Orkeon expected, with nothing configured", () => {
     // Arrange
-    const start = { args: ["--version"], bin: {}, bare: true };
+    const start = { args: ["--version"], bin: { docker: DOCKER_ENGINE_DOWN }, bare: true };
 
     // Act
     const clone = launch(start);
@@ -914,7 +914,7 @@ describe("orkeon-code, a clone or an install", () => {
 
   it("--version names an install and where it runs from", () => {
     // Arrange
-    const start = { args: ["--version"], bin: {}, bare: true, install: true };
+    const start = { args: ["--version"], bin: { docker: DOCKER_ENGINE_DOWN }, bare: true, install: true };
 
     // Act
     const install = launch(start);
@@ -926,7 +926,7 @@ describe("orkeon-code, a clone or an install", () => {
 
   it("--version names an unpacked source archive a clone: no .git, but its tests", () => {
     // Arrange
-    const start = { args: ["--version"], bin: {}, bare: true, install: true, files: { "checkout/tests/a.test.ts": "" } };
+    const start = { args: ["--version"], bin: { docker: DOCKER_ENGINE_DOWN }, bare: true, install: true, files: { "checkout/tests/a.test.ts": "" } };
 
     // Act
     const source = launch(start);
@@ -947,6 +947,19 @@ describe("orkeon-code, a clone or an install", () => {
     strictEqual(r.stdout.split("\n")[1], `Orkeon ${RUNTIME_PIN} expected, found: 1.0.0-rc.6 (orkeon-repl, ${join(r.root, "..", "VERSION")})`);
     strictEqual(r.cwd, "", "the REPL did not start");
   });
+
+  for (const c of VERSION_OF_IMAGE) {
+    it(`--version in docker mode says ${c.name}`, () => {
+      // Arrange
+      const start = { args: ["--mode", "docker", "--version"], bin: c.bin, bare: true };
+
+      // Act
+      const r = launch(start);
+
+      // Assert
+      strictEqual(r.stdout.split("\n")[1], `Orkeon ${RUNTIME_PIN} expected, found: ${c.found}`, r.stderr);
+    });
+  }
 
   it("--version names the source checkout when the mode is forced to source, whatever else is installed", () => {
     // Arrange
@@ -1206,7 +1219,7 @@ describe("orkeon-code.ps1 follows the same rules (read here; run below, where pw
 
     // Assert
     assertMentions(script, PS1_DOCKER_ENGINE);
-    ok(script.indexOf("(Test-DockerEngine)") < script.indexOf("& docker run --rm"), "the check comes first");
+    ok(script.lastIndexOf("(Test-DockerEngine)") < script.indexOf("& docker run --rm"), "the check comes first");
   });
 
   it("refuses a mode it does not have, from the environment too, and answers --help and --demo", () => {
@@ -1254,6 +1267,19 @@ describe("orkeon-code.ps1 follows the same rules (read here; run below, where pw
 });
 
 describe("orkeon-code.ps1, run where pwsh is installed", { skip: PWSH ? false : "pwsh is not on PATH" }, () => {
+  for (const c of VERSION_OF_IMAGE) {
+    it(`--version in docker mode says ${c.name}`, () => {
+      // Arrange
+      const start = { shell: "pwsh" as const, args: ["-Mode", "docker", "--version"], bin: c.bin, bare: true };
+
+      // Act
+      const r = launch(start);
+
+      // Assert
+      strictEqual(r.stdout.split(/\r?\n/)[1], `Orkeon ${RUNTIME_PIN} expected, found: ${c.found}`, r.stderr);
+    });
+  }
+
   for (const sub of ["run", "runtime"]) {
     it(`refuses the bash launcher's ${sub} with exit 1, running nothing`, () => {
       // Arrange

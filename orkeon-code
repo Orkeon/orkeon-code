@@ -190,12 +190,27 @@ source_found() {
   fi
 }
 
+# The Orkeon of the local image: its own `orkeon --version`, in a container with no network and no mount. Never pulls.
+image_found() {
+  local v
+  if ! command -v docker >/dev/null 2>&1; then echo "image $IMAGE (docker mode, docker not found)"
+  elif ! docker version --format '{{.Server.Version}}' >/dev/null 2>&1; then
+    echo "image $IMAGE (docker mode, the Docker engine does not answer)"
+  elif ! docker image inspect "$IMAGE" >/dev/null 2>&1; then echo "image $IMAGE (docker mode, not on this machine)"
+  else
+    v="$(docker run --pull=never --rm --network none --entrypoint orkeon "$IMAGE" --version 2>/dev/null </dev/null)" || v=""
+    if [[ "$v" =~ ^orkeon\ ([0-9][0-9A-Za-z.-]*) ]]; then echo "${BASH_REMATCH[1]} (image $IMAGE, docker mode)"
+    else echo "unknown (image $IMAGE, docker mode)"
+    fi
+  fi
+}
+
 runtime_found() { # <forced mode or empty>
   local repl repl_bin version_file v
   if [ -n "${ORKEON_REPL:-}" ]; then read -r repl _ <<< "$ORKEON_REPL"; else repl=orkeon-repl; fi
   case "$1" in
     source) source_found; return ;;
-    docker) echo "image $IMAGE (docker mode, not pulled)"; return ;;
+    docker) image_found; return ;;
   esac
   if repl_bin="$(command -v "$repl" 2>/dev/null)"; then
     repl_bin="$(resolve_links "$repl_bin")"
@@ -206,7 +221,7 @@ runtime_found() { # <forced mode or empty>
     else echo "unknown ($repl_bin)"
     fi
   elif runtime_downloaded; then echo "$RUNTIME_ID (downloaded, $RUNTIME_HOME/$RUNTIME_ID)"
-  elif command -v docker >/dev/null 2>&1; then echo "image $IMAGE (docker mode, not pulled)"
+  elif command -v docker >/dev/null 2>&1; then image_found
   elif [ -n "${ORKEON_SOURCE:-}" ]; then source_found
   elif [ -n "$RUNTIME_ID" ]; then echo "none yet ($RUNTIME_ID is downloaded at the first start)"
   else echo "none (see docs/getting-started.md)"

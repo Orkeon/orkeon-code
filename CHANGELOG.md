@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed — `orkeon-code --version` reads the docker image
+
+- In docker mode `orkeon-code --version` names the Orkeon of the image on the machine (`1.4.0 (image …, docker
+  mode)`), and says when the image is not on the machine, the Docker engine does not answer or docker is not found. It
+  said `not pulled` in every case. It asks the image's own `orkeon --version`, in a short container with no network
+  and no mount, and still pulls nothing; an image that does not answer reads `unknown`.
+
 ## [1.0.0] - 2026-11-23
 
 ### Changed — the pin moves to Orkeon 1.4.0
