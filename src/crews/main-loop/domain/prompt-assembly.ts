@@ -30,7 +30,7 @@ export const MAX_MEMORY_ENTRIES_PER_CATEGORY = 10;
 
 import { describeSearchRouting } from "../../../shared/domain/search-routing.ts";
 import { describeCodeIntelRouting } from "../../../shared/domain/code-intel-routing.ts";
-import { NETWORK_READ_TOOLS } from "../../../shared/domain/agent-policy/permission.ts";
+import { CHAT_TOOLS, CHAT_WRITE_TOOLS, NETWORK_READ_TOOLS } from "../../../shared/domain/agent-policy/permission.ts";
 import {
   answerLanguageLine, ASKING_BLOCK, CARE_BLOCK, FINISHING_BLOCK, gaugeLine, gitStatusLine, historyBlock, hooksBlock,
   IDENTITY_BLOCK, memoryBlock, outputStyleLine, PRESSURE_DIRECTIVES, projectInstructionsBlock, REPORTING_BLOCK,
@@ -46,8 +46,10 @@ import {
  *  "every base class" with a shell script of regular expressions instead of the index, then
  *  from 10 500 for the rules the prompt audit of 2026-11-01 found missing: `edit_file`, the
  *  reads of a turn in one message, `grep` for an exact text outside the code, then from 10 800 for the explorer's
- *  line: without it the model reaches for `spawn_agent` with an agent name it made up, and every call is refused. */
-export const MAX_STATIC_HEADER_CHARS = 11_200;
+ *  line: without it the model reaches for `spawn_agent` with an agent name it made up, and every call is refused, then
+ *  from 11 200 for the chat family, offered only where an account is declared: its ten names and its rules (data
+ *  written by others, writes on request, no resend, refusals told and not worked around) take some 900 characters. */
+export const MAX_STATIC_HEADER_CHARS = 12_200;
 
 /** What the session lets the turn deliver — chosen from the catalogue, so stable per mode. */
 function describeSession(tools: readonly string[]): string {
@@ -77,6 +79,9 @@ function describeToolRealities(tools: readonly string[], explorer: boolean): str
     web: WEB_TOOLS.some((tool) => tools.includes(tool)),
     // spawn_agent is never in the catalogue: whether a spawn can reach the explorer is the caller's (explorerReachable).
     explorer,
+    // The chat family is in the catalogue only when an account is declared (permission.ts ToolFamilies).
+    chat: CHAT_TOOLS.some((tool) => tools.includes(tool)),
+    chatWrites: CHAT_WRITE_TOOLS.some((tool) => tools.includes(tool)),
   });
 }
 

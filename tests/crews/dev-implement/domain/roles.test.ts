@@ -5,7 +5,7 @@ import { deepStrictEqual, ok } from "node:assert";
 
 import { CREW_TOOLS, TEST_AUTHOR } from "../../../../src/crews/dev-implement/domain/roles.ts";
 import { KNOWN_TOOLS_RULE, NODE_EDIT_RULE, NODE_READ_RULE } from "../../../../src/shared/domain/dev/reading-rule.ts";
-import { toolsetFor } from "../../../../src/shared/domain/agent-policy/permission.ts";
+import { CHAT_TOOLS, toolsetFor } from "../../../../src/shared/domain/agent-policy/permission.ts";
 import { BATCH_HASH_SAYS, EXPECTED_CREW_TOOLS, NODE_EDIT_RULE_SAYS, NODE_TOOLS, ROLES, TEST_AUTHOR_STUB_SAYS } from "./roles.fixtures.ts";
 import { assertHoldsTools, assertMentions } from "./roles.assertions.ts";
 
@@ -102,5 +102,18 @@ describe("the roles of a batch step", () => {
     // Assert
     ok(!system.includes("no stub"), system);
     assertMentions(system, said, "the test author's system");
+  });
+});
+
+describe("CREW_TOOLS, the chat family", () => {
+  it("names no chat tool: the chat family is the main loop's alone", () => {
+    // Arrange
+    const tools = CREW_TOOLS;
+
+    // Act
+    const chat = tools.filter((t) => CHAT_TOOLS.includes(t));
+
+    // Assert
+    deepStrictEqual(chat, []);
   });
 });

@@ -8,7 +8,7 @@ import type { ContextPruning } from "../../../shared/application/compaction/prun
 import {
   MEMORY_TOOLS, catalogueFor, parseStoredRule, resolvePermissionMode, scriptToolsFor,
 } from "../../../shared/domain/agent-policy/permission.ts";
-import type { CatalogueDecision, ExtraTool, PermissionRule } from "../../../shared/domain/agent-policy/permission.ts";
+import type { CatalogueDecision, ExtraTool, PermissionRule, ToolFamilies } from "../../../shared/domain/agent-policy/permission.ts";
 import { parseExtraTools } from "../../../shared/domain/agent-policy/extra-tools.ts";
 import {
   DEFAULT_BEHAVIOR_FLAGS, describeActiveFlags, maxIterationsFor,
@@ -61,6 +61,9 @@ export interface MainLoopInputs {
   permissionRules?: unknown[];
   /** The extra tools the host registers ("search_issues:write"), filtered by launchMainLoop. */
   extraTools?: unknown[];
+  /** `true` when the host's `chat_accounts` lists one account at least (launchMainLoop): the chat family joins the
+   *  catalogue. Anything else, the turn has no chat tool. */
+  chatTools?: unknown;
   /** The session's `llm.profile`, as launchCrew hands it: every agent of the crew runs on it, and the
    *  /model override is not sent under it (the profile names the model). */
   llmProfile?: unknown;
@@ -85,6 +88,9 @@ export interface MainLoopInputs {
 export interface LoadedCatalogue {
   mode: string;
   extras: ExtraTool[];
+  /** The families declared to the host (the chat family when an account is): the header follows the catalogue.
+   *  Absent, none. */
+  families?: ToolFamilies;
   catalogue: CatalogueDecision;
   /** Orkeon Code's own tools the mode offers under the rules (the shared memory's), attached by name. */
   scriptTools: string[];
@@ -114,8 +120,10 @@ export function loadCatalogue(input: MainLoopInputs): LoadedCatalogue {
   const rules = (input.permissionRules ?? [])
     .map((raw) => parseStoredRule(raw, extraNames))
     .filter((r): r is NonNullable<typeof r> => r !== null);
+  const families: ToolFamilies = { chat: input.chatTools === true };
   return {
-    mode, extras, catalogue: catalogueFor(mode, rules, extras), scriptTools: scriptToolsFor(mode, MEMORY_TOOLS, rules), rules,
+    mode, extras, families, catalogue: catalogueFor(mode, rules, extras, families),
+    scriptTools: scriptToolsFor(mode, MEMORY_TOOLS, rules), rules,
   };
 }
 
@@ -351,7 +359,7 @@ export async function runMainLoop(input: MainLoopInputs, loaded: LoadedCatalogue
   await appendTurn(session, "user", prompt);
   // Head-of-turn auto-compaction (F3): act() starts from a healthy buffer.
   await autoCompactGuarded(deps);
-  const assembled = await buildTurnPrompt(prompt, mode, flags, deps, loaded.extras, loaded.scriptTools, loaded.rules);
+  const assembled = await buildTurnPrompt(prompt, mode, flags, deps, loaded.extras, loaded.scriptTools, loaded.rules, loaded.families);
   // A turn the provider failed throws (LlmFailure), as any failure of act does:
   // no answer is stored, the tail compaction does not run (the breaker counts
   // compactions, not turns), and the run fails with the provider's error, which

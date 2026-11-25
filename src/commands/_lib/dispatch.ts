@@ -13,6 +13,7 @@ import type { ConfigStore } from "../../shared/application/config-store.ts";
 import type { SessionIo } from "../../shared/application/session-io.ts";
 import { configuredNames, resolveExtraTools } from "../../shared/application/extra-tools.ts";
 import { readLlmProfile } from "../../shared/application/llm-profile.ts";
+import { readToolFamilies } from "../../shared/application/tool-families.ts";
 import { builtInRules, syncPermissionRules } from "../../shared/application/permission-rules.ts";
 import { readMemoryDir } from "../../shared/application/shared-memory/memory-settings.ts";
 import { listsOf } from "../../shared/application/host-context.ts";
@@ -132,7 +133,9 @@ export interface MainLoopLaunchDeps extends LaunchDeps {
   log: CommandLog;
   session: Pick<SessionIo, "readState" | "resolveEffectiveSessionMode">;
   config: Pick<ConfigStore, "readValue" | "readFile">;
-  catalogue: Pick<ToolCatalogue, "find">;
+  /** The tools the host registers: the extra tools it has, and `chat_accounts`, called to know whether the chat
+   *  family is offered. */
+  catalogue: Pick<ToolCatalogue, "find" | "call">;
   gate: PermissionRules;
   /** This run's host context, for its path lists (paths.deny in the gate); absent: no list. */
   host?: HostSource;
@@ -147,7 +150,9 @@ export interface MainLoopLaunchDeps extends LaunchDeps {
  *    register warned about and left out;
  *  - the session's rules, handed to the host gate first, so the turn runs under
  *    the rules the session holds whatever the gate kept from an earlier command,
- *    then the built-in denies on the shared memory's candidates and entries.
+ *    then the built-in denies on the shared memory's candidates and entries;
+ *  - the chat family, offered when the host's `chat_accounts` lists one account
+ *    at least (`chatTools: true`, absent otherwise; a failed call is no account).
  * A `prelude` (a tool call the crew makes before the turn: /transcribe --then,
  * /voice --go) rides along as it is. With voice.reply on, an epilogue has the crew read the
  * answer aloud with the speech server's speak, when the host registers it. The start
@@ -176,6 +181,7 @@ export async function launchMainLoop(
   for (const rule of sync.dormant) log.warn(ruleDormant(rule, EXTRA_TOOLS_CONFIG_KEY));
   if (sync.invalid.length > 0) log.warn(invalidPermissionEntries(sync.invalid.length));
   if (!sync.applied) log.warn(NO_SESSION_RULES);
+  const families = await readToolFamilies(deps.catalogue);
   const epilogue = await voiceReply(deps);
   const profiled = deps.llmProfile === undefined ? await withLlmProfile(deps, deps.config) : deps;
   return launchCrew(
@@ -187,12 +193,14 @@ export async function launchMainLoop(
       ...(resolved ? { permissionModeVia: resolved.via } : {}),
       permissionRules: sync.rules.map(formatRule),
       extraTools: extras.present.map(formatExtraTool),
+      ...(families.chat ? { chatTools: true } : {}),
       ...(input.prelude ? { prelude: input.prelude } : {}),
       ...(epilogue ? { epilogue } : {}),
       ...(input.sessionStart ? { sessionStart: input.sessionStart } : {}),
     },
     {
       permissionMode, permissionRules: sync.rules.length, extraTools: extras.present.length,
+      ...(families.chat ? { chatTools: true } : {}),
       ...(input.prelude ? { prelude: input.prelude.tool } : {}),
       ...(epilogue ? { epilogue: epilogue.tool } : {}),
       ...(input.sessionStart ? { sessionStartLines: input.sessionStart.lines.length } : {}),

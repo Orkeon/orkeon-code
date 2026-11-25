@@ -50,6 +50,11 @@ export const PARSE_CASES: readonly ParseCase[] = [
     value: "system_one_decide",
     expected: { tools: [{ name: "system_one_decide", access: "write" }], invalid: [] },
   },
+  {
+    name: "refuses a chat tool: the chat family is built in, offered where an account is declared",
+    value: "chat_read:read chat_send",
+    expected: { tools: [], invalid: ["chat_read:read", "chat_send"] },
+  },
   { name: "reads nothing from a missing value", value: undefined, expected: { tools: [], invalid: [] } },
 ];
 
