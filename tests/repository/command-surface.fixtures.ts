@@ -30,7 +30,8 @@ export const COMMAND_GROUPS: readonly string[] = ["session", "settings", "status
 // so it must move only with a commit that adds or removes one.
 // 49: /theme added, the console's palette for the session.
 // 50: /route added, the routing of crews to the cheapest profile that fits (ADR 0027).
-export const EXPECTED_COMMAND_COUNT = 50;
+// 51: /chat added, the chat accounts of the session and their readiness (ADR 0036).
+export const EXPECTED_COMMAND_COUNT = 51;
 
 /** Orkeon's default cap on the command files the loader keeps (Orkeon:Cli:ScriptCommands:MaxScripts). */
 export const LOADER_DEFAULT_CAP = 200;

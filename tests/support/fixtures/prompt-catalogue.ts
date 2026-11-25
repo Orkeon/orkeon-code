@@ -145,6 +145,7 @@ export async function renderCatalogue(): Promise<RenderedPrompt[]> {
   const request = SAMPLE_HISTORY[2].content;
   const headers = await renderHeaders();
   const withFile = await buildTurnPrompt("…", "default", flags(), turnDeps({ instructions: true }), [], scripts("default"));
+  const withChat = await buildTurnPrompt("…", "default", flags(), turnDeps(), [], scripts("default"), [], { chat: true });
   const bare = await buildTurnPrompt(request, "default", flags(), turnDeps(), [], scripts("default"));
   const full = await buildTurnPrompt(request, "default", flags({ proactive: true }), turnDeps({ full: true }), [], scripts("default"));
   const plan = await buildTurnPrompt(request, "plan", flags(), turnDeps({ full: true }), [], scripts("plan"));
@@ -240,10 +241,12 @@ export async function renderCatalogue(): Promise<RenderedPrompt[]> {
     {
       id: "01", name: "main-loop-system-header", source: "src/crews/main-loop/domain/prompt-assembly.ts",
       callSite: "/assistant, free text, /summary, /verify → crews/main-loop → turn-context.ts → run-main-loop.ts runAct",
-      call: "act, the system message", inputs: "every permission mode; the sample instructions file for the last section",
+      call: "act, the system message",
+      inputs: "every permission mode; the sample instructions file, then a declared chat account, for the last sections",
       sections: [
         ...headers.map((h) => ({ title: `mode ${h.mode}`, role: "system" as const, text: h.system })),
         { title: "mode default, with AGENTS.md", role: "system", text: withFile.system },
+        { title: "mode default, with a chat account", role: "system", text: withChat.system },
       ],
     },
     {

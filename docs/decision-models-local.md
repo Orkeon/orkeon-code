@@ -20,9 +20,9 @@ profile does not see: the escalation judges an answer, the fallback replaces a c
 
 ## The runtime: source mode
 
-The pin (`0389fd2`, Orkeon `1.4.0`) serves Liquid and Kev, and so does every release since `1.0.0`: the tool mode
+The pin (`bbfc06c`, three commits of Orkeon's `main` past `1.4.0`) serves Liquid and Kev, and so does every release since `1.0.0`: the tool mode
 knows `Orkeon:Liquid`, `Orkeon:Kev` and `Orkeon:Decision:Provider`. The docker mode runs the image of
-the last release, `1.4.0` at this writing, the pin itself. This page was written in source mode, on an
+the last release, `1.4.0` at this writing, three commits behind the pin; none of the three touches the decision models. This page was written in source mode, on an
 Orkeon checkout at the pin or after it ([Getting started](getting-started.md#source-mode-an-orkeon-checkout)):
 
 ```bash

@@ -3,6 +3,7 @@
 import { describe, it } from "node:test";
 import { deepStrictEqual, ok, strictEqual } from "node:assert";
 
+import { CHAT_TOOLS } from "../../../../src/shared/domain/agent-policy/permission.ts";
 import { CHARTER_NAME, MAX_BRIEF_CHARS, charterCatalogue, charterProblems } from "../../../../src/shared/domain/agents/charter.ts";
 import {
   ALL_PROBLEMS, BAD_NAMES, GOOD_NAMES, KEPT_ITERATIONS, READ_ONLY_MODES, REFUSED_ITERATIONS, reader,
@@ -170,4 +171,19 @@ describe("charterProblems", () => {
     // Assert
     strictEqual(cap, expected);
   });
+});
+
+describe("charterCatalogue, the chat family", () => {
+  for (const mode of READ_ONLY_MODES) {
+    it(`offers a ${mode} charter no chat tool, even one it names`, () => {
+      // Arrange
+      const charter = reader({ mode, tools: ["file_read", ...CHAT_TOOLS] });
+
+      // Act
+      const catalogue = charterCatalogue(charter);
+
+      // Assert
+      deepStrictEqual(catalogue, ["file_read"]);
+    });
+  }
 });

@@ -18,7 +18,7 @@ import {
 import { budgetExhaustedAnswer, iterationsExhausted, llmFailureOf } from "../../../../src/shared/domain/llm-failure.ts";
 import {
   BARE_TURN_CONTEXT, BLOCKED_ANSWER, blockedRequest, DEFAULT_LOADED, DENYING_CHAINS, DICTATION, EXPLICIT_PLAN, EXTRAS, EXTRA_RULES, EXTRA_TOOLS_INPUT, PARSED_RULES,
-  REQUEST_WITH_TRANSCRIPT, RULED_CATALOGUE, SCRIPT_TOOLS_CASES, SESSION_START, SILENT_GATES, SPEAK, SPEAKER_FAILURE,
+  REQUEST_WITH_TRANSCRIPT, RULED_CATALOGUE, SCRIPT_TOOLS_CASES, CHAT_TOOLS_INPUT_CASES, SESSION_START, SILENT_GATES, SPEAK, SPEAKER_FAILURE,
   attachSkill, PRUNING, failingPrune, pruneBinding, STORED_RULES, suggestBinding, TRANSCRIPT, TRANSCRIPTION_PRELUDE, turnSetup, PROFILED_INPUT, PROFILE_OVERRIDE_WARNING,
   EFFORT_LOG_CASES,
 } from "./run-main-loop.fixtures.ts";
@@ -42,6 +42,19 @@ describe("loadCatalogue", () => {
     deepStrictEqual(loaded.catalogue, catalogueFor("plan", PARSED_RULES));
     deepStrictEqual(loaded.catalogue.deniedByRule, ["file_read"]);
   });
+
+  for (const c of CHAT_TOOLS_INPUT_CASES) {
+    it(c.name, () => {
+      // Arrange
+      const input = { permissionMode: "default", chatTools: c.chatTools };
+
+      // Act
+      const loaded = loadCatalogue(input);
+
+      // Assert
+      strictEqual(loaded.catalogue.tools.includes("chat_send"), c.chat);
+    });
+  }
 
   for (const c of SCRIPT_TOOLS_CASES) {
     it(`${c.name} of the shared memory`, () => {

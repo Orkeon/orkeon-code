@@ -34,6 +34,36 @@ export function builtInToolInputs(): Map<string, string[]> {
   return tools;
 }
 
+/** Each chat tool of `interface OrkeonTools` (orkeon.d.ts: `chatSend(input: ChatSendInput, …)`) in snake_case, with the
+ *  keys of its input interface and of the interfaces it extends (`ChatAccountInput`): the family's typings name an
+ *  interface instead of spelling the keys inline. `Record<string, never>` takes none. Read at the typings' own
+ *  indentation, never at column 0. */
+export function chatToolInputs(): Map<string, string[]> {
+  const text = readFileSync(new URL("../../../../src/crews/.orkeon/orkeon.d.ts", import.meta.url), "utf8");
+  const lines = text.split("\n");
+  const keysOf = (type: string): string[] => {
+    const at = lines.findIndex((line) => new RegExp(`^\\s*interface ${type}( extends (\\w+))? \\{$`).test(line.trimEnd()));
+    if (at < 0) return [];
+    const base = new RegExp(`interface ${type} extends (\\w+)`).exec(lines[at])?.[1];
+    const indent = /^\s*/.exec(lines[at])?.[0] ?? "";
+    const keys: string[] = [];
+    for (let i = at + 1; i < lines.length && lines[i].trimEnd() !== `${indent}}`; i++) {
+      if (/^\s*(\/\*\*|\*)/.test(lines[i])) continue;
+      const key = /^\s*([a-z_0-9]+)\??:/.exec(lines[i])?.[1];
+      if (key !== undefined) keys.push(key);
+    }
+    return [...(base === undefined ? [] : keysOf(base)), ...keys];
+  };
+  const tools = new Map<string, string[]>();
+  for (const line of lines) {
+    const method = /^\s*(chat[A-Z]\w*)\(input\??: (.+?), ctx\?/.exec(line);
+    if (method === null) continue;
+    const name = method[1].replace(/[A-Z]/g, (c) => `_${c.toLowerCase()}`);
+    tools.set(name, method[2] === "Record<string, never>" ? [] : keysOf(method[2]));
+  }
+  return tools;
+}
+
 // ── Modes ──
 
 export const ALL_MODES: readonly string[] = ["default", "acceptEdits", "bypassPermissions", "plan", "dontAsk"];
@@ -75,6 +105,39 @@ export const A2A_TOOLS: readonly string[] = ["delegate_work", "delegate_work_to_
  *  `Orkeon:TypeSafe` or `TYPESAFE_API_KEY`): named in a built-in list, they would fail every act of a host without
  *  the section. A user whose host registers one lists it in `tools.extra`. */
 export const HOST_OPT_IN_TOOLS: readonly string[] = ["system_one_decide"];
+
+/** Which modes offer the chat family's reads and writes, with an account declared and without one. */
+export const CHAT_CATALOGUE_CASES: readonly { mode: string; chat: boolean; reads: boolean; writes: boolean }[] = [
+  { mode: "default", chat: true, reads: true, writes: true },
+  { mode: "acceptEdits", chat: true, reads: true, writes: true },
+  { mode: "bypassPermissions", chat: true, reads: true, writes: true },
+  { mode: "plan", chat: true, reads: false, writes: false },
+  { mode: "dontAsk", chat: true, reads: false, writes: false },
+  { mode: "default", chat: false, reads: false, writes: false },
+  { mode: "acceptEdits", chat: false, reads: false, writes: false },
+  { mode: "bypassPermissions", chat: false, reads: false, writes: false },
+  { mode: "plan", chat: false, reads: false, writes: false },
+  { mode: "dontAsk", chat: false, reads: false, writes: false },
+];
+
+/** The chat tools, each with its arguments in the order TOOL_ARGUMENTS gives them (orkeon.d.ts, ChatListInput…). */
+export const CHAT_TOOL_ARGUMENT_CASES: readonly { tool: string; args: readonly string[] }[] = [
+  { tool: "chat_accounts", args: [] },
+  { tool: "chat_list", args: ["account", "kind", "team", "limit", "cursor"] },
+  { tool: "chat_read", args: ["account", "place", "message_id", "since", "until", "text_chars", "limit", "cursor"] },
+  { tool: "chat_search", args: ["account", "text", "author", "mentions_me", "text_chars", "limit", "cursor"] },
+  { tool: "chat_members", args: ["account", "place", "person", "limit", "cursor"] },
+  { tool: "chat_meetings", args: ["account", "place", "join_link", "transcript_id", "cursor"] },
+  { tool: "chat_send", args: ["account", "place", "text", "format", "mentions", "reply_to"] },
+  { tool: "chat_edit", args: ["account", "place", "message_id", "thread", "text", "format", "mentions"] },
+  { tool: "chat_delete", args: ["account", "place", "message_id", "thread"] },
+  { tool: "chat_react", args: ["account", "place", "message_id", "reaction", "remove"] },
+];
+
+/** Rules on chat tools, valid whatever the host declares: the rules are read before any account is known. */
+export const CHAT_RULE_TEXTS: readonly string[] = [
+  "deny chat_send", "allow chat_read place=chat:*", "deny chat_delete message_id=*", "allow chat_accounts",
+];
 
 /** The reads of Orkeon #180, offered in every mode. */
 export const ORKEON_180_READS: readonly string[] = [
@@ -119,7 +182,7 @@ export const TOOL_ARGUMENT_CASES: readonly { tool: string; args: readonly string
   { tool: "file_write", args: ["path", "content", "encoding", "append", "create_backup"] },
   { tool: "edge_list", args: ["cursor", "edge_kinds", "page_size", "root_fqn"] },
   {
-    tool: "firefox",
+    tool: "browser",
     args: ["action", "url", "node_id", "kind", "name", "query", "text", "key", "script", "save_to_path", "max_nodes", "offset", "tab", "profile"],
   },
 ];

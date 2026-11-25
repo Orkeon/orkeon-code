@@ -68,6 +68,13 @@ export const PARSED_RULES = [
   { effect: "deny" as const, tool: "directory_read", argument: "path", pattern: "/tmp*" },
 ];
 
+/** The launch input's `chatTools`, and whether the catalogue then holds the chat family: only `true` adds it. */
+export const CHAT_TOOLS_INPUT_CASES: readonly { name: string; chatTools: unknown; chat: boolean }[] = [
+  { name: "offers the chat family when the launch says a chat account is declared", chatTools: true, chat: true },
+  { name: "offers no chat family when the launch says nothing of it", chatTools: undefined, chat: false },
+  { name: "offers no chat family for a chatTools that is not true", chatTools: "true", chat: false },
+];
+
 /** The shared memory's tools each launch input offers the script. */
 export const SCRIPT_TOOLS_CASES = [
   { name: "offers plan the recall alone", input: { permissionMode: "plan" }, expected: ["memory_recall"] },

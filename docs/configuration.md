@@ -175,7 +175,8 @@ the file sets. A key linked to an identity refuses every call that does not name
 - A CLI that still runs on a key rather than its login is refused before it answers, and the call does not fall back
   (`Llm:AgentCli:RequireLogin`, `true`).
 - Before the first run: `claude` on the `PATH`, signed in once (`claude /login`).
-- Any mode but docker: Orkeon `1.4.0`, the pin, carries the provider, so the tool and source modes run it. The image
+- Any mode but docker: Orkeon `1.4.0` carries the provider, and so does the pin, three commits past it, so the tool
+  and source modes run it. The image
   has neither `claude` nor its login.
 - Every verb of `orkeon` takes these settings, `orkeon runs list` among them (Orkeon #472).
 - [`config/appsettings.agent-cli.example.json`](../config/appsettings.agent-cli.example.json) is the example: the
@@ -231,7 +232,7 @@ others one after the other, each call through the permission gate, and sends the
 | `Orkeon:Rag:Retrieval:MinScore` | The score under which a passage is dropped, for every RAG search and not only the shared memory |
 | `Orkeon:Tools:GitHub:Token` | The token of the `github` tool, read once when the tool is registered; prefer the variable below to a token written in a settings file, which the examples leave out |
 | `Orkeon:Tools:GitHub:TokenVariable` | The environment variable the `github` tool reads its token from when `Token` is unset: `GITHUB_TOKEN` by default, then `GH_TOKEN` |
-| `Orkeon:Tools:Firefox:*` | The `firefox` tool, which drives the Firefox of the host over WebDriver BiDi, with nothing to download |
+| `Orkeon:Tools:Browser:*` | The `browser` tool, which drives a browser installed on the host, with nothing to download: Firefox by default, or the one `Engine` names |
 | `Orkeon:Tools:Bridge:*` | The tools a session in Docker sends to `orkeon bridge serve` on your machine: `Address`, `Allow`, `HostHeader`, `TokenEnvVar` ([Tool bridge](tool-bridge.md)) |
 | `Orkeon:Cli:ConsoleStreaming:Enabled` | Streams the answer as it is generated |
 | `Orkeon:Cli:Tui:Theme` | The palette the split-pane console starts on: `dark`, `light` or `none`; without it `dark`, or `none` under `NO_COLOR`. Any other value refuses the start. `/theme` changes it for the session |
@@ -244,10 +245,13 @@ What the table leaves out:
   - 4000, `file_read` 32000, `node_read` 256000, `shell_command` 10000, and 12000 for the twelve analysis tools
     (`dependency_graph`, `sub_graph`, `edge_list`, `codebase_search`, `symbol_detail`…), whose JSON
     puts `truncated`, the counts and the cursor first, so a cut result still says it is partial.
-- **`Orkeon:Tools:Firefox:*`**:
+- **`Orkeon:Tools:Browser:*`**:
+  - `Engine`: `firefox` by default, `chrome`, `edge`, `brave`, or `safari` on macOS. The actions and the answers are the
+    same on each, and every answer names its `engine`.
   - `ExecutablePath` when it is not on the `PATH`, `Headless` to hide its window, which shows by default (without a
     display it starts headless), `Profile`, `AllowedProfiles` and `DeniedProfiles` for a profile other than the
     disposable one, `Lifetime`: `run` by default, the browser closes with the agent's turn.
+  - With Chrome, Edge or Brave a named profile is the path of a folder, never a profile name; Safari has no `Headless`.
 - **`Orkeon:Security:PermissionGate:Enabled` = `true`**:
   - The launcher turns it on unless the settings file says otherwise.
   - Without it no call is checked and the modes only shape the catalogue.
@@ -293,13 +297,15 @@ What the table leaves out:
   - The native modes inherit the environment.
   - Without a token the tool's description says where to set it.
   - A token shows as `***` in results and logs, and neither key takes a variable reference.
-- **`Orkeon:Tools:Firefox:*`**:
+- **`Orkeon:Tools:Browser:*`**:
   - `host` keeps it open with its tabs from one turn to the next, one browser per profile, until `close`, the window
     is closed by hand or the console stops.
   - A browser the `host` keeps stays open when the session switches to `plan` or `dontAsk`, which withhold the tool:
     the agent cannot drive it from there.
-  - It needs the source mode: the release runtimes do not have the tool, and the docker image was not checked for a
-    Firefox.
+  - It needs a runtime at the pin: the source mode, or in docker mode an image built at the pin with the
+    [tool bridge](tool-bridge.md), since the image has no browser.
+  - The release `1.4.0`, which the tool and docker modes run, has the tool under its former name `firefox` only, and
+    Orkeon Code offers `browser`.
 - **`Orkeon:Cli:ConsoleStreaming:Enabled`**:
   - The example enables it.
   - A command prints nothing more once the answer streamed.

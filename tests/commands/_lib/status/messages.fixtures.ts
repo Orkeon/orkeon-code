@@ -23,8 +23,8 @@ export function orkeonToolVersion(): string {
   return manifest.tools["orkeon.scripting.cli"].version;
 }
 
-/** The facts the notes must state besides the counts: the Orkeon release the tool manifest installs, which every
- *  mode runs since the pin is its tagged commit, and the headless runner. */
+/** The facts the notes must state besides the counts: the Orkeon release the tool manifest installs, which the
+ *  tool and docker modes run while the pin is ahead of it, and the headless runner. */
 export function runtimeFacts(): string[] {
-  return [`on Orkeon ${orkeonToolVersion()} (main `, "Headless: orkeon-code run <crew>"];
+  return [`the release Orkeon ${orkeonToolVersion()} that the tool and docker modes run`, "Headless: orkeon-code run <crew>"];
 }

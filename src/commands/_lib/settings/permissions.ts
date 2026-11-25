@@ -19,6 +19,7 @@
 import type { PermissionRules, ToolCatalogue } from "../../../shared/application/ports.ts";
 import type { ConfigStore } from "../../../shared/application/config-store.ts";
 import type { SessionIo } from "../../../shared/application/session-io.ts";
+import { readToolFamilies } from "../../../shared/application/tool-families.ts";
 import { configuredNames, resolveExtraTools } from "../../../shared/application/extra-tools.ts";
 import type { ExtraToolsResolution } from "../../../shared/application/extra-tools.ts";
 import {
@@ -37,12 +38,13 @@ import { EXTRA_TOOLS_CONFIG_KEY } from "../../../shared/domain/agent-policy/extr
 import {
   catalogueFor, checkRule, formatRule, gateLine, isReadOnly, readRule, sameCalls, toolsetFor,
   ACT_TOOLS,
+  CHAT_TOOLS,
   MEMORY_TOOLS,
   RULEABLE_TOOLS,
   scriptToolAccess,
   scriptToolsFor,
 } from "../../../shared/domain/agent-policy/permission.ts";
-import type { ExtraTool, PermissionRule } from "../../../shared/domain/agent-policy/permission.ts";
+import type { ExtraTool, PermissionRule, ToolFamilies } from "../../../shared/domain/agent-policy/permission.ts";
 import { heldRuleSets } from "../../../shared/domain/agent-policy/rule-sets.ts";
 import { nestedConfigKeys } from "../../../shared/domain/config-schema.ts";
 import type { CommandView } from "../view.ts";
@@ -62,8 +64,9 @@ export interface PermissionsDeps {
   /** Reads `tools.extra`, the extra tools a rule may name, and what the project file
    *  could not widen (QL-06). */
   config: Pick<ConfigStore, "readValue" | "readFile" | "readUserFile">;
-  /** The tools the host registers: the catalogue offers the extra tools it has. */
-  catalogue: Pick<ToolCatalogue, "find">;
+  /** The tools the host registers: the catalogue offers the extra tools it has, and the chat family when its
+   *  `chat_accounts` lists an account, as launchMainLoop decides it. */
+  catalogue: Pick<ToolCatalogue, "find" | "call">;
   /** This run's host context, for its path lists (paths.deny in the gate); absent: no list. */
   host?: HostSource;
 }
@@ -122,7 +125,7 @@ async function widenedNotes(config: PermissionsDeps["config"]): Promise<{ fallba
 }
 
 /** The effective surface: mode, catalogue, rules and what the gate holds. */
-async function renderShow(deps: PermissionsDeps, extras: ExtraToolsResolution): Promise<string> {
+async function renderShow(deps: PermissionsDeps, extras: ExtraToolsResolution, families: ToolFamilies): Promise<string> {
   const { session, gate } = deps;
   const sessionDefault = await session.readDefaultPermissionMode();
   const fallback = await session.resolveSessionFallbackMode();
@@ -130,7 +133,7 @@ async function renderShow(deps: PermissionsDeps, extras: ExtraToolsResolution): 
   const widened = await widenedNotes(deps.config);
   const stored = await readPermissionRules(session, configuredNames(extras));
   const { rules } = stored;
-  const decision = catalogueFor(mode, rules, extras.present);
+  const decision = catalogueFor(mode, rules, extras.present, families);
   const gateOn = gate.enabled();
   // What the gate holds beyond the session's rules: the shared memory's guard every sync adds, then the
   // built-in rule sets (a dev step's), grouped.
@@ -171,10 +174,11 @@ async function renderShow(deps: PermissionsDeps, extras: ExtraToolsResolution): 
   // crews that attach them, never to the session.
   const memoryByMode = scriptToolsFor(mode, MEMORY_TOOLS);
   const memory = scriptToolsFor(mode, MEMORY_TOOLS, rules);
-  const offered = [...toolsetFor(mode, extras.present), ...memoryByMode];
+  const offered = [...toolsetFor(mode, extras.present, families), ...memoryByMode];
   // The host offers the ACT_TOOLS to every act, and its gate refuses them in the read-only modes only.
-  const withheld = (t: string) => MEMORY_TOOLS.includes(t)
-    || ((isReadOnly(mode) || !ACT_TOOLS.includes(t)) && scriptToolAccess(t) === undefined);
+  // The chat tools are withheld by the mode only where an account is declared: without one, no mode offers them.
+  const withheld = (t: string) => (families.chat || !CHAT_TOOLS.includes(t)) && (MEMORY_TOOLS.includes(t)
+    || ((isReadOnly(mode) || !ACT_TOOLS.includes(t)) && scriptToolAccess(t) === undefined));
   const vocabulary = [...RULEABLE_TOOLS.filter(withheld), ...extras.present.map((t) => t.name)];
   const lines = [
     sessionDefaultLine(mode, isReadOnly(mode)),
@@ -221,9 +225,10 @@ export async function runPermissions(tokens: string[], deps: PermissionsDeps): P
   const extraNames = configuredNames(extras);
   const builtIn = builtInRules((await readMemoryDir(deps.config)).dir, await listsOf(deps.host));
   const sync = () => syncPermissionRules({ session, gate, extraNames, builtIn });
+  const families = await readToolFamilies(deps.catalogue);
   switch ((sub ?? "show").toLowerCase()) {
     case "show":
-      return { text: await renderShow(deps, extras) };
+      return { text: await renderShow(deps, extras, families) };
 
     case "list": {
       const stored = await readPermissionRules(session, extraNames);
@@ -250,7 +255,7 @@ export async function runPermissions(tokens: string[], deps: PermissionsDeps): P
       await addPermissionRule(session, rule);
       const synced = await sync();
       const mode = await sessionMode(session);
-      const decision = catalogueFor(mode, synced.rules, extras.present);
+      const decision = catalogueFor(mode, synced.rules, extras.present, families);
       const inert = decision.inert.find((r) => r.rule.effect === rule.effect && sameCalls(r.rule, rule));
       return {
         text: [

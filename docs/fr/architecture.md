@@ -265,7 +265,7 @@ de couche, ou bien c'est un point d'entrée, un cas d'usage de commande de `comm
 
 ```text
 src/
-├── commands/          50 *.cmd.ts (parse, wire, render) in eight functional folders: session, settings, status,
+├── commands/          51 *.cmd.ts (parse, wire, render) in eight functional folders: session, settings, status,
 │   │                  project, git, dev, memory, speech
 │   ├── _lib/          the use cases, in the folder of their commands: run<Name>(tokens, deps) → CommandView,
 │   │                  or dispatch<Name>(tokens, deps) → a ticket or a message when the command launches a
@@ -273,7 +273,7 @@ src/
 │   │                  git/ (branch, commit, diff, review), memory/ (memory, memory-admit), project/
 │   │                  (analyze), session/ (clear, export, resume, tasks), settings/ (advisor, agents, choices,
 │   │                  config, effort, hooks, mode, model, output-style, permissions, route, session-config:
-│   │                  the toggle commands, skills, theme), speech/ (say, transcribe, voice), status/ (cache,
+│   │                  the toggle commands, skills, theme), speech/ (say, transcribe, voice), status/ (cache, chat,
 │   │                  context, doctor, meta: version, messages: release notes, status, usage, usage-tools);
 │   │                  each group keeps its text in messages.ts (prompts.ts, markers.ts). At the root, what
 │   │                  several families share: args.ts (arguments), dispatch.ts (crew launch, completion

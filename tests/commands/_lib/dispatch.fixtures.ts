@@ -198,3 +198,11 @@ export function lineSink() {
     },
   };
 }
+
+/** What the host's `chat_accounts` answers at launch, and whether the main loop is then handed the chat family. */
+export const CHAT_LAUNCH_CASES: readonly { name: string; reply?: unknown; chat: boolean }[] = [
+  { name: "hands the main loop the chat family when chat_accounts lists an account", reply: { accounts: [{ name: "team" }] }, chat: true },
+  { name: "hands the main loop no chat family when chat_accounts lists none", reply: { accounts: [] }, chat: false },
+  { name: "hands the main loop no chat family when chat_accounts fails", reply: new Error("sign-in required"), chat: false },
+  { name: "hands the main loop no chat family on a host without chat_accounts", chat: false },
+];

@@ -4,15 +4,18 @@ import { strictEqual, ok, deepStrictEqual } from "node:assert";
 
 import {
   READ_TOOLS, WRITE_TOOLS, NETWORK_READ_TOOLS, RULEABLE_TOOLS, ACT_TOOLS, SCRIPT_TOOLS, scriptToolAccess,
+  CHAT_READ_TOOLS, CHAT_TOOLS, CHAT_WRITE_TOOLS,
   MEMORY_TOOLS, scriptToolsFor,
   resolvePermissionMode, isReadOnly,
   toolsetFor, permissionNote, buildActPrompt,
   catalogueFor, coversEveryCall, readRule, checkRule, formatRule, gateLine, parseStoredRule, sameCalls,
   ruleableTool, TOOL_ARGUMENTS, globMatches, matchesRule, ruleDecision, shellCommandForms, shellWords,
 } from "../../../../src/shared/domain/agent-policy/permission.ts";
+import type { PermissionRule } from "../../../../src/shared/domain/agent-policy/permission.ts";
 import { PERMISSION_MODES } from "../../../../src/shared/domain/permission-modes.ts";
 import {
-  A2A_TOOLS, ALL_MODES, builtInToolInputs, CHECK_RULE_CASES, CHECK_RULE_OK_CASES, DECISION_CASES, DENY_FILE_WRITE,
+  A2A_TOOLS, ALL_MODES, builtInToolInputs, CHAT_CATALOGUE_CASES, CHAT_RULE_TEXTS, CHAT_TOOL_ARGUMENT_CASES, chatToolInputs,
+  CHECK_RULE_CASES, CHECK_RULE_OK_CASES, DECISION_CASES, DENY_FILE_WRITE,
   EXTRA_RULES, FORMAT_CASES, GIT_PUSH, GIT_RULE_TEXTS, GLOB_CASES, HOST_OPT_IN_TOOLS, MATCHES_RULE_CASES, NETWORK_MATRIX,
   NOTE_NETWORK_CASES, NPM_TEST, ORKEON_180_EDITS, ORKEON_180_READS, ORKEON_280_READS, PARSE_STORED_CASES, PLAN_RULES,
   QUOTED_PATTERNS, READ_ONLY_CASES, READ_ONLY_MODES, READ_ONLY_TOOLSET_CASES, READ_PATTERN_CASES, READ_RULE_CASES,
@@ -85,7 +88,7 @@ describe("B-8 — the network-read class", () => {
     // matches by name and silently drops the rest, so a typo here would produce a
     // catalogue that looks wired and hands over nothing.
     // Arrange
-    const expected = ["http_api", "web_scrape", "scrape_element", "firefox"];
+    const expected = ["http_api", "web_scrape", "scrape_element", "browser"];
 
     // Act
     const names = NETWORK_READ_TOOLS;
@@ -199,7 +202,9 @@ describe("the tool lists", () => {
 
   it("derive the ruleable list from the classes", () => {
     // Arrange
-    const expected = [...READ_TOOLS, ...NETWORK_READ_TOOLS, ...WRITE_TOOLS, ...ACT_TOOLS, ...SCRIPT_TOOLS.map((t) => t.name)];
+    const expected = [
+      ...READ_TOOLS, ...NETWORK_READ_TOOLS, ...WRITE_TOOLS, ...CHAT_TOOLS, ...ACT_TOOLS, ...SCRIPT_TOOLS.map((t) => t.name),
+    ];
 
     // Act
     const tools = RULEABLE_TOOLS;
@@ -219,12 +224,12 @@ describe("the tool lists", () => {
     strictEqual(distinct, tools.length);
   });
 
-  it("offer every ruleable tool but ACT_TOOLS and SCRIPT_TOOLS in some mode, and nothing else", () => {
+  it("offer every ruleable tool but ACT_TOOLS and SCRIPT_TOOLS in some mode where a chat account is declared, and nothing else", () => {
     // Arrange
     const attached = (t: string) => ACT_TOOLS.includes(t) || scriptToolAccess(t) !== undefined;
 
     // Act
-    const offered = new Set(PERMISSION_MODES.flatMap((mode) => toolsetFor(mode)));
+    const offered = new Set(PERMISSION_MODES.flatMap((mode) => toolsetFor(mode, [], { chat: true })));
 
     // Assert
     deepStrictEqual([...offered].sort(), RULEABLE_TOOLS.filter((t) => !attached(t)).sort());
@@ -307,9 +312,9 @@ describe("the tool lists", () => {
     });
   }
 
-  it("know the arguments orkeon.d.ts declares for every ruleable tool but spawn_agent and SCRIPT_TOOLS", () => {
+  it("know the arguments OrkeonBuiltInTools declares for every ruleable tool but spawn_agent, SCRIPT_TOOLS and the chat family", () => {
     // Arrange
-    const own = (tool: string) => tool === "spawn_agent" || scriptToolAccess(tool) !== undefined;
+    const own = (tool: string) => tool === "spawn_agent" || scriptToolAccess(tool) !== undefined || CHAT_TOOLS.includes(tool);
 
     // Act
     const declared = builtInToolInputs();
@@ -318,9 +323,9 @@ describe("the tool lists", () => {
     assertArgumentsDeclared(TOOL_ARGUMENTS, declared, own);
   });
 
-  it("find every ruleable tool but spawn_agent and SCRIPT_TOOLS declared in orkeon.d.ts", () => {
+  it("find every ruleable tool but spawn_agent, SCRIPT_TOOLS and the chat family declared in OrkeonBuiltInTools", () => {
     // Arrange
-    const own = (tool: string) => tool === "spawn_agent" || scriptToolAccess(tool) !== undefined;
+    const own = (tool: string) => tool === "spawn_agent" || scriptToolAccess(tool) !== undefined || CHAT_TOOLS.includes(tool);
 
     // Act
     const declared = builtInToolInputs();
@@ -982,6 +987,83 @@ describe("globMatches, matchesRule and ruleDecision", () => {
 
       // Assert
       strictEqual(decision, c.decision);
+    });
+  }
+});
+
+describe("the chat family", () => {
+  for (const c of CHAT_CATALOGUE_CASES) {
+    it(`${c.mode} ${c.reads ? "offers" : "withholds"} the chat reads ${c.chat ? "with" : "without"} a chat account`, () => {
+      // Arrange
+      const families = { chat: c.chat };
+
+      // Act
+      const tools = toolsetFor(c.mode, [], families);
+
+      // Assert
+      assertOffered(tools, CHAT_READ_TOOLS, c.reads, `${c.mode}, chat ${c.chat}`);
+    });
+  }
+
+  for (const c of CHAT_CATALOGUE_CASES) {
+    it(`${c.mode} ${c.writes ? "offers" : "withholds"} the chat writes ${c.chat ? "with" : "without"} a chat account`, () => {
+      // Arrange
+      const families = { chat: c.chat };
+
+      // Act
+      const tools = toolsetFor(c.mode, [], families);
+
+      // Assert
+      assertOffered(tools, CHAT_WRITE_TOOLS, c.writes, `${c.mode}, chat ${c.chat}`);
+    });
+  }
+
+  it("lets a deny rule remove a chat write from the catalogue of a session with an account", () => {
+    // Arrange
+    const rules: PermissionRule[] = [{ effect: "deny", tool: "chat_send" }];
+
+    // Act
+    const decision = catalogueFor("default", rules, [], { chat: true });
+
+    // Assert
+    deepStrictEqual(decision.deniedByRule, ["chat_send"]);
+  });
+
+  for (const c of CHAT_TOOL_ARGUMENT_CASES) {
+    it(`know the arguments ${c.tool} takes`, () => {
+      // Arrange
+      const { tool } = c;
+
+      // Act
+      const args = TOOL_ARGUMENTS[tool];
+
+      // Assert
+      deepStrictEqual(args, c.args);
+    });
+  }
+
+  it("know the arguments orkeon.d.ts declares for each chat tool, and no chat tool it does not declare", () => {
+    // Arrange
+    const ours = Object.fromEntries(CHAT_TOOLS.map((tool) => [tool, TOOL_ARGUMENTS[tool]!]));
+
+    // Act
+    const declared = chatToolInputs();
+
+    // Assert
+    deepStrictEqual([...declared.keys()].sort(), [...CHAT_TOOLS].sort());
+    assertArgumentsDeclared(ours, declared, () => false);
+  });
+
+  for (const text of CHAT_RULE_TEXTS) {
+    it(`accepts the rule '${text}' whether or not an account is declared`, () => {
+      // Arrange
+      const extras: string[] = [];
+
+      // Act
+      const check = checkRule(text, extras);
+
+      // Assert
+      strictEqual(check.ok, true, JSON.stringify(check));
     });
   }
 });

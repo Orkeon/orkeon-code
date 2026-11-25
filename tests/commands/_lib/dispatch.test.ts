@@ -53,6 +53,7 @@ import {
   unreadableVoiceDeps,
   voiceDeps,
   routedCrewDeps,
+  CHAT_LAUNCH_CASES,
 } from "./dispatch.fixtures.ts";
 import { assertMemoryGuarded } from "./dispatch.assertions.ts";
 import { WORKSPACE } from "../../../src/shared/domain/vfs.ts";
@@ -241,6 +242,20 @@ describe("withLlmProfile", () => {
 });
 
 describe("launchMainLoop", () => {
+  for (const c of CHAT_LAUNCH_CASES) {
+    it(c.name, async () => {
+      // Arrange
+      const { crews, catalogue, deps } = mainLoopDeps();
+      if (c.reply !== undefined) catalogue.tools.set("chat_accounts", c.reply);
+
+      // Act
+      await launchMainLoop(deps, { prompt: "fix it", permissionMode: "default" });
+
+      // Assert
+      strictEqual(crews.launches[0].input.chatTools === true, c.chat);
+    });
+  }
+
   it("hands the main loop the session's llm.profile", async () => {
     // Arrange
     const { crews, config, deps } = mainLoopDeps();

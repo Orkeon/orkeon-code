@@ -24,7 +24,7 @@ import {
   MAX_STATIC_HEADER_CHARS,
   withoutCurrentRequest,
 } from "../../../../src/crews/main-loop/domain/prompt-assembly.ts";
-import { MEMORY_TOOLS, scriptToolsFor, toolsetFor } from "../../../../src/shared/domain/agent-policy/permission.ts";
+import { CHAT_TOOLS, MEMORY_TOOLS, scriptToolsFor, toolsetFor } from "../../../../src/shared/domain/agent-policy/permission.ts";
 import { PERMISSION_MODES } from "../../../../src/shared/domain/permission-modes.ts";
 import { explorerReachable } from "../../../../src/crews/main-loop/domain/explorer-charter.ts";
 import { MEMORY_CATEGORIES } from "../../../../src/shared/domain/agent-policy/memory-categories.ts";
@@ -34,6 +34,7 @@ import {
   EMPTY_SKILLS_CASES, GAUGE_TIER_CASES, HOOK_STEPS, INSTRUCTIONS_FILE_CASES, KEPT_BUFFER_CASES, LEGACY_PARTS,
   MARKED_PARTS, MARKED_PARTS_IN_ORDER, OUTPUT_STYLE_CASES, REFUSAL_NOTE, REFUSAL_SCOPE, REPEATED_REQUEST_HISTORY, RULE_MARKERS,
   LESSONS_TOOL_RULE, COMPACTED_IN_HISTORY_RULE, EXPLORER_RULE, LONGEST_HEADER_RULES, WEB_EXTRA_TOOLS,
+  CHAT_FAMILY, CHAT_PARAGRAPH_MARKERS, CHAT_READ_RULES, CHAT_READS_ONLY, CHAT_REFUSAL_CODES, CHAT_WRITE_RULES,
   MARKED_WINDOW_CASES, UNCONFIGURED_PREFERENCES_CASES, LESSONS_TOOLS, builtParts, toolTurns, userMessages,
 } from "./prompt-assembly.fixtures.ts";
 import {
@@ -1000,6 +1001,98 @@ describe("assembleContext order with the new blocks", () => {
 
       // Assert
       strictEqual(after, header, `style '${style}' moved the system prompt`);
+    });
+  }
+});
+
+describe("buildStaticHeader, the chat family", () => {
+  for (const c of CHAT_READ_RULES) {
+    it(`states that ${c.rule} where an account is declared`, () => {
+      // Arrange
+      const opts = { toolNames: toolsetFor("default", [], CHAT_FAMILY) };
+
+      // Act
+      const header = buildStaticHeader(opts);
+
+      // Assert
+      assertMentions(header, [c.marker], "the header of a session with a chat account");
+    });
+  }
+
+  for (const c of CHAT_WRITE_RULES) {
+    it(`states that ${c.rule} where a chat write is offered`, () => {
+      // Arrange
+      const opts = { toolNames: toolsetFor("default", [], CHAT_FAMILY) };
+
+      // Act
+      const header = buildStaticHeader(opts);
+
+      // Assert
+      assertMentions(header, [c.marker], "the header of a session that may post in a chat");
+    });
+  }
+
+  it("names the four refusals a chat tool reports", () => {
+    // Arrange
+    const opts = { toolNames: toolsetFor("default", [], CHAT_FAMILY) };
+
+    // Act
+    const header = buildStaticHeader(opts);
+
+    // Assert
+    assertMentions(header, CHAT_REFUSAL_CODES, "the header of a session with a chat account");
+  });
+
+  it("lists the ten chat tools among the tools where an account is declared", () => {
+    // Arrange
+    const opts = { toolNames: toolsetFor("default", [], CHAT_FAMILY) };
+
+    // Act
+    const header = buildStaticHeader(opts);
+
+    // Assert
+    assertMentions(header, CHAT_TOOLS, "the tools of a session with a chat account");
+  });
+
+  it("keeps the reads' rules and drops the writes' where no chat write is offered", () => {
+    // Arrange
+    const opts = { toolNames: CHAT_READS_ONLY };
+
+    // Act
+    const header = buildStaticHeader(opts);
+
+    // Assert
+    assertMentions(header, [CHAT_READ_RULES[0]!.marker], "the header of a session that only reads chats");
+    assertLacks(header, CHAT_WRITE_RULES.map((c) => c.marker), "the header of a session that only reads chats");
+  });
+
+  for (const mode of PERMISSION_MODES) {
+    it(`says nothing of the chat tools in the ${mode} mode when no account is declared`, () => {
+      // Arrange
+      const opts = { toolNames: toolsetFor(mode) };
+
+      // Act
+      const header = buildStaticHeader(opts);
+
+      // Assert
+      assertLacks(header, CHAT_PARAGRAPH_MARKERS, `the ${mode} header of a session without a chat account`);
+    });
+  }
+
+  for (const mode of PERMISSION_MODES) {
+    it(`keeps the authored header under its ceiling in the ${mode} mode, with a chat account, the web tools and the explorer`, () => {
+      // Arrange
+      const opts = {
+        toolNames: toolsetFor(mode, WEB_EXTRA_TOOLS, CHAT_FAMILY),
+        scriptTools: scriptToolsFor(mode, MEMORY_TOOLS),
+        explorer: explorerReachable(mode, LONGEST_HEADER_RULES),
+      };
+
+      // Act
+      const header = buildStaticHeader(opts);
+
+      // Assert
+      ok(header.length <= MAX_STATIC_HEADER_CHARS, `${mode}: ${header.length} > ${MAX_STATIC_HEADER_CHARS}`);
     });
   }
 });

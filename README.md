@@ -47,7 +47,7 @@ trimmed by the mode. Every command, crew and prompt is a source file: change it,
 - **Context management**: automatic compaction with a circuit breaker, a `/compact` that summarises the whole session
   (the snip is `/compact --snip`, or the fallback of a failed summary), file restore after compaction, context
   pressure tiers, typed memory held by the Orkeon process (`/memory`).
-- **50 slash commands** in all: [docs/commands.md](docs/commands.md).
+- **51 slash commands** in all: [docs/commands.md](docs/commands.md).
 
 ## Quick start
 
@@ -131,7 +131,8 @@ are written in English only.
 | [WSL tutorial](docs/wsl-tutorial.md) | Speech and a local model on WSL2, on the GPU, step by step |
 | [Configuration](docs/configuration.md) | LLM providers, settings file, environment variables |
 | [Speech](docs/speech.md) | Transcribing a file, dictating a request, reading an answer aloud |
-| [Tool bridge](docs/tool-bridge.md) | The Firefox of your machine for a session in Docker |
+| [Tool bridge](docs/tool-bridge.md) | The browser of your machine for a session in Docker |
+| [Chat](docs/chat.md) | Reading and posting in Microsoft Teams, within the accounts and places you allow |
 | [Decision models](docs/decision-models.md) | What a decision model does for Orkeon Code: pruning a long turn, routing a crew, suggesting skills, with what was measured |
 | [Decision models locally](docs/decision-models-local.md) | Kev on this machine and Liquid, step by step, with decision profiles to try |
 | [Permissions](docs/permissions.md) | Modes, rules, what the agent can touch |
