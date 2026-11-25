@@ -72,9 +72,8 @@ orkeon chat login me --settings config/appsettings.local.json
 
 Les dix outils entrent dans le catalogue de l'agent dès qu'un compte au moins est déclaré ; sans compte, la session
 reste ce qu'elle était. `/chat` liste les comptes déclarés, celui par défaut marqué, avec leur fournisseur, leurs
-droits et s'ils sont prêts ; un compte Teams qui n'est pas prêt reçoit la ligne qui connecte un compte
-utilisateur, à taper dans un terminal (une application se vérifie plutôt avec `orkeon chat check`).
-`/permissions` liste les outils avec le reste.
+droits et s'ils sont prêts ; un compte qui n'est pas prêt montre ce que le runtime dit lui manquer : une variable à
+définir, la connexion à lancer dans un terminal. `/permissions` liste les outils avec le reste.
 
 | Outil | Fait | La barrière |
 |---|---|---|

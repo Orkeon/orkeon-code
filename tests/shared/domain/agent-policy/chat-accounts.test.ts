@@ -4,9 +4,9 @@ import { describe, it } from "node:test";
 import { deepStrictEqual, strictEqual } from "node:assert";
 
 import {
-  MAX_CHAT_FIELD_CHARS, chatAccounts, chatField, declaredChatAccounts, signsIn,
+  MAX_CHAT_FIELD_CHARS, chatAccounts, chatField, declaredChatAccounts,
 } from "../../../../src/shared/domain/agent-policy/chat-accounts.ts";
-import { ACCOUNT_RECORDS_CASES, DECLARED_ACCOUNTS_CASES, SIGNS_IN_CASES } from "./chat-accounts.fixtures.ts";
+import { ACCOUNT_RECORDS_CASES, DECLARED_ACCOUNTS_CASES } from "./chat-accounts.fixtures.ts";
 
 describe("declaredChatAccounts", () => {
   for (const c of DECLARED_ACCOUNTS_CASES) {
@@ -34,21 +34,6 @@ describe("chatAccounts", () => {
 
       // Assert
       deepStrictEqual(records, c.records);
-    });
-  }
-});
-
-describe("signsIn", () => {
-  for (const c of SIGNS_IN_CASES) {
-    it(c.name, () => {
-      // Arrange
-      const account = { provider: c.provider };
-
-      // Act
-      const answer = signsIn(account);
-
-      // Assert
-      strictEqual(answer, c.signsIn);
     });
   }
 });

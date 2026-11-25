@@ -87,8 +87,6 @@ export const CHAT_NOT_READY = "not ready";
 export const chatNotReady = (problem: string): string => `${CHAT_NOT_READY}: ${problem}`;
 export const chatAccountLine = (name: string, mark: string, provider: string, rights: string, state: string): string =>
   `  ${name}${mark}: ${provider}, ${rights}; ${state}`;
-export const chatSignInLine = (name: string): string =>
-  `    a user account signs in from a terminal: orkeon chat login ${name} --settings <the settings file of this session>`;
 export const CHAT_TOOLS_OFFERED =
   "The chat tools are offered to the assistant in default, acceptEdits and bypassPermissions; " +
   "a post is asked each time in default and acceptEdits, accepted edits or not.";

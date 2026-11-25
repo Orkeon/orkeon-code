@@ -23,24 +23,20 @@ export const THREE_ACCOUNTS = {
 export const THREE_ACCOUNT_LINES: readonly string[] = [
   "  me (default): Teams, Read, Send; ready",
   "  watch: Teams, Read; not ready: Chat account 'watch' needs a sign-in: run `orkeon chat login watch` in a terminal.",
-  "    a user account signs in from a terminal: orkeon chat login watch --settings <the settings file of this session>",
   "  builds: TeamsWebhook, Send; not ready: CHAT_BUILDS_WEBHOOK is not set",
 ];
 
-/** One line per state of one account, the sign-in line where it signs in. */
+/** One line per state of one account. */
 export const ACCOUNT_LINE_CASES: readonly { name: string; account: Record<string, unknown>; lines: readonly string[] }[] = [
   {
-    name: "shows an unresolved account not ready with its problem, without a sign-in line",
+    name: "shows an unresolved account not ready with its problem",
     account: { name: "old", provider: "?", default: false, ready: false, problem: "Rights is missing" },
     lines: ["  old: ?, no rights named; not ready: Rights is missing"],
   },
   {
     name: "shows an account not ready without a problem as not ready alone",
     account: { name: "me", provider: "Teams", rights: "Read", default: false, ready: false },
-    lines: [
-      "  me: Teams, Read; not ready",
-      "    a user account signs in from a terminal: orkeon chat login me --settings <the settings file of this session>",
-    ],
+    lines: ["  me: Teams, Read; not ready"],
   },
   {
     name: "shows a problem over several lines on one",

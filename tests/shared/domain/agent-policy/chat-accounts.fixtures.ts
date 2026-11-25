@@ -56,8 +56,3 @@ export const ACCOUNT_RECORDS_CASES: readonly { name: string; raw: unknown; recor
   { name: "reads no account in a text that is no JSON", raw: "no chat account is declared", records: [] },
 ];
 
-export const SIGNS_IN_CASES: readonly { name: string; provider: string; signsIn: boolean }[] = [
-  { name: "says a Teams account signs in", provider: "Teams", signsIn: true },
-  { name: "says a webhook does not sign in", provider: "TeamsWebhook", signsIn: false },
-  { name: "says an unresolved account does not sign in", provider: "?", signsIn: false },
-];

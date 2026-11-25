@@ -46,9 +46,6 @@ export interface ChatAccountRecord {
 /** The provider `chat_accounts` names when a declaration does not resolve. */
 export const UNRESOLVED_PROVIDER = "?";
 
-/** The provider of the accounts that sign in (`orkeon chat login <account>`): a webhook never does. */
-export const SIGN_IN_PROVIDER = "teams";
-
 /** A field shown on one line of /chat (a name, a problem): cut to this many characters. */
 export const MAX_CHAT_FIELD_CHARS = 160;
 
@@ -83,11 +80,6 @@ export function chatAccounts(raw: unknown): ChatAccountRecord[] {
     });
   }
   return records;
-}
-
-/** Whether `account` signs in as a user or an application of Microsoft Entra: its provider is `Teams`. */
-export function signsIn(account: Pick<ChatAccountRecord, "provider">): boolean {
-  return account.provider.toLowerCase() === SIGN_IN_PROVIDER;
 }
 
 /** The number of declared accounts in a `chat_accounts` result: its entries that carry a name. */

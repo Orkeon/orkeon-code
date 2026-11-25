@@ -1,6 +1,6 @@
 /// <reference path="../.orkeon/orkeon-cli.d.ts" />
 // /chat — the chat accounts this session can reach: each declared account, its provider, its rights and whether it
-// is ready, with the sign-in line of an account that needs one (docs/chat.md). Entry point: wires the host's tools
+// is ready, with what the runtime says an account not ready lacks (docs/chat.md). Entry point: wires the host's tools
 // into _lib/status/chat.ts (runChat), which asks `chat_accounts` and words the answer.
 import { rawTokens } from "../_lib/args.ts";
 import { runChat } from "../_lib/status/chat.ts";
