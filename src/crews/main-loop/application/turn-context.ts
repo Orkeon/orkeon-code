@@ -31,7 +31,7 @@ import type { ConfigStore } from "../../../shared/application/config-store.ts";
 import type { Clock, Files, MemoryStore, SessionStore, Shell, Telemetry } from "../../../shared/application/ports.ts";
 import { isoDay } from "../../../shared/domain/iso-day.ts";
 import type { SessionMsg } from "../../../shared/domain/types.ts";
-import type { ExtraTool } from "../../../shared/domain/agent-policy/permission.ts";
+import type { ExtraTool, ToolFamilies } from "../../../shared/domain/agent-policy/permission.ts";
 
 /** The ports the prompt of a turn is gathered from. */
 export interface TurnContextDeps {
@@ -73,6 +73,7 @@ export async function buildTurnPrompt(
   extras: readonly ExtraTool[] = [],
   scriptTools: readonly string[] = [],
   rules: readonly PermissionRule[] = [],
+  families?: ToolFamilies,
 ): Promise<TurnPrompt> {
   // /fast: skip the two advisory reads entirely, not just their rendering.
   // Rendering-only would keep paying for the memory listing and every skill file
@@ -96,7 +97,7 @@ export async function buildTurnPrompt(
 
   return {
     system: buildStaticHeader({
-      toolNames: toolsetFor(mode, extras), scriptTools, instructions, explorer: explorerReachable(mode, rules),
+      toolNames: toolsetFor(mode, extras, families), scriptTools, instructions, explorer: explorerReachable(mode, rules),
     }),
     context: assembleContext({
       // All volatile, all in the context. An unconfigured session renders none

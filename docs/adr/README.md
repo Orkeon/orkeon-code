@@ -53,3 +53,4 @@ changes for Orkeon Code: what is adopted, what is set aside, what is removed.
 | [0033](0033-orkeon-after-447.md) | Orkeon main after #447, budgets the runtime now refuses, and what stays this project's own |
 | [0034](0034-orkeon-after-470.md) | Orkeon main after #470, the runtime's prune and pick, the agent-cli provider |
 | [0035](0035-orkeon-after-483.md) | Orkeon main after #483, the `browser` tool in place of `firefox`, the chat family at hand |
+| [0036](0036-chat-tools.md) | The chat tools, offered to the main loop where an account is declared |

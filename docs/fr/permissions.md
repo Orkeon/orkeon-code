@@ -91,6 +91,8 @@ appel.
 | `web_scrape`, `scrape_element`, `rag_search` | tout appel | | |
 | `rag_ingest`, `rag_eval` | | tout appel | |
 | `browser` | `navigate`, `back`, `snapshot`, `read`, `find`, `search`, `tabs`, `new_tab`, `switch_tab` | `screenshot` | `click`, `type`, `press`, `evaluate`, `close_tab`, `close` |
+| `chat_accounts`, `chat_list`, `chat_read`, `chat_search`, `chat_members`, `chat_meetings` | tout appel | | |
+| `chat_send`, `chat_edit`, `chat_delete`, `chat_react` | | | tout appel |
 | `spawn_agent` | | tout appel | |
 | `memory_recall` | tout appel | | |
 | `memory_push` | | tout appel | |
@@ -135,6 +137,12 @@ façon, et la politique d'URL appliquée est celle du pont, sur votre machine.
 > Le texte d'une page parvient au modèle sans filtrage contre l'injection de prompt : lire une page qui n'est pas de
 > confiance demande la même prudence que `web_scrape`. Un secret ne passe jamais par `type`, dont le texte reste dans
 > la transcription.
+
+Les six lectures du chat sont elles aussi des outils réseau : chacune demande quelque chose à Microsoft Teams, donc
+`plan` et `dontAsk` les écartent. Le catalogue ne contient les outils du chat qu'une fois un compte déclaré, et les
+quatre écritures sont des exécutions, demandées en `default` comme en `acceptEdits` : accepter les modifications
+n'accepte jamais un message. Ce que les comptes permettent, comment ils se connectent et ce que montre `/chat` sont
+décrits dans [Chat](chat.md).
 
 ### Les outils de la mémoire partagée
 

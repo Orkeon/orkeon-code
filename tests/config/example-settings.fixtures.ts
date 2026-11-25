@@ -15,10 +15,13 @@ export const PROMISED_EXAMPLES: readonly string[] = [
   "appsettings.example.json", "appsettings.anthropic.example.json", "appsettings.ollama.example.json",
   "appsettings.ollama-whisper.example.json", "appsettings.jev.example.json", "appsettings.kev.example.json",
   "appsettings.liquid.example.json", "appsettings.bridge.example.json", "appsettings.agent-cli.example.json",
+  "appsettings.chat.example.json",
 ];
 
 /** The examples that are fragments to merge into a settings file, not settings a REPL starts on alone. */
-export const FRAGMENTS: readonly string[] = ["appsettings.bridge.example.json", "appsettings.whisper.example.json"];
+export const FRAGMENTS: readonly string[] = [
+  "appsettings.bridge.example.json", "appsettings.whisper.example.json", "appsettings.chat.example.json",
+];
 
 /** The examples on a decision profile: the Jev one and its two twins on another provider. */
 export const DECISION_EXAMPLES: readonly string[] = [

@@ -86,6 +86,8 @@ write. Where the access depends on the arguments, the gate reads it per call.
 | `web_scrape`, `scrape_element`, `rag_search` | every call | | |
 | `rag_ingest`, `rag_eval` | | every call | |
 | `browser` | `navigate`, `back`, `snapshot`, `read`, `find`, `search`, `tabs`, `new_tab`, `switch_tab` | `screenshot` | `click`, `type`, `press`, `evaluate`, `close_tab`, `close` |
+| `chat_accounts`, `chat_list`, `chat_read`, `chat_search`, `chat_members`, `chat_meetings` | every call | | |
+| `chat_send`, `chat_edit`, `chat_delete`, `chat_react` | | | every call |
 | `spawn_agent` | | every call | |
 | `memory_recall` | every call | | |
 | `memory_push` | | every call | |
@@ -128,6 +130,11 @@ bridge's, on your machine.
 > [!WARNING]
 > The text of a page reaches the model unscreened for prompt injection: a read of an untrusted page deserves the
 > same care as `web_scrape`. A secret never goes through `type`, whose text stays in the transcript.
+
+The six chat reads are network tools as well: each one asks Microsoft Teams for something, so `plan` and `dontAsk`
+leave them out. The catalogue holds the chat tools only once an account is declared, and the four writes are
+execute calls, asked in `default` and in `acceptEdits` alike: accepting edits never accepts a message. What the
+accounts allow, how they sign in and what `/chat` shows are in [Chat](chat.md).
 
 ### The shared memory's tools
 

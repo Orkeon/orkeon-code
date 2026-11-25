@@ -72,6 +72,24 @@ export function assertBridgeExample(settings: any): void {
   assert.equal(bridge.Token, undefined, "the bridge example holds a token");
 }
 
+/** The chat example is a fragment: Orkeon:Tools:Chat alone, whose default account is declared, every account with
+ *  its rights, and no secret: a credential or a webhook address is the name of a variable, never a value. */
+export function assertChatExample(settings: any): void {
+  assert.deepEqual(Object.keys(settings).filter((key) => key !== "_comment"), ["Orkeon"], "the chat example sets more than Orkeon");
+  assert.deepEqual(Object.keys(settings.Orkeon), ["Tools"], "the chat example sets more than Orkeon:Tools");
+  assert.deepEqual(Object.keys(settings.Orkeon.Tools), ["Chat"], "the chat example sets more than Orkeon:Tools:Chat");
+  const chat = settings.Orkeon.Tools.Chat;
+  const accounts = chat.Accounts as Record<string, any>;
+  assert.ok(accounts[chat.DefaultAccount], `DefaultAccount names ${chat.DefaultAccount}, which the example does not declare`);
+  for (const [name, account] of Object.entries(accounts)) {
+    assert.match(String(account.Rights), /^(Read|Send|Edit|Delete|React|Meetings)(, (Read|Send|Edit|Delete|React|Meetings))*$/, `Accounts:${name}:Rights is not a list of rights: ${account.Rights}`);
+    const named = [account.Webhook?.UrlEnvVar, account.Auth?.CertificatePathEnvVar, account.Auth?.FederatedTokenFileEnvVar, account.Auth?.ClientSecretEnvVar]
+      .filter((value) => value !== undefined);
+    for (const variable of named) assert.match(variable, /^[A-Z][A-Z0-9_]*$/, `Accounts:${name} holds a value where a variable is named: ${variable}`);
+    assert.doesNotMatch(JSON.stringify(account), /https?:\/\//, `Accounts:${name} holds an address`);
+  }
+}
+
 /** The agent-cli example: its `subscription` profile runs on the agent-cli provider, names no key nor key variable,
  *  and falls back on the default profile, which reads its key from ANTHROPIC_API_KEY; Llm:AgentCli drives `claude`. */
 export function assertAgentCliExample(settings: any): void {

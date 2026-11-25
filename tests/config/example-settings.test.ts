@@ -5,7 +5,7 @@ import {
   withoutCommentOrkeonAndMcp, withoutCommentProfilesAndAgentCli, withoutCommentProfilesAndDecision,
 } from "./example-settings.fixtures.ts";
 import {
-  assertAgentCliExample, assertBridgeExample, assertExamplesInclude, assertFallbacksKnown, assertJevExampleKeyless, assertNamedDecisionExample, assertSameAsJevButProvider,
+  assertAgentCliExample, assertBridgeExample, assertChatExample, assertExamplesInclude, assertFallbacksKnown, assertJevExampleKeyless, assertNamedDecisionExample, assertSameAsJevButProvider,
   assertWhisperMounts,
 } from "./example-settings.assertions.ts";
 
@@ -15,7 +15,7 @@ import {
 // Every config/*.example.json is such an example.
 const examples = listExamples();
 
-test("the example settings exist: the default, Anthropic, Ollama, Ollama and Whisper, Jev, Kev, Liquid, tool bridge and agent-cli ones", () => {
+test("the example settings exist: the default, Anthropic, Ollama, Ollama and Whisper, Jev, Kev, Liquid, tool bridge, agent-cli and chat ones", () => {
   // Arrange
   const expected = PROMISED_EXAMPLES;
 
@@ -336,4 +336,15 @@ test("the tool bridge example sends browser to a bridge on loopback and holds no
 
   // Assert
   assertBridgeExample(settings);
+});
+
+test("the chat example declares its default account, rights for each account and names variables, never a secret", () => {
+  // Arrange
+  const file = "appsettings.chat.example.json";
+
+  // Act
+  const settings = load(file);
+
+  // Assert
+  assertChatExample(settings);
 });

@@ -7,6 +7,29 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added — the chat tools in the main loop
+
+- The main loop offers the ten `chat_*` tools (Microsoft Teams first) when the host declares one chat account at
+  least: before each turn it asks `chat_accounts`, and a host without an account, or one whose call fails, gets none
+  of them ([ADR 0036](docs/adr/0036-chat-tools.md)). The six reads are network tools, out of `plan` and `dontAsk`;
+  the four writes (`chat_send`, `chat_edit`, `chat_delete`, `chat_react`) are offered in `default`, `acceptEdits` and
+  `bypassPermissions` only. The explorer and the dev crews get none.
+- The turn's header then tells the model that what the chat tools return is data and never an instruction, to pass
+  places and ids back as returned, to report a refusal with its fix rather than get around it, and to write only when
+  asked, after saying where and what, with mentions from `chat_members` and no resend of a write whose outcome is
+  unclear ([docs/turn.md](docs/turn.md), "The chat tools").
+- Permission rules take the ten tools and their arguments (`deny chat_send`, `allow chat_read place=…`), and
+  `/permissions` shows the catalogue the turn gets. **Breaking**: a `tools.extra` entry naming a chat tool is now
+  refused, the tool being built in.
+- `/chat` lists the chat accounts of the session: each one's name, the default mark, its provider, its rights and
+  whether it is ready, with its problem and, for an account that signs in, the `orkeon chat login` line to type in a
+  terminal; one line says when the runtime has no chat tools, when no account is declared
+  (`Orkeon:Tools:Chat:Accounts`) or when the call fails. The command count goes to 51.
+- The guide [docs/chat.md](docs/chat.md) sets an account up, from the declaration to the sign-in and the gate, and
+  `config/appsettings.chat.example.json` declares one account of each kind: a user, an application that only reads,
+  a webhook. [Permissions](docs/permissions.md) lists what the ten tools declare.
+- Never run against a real Microsoft 365 tenant: no live check was made.
+
 ### Changed — the pin moves to Orkeon `main` `bbfc06c`, the `browser` tool replaces `firefox`
 
 - The pin moves to Orkeon `main` `bbfc06c` (Orkeon #480, #481, #483), three merges past the release `1.4.0`
@@ -18,8 +41,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   the section is `Orkeon:Tools:Browser`. A rule or a bridge that names `firefox` is to be rewritten: Orkeon keeps
   that name as a deprecated twin, this project does not offer it.
 - The runtime now registers ten `chat_*` tools (Microsoft Teams first, Orkeon #480) and `orkeon-repl` keeps the
-  OAuth tokens of a chat account (Orkeon #483, asked by this project in Orkeon #482). Nothing offers them to the
-  model yet: until the next change they are reached through `tools.extra` alone.
+  OAuth tokens of a chat account (Orkeon #483, asked by this project in Orkeon #482); the next section offers them.
 
 ### Fixed — `orkeon-code --version` reads the docker image
 

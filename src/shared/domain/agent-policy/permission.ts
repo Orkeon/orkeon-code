@@ -87,6 +87,39 @@ const TOOLS_BY_CLASS: Readonly<Record<ToolClass, readonly string[]>> = {
   extra: [],
 };
 
+/**
+ * The chat family (`chat_*`, Orkeon #480, Microsoft Teams first): the host registers it at the pin, but it is offered
+ * only when the operator declared one chat account at least (`chat_accounts`, read by launchMainLoop before the turn:
+ * ToolFamilies), and to the main loop alone: a sub-agent's charter and the dev crews name their own tools. The six
+ * reads are network reads, like `browser`: each one is an outbound request to the chat service, so `plan` and
+ * `dontAsk` go without them. The four writes declare an execute whatever the call (no line in tool-access.ts): they
+ * join the shell's class, and the gate asks before each one in `default` and `acceptEdits`.
+ */
+export const CHAT_READ_TOOLS: readonly string[] = [
+  "chat_accounts", "chat_list", "chat_read", "chat_search", "chat_members", "chat_meetings",
+];
+
+/** The chat family's writes: a post, an edit, a deletion, a reaction. */
+export const CHAT_WRITE_TOOLS: readonly string[] = ["chat_send", "chat_edit", "chat_delete", "chat_react"];
+
+/** The chat family: its reads, then its writes. */
+export const CHAT_TOOLS: readonly string[] = [...CHAT_READ_TOOLS, ...CHAT_WRITE_TOOLS];
+
+/** The tool families a host offers only on a declaration of its operator's, and whether this session has one. */
+export interface ToolFamilies {
+  /** One chat account at least is declared (`chat_accounts`): the chat family joins the catalogue. */
+  chat: boolean;
+}
+
+/** No family declared: what every catalogue but the main loop's is built with. */
+export const NO_TOOL_FAMILIES: ToolFamilies = { chat: false };
+
+/** The chat family's tools by the class whose grant offers them. */
+const CHAT_TOOLS_BY_CLASS: Partial<Readonly<Record<ToolClass, readonly string[]>>> = {
+  network: CHAT_READ_TOOLS,
+  shell: CHAT_WRITE_TOOLS,
+};
+
 /** Mutating tools — added for every mode except the read-only ones. */
 export const WRITE_TOOLS: readonly string[] = [...TOOLS_BY_CLASS.edit, ...TOOLS_BY_CLASS.shell];
 
@@ -115,11 +148,17 @@ export function isReadOnly(mode: string): boolean {
 
 /**
  * The tool catalogue for a mode: the tools of the classes its policy grants, in
- * order, each class's built-in tools then the extra tools that join it.
+ * order, each class's built-in tools, then those of the declared families
+ * (`families`, none by default) that join it, then the extra tools that join it.
  */
-export function toolsetFor(mode: string, extras: readonly ExtraTool[] = []): string[] {
+export function toolsetFor(
+  mode: string, extras: readonly ExtraTool[] = [], families?: ToolFamilies,
+): string[] {
+  // The default is resolved here, not in the signature: an identifier in default-parameter position trips Jint.
+  const chat = (families ?? NO_TOOL_FAMILIES).chat;
   return policyFor(mode).toolClasses.flatMap((c) => [
     ...TOOLS_BY_CLASS[c],
+    ...(chat ? CHAT_TOOLS_BY_CLASS[c] ?? [] : []),
     ...extras.filter((t) => EXTRA_TOOL_CLASS[t.access] === c).map((t) => t.name),
   ]);
 }
@@ -219,7 +258,7 @@ export function scriptToolAccess(name: string): ScriptToolAccess | undefined {
  * register would never match anything: naming it is refused instead.
  */
 export const RULEABLE_TOOLS: readonly string[] = [
-  ...Object.values(TOOLS_BY_CLASS).flat(), ...ACT_TOOLS, ...SCRIPT_TOOLS.map((tool) => tool.name),
+  ...Object.values(TOOLS_BY_CLASS).flat(), ...CHAT_TOOLS, ...ACT_TOOLS, ...SCRIPT_TOOLS.map((tool) => tool.name),
 ];
 
 /**
@@ -302,6 +341,17 @@ export const TOOL_ARGUMENTS: Readonly<Record<string, readonly string[]>> = {
   structural_rewrite: ["dry_run", "fix", "glob", "language", "max_files", "paths", "pattern", "rule", "rule_file"],
   github: ["action", "base", "body", "head", "number", "owner", "query", "repo", "title"],
   rag_eval: ["collection", "compare", "dataset", "k", "profile", "reindex", "use_llm_judge"],
+  // The chat family (orkeon.d.ts, ChatListInput and the others): `mentions` is an array, which no rule reaches.
+  chat_accounts: [],
+  chat_list: ["account", "kind", "team", "limit", "cursor"],
+  chat_read: ["account", "place", "message_id", "since", "until", "text_chars", "limit", "cursor"],
+  chat_search: ["account", "text", "author", "mentions_me", "text_chars", "limit", "cursor"],
+  chat_members: ["account", "place", "person", "limit", "cursor"],
+  chat_meetings: ["account", "place", "join_link", "transcript_id", "cursor"],
+  chat_send: ["account", "place", "text", "format", "mentions", "reply_to"],
+  chat_edit: ["account", "place", "message_id", "thread", "text", "format", "mentions"],
+  chat_delete: ["account", "place", "message_id", "thread"],
+  chat_react: ["account", "place", "message_id", "reaction", "remove"],
   // Offered by the script host to every act, not a built-in of orkeon.d.ts (SpawnAgentScriptRequest).
   spawn_agent: ["agent", "input"],
   // Orkeon Code's own tools (SCRIPT_TOOLS), the keys of their schemas.
@@ -382,8 +432,9 @@ export function catalogueFor(
   mode: string,
   rules: readonly PermissionRule[],
   extras: readonly ExtraTool[] = [],
+  families?: ToolFamilies,
 ): CatalogueDecision {
-  const offered = toolsetFor(mode, extras);
+  const offered = toolsetFor(mode, extras, families);
   const denied = new Set(rules.filter((r) => r.effect === "deny" && coversEveryCall(r)).map((r) => r.tool));
   const inert = rules
     .filter((r) => r.effect === "allow")

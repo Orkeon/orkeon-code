@@ -4,6 +4,7 @@ import { describe, it } from "node:test";
 import { deepStrictEqual, strictEqual } from "node:assert";
 
 import { EXPLORER_CHARTER, EXPLORER_TOOLS, explorerReachable } from "../../../../src/crews/main-loop/domain/explorer-charter.ts";
+import { CHAT_TOOLS } from "../../../../src/shared/domain/agent-policy/permission.ts";
 import { charterCatalogue, charterProblems } from "../../../../src/shared/domain/agents/charter.ts";
 import { REACHABLE_CASES } from "./explorer-charter.fixtures.ts";
 
@@ -44,4 +45,17 @@ describe("explorerReachable", () => {
       strictEqual(reachable, c.reachable);
     });
   }
+});
+
+describe("EXPLORER_TOOLS, the chat family", () => {
+  it("names no chat tool: the chat family is the main loop's alone", () => {
+    // Arrange
+    const tools = EXPLORER_TOOLS;
+
+    // Act
+    const chat = tools.filter((t) => CHAT_TOOLS.includes(t));
+
+    // Assert
+    deepStrictEqual(chat, []);
+  });
 });

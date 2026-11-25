@@ -9,7 +9,7 @@ import { strictEqual, deepStrictEqual, ok } from "node:assert";
 
 import { PERMISSIONS_USAGE } from "../../../../src/commands/_lib/settings/messages.ts";
 import { CONFIG_FILE_PATH, USER_CONFIG_FILE_PATH } from "../../../../src/shared/application/config-store.ts";
-import { MEMORY_TOOLS, RULEABLE_TOOLS, scriptToolAccess, toolsetFor } from "../../../../src/shared/domain/agent-policy/permission.ts";
+import { CHAT_TOOLS, CHAT_WRITE_TOOLS, MEMORY_TOOLS, RULEABLE_TOOLS, scriptToolAccess, toolsetFor } from "../../../../src/shared/domain/agent-policy/permission.ts";
 import { RULE_SETS } from "../../../../src/shared/domain/agent-policy/rule-sets.ts";
 import { resolveFallbackMode } from "../../../../src/shared/domain/permission-modes.ts";
 import { DEFAULT_MODE_STATE_KEY, PERMISSION_RULES_STATE_KEY } from "../../../../src/shared/domain/session-keys.ts";
@@ -95,6 +95,43 @@ describe("/permissions show", () => {
     strictEqual(lines[5], "  ↳ removed by rule  : memory_push");
   });
 
+  it("lists the chat tools in the catalogue of a host that declares a chat account", async () => {
+    // Arrange
+    const { catalogue, run } = permissionsHarness();
+    catalogue.tools.set("chat_accounts", { accounts: [{ name: "team" }] });
+
+    // Act
+    const lines = (await run("show")).text!.split("\n");
+
+    // Assert
+    strictEqual(lines[3], `tool catalogue       : ${[...toolsetFor("default", [], { chat: true }), "memory_recall", "memory_push"].join(", ")}`);
+  });
+
+  it("lists the chat writes as withheld by plan on a host that declares a chat account", async () => {
+    // Arrange
+    const { store, catalogue, run } = permissionsHarness();
+    store.state.set(DEFAULT_MODE_STATE_KEY, "plan");
+    catalogue.tools.set("chat_accounts", { accounts: [{ name: "team" }] });
+
+    // Act
+    const lines = (await run("show")).text!.split("\n");
+
+    // Assert
+    assertMentions(lines[4], CHAT_WRITE_TOOLS);
+  });
+
+  it("names no chat tool in the catalogue nor as withheld on a host without a chat account", async () => {
+    // Arrange
+    const { store, run } = permissionsHarness();
+    store.state.set(DEFAULT_MODE_STATE_KEY, "plan");
+
+    // Act
+    const text = (await run("show")).text!;
+
+    // Assert
+    strictEqual(text.includes("chat_"), false, text);
+  });
+
   it("shows the /mode default, what it withholds, what the rules change, and why a rule is inert", async () => {
     // Arrange
     const { store, gate, run, seedRules } = permissionsHarness();
@@ -112,8 +149,10 @@ describe("/permissions show", () => {
     strictEqual(lines[0], "session default mode : plan (read-only)");
     strictEqual(lines[1], "  ↳ source           : set by /mode (session state)");
     // Orkeon Code's own tools belong to the dev crews that attach them: never listed for the session, except the
-    // shared memory's, which plan offers memory_recall of and withholds memory_push.
-    const withheld = RULEABLE_TOOLS.filter((t) => !toolsetFor("plan").includes(t) && (scriptToolAccess(t) === undefined || t === "memory_push"));
+    // shared memory's, which plan offers memory_recall of and withholds memory_push; nor the chat tools, which no
+    // mode offers on a host without a chat account.
+    const withheld = RULEABLE_TOOLS.filter((t) => !toolsetFor("plan").includes(t) && !CHAT_TOOLS.includes(t)
+      && (scriptToolAccess(t) === undefined || t === "memory_push"));
     strictEqual(lines[4], `  ↳ withheld by mode : ${withheld.join(", ")}`);
     strictEqual(lines[5], "  ↳ removed by rule  : file_read");
     strictEqual(lines[6], "session rules        : deny file_read, allow shell_command command=npm test*");
