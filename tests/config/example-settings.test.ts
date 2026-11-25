@@ -327,7 +327,7 @@ for (const file of DECISION_EXAMPLES) {
   });
 }
 
-test("the tool bridge example sends firefox to a bridge on loopback and holds no token", () => {
+test("the tool bridge example sends browser to a bridge on loopback and holds no token", () => {
   // Arrange
   const file = "appsettings.bridge.example.json";
 

@@ -119,7 +119,7 @@ export const TOOL_ARGUMENT_CASES: readonly { tool: string; args: readonly string
   { tool: "file_write", args: ["path", "content", "encoding", "append", "create_backup"] },
   { tool: "edge_list", args: ["cursor", "edge_kinds", "page_size", "root_fqn"] },
   {
-    tool: "firefox",
+    tool: "browser",
     args: ["action", "url", "node_id", "kind", "name", "query", "text", "key", "script", "save_to_path", "max_nodes", "offset", "tab", "profile"],
   },
 ];

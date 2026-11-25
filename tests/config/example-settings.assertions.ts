@@ -61,14 +61,14 @@ export function assertFallbacksKnown(settings: any, file: string): void {
 }
 
 /** The bridge example is a fragment: Orkeon:Tools:Bridge alone, on loopback over http (the address a Linux engine
- *  reaches with the host's network), sending `firefox`, with no token in the file. */
+ *  reaches with the host's network), sending `browser`, with no token in the file. */
 export function assertBridgeExample(settings: any): void {
   assert.deepEqual(Object.keys(settings).filter((key) => key !== "_comment"), ["Orkeon"], "the bridge example sets more than Orkeon");
   assert.deepEqual(Object.keys(settings.Orkeon), ["Tools"], "the bridge example sets more than Orkeon:Tools");
   assert.deepEqual(Object.keys(settings.Orkeon.Tools), ["Bridge"], "the bridge example sets more than Orkeon:Tools:Bridge");
   const bridge = settings.Orkeon.Tools.Bridge;
   assert.match(bridge.Address, /^http:\/\/127\.0\.0\.1:\d+\/$/, `the bridge address is not on loopback: ${bridge.Address}`);
-  assert.deepEqual(bridge.Allow, ["firefox"], "the bridge example does not send firefox alone");
+  assert.deepEqual(bridge.Allow, ["browser"], "the bridge example does not send browser alone");
   assert.equal(bridge.Token, undefined, "the bridge example holds a token");
 }
 

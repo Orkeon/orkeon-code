@@ -90,7 +90,7 @@ appel.
 | `github` | `list_issues`, `get_pr`, `search_repos`, `get_repo` | | `create_issue`, `create_pr`, une action qu'il ne connaît pas |
 | `web_scrape`, `scrape_element`, `rag_search` | tout appel | | |
 | `rag_ingest`, `rag_eval` | | tout appel | |
-| `firefox` | `navigate`, `back`, `snapshot`, `read`, `find`, `search`, `tabs`, `new_tab`, `switch_tab` | `screenshot` | `click`, `type`, `press`, `evaluate`, `close_tab`, `close` |
+| `browser` | `navigate`, `back`, `snapshot`, `read`, `find`, `search`, `tabs`, `new_tab`, `switch_tab` | `screenshot` | `click`, `type`, `press`, `evaluate`, `close_tab`, `close` |
 | `spawn_agent` | | tout appel | |
 | `memory_recall` | tout appel | | |
 | `memory_push` | | tout appel | |
@@ -124,7 +124,7 @@ sortante, qui peut emporter ailleurs le contenu du dépôt.
 > a lu dans le projet. Un projet qui ne doit rien envoyer au-dehors refuse l'outil (`/permissions add deny http_api`,
 > une règle deny qui tient dans tous les modes), ou travaille en `plan` ou en `dontAsk`, dont le catalogue l'écarte.
 
-`firefox` est aussi un outil réseau : `plan` et `dontAsk` ne l'offrent jamais, puisque charger une page est une
+`browser` est aussi un outil réseau : `plan` et `dontAsk` ne l'offrent jamais, puisque charger une page est une
 requête sortante. Là où il est offert, son `action` décide, comme le dit le tableau : `default` demande pour un
 `screenshot`, `acceptEdits` l'accepte. Sa propre politique d'URL refuse les adresses privées et de bouclage.
 L'installation est décrite dans [Configuration](configuration.md#les-settings-dont-orkeon-code-dépend). Envoyé au

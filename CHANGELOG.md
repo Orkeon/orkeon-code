@@ -7,6 +7,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed — the pin moves to Orkeon `main` `bbfc06c`, the `browser` tool replaces `firefox`
+
+- The pin moves to Orkeon `main` `bbfc06c` (Orkeon #480, #481, #483), three merges past the release `1.4.0`
+  ([ADR 0035](docs/adr/0035-orkeon-after-483.md)). The tool and docker modes still run `1.4.0`, which carries none of
+  what follows; the source mode at the pin does.
+- **Breaking**: the tool `firefox` is `browser` (Orkeon #481), one tool whatever the engine: Firefox by default,
+  Chrome, Edge, Brave or Safari when `Orkeon:Tools:Browser:Engine` of the host names it. The catalogue, the
+  permission rules (`browser(action:click)`) and the tool bridge (`"Allow": ["browser"]`) take the new name alone;
+  the section is `Orkeon:Tools:Browser`. A rule or a bridge that names `firefox` is to be rewritten: Orkeon keeps
+  that name as a deprecated twin, this project does not offer it.
+- The runtime now registers ten `chat_*` tools (Microsoft Teams first, Orkeon #480) and `orkeon-repl` keeps the
+  OAuth tokens of a chat account (Orkeon #483, asked by this project in Orkeon #482). Nothing offers them to the
+  model yet: until the next change they are reached through `tools.extra` alone.
+
 ### Fixed — `orkeon-code --version` reads the docker image
 
 - In docker mode `orkeon-code --version` names the Orkeon of the image on the machine (`1.4.0 (image …, docker

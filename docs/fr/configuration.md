@@ -188,8 +188,8 @@ celui de la section).
 - Une CLI qui tourne malgré tout sur une clé plutôt que sur sa connexion est refusée avant de répondre, et l'appel
   ne bascule pas (`Llm:AgentCli:RequireLogin`, `true`).
 - Avant le premier lancement : `claude` sur le `PATH`, connecté une fois (`claude /login`).
-- Tout mode sauf docker : Orkeon `1.4.0`, l'épingle, porte le fournisseur, si bien que les modes tool et source
-  l'exécutent. L'image n'a ni `claude` ni sa connexion.
+- Tout mode sauf docker : Orkeon `1.4.0` porte le fournisseur, et l'épingle aussi, trois commits plus loin, si bien
+  que les modes tool et source l'exécutent. L'image n'a ni `claude` ni sa connexion.
 - Chaque verbe d'`orkeon` accepte ces settings, `orkeon runs list` compris (Orkeon #472).
 - [`config/appsettings.agent-cli.example.json`](../../config/appsettings.agent-cli.example.json) est l'exemple :
   celui d'Anthropic, son profil par défaut sur `ANTHROPIC_API_KEY`, plus un profil `subscription` sur `agent-cli` dont
@@ -248,7 +248,7 @@ fournisseur. Un résultat d'outil parvient au modèle coupé à 4000 caractères
 | `Orkeon:Rag:Retrieval:MinScore` | Le score sous lequel un passage est écarté, pour toute recherche RAG et pas seulement la mémoire partagée |
 | `Orkeon:Tools:GitHub:Token` | Le jeton de l'outil `github`, lu une fois à l'enregistrement de l'outil ; préférez la variable ci-dessous à un jeton écrit dans un fichier de settings, que les exemples laissent de côté |
 | `Orkeon:Tools:GitHub:TokenVariable` | La variable d'environnement où l'outil `github` lit son jeton quand `Token` n'est pas réglé : `GITHUB_TOKEN` par défaut, puis `GH_TOKEN` |
-| `Orkeon:Tools:Firefox:*` | L'outil `firefox`, qui pilote le Firefox de la machine hôte par WebDriver BiDi, sans rien télécharger |
+| `Orkeon:Tools:Browser:*` | L'outil `browser`, qui pilote un navigateur installé sur la machine hôte, sans rien télécharger : Firefox par défaut, ou celui que nomme `Engine` |
 | `Orkeon:Tools:Bridge:*` | Les outils qu'une session en Docker envoie à `orkeon bridge serve` sur votre machine : `Address`, `Allow`, `HostHeader`, `TokenEnvVar` ([Pont d'outils](tool-bridge.md)) |
 | `Orkeon:Cli:ConsoleStreaming:Enabled` | Affiche la réponse au fil de sa génération |
 | `Orkeon:Cli:Tui:Theme` | La palette sur laquelle démarre la console à panneaux : `dark`, `light` ou `none` ; sans elle `dark`, ou `none` avec `NO_COLOR`. Toute autre valeur empêche le démarrage. `/theme` la change pour la session |
@@ -264,10 +264,14 @@ Ce que le tableau laisse de côté :
   - 4000, `file_read` 32000, `node_read` 256000, `shell_command` 10000, et 12000 pour les douze outils d'analyse
     (`dependency_graph`, `sub_graph`, `edge_list`, `codebase_search`, `symbol_detail`…), dont le JSON
     place `truncated`, les comptes et le curseur en tête, si bien qu'un résultat coupé dit encore qu'il est partiel.
-- **`Orkeon:Tools:Firefox:*`** :
+- **`Orkeon:Tools:Browser:*`** :
+  - `Engine` : `firefox` par défaut, `chrome`, `edge`, `brave`, ou `safari` sous macOS. Les actions et les réponses
+    sont les mêmes sur chacun, et chaque réponse nomme son `engine`.
   - `ExecutablePath` quand il n'est pas dans le `PATH`, `Headless` pour masquer sa fenêtre, visible par défaut (sans
     affichage il démarre sans fenêtre), `Profile`, `AllowedProfiles` et `DeniedProfiles` pour un profil autre que le
     profil jetable, `Lifetime` : `run` par défaut, le navigateur se ferme avec le tour de l'agent.
+  - Avec Chrome, Edge ou Brave, un profil nommé est le chemin d'un dossier, jamais un nom de profil ; Safari n'a pas
+    de `Headless`.
 - **`Orkeon:Security:PermissionGate:Enabled` = `true`** :
   - Le lanceur l'active sauf si le fichier de settings dit le contraire.
   - Sans elle, aucun appel n'est contrôlé et les modes ne font que façonner le catalogue.
@@ -316,13 +320,15 @@ Ce que le tableau laisse de côté :
   - Sans jeton, la description de l'outil dit où le régler.
   - Un jeton apparaît en `***` dans les résultats et les journaux, et aucune des deux clés n'accepte une référence
     de variable.
-- **`Orkeon:Tools:Firefox:*`** :
+- **`Orkeon:Tools:Browser:*`** :
   - `host` le garde ouvert avec ses onglets d'un tour à l'autre, un navigateur par profil, jusqu'à `close`, la
     fermeture de la fenêtre à la main ou l'arrêt de la console.
   - Un navigateur que `host` garde reste ouvert quand la session passe en `plan` ou `dontAsk`, qui retirent l'outil
     : l'agent ne peut pas le piloter de là.
-  - Il demande le mode source : les runtimes de release n'ont pas l'outil, et la présence d'un Firefox dans l'image
-    docker n'a pas été vérifiée.
+  - Il demande un runtime à l'épingle : le mode source, ou en mode docker une image construite à l'épingle avec le
+    [pont d'outils](tool-bridge.md), puisque l'image n'a pas de navigateur.
+  - La release `1.4.0`, qu'exécutent les modes tool et docker, n'a l'outil que sous son ancien nom `firefox`, et
+    Orkeon Code offre `browser`.
 - **`Orkeon:Cli:ConsoleStreaming:Enabled`** :
   - L'exemple l'active.
   - Une commande n'imprime plus rien une fois la réponse diffusée.

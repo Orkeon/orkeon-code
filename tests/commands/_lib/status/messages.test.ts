@@ -56,9 +56,9 @@ describe("B-11 audit — the release notes that had gone stale", () => {
     deepStrictEqual(omitted, [], `RELEASE_NOTES omits ${omitted.join(" and ")}`);
   });
 
-  it("names the stable release and the Orkeon release it runs on", () => {
+  it("names the pin and the Orkeon release the tool and docker modes run", () => {
     // Arrange
-    const line = `First stable release, on Orkeon 1.4.0 (main ${ORKEON_RUNTIME_PIN}), the release every mode runs.`;
+    const line = `On Orkeon main ${ORKEON_RUNTIME_PIN}, past the release Orkeon 1.4.0 that the tool and docker modes run.`;
 
     // Act
     const stated = RELEASE_NOTES.includes(line);

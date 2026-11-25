@@ -3,7 +3,7 @@
 // reads for `list_issues`, `get_pr`, `search_repos` and `get_repo`, executes for `create_issue`, `create_pr` and an
 // unknown or missing action; `http_api` reads for `GET`, `HEAD`, `OPTIONS` and a missing method, executes for any
 // other method and for a read method that carries a body or a method-override header; `web_search` reads whatever
-// the call; `firefox` reads for the actions that only look (FIREFOX_READ_ACTIONS), executes for any other and for a
+// the call; `browser` reads for the actions that only look (BROWSER_READ_ACTIONS), executes for any other and for a
 // missing one, its `screenshot` included: Orkeon declares that one an edit, which this table has no word for, and
 // execute is the answer that lets no more through. The arguments are read as Orkeon reads them: a key matched case aside (`Method`, `BODY`), the action
 // trimmed and compared case aside, the method compared case aside (an empty one is no read method), a body present
@@ -20,8 +20,8 @@ export type ToolAccess = "read" | "execute";
 /** The `github` actions Orkeon reads for. */
 export const GITHUB_READ_ACTIONS: readonly string[] = ["list_issues", "get_pr", "search_repos", "get_repo"];
 
-/** The `firefox` actions Orkeon reads for. */
-export const FIREFOX_READ_ACTIONS: readonly string[] = [
+/** The `browser` actions Orkeon reads for. */
+export const BROWSER_READ_ACTIONS: readonly string[] = [
   "navigate", "back", "snapshot", "read", "find", "search", "tabs", "new_tab", "switch_tab",
 ];
 
@@ -69,7 +69,7 @@ const carriesMethodOverride = (headers: unknown): boolean => {
 /** The tools whose access follows their `action`, with the actions that read. */
 const READ_ACTIONS_OF: Readonly<Record<string, readonly string[]>> = {
   github: GITHUB_READ_ACTIONS,
-  firefox: FIREFOX_READ_ACTIONS,
+  browser: BROWSER_READ_ACTIONS,
 };
 
 /** The access Orkeon declares for this call; null when the tool declares one access whatever the call, as its class says. */

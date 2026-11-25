@@ -1,26 +1,28 @@
 # The tool bridge: the browser of your machine for a session in Docker
 
-In docker mode the agents run in a container, which has no Firefox and no screen. Orkeon's tool bridge (Orkeon #445)
+In docker mode the agents run in a container, which has no browser and no screen. Orkeon's tool bridge (Orkeon #445)
 runs chosen tools on your machine instead: `orkeon bridge serve` listens on your loopback, and the runtime in the
 container sends it the calls of the tools its settings name. The tool keeps its name, its schema and its access
-classes: the agent sees `firefox` as before, and the permission gate of the container judges each call as before
+classes: the agent sees `browser` as before, and the permission gate of the container judges each call as before
 ([Permissions](permissions.md)). This page sets both sides up for Orkeon Code. Orkeon's own guide,
 [Orkeon in a container, the browser on the desktop](https://github.com/Orkeon/orkeon/blob/main/docs/guides/tool-bridge.md),
 covers the protocol, the limits and https.
 
-Tool and source modes need none of this: the runtime runs on your machine and drives its Firefox itself.
+Tool and source modes need none of this: the runtime runs on your machine and drives the browser of your machine itself.
 
 ## What you need
 
-- Both sides at the same Orkeon commit: the bridge refuses a tool whose contract differs. Orkeon `1.4.0`, the pin of
-  `.orkeon-version`, carries the bridge:
-  - in the container, the image of the last release, `ghcr.io/orkeon/orkeon:latest` (`docker pull` it if yours is
-    older);
-  - on your machine, the `orkeon` CLI of the same release (the `orkeon` Debian package, an Orkeon release archive or
-    the `.msi`).
-- Firefox on your machine.
+- Both sides at the same Orkeon commit: the bridge refuses a tool whose contract differs. The bridge came with Orkeon
+  `1.4.0`, the `browser` tool three commits later, with the pin of `.orkeon-version`: the release `1.4.0` has the
+  tool under its former name `firefox` only, which Orkeon Code no longer offers. Until a release carries `browser`,
+  both sides are built at the pin, as below:
+  - in the container, an image built at the pin;
+  - on your machine, the `orkeon` CLI built at the same commit.
+- On your machine, the browser of the engine the bridge drives: Firefox by default; `Orkeon:Tools:Browser:Engine` in
+  the bridge's settings picks Chrome, Edge, Brave or Safari instead.
 
-When the pin runs ahead of the release, build both sides from an Orkeon checkout at the pin
+Once a release carries `browser`, its image `ghcr.io/orkeon/orkeon:latest` and its `orkeon` CLI (the Debian package,
+a release archive or the `.msi`) do. Until then, build both sides from an Orkeon checkout at the pin
 (`git -C ~/src/orkeon checkout "$(cat .orkeon-version)"`, run from this checkout), then name the image with
 `ORKEON_CODE_IMAGE=orkeon-local:pin` and serve with
 `dotnet ~/src/orkeon/src/scripting/Orkeon.Scripting.Cli/bin/Debug/net10.0/orkeon.dll` in place of `orkeon`:
@@ -45,10 +47,10 @@ too.
 
 ## 2. The bridge, on your machine
 
-In a folder of its own, an `appsettings.json` that serves `firefox`:
+In a folder of its own, an `appsettings.json` that serves `browser`:
 
 ```json
-{ "Orkeon": { "Bridge": { "Allow": ["firefox"] } } }
+{ "Orkeon": { "Bridge": { "Allow": ["browser"] } } }
 ```
 
 Then, from that folder:
@@ -59,12 +61,12 @@ orkeon bridge serve
 
 ```text
 orkeon bridge serve: listening on http://127.0.0.1:7410/
-orkeon bridge serve: serving firefox
+orkeon bridge serve: serving browser
 orkeon bridge serve: Ctrl+C stops it.
 ```
 
-Firefox runs with the bridge's settings: `Orkeon:Tools:Firefox` (`Headless`, the profiles) goes in this file, not in
-Orkeon Code's. The calls an agent makes during its turn share one browser. A crew's code that calls `firefox` itself,
+The browser runs with the bridge's settings: `Orkeon:Tools:Browser` (`Engine`, `Headless`, the profiles) goes in this file, not in
+Orkeon Code's. The calls an agent makes during its turn share one browser. A crew's code that calls `browser` itself,
 outside the model's turn, gets a fresh browser at each call (a `read` after `navigate` sees `about:blank`), unless
 `"Lifetime": "Host"` keeps the browser open until `close`.
 
@@ -73,7 +75,7 @@ outside the model's turn, gets a fresh browser at each call (a `read` after `nav
 Merge [`config/appsettings.bridge.example.json`](../config/appsettings.bridge.example.json) into your settings:
 
 ```json
-{ "Orkeon": { "Tools": { "Bridge": { "Address": "http://127.0.0.1:7410/", "Allow": ["firefox"] } } } }
+{ "Orkeon": { "Tools": { "Bridge": { "Address": "http://127.0.0.1:7410/", "Allow": ["browser"] } } } }
 ```
 
 Then start Orkeon Code in docker mode, with the token exported:
@@ -93,7 +95,7 @@ and `orkeon-code run`):
 The launcher reads the settings as plain JSON. The runtime also takes comments and trailing commas; the launcher
 refuses such a file when it names a bridge, rather than start a container without its token.
 
-At start the runtime logs `Tool bridge: Orkeon:Tools:Bridge selects firefox`. A bridge that cannot be reached stops
+At start the runtime logs `Tool bridge: Orkeon:Tools:Bridge selects browser`. A bridge that cannot be reached stops
 the start: `the tool bridge at http://127.0.0.1:7410/ cannot be reached (Connection refused …)`.
 
 ### Docker Desktop (Windows, macOS)
@@ -103,7 +105,7 @@ listener answers only the host its prefix names. The runtime sends `127.0.0.1:74
 under Windows the listener's prefix is `http://localhost:7410/`, so set `HostHeader` to `localhost:7410`:
 
 ```json
-{ "Orkeon": { "Tools": { "Bridge": { "Address": "http://host.docker.internal:7410/", "HostHeader": "localhost:7410", "Allow": ["firefox"] } } } }
+{ "Orkeon": { "Tools": { "Bridge": { "Address": "http://host.docker.internal:7410/", "HostHeader": "localhost:7410", "Allow": ["browser"] } } } }
 ```
 
 Over http the token and the calls cross Docker's virtual network in clear, and the runtime warns at start.
@@ -112,10 +114,12 @@ Over http the token and the calls cross Docker's virtual network in clear, and t
 
 On Linux with a Docker engine (29.10), an image and a CLI built from Orkeon `5dc2ff3`, the pin of that day:
 
-- `orkeon-code run` with a crew that calls `firefox`: the page opens on the machine's Firefox, and the screenshot
+- `orkeon-code run` with a crew that calls the browser tool, under the name it had then: the page opens on the
+  machine's Firefox, and the screenshot
   saved to `/output` reaches the session's output folder;
 - the REPL in docker mode starts with the bridge and leaves on `/exit`;
 - with the bridge stopped, the start is refused with the runtime's message; with no token, the launcher refuses before
   the container starts.
 
-Not checked: Docker Desktop, Windows (`orkeon-code.ps1` is checked by its text only), and an https bridge.
+Not checked: Docker Desktop, Windows (`orkeon-code.ps1` is checked by its text only), an https bridge, and the
+`browser` tool of the pin through the bridge.

@@ -85,7 +85,7 @@ write. Where the access depends on the arguments, the gate reads it per call.
 | `github` | `list_issues`, `get_pr`, `search_repos`, `get_repo` | | `create_issue`, `create_pr`, an action it does not know |
 | `web_scrape`, `scrape_element`, `rag_search` | every call | | |
 | `rag_ingest`, `rag_eval` | | every call | |
-| `firefox` | `navigate`, `back`, `snapshot`, `read`, `find`, `search`, `tabs`, `new_tab`, `switch_tab` | `screenshot` | `click`, `type`, `press`, `evaluate`, `close_tab`, `close` |
+| `browser` | `navigate`, `back`, `snapshot`, `read`, `find`, `search`, `tabs`, `new_tab`, `switch_tab` | `screenshot` | `click`, `type`, `press`, `evaluate`, `close_tab`, `close` |
 | `spawn_agent` | | every call | |
 | `memory_recall` | every call | | |
 | `memory_push` | | every call | |
@@ -118,7 +118,7 @@ can carry the repository's content elsewhere.
 > project. A project that must not reach out denies the tool (`/permissions add deny http_api`, a deny rule holding in
 > every mode), or works in `plan` or `dontAsk`, whose catalogue withholds it.
 
-`firefox` is a network tool too: `plan` and `dontAsk` never offer it, since loading a page is an outbound request.
+`browser` is a network tool too: `plan` and `dontAsk` never offer it, since loading a page is an outbound request.
 Where it is offered, its `action` decides, as the table says: `default` asks for a `screenshot` and `acceptEdits`
 accepts it. Its own URL policy refuses private and loopback addresses. The setup is in
 [Configuration](configuration.md#settings-orkeon-code-relies-on). Sent to the [tool bridge](tool-bridge.md), it keeps

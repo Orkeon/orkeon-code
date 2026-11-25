@@ -98,8 +98,8 @@ mkdir -p ~/audio && timeout 20 parecord --channels=1 --rate=16000 --file-format=
 
 ## 3. Orkeon from its apt package
 
-The `stable` channel carries the last release of Orkeon, `1.4.0`: at this writing it is the commit Orkeon Code is
-checked against (`.orkeon-version`), so the tool mode runs the pin ([Getting started](getting-started.md)). The
+The `stable` channel carries the last release of Orkeon, `1.4.0`: at this writing it is three commits behind the commit
+Orkeon Code is checked against (`.orkeon-version`), and lacks the `browser` tool they add ([Getting started](getting-started.md)). The
 `dev` channel publishes one package per commit of `main` the CI validated, versioned `<next patch>~dev.<n>`
 (`1.4.1~dev.<n>` after `1.4.0`; `n` is the number of the CI run), the last three builds only: it is for following `main` ahead of the pin, not for this
 tutorial. The package installs `/usr/bin/orkeon-repl` (the REPL, with its
@@ -189,8 +189,8 @@ A first REPL, without speech, on the throwaway sample repository (`--demo`), in 
 ./orkeon-code --mode tool --demo
 ```
 
-The banner shows `orkeon-code <version> on Orkeon (tool: a release, the pin is 0389fd2)`: the tool mode runs the
-package's release, `1.4.0`, the commit of the pin of `.orkeon-version` at this writing. Then come the project and the settings file. In the REPL:
+The banner shows `orkeon-code <version> on Orkeon (tool: a release, the pin is bbfc06c)`: the tool mode runs the
+package's release, `1.4.0`, three commits behind the pin of `.orkeon-version` at this writing. Then come the project and the settings file. In the REPL:
 
 | Command | Expected |
 |---|---|

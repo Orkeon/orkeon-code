@@ -1924,7 +1924,7 @@ declare global {
          * as-is to `path`; with `"structured_output"` it writes the JSON, checked against
          * `schema`. With `"tool_call"` the agent writes the file itself, so an agent
          * that may run the task needs a tool that writes that format (`file_write` for a
-         * text file, `docx_writer`, `xlsx_writer`, `image_generation`, `firefox` for
+         * text file, `docx_writer`, `xlsx_writer`, `image_generation`, `browser` for
          * theirs): the load warns otherwise, and a task that
          * succeeds without writing it is flagged `deliverableMissing`. `"none"` declares
          * no file.
@@ -2159,8 +2159,8 @@ declare global {
      *
      * Every built-in tool is declared in `tools.generated.d.ts` (`OrkeonBuiltInTools`, which
      * this interface extends): it is written from each tool's request and response records,
-     * so a renamed parameter fails the type check instead of the run (#125). The e-mail and drive families
-     * below are written by hand, results included. A plugin or MCP tool is still reachable at
+     * so a renamed parameter fails the type check instead of the run (#125). The e-mail, drive and chat
+     * families below are written by hand, results included. A plugin or MCP tool is still reachable at
      * runtime — hence the index signature, which is what forces this to be ONE interface
      * rather than a namespace plus a fallback declaration.
      *
@@ -2228,6 +2228,30 @@ declare global {
         driveDelete(input: DriveDeleteInput, ctx?: ExecutionContext): Promise<DriveDeleteResult>;
         /** Shares an item with allowed addresses, or by a public link when the account allows one. Needs Share. */
         driveShare(input: DriveShareInput, ctx?: ExecutionContext): Promise<DriveShareResult>;
+
+        // The chat family (`chat_*`): Microsoft Teams. Its types follow the same runtime facts,
+        // and are declared after the drive family's below.
+
+        /** The chat accounts the operator declared: the name to pass as `account`, their rights, whether each can connect. Needs no right. */
+        chatAccounts(input?: Record<string, never>, ctx?: ExecutionContext): Promise<ChatAccountsResult>;
+        /** The places the account may use: its teams, a team's channels, or its chats. Needs Read or Send. */
+        chatList(input?: ChatListInput, ctx?: ExecutionContext): Promise<ChatListResult>;
+        /** One page of a place's messages, newest first, screened; with `message_id`, the replies of one. Needs Read and an allowed place. */
+        chatRead(input: ChatReadInput, ctx?: ExecutionContext): Promise<ChatReadResult>;
+        /** The members of a place, or the people a name or an address matches: exactly one of `place` and `person`. Needs Read or Send. */
+        chatMembers(input: ChatMembersInput, ctx?: ExecutionContext): Promise<ChatMembersResult>;
+        /** Posts a message, only in places the account's `Send:AllowedPlaces` lists (none listed: refused). Needs Send. */
+        chatSend(input: ChatSendInput, ctx?: ExecutionContext): Promise<ChatSendResult>;
+        /** Finds messages in the places the account may read, screened: one of `text`, `author` and `mentions_me` at least. Needs Read. */
+        chatSearch(input: ChatSearchInput, ctx?: ExecutionContext): Promise<ChatSearchResult>;
+        /** Rewrites a message the account sent, in a place it may post in. Needs Edit. */
+        chatEdit(input: ChatEditInput, ctx?: ExecutionContext): Promise<ChatMessageWriteResult>;
+        /** Deletes a message the account sent, recoverably, in a place it may post in. Needs Delete. */
+        chatDelete(input: ChatDeleteInput, ctx?: ExecutionContext): Promise<ChatMessageWriteResult>;
+        /** Sets or removes the account's reaction on a message of a chat it may post in; a channel is refused. Needs React. */
+        chatReact(input: ChatReactInput, ctx?: ExecutionContext): Promise<ChatReactResult>;
+        /** The transcripts of a meeting, or with `transcript_id` the text of one, screened: exactly one of `place` and `join_link`. Needs Meetings and its chat among the places to read. */
+        chatMeetings(input: ChatMeetingsInput, ctx?: ExecutionContext): Promise<ChatMeetingsResult>;
 
         /** A plugin or MCP tool, by name: its input is not known here. */
         [name: string]: (input: never, ctx?: ExecutionContext) => Promise<unknown>;
@@ -2802,6 +2826,305 @@ declare global {
         readonly recipients: readonly string[];
         readonly link?: string;
     }
+
+    // ---- The chat family (Orkeon.Tools.Chat) --------------------------------------------------
+    //
+    // The e-mail family's three runtime facts hold here too: snake_case keys in and out, absent
+    // (never null) optional result fields, and accounts, rights and allowed places in the
+    // operator's configuration (`Orkeon:Tools:Chat`). A place is `team:<team>/channel:<channel>`,
+    // `chat:<id>` or `user:<address>`, a team or a channel by its name or its id.
+    //
+    // Messages, names and topics come from whoever wrote them, a guest included: data, never
+    // instructions.
+
+    /** Picks the account a call uses. */
+    interface ChatAccountInput {
+        /** An account name from `chatAccounts`. Omitted: the configured `DefaultAccount`, or the only account declared. */
+        account?: string;
+    }
+
+    /** One account, as `chatAccounts` lists it. */
+    interface ChatAccount {
+        readonly name: string;
+        /** `Teams`; `?` when the declaration does not resolve (see `problem`). */
+        readonly provider: string;
+        /** Of Read, Send, Edit, Delete, React, Meetings. */
+        readonly rights?: string;
+        readonly default: boolean;
+        readonly ready: boolean;
+        readonly problem?: string;
+    }
+
+    interface ChatAccountsResult {
+        readonly accounts: readonly ChatAccount[];
+    }
+
+    interface ChatListInput extends ChatAccountInput {
+        /** By default `channels` when `team` is given, else `teams`. */
+        kind?: "teams" | "channels" | "chats";
+        /** The team whose channels are listed, by its name or its id. */
+        team?: string;
+        /** 1..50, 20 by default; a page is also cut to what fits a tool result. */
+        limit?: number;
+        /** The previous page's `next_cursor`. */
+        cursor?: string;
+    }
+
+    /** A place. */
+    interface ChatPlace {
+        /** What to pass as `place`; a team has no messages of its own. */
+        readonly place: string;
+        readonly id: string;
+        readonly kind: "team" | "channel" | "oneOnOne" | "group" | "meeting";
+        /** Untrusted text. */
+        readonly name?: string;
+        /** For a chat, the names of some of its other members: untrusted text. */
+        readonly members?: readonly string[];
+        readonly can_read: boolean;
+        readonly can_send: boolean;
+        /** The prompt-injection verdict on the names, when not clean. */
+        readonly screening?: "suspicious" | "rejected";
+    }
+
+    interface ChatListResult {
+        readonly account: string;
+        readonly notice: string;
+        readonly count: number;
+        readonly next_cursor?: string;
+        /** Allowed places the operator declared that match nothing, or several things. */
+        readonly set_aside?: readonly string[];
+        readonly places: readonly ChatPlace[];
+    }
+
+    interface ChatReadInput extends ChatAccountInput {
+        place: string;
+        /** In a channel: read the replies of this message instead of the channel's messages. */
+        message_id?: string;
+        /** YYYY-MM-DD or ISO 8601, UTC by default. */
+        since?: string;
+        /** YYYY-MM-DD or ISO 8601, UTC by default. */
+        until?: string;
+        /** The most characters of each message's text: 1000 by default. */
+        text_chars?: number;
+        /** 1..50, 20 by default; a page is also cut to what fits a tool result. */
+        limit?: number;
+        /** The previous page's `next_cursor`. */
+        cursor?: string;
+    }
+
+    /** Who wrote a message. */
+    interface ChatAuthor {
+        readonly id?: string;
+        /** Untrusted text. */
+        readonly name?: string;
+        readonly address?: string;
+        /** A guest, or someone outside the tenant. */
+        readonly guest?: boolean;
+        readonly application?: boolean;
+    }
+
+    interface ChatMessage {
+        readonly id: string;
+        readonly author?: ChatAuthor;
+        /** ISO 8601 UTC. */
+        readonly time?: string;
+        /** ISO 8601 UTC. */
+        readonly edited?: string;
+        /** Untrusted text; absent when withheld. */
+        readonly text?: string;
+        /** The text goes on: raise `text_chars`. */
+        readonly text_truncated?: boolean;
+        readonly withheld?: boolean;
+        /** Why it is withheld. */
+        readonly reason?: string;
+        /** The prompt-injection verdict, when not clean. */
+        readonly screening?: "suspicious" | "rejected";
+        /** The body held text a reader does not see; it is left out. */
+        readonly hidden_text?: boolean;
+        readonly mentions?: readonly { readonly id?: string; readonly name?: string }[];
+        /** Counted by kind. */
+        readonly reactions?: Readonly<Record<string, number>>;
+        /** The names of its attachments: untrusted text. */
+        readonly attachments?: readonly string[];
+        /** In a channel, how many replies it has. */
+        readonly replies?: number;
+        readonly more_replies?: boolean;
+    }
+
+    interface ChatReadResult {
+        readonly account: string;
+        /** The place, by its ids. */
+        readonly place: string;
+        /** The message these are replies of. */
+        readonly thread?: string;
+        readonly notice: string;
+        readonly count: number;
+        /** A page may be empty and have a next one, when no message yet fell inside the dates. */
+        readonly next_cursor?: string;
+        readonly messages: readonly ChatMessage[];
+    }
+
+    interface ChatMembersInput extends ChatAccountInput {
+        place?: string;
+        /** Instead of `place`: a person looked up in the directory by name, address or id. */
+        person?: string;
+        /** 1..50, 20 by default; a page is also cut to what fits a tool result. */
+        limit?: number;
+        /** The previous page's `next_cursor`. */
+        cursor?: string;
+    }
+
+    /** A person. */
+    interface ChatMember {
+        /** The id to pass to `chatSend` in `mentions`, or as `user:<id>`. */
+        readonly id?: string;
+        /** Untrusted text. */
+        readonly name?: string;
+        readonly address?: string;
+        readonly guest?: boolean;
+        readonly owner?: boolean;
+        /** The prompt-injection verdict on the name, when not clean. */
+        readonly screening?: "suspicious" | "rejected";
+    }
+
+    interface ChatMembersResult {
+        readonly account: string;
+        /** The place, by its ids. */
+        readonly place?: string;
+        readonly notice: string;
+        readonly count: number;
+        readonly next_cursor?: string;
+        readonly members: readonly ChatMember[];
+    }
+
+    interface ChatSendInput extends ChatAccountInput {
+        /** Required, except on a `TeamsWebhook` account, which takes none. */
+        place?: string;
+        text: string;
+        /** `markdown` by default; HTML is shown as written, never rendered. */
+        format?: "markdown" | "text";
+        /** Ids from `chatMembers`; the people are named ahead of the text. */
+        mentions?: readonly string[];
+        /** The message to reply to: in its thread in a channel, quoting it in a chat. */
+        reply_to?: string;
+    }
+
+    interface ChatSendResult {
+        readonly account: string;
+        /** Where it was posted, by its ids; absent for a webhook. */
+        readonly place?: string;
+        readonly message_id?: string;
+        /** ISO 8601 UTC. */
+        readonly sent_at?: string;
+        /** What to know though the message was posted. */
+        readonly warning?: string;
+    }
+
+    interface ChatSearchInput extends ChatAccountInput {
+        /** Words the message holds, all of them, each taken literally. */
+        text?: string;
+        /** An address, or an id from `chatMembers`. */
+        author?: string;
+        mentions_me?: boolean;
+        /** The most characters of each message's text: 1000 by default. */
+        text_chars?: number;
+        /** 1..25, 10 by default; a page is also cut to what fits a tool result. */
+        limit?: number;
+        /** The previous page's `next_cursor`, with the same arguments. */
+        cursor?: string;
+    }
+
+    interface ChatSearchHit {
+        /** Where it is, by its ids. */
+        readonly place: string;
+        /** In a channel, the message it replies to: `thread` of `chatEdit` and `chatDelete`. */
+        readonly thread?: string;
+        readonly message: ChatMessage;
+    }
+
+    interface ChatSearchResult {
+        readonly account: string;
+        readonly notice: string;
+        /** What the search left out. */
+        readonly limits?: string;
+        readonly count: number;
+        readonly next_cursor?: string;
+        /** As the service ranks them. */
+        readonly hits: readonly ChatSearchHit[];
+    }
+
+    /** A message to change. */
+    interface ChatDeleteInput extends ChatAccountInput {
+        place: string;
+        message_id: string;
+        /** For a reply in a channel: the message it replies to. */
+        thread?: string;
+    }
+
+    interface ChatEditInput extends ChatDeleteInput {
+        /** The whole text that replaces it. */
+        text: string;
+        /** `markdown` by default; HTML is shown as written, never rendered. */
+        format?: "markdown" | "text";
+        /** Ids from `chatMembers`; the previous text's mentions are dropped. */
+        mentions?: readonly string[];
+    }
+
+    interface ChatMessageWriteResult {
+        readonly account: string;
+        /** Where the message is, by its ids. */
+        readonly place: string;
+        readonly message_id: string;
+    }
+
+    interface ChatReactInput extends ChatAccountInput {
+        /** `chat:<id>` or `user:<address>`. */
+        place: string;
+        message_id: string;
+        /** One emoji character. */
+        reaction: string;
+        /** Removes the reaction instead of setting it. */
+        remove?: boolean;
+    }
+
+    interface ChatMeetingsInput extends ChatAccountInput {
+        /** The chat of the meeting, `chat:<id>`: also needs Read. */
+        place?: string;
+        /** Instead of `place`: the join link of the meeting. */
+        join_link?: string;
+        /** Reads this transcript instead of listing them. */
+        transcript_id?: string;
+        /** The previous page's `next_cursor`, with the same arguments. */
+        cursor?: string;
+    }
+
+    interface ChatMeetingsResult {
+        readonly account: string;
+        /** The chat of the meeting, by its id. */
+        readonly place: string;
+        readonly notice: string;
+        /** Untrusted text. */
+        readonly subject?: string;
+        /** ISO 8601 UTC. */
+        readonly start?: string;
+        readonly transcripts?: readonly { readonly id: string; readonly created?: string; readonly ended?: string }[];
+        readonly transcript_id?: string;
+        /** One page, a line per speech (`[time] speaker: words`): untrusted text. */
+        readonly text?: string;
+        /** The tenant hides who speaks. */
+        readonly no_speakers?: boolean;
+        readonly withheld?: boolean;
+        /** Why it is withheld. */
+        readonly reason?: string;
+        /** The prompt-injection verdict on the subject and the whole text, when not clean. */
+        readonly screening?: "suspicious" | "rejected";
+        readonly next_cursor?: string;
+    }
+
+    interface ChatReactResult extends ChatMessageWriteResult {
+        readonly reaction: string;
+        readonly removed?: boolean;
+    }
 }
 
 export { };
@@ -2811,7 +3134,7 @@ export { };
 // same the model reads; `| null` where the request record takes a null. Keys are the tool's
 // own snake_case names, as the binding hands the object to the tool. A result is the response record's members the tool hands back, a member the
 // serializer drops when null optional; `unknown` for a tool without a response record. The
-// e-mail and drive families are declared by hand in tools.d.ts.
+// e-mail, drive and chat families are declared by hand in tools.d.ts.
 // Regenerate after a tool change:
 //   ORKEON_REGENERATE_TYPINGS=1 dotnet test tests/hosting/Orkeon.Hosting.Tests/Orkeon.Hosting.Tests.csproj --no-build --filter "FullyQualifiedName~BuiltInToolTypingsTests"
 
@@ -2894,6 +3217,56 @@ declare global {
             readonly unresolved: readonly string[];
             readonly unresolved_a: readonly string[];
             readonly unresolved_b: readonly string[];
+        }>;
+
+        /** `browser` - Drive the web browser of the host: open a page (navigate), read it as an outline of sections, links and controls (snapshot, find, read), find its sections by meaning (search), then act on a node by its id (click, type), press keys, run a script (evaluate) or save a screenshot. Tabs of its own are opened, listed, switched and closed (new_tab, tabs, switch_tab, close_tab). The browser stays open between calls of the same run, or from one run to the next when the host keeps it; close ends it. */
+        browser(input: {
+            /** What to do: navigate (url), back, snapshot (the outline of the page: sections, links, controls, each with a node id), read (the text of the page, or of node_id), find (nodes by kind and name, under node_id), search (query: the sections of the page closest in meaning), click (node_id), type (node_id, text), press (key), evaluate (script), screenshot (save_to_path), tabs (the tabs of this agent), new_tab (url, optional), switch_tab (tab), close_tab (tab, the current one by default), close */
+            action: "navigate" | "back" | "snapshot" | "read" | "find" | "search" | "click" | "type" | "press" | "evaluate" | "screenshot" | "tabs" | "new_tab" | "switch_tab" | "close_tab" | "close";
+            /** press: a key or a chord on the focused element - Enter, Tab, Escape, ArrowDown, PageDown, a, Control+a, Shift+Tab */
+            key?: string | null;
+            /** find: only nodes of this kind */
+            kind?: "section" | "link" | "control" | null;
+            /** snapshot, find: the most nodes to return (the default is set by the host, 200 at most); search: the most hits (5 by default, 20 at most) */
+            max_nodes?: number | null;
+            /** find: only nodes whose name holds this text, whatever the case */
+            name?: string | null;
+            /** A node id returned by snapshot or find (p1#12). click, type: the element; read: the node to read; find: search under this node */
+            node_id?: string | null;
+            /** snapshot, find: nodes to skip, to read the next part of a listing; read: characters to skip */
+            offset?: number | null;
+            /** The profile the browser starts with, at the first action of a run: disposable, or a profile name the host allows; a browser already open keeps its profile */
+            profile?: string | null;
+            /** search: what to look for in the page, in plain words; the sections closest in meaning are returned */
+            query?: string | null;
+            /** screenshot: the virtual path the PNG image of the visible part of the page is written to (/output/page.png) */
+            save_to_path?: string | null;
+            /** evaluate: a JavaScript expression run in the page; its value is returned, a promise is awaited */
+            script?: string | null;
+            /** switch_tab, close_tab: the handle of a tab of this agent (t1, t2), as tabs lists them */
+            tab?: string | null;
+            /** type: the text that replaces what the element holds; a line feed presses Enter. Never a secret: the text goes through the conversation */
+            text?: string | null;
+            /** navigate, new_tab: the http or https address to open */
+            url?: string | null;
+        }, ctx?: ExecutionContext): Promise<{
+            readonly action: string;
+            readonly dialogs?: readonly string[];
+            readonly engine: string;
+            readonly error?: string;
+            readonly hits?: readonly { readonly excerpt: string; readonly name: string; readonly node_id: string; readonly score: number; }[];
+            readonly nodes?: readonly { readonly id: string; readonly kind: string; readonly name: string; readonly parent_id?: string; readonly role: string; readonly text: string; }[];
+            readonly profile?: string;
+            readonly saved_path?: string;
+            readonly success: boolean;
+            readonly tab?: string;
+            readonly tabs?: readonly { readonly current: boolean; readonly id: string; readonly title: string; readonly url: string; }[];
+            readonly text?: string;
+            readonly title?: string;
+            readonly total_nodes?: number;
+            readonly truncated: boolean;
+            readonly url?: string;
+            readonly value?: string;
         }>;
 
         /** `cache_search` - Semantic search over content previously stored in the RAG cache (e.g. by web_scrape with cached=true). source filter scopes by producing tool; url_filter scopes by URL substring; both are optional — empty means global search. */
@@ -3252,7 +3625,7 @@ declare global {
             readonly success: boolean;
         }>;
 
-        /** `firefox` - Drive a Firefox browser: open a page (navigate), read it as an outline of sections, links and controls (snapshot, find, read), find its sections by meaning (search), then act on a node by its id (click, type), press keys, run a script (evaluate) or save a screenshot. Tabs of its own are opened, listed, switched and closed (new_tab, tabs, switch_tab, close_tab). The browser stays open between calls of the same run, or from one run to the next when the host keeps it; close ends it. */
+        /** `firefox` - Deprecated name of the browser tool: use browser. Drive the web browser of the host: open a page (navigate), read it as an outline of sections, links and controls (snapshot, find, read), find its sections by meaning (search), then act on a node by its id (click, type), press keys, run a script (evaluate) or save a screenshot. Tabs of its own are opened, listed, switched and closed (new_tab, tabs, switch_tab, close_tab). The browser stays open between calls of the same run, or from one run to the next when the host keeps it; close ends it. */
         firefox(input: {
             /** What to do: navigate (url), back, snapshot (the outline of the page: sections, links, controls, each with a node id), read (the text of the page, or of node_id), find (nodes by kind and name, under node_id), search (query: the sections of the page closest in meaning), click (node_id), type (node_id, text), press (key), evaluate (script), screenshot (save_to_path), tabs (the tabs of this agent), new_tab (url, optional), switch_tab (tab), close_tab (tab, the current one by default), close */
             action: "navigate" | "back" | "snapshot" | "read" | "find" | "search" | "click" | "type" | "press" | "evaluate" | "screenshot" | "tabs" | "new_tab" | "switch_tab" | "close_tab" | "close";
@@ -3285,6 +3658,7 @@ declare global {
         }, ctx?: ExecutionContext): Promise<{
             readonly action: string;
             readonly dialogs?: readonly string[];
+            readonly engine: string;
             readonly error?: string;
             readonly hits?: readonly { readonly excerpt: string; readonly name: string; readonly node_id: string; readonly score: number; }[];
             readonly nodes?: readonly { readonly id: string; readonly kind: string; readonly name: string; readonly parent_id?: string; readonly role: string; readonly text: string; }[];

@@ -59,14 +59,15 @@ export const READ_TOOLS = [
  *    agent's own list; it never enters the DI catalogue the scripting bridge draws
  *    from. "Framework-registered and auto-bridged" holds for http_api, not for it.
  *
- * `firefox` (Orkeon #293) is filed here whatever its action: its reads load pages, and a page load is an outbound
- * request, so `plan` and `dontAsk` go without it although the runtime lets its reads pass in plan.
+ * `browser` (Orkeon #293 as `firefox`, renamed by #481: one tool whatever the engine the host picks) is filed here
+ * whatever its action: its reads load pages, and a page load is an outbound request, so `plan` and `dontAsk` go
+ * without it although the runtime lets its reads pass in plan.
  *
  * `spawn_agent` is the script host's own tool, appended to every act whatever
  * `.tools([...])` names (naming it there fails the act): it is ruleable
  * (ACT_TOOLS) and never named in a catalogue.
  */
-export const NETWORK_READ_TOOLS = ["http_api", "web_scrape", "scrape_element", "firefox"];
+export const NETWORK_READ_TOOLS = ["http_api", "web_scrape", "scrape_element", "browser"];
 
 /** The built-in tools of each class a mode policy grants: each tool is named
  *  once, here or in the lists above, and every other list derives from this table. */
@@ -260,7 +261,7 @@ export const TOOL_ARGUMENTS: Readonly<Record<string, readonly string[]>> = {
   http_api: ["url", "method", "headers", "body", "content_type"],
   web_scrape: ["url", "selector", "cached", "chunk_size"],
   scrape_element: ["url", "css_selector", "extract_attributes", "include_html", "max_elements"],
-  firefox: ["action", "url", "node_id", "kind", "name", "query", "text", "key", "script", "save_to_path", "max_nodes", "offset", "tab", "profile"],
+  browser: ["action", "url", "node_id", "kind", "name", "query", "text", "key", "script", "save_to_path", "max_nodes", "offset", "tab", "profile"],
   file_write: ["path", "content", "encoding", "append", "create_backup"],
   shell_command: ["command", "working_directory", "timeout_seconds", "action", "job_id", "tail_lines"],
   // The tools of Orkeon #180, each with the depth-1 keys of its input (orkeon.d.ts, OrkeonBuiltInTools).

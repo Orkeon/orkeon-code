@@ -160,10 +160,10 @@ export const INPUTS = '{"prompt":"list the files","permissionMode":"plan"}';
 export const BRIDGE_TOKEN = { ORKEON_BRIDGE_TOKEN: "0123456789abcdef0123" };
 export const SHORT_BRIDGE_TOKEN = { ORKEON_BRIDGE_TOKEN: "0123456789abcde" };
 
-/** Settings whose caller sends `firefox` to the tool bridge at `address`, under keys spelt as `keys` gives them. */
+/** Settings whose caller sends `browser` to the tool bridge at `address`, under keys spelt as `keys` gives them. */
 export function bridgeSettings(address: string, keys: readonly [string, string, string, string] = ["Orkeon", "Tools", "Bridge", "Address"]) {
   const [orkeon, tools, bridge, at] = keys;
-  return { Llm: { Model: "m", BaseUrl: "http://127.0.0.1:9/v1" }, [orkeon]: { [tools]: { [bridge]: { [at]: address, Allow: ["firefox"] } } } };
+  return { Llm: { Model: "m", BaseUrl: "http://127.0.0.1:9/v1" }, [orkeon]: { [tools]: { [bridge]: { [at]: address, Allow: ["browser"] } } } };
 }
 
 /** The bridge addresses the launcher reads, and whether the container then joins the host's network. */
@@ -184,7 +184,7 @@ export const LOOPBACK_BRIDGE = bridgeSettings("http://127.0.0.1:7410/");
 /** A bridge whose token lives in a variable of the user's choosing (Orkeon:Tools:Bridge:TokenEnvVar). */
 export const NAMED_TOKEN_BRIDGE = {
   Llm: { Model: "m", BaseUrl: "http://127.0.0.1:9/v1" },
-  Orkeon: { Tools: { Bridge: { Address: "http://127.0.0.1:7410/", TokenEnvVar: "MY_BRIDGE_TOKEN", Allow: ["firefox"] } } },
+  Orkeon: { Tools: { Bridge: { Address: "http://127.0.0.1:7410/", TokenEnvVar: "MY_BRIDGE_TOKEN", Allow: ["browser"] } } },
 };
 export const NAMED_TOKEN = { MY_BRIDGE_TOKEN: "fedcba9876543210fedc" };
 export const NAMED_TOKEN_UNSET = ["MY_BRIDGE_TOKEN is not set"];
@@ -202,7 +202,7 @@ export const BRIDGE_WITHOUT_TOOLS = {
 export const TOKEN_AS_VARIABLE_NAME = "s3cret-token-written-in-the-file";
 export const TOKEN_IN_SETTINGS_BRIDGE = {
   Llm: { Model: "m", BaseUrl: "http://127.0.0.1:9/v1" },
-  Orkeon: { Tools: { Bridge: { Address: "http://127.0.0.1:7410/", TokenEnvVar: TOKEN_AS_VARIABLE_NAME, Allow: ["firefox"] } } },
+  Orkeon: { Tools: { Bridge: { Address: "http://127.0.0.1:7410/", TokenEnvVar: TOKEN_AS_VARIABLE_NAME, Allow: ["browser"] } } },
 };
 export const TOKEN_ENV_VAR_NOT_A_NAME = ["Orkeon:Tools:Bridge:TokenEnvVar", "is not the name of a variable"];
 /** Settings the runtime reads (a comment) and `JSON.parse` does not, with and without a bridge. */
