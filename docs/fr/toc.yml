@@ -17,6 +17,8 @@
       href: speech.md
     - name: Pont d'outils
       href: tool-bridge.md
+    - name: Chat
+      href: chat.md
     - name: Modèles de décision
       href: decision-models.md
     - name: Modèles de décision en local

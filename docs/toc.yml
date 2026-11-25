@@ -16,6 +16,8 @@
       href: speech.md
     - name: Tool bridge
       href: tool-bridge.md
+    - name: Chat
+      href: chat.md
     - name: Decision models
       href: decision-models.md
     - name: Decision models locally

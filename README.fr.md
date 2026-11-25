@@ -138,6 +138,7 @@ La documentation est publiée en français et en anglais, en site consultable, a
 | [Configuration](docs/fr/configuration.md) | Fournisseurs LLM, fichier de settings, variables d'environnement |
 | [Voix](docs/fr/speech.md) | Transcrire un fichier, dicter une requête, lire une réponse à voix haute |
 | [Pont d'outils](docs/fr/tool-bridge.md) | Le navigateur de votre machine pour une session en Docker |
+| [Chat](docs/fr/chat.md) | Lire et poster dans Microsoft Teams, dans les comptes et les lieux que vous autorisez |
 | [Modèles de décision](docs/fr/decision-models.md) | Ce qu'un modèle de décision fait pour Orkeon Code : élaguer un long tour, router un crew, suggérer des skills, avec ce qui a été mesuré |
 | [Modèles de décision en local](docs/fr/decision-models-local.md) | Kev sur cette machine et Liquid, pas à pas, avec des profils de décision à essayer |
 | [Permissions](docs/fr/permissions.md) | Modes, règles, ce que l'agent peut toucher |

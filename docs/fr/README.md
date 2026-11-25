@@ -15,6 +15,7 @@ pages existent [en anglais](../README.md).
 | [Mémoire partagée](shared-memory.md) | Décisions, structures, méthodes et erreurs admises que les agents rappellent |
 | [Voix](speech.md) | Transcrire un fichier, dicter une requête, lire une réponse à voix haute |
 | [Pont d'outils](tool-bridge.md) | Le navigateur de votre machine pour une session en Docker |
+| [Chat](chat.md) | Lire et poster dans Microsoft Teams, dans les comptes et les lieux que vous autorisez |
 | [Modèles de décision](decision-models.md) | Ce qu'un modèle de décision fait pour Orkeon Code : élaguer un long tour, router un crew, suggérer des skills, avec ce qui a été mesuré |
 | [Modèles de décision en local](decision-models-local.md) | Kev sur cette machine et Liquid, pas à pas, avec des profils de décision à essayer |
 | [Exécutions autonomes et embarquées](headless.md) | Tours sans opérateur, lancement en un coup, planificateurs et CI, votre application |
