@@ -22,3 +22,42 @@ export const DECLARED_ACCOUNTS_CASES: readonly { name: string; raw: unknown; dec
   { name: "counts no account in no result", raw: undefined, declared: 0 },
   { name: "leaves out an entry without a name", raw: { accounts: [{ provider: "Teams" }, { name: " " }, "team"] }, declared: 0 },
 ];
+
+/** The records /chat lists, read from the same results. */
+export const ACCOUNT_RECORDS_CASES: readonly { name: string; raw: unknown; records: unknown[] }[] = [
+  {
+    name: "reads an account ready, its rights and its default mark",
+    raw: { accounts: [account("me", { default: true })] },
+    records: [{ name: "me", provider: "Teams", rights: "Read, Send", isDefault: true, ready: true }],
+  },
+  {
+    name: "reads an account that cannot connect with its problem and the unresolved provider",
+    raw: { accounts: [{ name: "team", provider: "?", default: false, ready: false, problem: "no TenantId" }] },
+    records: [{ name: "team", provider: "?", isDefault: false, ready: false, problem: "no TenantId" }],
+  },
+  {
+    name: "reads the keys a CLR object spells with a capital",
+    raw: { Accounts: [{ Name: "builds", Provider: "TeamsWebhook", Rights: "Send", Default: false, Ready: true }] },
+    records: [{ name: "builds", provider: "TeamsWebhook", rights: "Send", isDefault: false, ready: true }],
+  },
+  {
+    name: "reads the accounts of a JSON text in their order",
+    raw: JSON.stringify({ accounts: [account("me"), account("watch")] }),
+    records: [
+      { name: "me", provider: "Teams", rights: "Read, Send", isDefault: false, ready: true },
+      { name: "watch", provider: "Teams", rights: "Read, Send", isDefault: false, ready: true },
+    ],
+  },
+  {
+    name: "reads a missing provider as unresolved and leaves out empty rights and problem",
+    raw: { accounts: [{ name: "me", rights: "", problem: " ", ready: "yes" }] },
+    records: [{ name: "me", provider: "?", isDefault: false, ready: false }],
+  },
+  { name: "reads no account in a text that is no JSON", raw: "no chat account is declared", records: [] },
+];
+
+export const SIGNS_IN_CASES: readonly { name: string; provider: string; signsIn: boolean }[] = [
+  { name: "says a Teams account signs in", provider: "Teams", signsIn: true },
+  { name: "says a webhook does not sign in", provider: "TeamsWebhook", signsIn: false },
+  { name: "says an unresolved account does not sign in", provider: "?", signsIn: false },
+];

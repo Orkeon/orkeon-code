@@ -68,7 +68,9 @@ orkeon chat login me --settings config/appsettings.local.json
 ## 3. In a session
 
 The ten tools enter the agent's catalogue when one account at least is declared; with none, the session is what it
-was. `/permissions` lists them with the rest.
+was. `/chat` lists the declared accounts, the default one marked, with their provider, their rights and whether each
+is ready; a Teams account not ready gets the line that signs a user account in, to type in a terminal (an
+application is checked with `orkeon chat check` instead). `/permissions` lists the tools with the rest.
 
 | Tool | Does | The gate |
 |---|---|---|

@@ -1,5 +1,5 @@
 // The text the status commands show the user (ADR 0026): the rows of /doctor and /status, the /usage legend and
-// breakdown, the release notes.
+// breakdown, the /chat lines, the release notes.
 import { CLI_BUILD, CLI_NAME, CLI_VERSION, ORKEON_RUNTIME_PIN } from "./meta.ts";
 
 // /doctor
@@ -73,6 +73,26 @@ export const USAGE_SYNTAX = "usage: /usage, or /usage tools [text] (the tool cal
 export const NO_TOOL_TRACE = "no tool call recorded in this session yet";
 export const noToolCallHolds = (text: string): string => `no tool call holds '${text}' in this session`;
 
+// /chat
+
+export const CHAT_USAGE = "usage: /chat (no argument): the chat accounts of this session and whether each is ready";
+export const NO_CHAT_TOOLS = "this runtime has no chat tools (no chat_accounts): the pin of .orkeon-version has them";
+export const NO_CHAT_ACCOUNT =
+  "no chat account is declared: the settings section Orkeon:Tools:Chat:Accounts declares them (docs/chat.md)";
+export const chatAccountsFailed = (failure: string): string => `chat_accounts failed: ${failure}`;
+export const CHAT_DEFAULT_MARK = " (default)";
+export const CHAT_NO_RIGHTS = "no rights named";
+export const CHAT_READY = "ready";
+export const CHAT_NOT_READY = "not ready";
+export const chatNotReady = (problem: string): string => `${CHAT_NOT_READY}: ${problem}`;
+export const chatAccountLine = (name: string, mark: string, provider: string, rights: string, state: string): string =>
+  `  ${name}${mark}: ${provider}, ${rights}; ${state}`;
+export const chatSignInLine = (name: string): string =>
+  `    a user account signs in from a terminal: orkeon chat login ${name} --settings <the settings file of this session>`;
+export const CHAT_TOOLS_OFFERED =
+  "The chat tools are offered to the assistant in default, acceptEdits and bypassPermissions; " +
+  "a post is asked each time in default and acceptEdits, accepted edits or not.";
+
 // /release-notes
 
 export const RELEASE_NOTES = [
@@ -84,11 +104,12 @@ export const RELEASE_NOTES = [
   "       project-init, init-verifiers, session-compact, advisor, analyze, speech,",
   "       dev-verify, dev-learn, dev-plan, dev-spec, dev-change, dev-implement, dev-batches,",
   "       shared-memory-admit, agent-run.",
-  "Commands: 50 slash commands; free text without a leading / goes to /assistant.",
+  "Commands: 51 slash commands; free text without a leading / goes to /assistant.",
   "Permissions: five modes (default, acceptEdits, plan, dontAsk, bypassPermissions),",
   "             deny/allow rules (argument patterns too) enforced by the host gate,",
   "             questions before writes and commands, /mode for the session default.",
   "Extra tools: tools.extra offers an MCP server's or a plugin's tools to the assistant.",
+  "Chat: the chat tools of a declared account (Microsoft Teams first); /chat lists the accounts and their readiness.",
   "Speech: the MCP server of mcp/whisper, /transcribe [--then], /voice (dictation), /say (read aloud).",
   "Context: automatic compaction with a persistent breaker, snip-first /compact,",
   "         file restore after compaction, context pressure tiers.",

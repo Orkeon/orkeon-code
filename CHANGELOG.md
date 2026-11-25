@@ -21,6 +21,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Permission rules take the ten tools and their arguments (`deny chat_send`, `allow chat_read place=…`), and
   `/permissions` shows the catalogue the turn gets. **Breaking**: a `tools.extra` entry naming a chat tool is now
   refused, the tool being built in.
+- `/chat` lists the chat accounts of the session: each one's name, the default mark, its provider, its rights and
+  whether it is ready, with its problem and, for an account that signs in, the `orkeon chat login` line to type in a
+  terminal; one line says when the runtime has no chat tools, when no account is declared
+  (`Orkeon:Tools:Chat:Accounts`) or when the call fails. The command count goes to 51.
+- The guide [docs/chat.md](docs/chat.md) sets an account up, from the declaration to the sign-in and the gate, and
+  `config/appsettings.chat.example.json` declares one account of each kind: a user, an application that only reads,
+  a webhook. [Permissions](docs/permissions.md) lists what the ten tools declare.
 - Never run against a real Microsoft 365 tenant: no live check was made.
 
 ### Changed — the pin moves to Orkeon `main` `bbfc06c`, the `browser` tool replaces `firefox`
