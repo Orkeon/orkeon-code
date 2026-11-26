@@ -14,8 +14,8 @@ export function routeCommandSetup() {
   return { config, session, decision, deps: { config, session, decision } };
 }
 
-export const STATUS_OFF = "route.agents: off; ladder: small,large (cheapest first); decision model: present.";
-export const STATUS_ON_NO_MODEL = "route.agents: on; ladder: fast,strong (cheapest first); decision model: absent, nothing is routed.";
+export const STATUS_OFF = "route.agents: off; route.effort: off; ladder: small,large (cheapest first); decision model: present.";
+export const STATUS_ON_NO_MODEL = "route.agents: on; route.effort: off; ladder: fast,strong (cheapest first); decision model: absent, nothing is routed.";
 export const SET_ON = "route.agents: on for this session; /clear clears it.";
 export const SET_ON_NO_MODEL = "route.agents: on for this session (the host has no decision model: nothing is routed until it has one); /clear clears it.";
 export const SET_OFF = "route.agents: off for this session; /clear clears it.";
@@ -54,5 +54,17 @@ export const STATUS_WITH_MEDIUM =
 
 /** The ladder `custom,large`: a rung on a model the table does not know says nothing, with or without a level. */
 export const CUSTOM_LADDER = { "route.ladder": "custom,large" };
-const STATUS_CUSTOM_LADDER = "route.agents: off; ladder: custom,large (cheapest first); decision model: present.";
+const STATUS_CUSTOM_LADDER = "route.agents: off; route.effort: off; ladder: custom,large (cheapest first); decision model: present.";
 export const STATUS_CUSTOM_WITH_HIGH = `${STATUS_CUSTOM_LADDER}\n  large: glm-5.3 takes low, high, max`;
+
+export const STATUS_EFFORT_ON = "route.agents: on; route.effort: on; ladder: small,large (cheapest first); decision model: present.";
+
+/** A launch whose thinking level was picked with its profile, and one whose level the pick was not sure of. */
+export const RECENT_WITH_LEVEL = JSON.stringify([
+  { crew: "dev-plan", profile: "small", reason: "model", picked: "small", probability: 0.9, effort: { level: "low", reason: "model", picked: "low", probability: 0.8 } },
+  { crew: "dev-reviewer", profile: "small", reason: "model", picked: "small", probability: 0.7, effort: { level: null, reason: "no-answer" } },
+]);
+export const WHY_LEVEL_LINES = [
+  "dev-plan on 'small': the decision model's pick; picked 'small' at 0.90; effort 'low' (the decision model's pick; picked 'low' at 0.80)",
+  "dev-reviewer on 'small': the decision model's pick; picked 'small' at 0.70; effort left as it was (the decision model did not answer)",
+];

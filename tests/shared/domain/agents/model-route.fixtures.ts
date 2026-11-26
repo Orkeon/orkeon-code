@@ -1,5 +1,6 @@
 // The cases of shared/domain/agents/model-route.ts: ladders, rules, the bounds of a pick and the records kept.
-import type { RouteBounds, RouteReason, RouteRecord, RouteRules } from "../../../../src/shared/domain/agents/model-route.ts";
+import type { EffortLevel } from "../../../../src/shared/domain/agent-policy/behavior-flags.ts";
+import type { EffortBounds, EffortChoice, EffortPickReason, RouteBounds, RouteReason, RouteRecord, RouteRules } from "../../../../src/shared/domain/agents/model-route.ts";
 
 export const LADDER = ["small", "medium", "large"] as const;
 
@@ -133,3 +134,40 @@ export const OLD_FLOOR_RECORDS: readonly { readonly name: string; readonly raw: 
 
 /** A record with every field of its type, `stands` included: read as it is. */
 export const FULL_RECORD = { crew: "dev-plan", profile: "large", reason: "low-confidence", picked: "small", probability: 0.4, stands: "session" };
+
+/** The bounds of a pick of a thinking level, by the level /effort stored. */
+export const EFFORT_BOUNDS_CASES: readonly { readonly name: string; readonly stored: EffortLevel | undefined; readonly bounds: EffortBounds }[] = [
+  { name: "holds the pick at the level /effort stored", stored: "high", bounds: { max: "high" } },
+  { name: "leaves every level of the host to a session that stored none", stored: undefined, bounds: {} },
+];
+
+export const EFFORT_DECIDED_REASONS: readonly { readonly name: string; readonly reason: EffortPickReason; readonly decided: boolean }[] = [
+  { name: "takes the model's pick of a level as a decision", reason: "model", decided: true },
+  { name: "takes the one level the bounds leave as a decision", reason: "single-level", decided: true },
+  { name: "takes an unsure pick of a level as no decision", reason: "low-confidence", decided: false },
+  { name: "takes a level without an answer as no decision", reason: "no-answer", decided: false },
+  { name: "takes a level with the circuit off as no decision", reason: "circuit-off", decided: false },
+];
+
+/** The level a choice moves a launch or an act to. */
+export const EFFORT_MOVED_CASES: readonly { readonly name: string; readonly choice: EffortChoice | undefined; readonly level: EffortLevel | null }[] = [
+  { name: "moves to the level the model picked", choice: { level: "low", reason: "model", picked: "low", probability: 0.8 }, level: "low" },
+  { name: "moves to the one level the bounds leave", choice: { level: "low", reason: "single-level" }, level: "low" },
+  { name: "moves nothing when the pick of a level is not sure", choice: { level: "high", reason: "low-confidence", picked: "low", probability: 0.4 }, level: null },
+  { name: "moves nothing when the decision model answers no level", choice: { level: null, reason: "no-answer" }, level: null },
+  { name: "moves nothing when no level was asked", choice: undefined, level: null },
+];
+
+/** A record of a launch whose thinking level was picked with its profile. */
+export const LEVEL_RECORD = {
+  crew: "dev-plan", profile: "small", reason: "model", picked: "small", probability: 0.9,
+  effort: { level: "low", reason: "model", picked: "low", probability: 0.8 },
+};
+
+/** The levels a stored record may hold that do not read. */
+export const UNREAD_LEVEL_RECORDS: readonly { readonly name: string; readonly effort: unknown }[] = [
+  { name: "its level is no level", effort: { level: "extreme", reason: "model" } },
+  { name: "its reason is none of a choice", effort: { level: "low", reason: "circuit-off" } },
+  { name: "its probability is no number", effort: { level: "low", reason: "model", picked: "low", probability: "0.8" } },
+  { name: "it is no object", effort: "low" },
+];

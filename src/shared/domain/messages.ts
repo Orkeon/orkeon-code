@@ -143,7 +143,15 @@ export const ROUTE_AGENTS_DOC: ConfigKeyDoc = {
     "fits the command; never one above the session's llm.profile (without one, any rung), and the floors of " +
     ".orkeon/route-rules.json apply. A rung the host does not declare leaves the session's profile. " +
     "Needs a decision provider on the host; without one the session's profile stands. Omitted = 'off'.",
-  consumedBy: "/route, and the commands that launch a crew routed by it (/dev-spec, /dev-change, /dev-plan, /dev-learn, /review, /analyze, /commit, /init, /init-verifiers)",
+  consumedBy: "/route, the commands that launch a crew routed by it (/dev-spec, /dev-change, /dev-plan, /dev-learn, /review, /analyze, /commit, /init, /init-verifiers) and the explorer a turn spawns",
+};
+
+export const ROUTE_EFFORT_DOC: ConfigKeyDoc = {
+  description:
+    "'on' lets the pick of route.agents choose the thinking level too, in the same call: one of the host's levels " +
+    "(Orkeon:Decision:Effort:Levels), never above the one /effort stored. A level it is not sure of leaves the one " +
+    "in place. Asks nothing unless route.agents is on. Omitted = 'off'.",
+  consumedBy: "/route, the launches that forward /effort (/dev-spec, /dev-change, /dev-plan) and the acts route.agents routes",
 };
 
 export const ROUTE_LADDER_DOC: ConfigKeyDoc = {

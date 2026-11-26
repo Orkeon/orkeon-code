@@ -4,11 +4,11 @@ import { describe, it } from "node:test";
 import { deepStrictEqual, strictEqual } from "node:assert";
 
 import {
-  asOnLadder, ladderOf, ladderProblem, parseRecords, parseRouteRules, routable, routeBounds, routeDecided, routeFloor, routeHeld, routeNotAsked,
+  asOnLadder, effortBounds, effortDecided, effortMoved, ladderOf, ladderProblem, parseRecords, parseRouteRules, routable, routeBounds, routeDecided, routeFloor, routeHeld, routeNotAsked,
   routeOn, routeState, withRecord,
 } from "../../../../src/shared/domain/agents/model-route.ts";
 import {
-  BOUNDS_CASES, DECIDED_REASONS, FLOOR_CASES, FULL_RECORD, MALFORMED_RECORDS, OLD_FLOOR_RECORDS, HELD_CASES, LADDER, LADDER_CASES, LADDER_PROBLEM_CASES, LONG_BRIEF, NOT_ASKED_REASONS, OLD_RECORD, ROOT_RULES,
+  BOUNDS_CASES, DECIDED_REASONS, EFFORT_BOUNDS_CASES, EFFORT_DECIDED_REASONS, EFFORT_MOVED_CASES, FLOOR_CASES, LEVEL_RECORD, UNREAD_LEVEL_RECORDS, FULL_RECORD, MALFORMED_RECORDS, OLD_FLOOR_RECORDS, HELD_CASES, LADDER, LADDER_CASES, LADDER_PROBLEM_CASES, LONG_BRIEF, NOT_ASKED_REASONS, OLD_RECORD, ROOT_RULES,
   ROUTABLE_CASES, RULES, RULES_TEXT_CASES, SPELLING_CASES, record,
 } from "./model-route.fixtures.ts";
 
@@ -311,6 +311,77 @@ describe("parseRecords, an old record on a rule's floor", () => {
 
       // Assert
       deepStrictEqual(records, []);
+    });
+  }
+});
+
+describe("effortBounds", () => {
+  for (const c of EFFORT_BOUNDS_CASES) {
+    it(c.name, () => {
+      // Arrange
+      const stored = c.stored;
+
+      // Act
+      const bounds = effortBounds(stored);
+
+      // Assert
+      deepStrictEqual(bounds, c.bounds);
+    });
+  }
+});
+
+describe("effortDecided", () => {
+  for (const c of EFFORT_DECIDED_REASONS) {
+    it(c.name, () => {
+      // Arrange
+      const reason = c.reason;
+
+      // Act
+      const decided = effortDecided(reason);
+
+      // Assert
+      strictEqual(decided, c.decided);
+    });
+  }
+});
+
+describe("effortMoved", () => {
+  for (const c of EFFORT_MOVED_CASES) {
+    it(c.name, () => {
+      // Arrange
+      const choice = c.choice;
+
+      // Act
+      const level = effortMoved(choice);
+
+      // Assert
+      strictEqual(level, c.level);
+    });
+  }
+});
+
+describe("parseRecords, a record with a thinking level", () => {
+  it("reads the thinking level picked with the profile", () => {
+    // Arrange
+    const stored = JSON.stringify([LEVEL_RECORD]);
+
+    // Act
+    const records = parseRecords(stored);
+
+    // Assert
+    deepStrictEqual(records, [LEVEL_RECORD]);
+  });
+
+  for (const c of UNREAD_LEVEL_RECORDS) {
+    it(`keeps the record without its level when ${c.name}`, () => {
+      // Arrange
+      const stored = JSON.stringify([{ ...record(1), effort: c.effort }]);
+
+      // Act
+      const records = parseRecords(stored);
+
+      // Assert
+      deepStrictEqual(records, [record(1)]);
     });
   }
 });

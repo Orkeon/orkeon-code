@@ -7,6 +7,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added — the routing picks the thinking level, and reaches the explorer
+
+- `route.effort` (`/config set route.effort on`): with `route.agents` on, the host's decision model picks the
+  thinking level in the same call as the profile, among the host's levels and never above the one `/effort` stored
+  ([ADR 0039](docs/adr/0039-route-effort-and-explorer.md)). It applies to the launches that forward `/effort`
+  (`/dev-spec`, `/dev-change`, `/dev-plan`) and to every routed act of a sub-agent. A level the pick is not sure of
+  leaves the one in place. The log line and `/route why` show it: `…; effort 'low' (the decision model's pick; picked
+  'low' at 0.80)`. A bare `/route` says whether it is on.
+- The explorer a turn spawns is routed like a reviewer's act: with `route.agents` on, its profile, and with
+  `route.effort` its level, are picked from its brief, under `agents.profile` (else the turn's profile) as the
+  ceiling.
+- `config/appsettings.anthropic.example.json` declares four profiles, `haiku`, `sonnet`, `opus` and `fable`:
+  `/config set route.ladder haiku,sonnet,opus,fable` gives the routing the four Claude models to pick among.
+
 ### Added — `agents.profile`, the agents on another profile than the conversation
 
 - The session key `agents.profile` names the host profile of every agent but the main turn's: the crews the commands

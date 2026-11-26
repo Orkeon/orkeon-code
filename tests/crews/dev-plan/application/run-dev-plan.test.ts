@@ -145,7 +145,7 @@ describe("runDevPlan — a plan written and reviewed", () => {
     const f = setup();
 
     // Act
-    await runDevPlan({ source: "prune" }, { ...f.deps, route: async () => "small" });
+    await runDevPlan({ source: "prune" }, { ...f.deps, route: async () => ({ profile: "small", effort: null }) });
 
     // Assert
     strictEqual(f.llm.acts[0].request.profile, "small");

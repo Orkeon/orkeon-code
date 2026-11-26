@@ -177,6 +177,12 @@ export const orkeonActRoute = (
   orkeonAgentFactories(),
 );
 
+/** The route of the act of an agent the main turn spawns (its explorer): orkeonActRoute between the profiles such an
+ *  agent is built on (`agents.profile`, else the turn's own), so the pick never answers a rung above it. */
+export const orkeonSpawnedActRoute = (
+  ctx: { llm: Partial<Pick<LlmFacade, "pick">>; log: Pick<Logger, "info" | "warn"> }, input: Readonly<Record<string, unknown>> = inputs(),
+): ActRoute => orkeonActRoute(ctx, Tools, undefined, spawnedAgentInput(input));
+
 /** `llm` with the pruning of its acts' tool loops (`compaction.prune`, shared/application/compaction/pruned-llm.ts):
  *  the acts of the dev crews' sub-agents and roles. `log`, `tools` and `root` are the body's, as for orkeonActRoute.
  *  With the setting off or no decision model on the host, the acts leave as they came. */

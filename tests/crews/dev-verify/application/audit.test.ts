@@ -44,7 +44,7 @@ describe("runAudit", () => {
     f.shell.results[VALIDATION] = PASSED_12;
 
     // Act
-    await runAudit({ ...f.deps, route: async () => "small" }, brief, FOLDER, SHOWN);
+    await runAudit({ ...f.deps, route: async () => ({ profile: "small", effort: null }) }, brief, FOLDER, SHOWN);
 
     // Assert
     deepStrictEqual(f.llm.acts.map((a) => a.request.profile), ["small", "small"]);

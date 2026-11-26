@@ -18,6 +18,7 @@ import { builtInRules, syncPermissionRules } from "../../shared/application/perm
 import { readMemoryDir } from "../../shared/application/shared-memory/memory-settings.ts";
 import { listsOf } from "../../shared/application/host-context.ts";
 import type { HostSource } from "../../shared/application/host-context.ts";
+import type { EffortLevel } from "../../shared/domain/agent-policy/behavior-flags.ts";
 import { formatRule } from "../../shared/domain/agent-policy/permission.ts";
 import { chainDepthLine, chainDepthRefusal } from "../../shared/domain/agents/chain.ts";
 import { exclusiveLine, exclusiveRefusal } from "../../shared/domain/agents/exclusive.ts";
@@ -50,6 +51,9 @@ export interface LaunchDeps {
   /** Set when the routing picked `llmProfile`: the session's own profile ("" for the host's default model), which the
    *  crew falls back on when the host declares no profile of the routed name. */
   llmProfileFallback?: string;
+  /** Set when the routing picked the thinking level (`route.effort`): it replaces the `effort` of the crew input, the
+   *  level `/effort` stored. */
+  effort?: EffortLevel;
 }
 
 /** `deps` with the profile a crew other than the main loop runs on: the session's `agents.profile`, else its
@@ -73,13 +77,18 @@ async function withTurnProfile<D extends LaunchDeps & { log: Pick<CommandLog, "w
 }
 
 /** `deps` with the profile the launch of `task.crew` runs on: the session's `agents.profile`, else its `llm.profile`,
- *  then, with `route.agents` on, the rung of `route.ladder` the runtime's System One pick answers for the command (shared/application/agents/route-agent). */
+ *  then, with `route.agents` on, the rung of `route.ladder` the runtime's System One pick answers for the command
+ *  (shared/application/agents/route-agent); and, for a task that takes one with `route.effort` on, the thinking level
+ *  the same pick decided. */
 export async function withRoutedProfile<D extends LaunchDeps & { log: Pick<CommandLog, "warn" | "info"> }>(
   deps: D, config: Pick<ConfigStore, "readValue" | "readFile">, routing: Omit<RouteDeps, "config" | "log">, task: RouteTask,
-): Promise<D & { llmProfile: string | null }> {
+): Promise<D & { llmProfile: string | null; effort?: EffortLevel }> {
   const profiled = await withLlmProfile(deps, config);
   const routed = await routeAgent({ ...routing, config, log: deps.log }, task, profiled.llmProfile);
-  return routed === profiled.llmProfile ? profiled : { ...profiled, llmProfile: routed, llmProfileFallback: profiled.llmProfile ?? "" };
+  const moved = routed.profile === profiled.llmProfile
+    ? profiled
+    : { ...profiled, llmProfile: routed.profile, llmProfileFallback: profiled.llmProfile ?? "" };
+  return routed.effort === null ? moved : { ...moved, effort: routed.effort };
 }
 
 /** A crew's completion, as an async command's `completed` receives it; `intent` names the crew that answered,
@@ -116,6 +125,10 @@ export function launchCrew(
     input = { ...input, [LLM_PROFILE_INPUT_KEY]: profile };
     if (deps.llmProfileFallback !== undefined) input = { ...input, [LLM_PROFILE_FALLBACK_INPUT_KEY]: deps.llmProfileFallback };
     details = { ...details, llmProfile: profile };
+  }
+  if (deps.effort !== undefined) {
+    input = { ...input, effort: deps.effort };
+    details = { ...details, effort: deps.effort };
   }
   let ticket: string;
   try {

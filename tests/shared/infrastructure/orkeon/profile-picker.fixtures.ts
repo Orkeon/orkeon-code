@@ -71,3 +71,17 @@ export const UNREAD: readonly { readonly name: string; readonly reply: unknown }
   { name: "answers nothing when the value is not a name", reply: { profile: { value: 3, reason: "model", picked: null, probability: null } } },
   { name: "answers nothing when the reply is empty", reply: undefined },
 ];
+
+/** A reply that answers the profile and, in the same call, the thinking level. */
+export const LEVEL_REPLY = {
+  profile: { value: "small", reason: "model", picked: "small", probability: 0.9 },
+  effort: { value: "low", reason: "model", picked: "low", probability: 0.8 },
+};
+export const MODEL_PICK_WITH_LEVEL = { ...MODEL_PICK, effort: { value: "low", reason: "model", picked: "low", probability: 0.8 } };
+
+/** The effort parts of a reply that do not read: the profile is answered without a level. */
+export const UNREAD_LEVELS: readonly { readonly name: string; readonly effort: unknown }[] = [
+  { name: "leaves out a level that is none of the runtime's", effort: { value: "extreme", reason: "model", picked: null, probability: null } },
+  { name: "leaves out a level whose reason is not one of the pick's", effort: { value: "low", reason: "guess", picked: null, probability: null } },
+  { name: "leaves out an effort part that is no object", effort: "low" },
+];

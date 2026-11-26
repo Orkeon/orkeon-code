@@ -56,3 +56,4 @@ changes for Orkeon Code: what is adopted, what is set aside, what is removed.
 | [0036](0036-chat-tools.md) | The chat tools, offered to the main loop where an account is declared |
 | [0037](0037-orkeon-after-486.md) | Orkeon main after #486, nothing adopted, `chat_attach` left to the hosted conversations |
 | [0038](0038-agents-profile.md) | `agents.profile`: the agents on another profile than the main turn |
+| [0039](0039-route-effort-and-explorer.md) | The routing picks the thinking level too (`route.effort`), and reaches the explorer |

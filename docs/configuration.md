@@ -356,6 +356,7 @@ Inside the REPL, `/config` lists, reads and writes the session keys, stored in t
 | `compaction.trigger` | the window minus the room one turn needs | the token count at which the automatic compaction runs |
 | `compaction.prune` | `off` | the host's decision model prunes the stale tool results of a turn in progress and of the acts of the dev crews |
 | `route.agents` | `off` | at each launch of a crew, the host's decision model picks the cheapest profile of `route.ladder` that fits the command; inside a crew, the same for the act of a reviewer or of the auditor |
+| `route.effort` | `off` | the pick of `route.agents` chooses the thinking level too, in the same call: one of the host's levels, never above the one `/effort` stored |
 | `route.ladder` | `small,large` | the host's LLM profiles the routing picks among, cheapest first |
 | `skills.suggest` | `off` | the host's decision model adds to a turn the project's skills that fit its request |
 | `dev.workDir` | the repository pack's `layout.work`, else `workbench` | the work folder the dev steps read and write, relative to the checkout |
@@ -379,6 +380,7 @@ How some of them are set:
 /config set compaction.prune on
 /route on
 /config set route.ladder small,large
+/config set route.effort on
 /skills suggest on
 /config set dev.workDir backstage/tasks
 /config set memory.dir docs/memory
@@ -391,6 +393,11 @@ What the table leaves out:
 - **`compaction.prune`** needs a [decision provider](decision-models-local.md) on the host; the mechanism is in
   [How a turn runs](turn.md#compaction-and-memory).
 - **`route.agents`** is also set by `/route on`; see [Routing a crew to a profile](turn.md#routing-a-crew-to-a-profile).
+- **`route.effort`** asks nothing unless `route.agents` is on. The levels it picks among are the host's
+  (`Orkeon:Decision:Effort:Levels`; `low`, `medium`, `high` when the host lists none).
+- **A ladder of four rungs**: [`config/appsettings.anthropic.example.json`](../config/appsettings.anthropic.example.json)
+  declares the profiles `haiku`, `sonnet`, `opus` and `fable`; `/config set route.ladder haiku,sonnet,opus,fable`
+  orders them for the routing.
 - **Both need the runtime of the pin**, hence the source mode: in the tool and docker modes they are read and do
   nothing, without a warning of their own, a host with no decision model still getting the usual one
   ([the modes](getting-started.md#source-mode-an-orkeon-checkout)).

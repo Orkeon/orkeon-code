@@ -5,7 +5,7 @@ import { deepStrictEqual, strictEqual } from "node:assert";
 
 import { runRoute } from "../../../../src/commands/_lib/settings/route.ts";
 import {
-  CUSTOM_LADDER, RECENT, RECENT_WITH_CIRCUIT_OFF, SET_OFF, STATUS_CUSTOM_WITH_HIGH, SET_ON, SET_ON_NO_MODEL, STATUS_OFF, STATUS_ON_NO_MODEL, STATUS_WITH_MEDIUM, STATUS_WITH_RUNGS,
+  CUSTOM_LADDER, RECENT, RECENT_WITH_CIRCUIT_OFF, RECENT_WITH_LEVEL, STATUS_EFFORT_ON, WHY_LEVEL_LINES, SET_OFF, STATUS_CUSTOM_WITH_HIGH, SET_ON, SET_ON_NO_MODEL, STATUS_OFF, STATUS_ON_NO_MODEL, STATUS_WITH_MEDIUM, STATUS_WITH_RUNGS,
   WHY_LINES, WHY_STANDS_LINES, routeCommandSetup, routeOnGlmSetup,
 } from "./route.fixtures.ts";
 import { EFFORT_STATE_KEY } from "../../../../src/shared/domain/session-keys.ts";
@@ -95,6 +95,30 @@ describe("runRoute", () => {
     deepStrictEqual(view.lines, WHY_STANDS_LINES);
   });
 
+  it("shows the thinking level picked with a profile", async () => {
+    // Arrange
+    const { deps, session } = routeCommandSetup();
+    session.state.set("route_recent", RECENT_WITH_LEVEL);
+
+    // Act
+    const view = await runRoute(["why"], deps);
+
+    // Assert
+    deepStrictEqual(view.lines, WHY_LEVEL_LINES);
+  });
+
+  it("says that the pick chooses the thinking level too when route.effort is on", async () => {
+    // Arrange
+    const { deps, config } = routeCommandSetup();
+    config.values = { "route.agents": "on", "route.effort": "on" };
+
+    // Act
+    const view = await runRoute([], deps);
+
+    // Assert
+    strictEqual(view.text, STATUS_EFFORT_ON);
+  });
+
   it("says nothing was routed yet", async () => {
     // Arrange
     const { deps } = routeCommandSetup();
@@ -151,7 +175,7 @@ describe("runRoute — what each rung's model takes", () => {
     const view = await runRoute([], deps);
 
     // Assert
-    strictEqual(view.text, "route.agents: off; ladder: ghost,large (cheapest first); decision model: present.\n  large: glm-5.3 takes low, high, max");
+    strictEqual(view.text, "route.agents: off; route.effort: off; ladder: ghost,large (cheapest first); decision model: present.\n  large: glm-5.3 takes low, high, max");
   });
 
   it("leaves out a rung on a model the capability table does not know", async () => {

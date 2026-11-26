@@ -37,7 +37,7 @@ describe("runDevSpec — a new spec settled with the person", () => {
     f.llm.extractions = [ANSWER, CLEAR, folded()];
 
     // Act
-    await runDevSpec({ code: "prune", request: REQUEST }, { ...f.deps, route: async () => "small" });
+    await runDevSpec({ code: "prune", request: REQUEST }, { ...f.deps, route: async () => ({ profile: "small", effort: null }) });
 
     // Assert
     strictEqual(f.llm.acts[0].request.profile, "small");

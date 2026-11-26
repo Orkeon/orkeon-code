@@ -1,4 +1,5 @@
 // The charter, the check and the call runSubAgent is tested with.
+import type { ActRoute } from "../../../../src/shared/application/agents/route-agent.ts";
 import type { SubAgentCall } from "../../../../src/shared/application/agents/run-sub-agent.ts";
 import type { Charter, Checked } from "../../../../src/shared/domain/agents/charter.ts";
 
@@ -50,9 +51,9 @@ export const FINAL_EXTRACTION_FAILURES: readonly ErrorCase[] = [
 ];
 
 /** Where the act goes, by what its route answers. */
-export const ROUTES: readonly { name: string; route?: () => Promise<string | null>; profile: string | undefined }[] = [
-  { name: "runs the act on the profile its route answers", route: async () => "small", profile: "small" },
-  { name: "leaves the act on the agent's profile when its route answers none", route: async () => null, profile: undefined },
+export const ROUTES: readonly { name: string; route?: ActRoute; profile: string | undefined }[] = [
+  { name: "runs the act on the profile its route answers", route: async () => ({ profile: "small", effort: null }), profile: "small" },
+  { name: "leaves the act on the agent's profile when its route answers none", route: async () => ({ profile: null, effort: null }), profile: undefined },
   { name: "leaves the act on the agent's profile when its route throws", route: async () => { throw new Error("no decision model"); }, profile: undefined },
   { name: "leaves the act on the agent's profile without a route", profile: undefined },
 ];

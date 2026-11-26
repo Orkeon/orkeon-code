@@ -14,6 +14,7 @@ import { FakeCrewHost } from "../../support/doubles/fake-crew-host.ts";
 import { FakeDecisionModel } from "../../support/doubles/fake-decision-model.ts";
 import { FakeFiles } from "../../support/doubles/fake-files.ts";
 import { FakeLogger } from "../../support/doubles/fake-logger.ts";
+import type { ProfilePick } from "../../../src/shared/application/ports.ts";
 import { FakeProfilePicker } from "../../support/doubles/fake-profile-picker.ts";
 import { FakePermissionRules } from "../../support/doubles/fake-permission-rules.ts";
 import { FakeSessionStore } from "../../support/doubles/fake-session-store.ts";
@@ -210,3 +211,12 @@ export const CHAT_LAUNCH_CASES: readonly { name: string; reply?: unknown; chat: 
   { name: "hands the main loop no chat family when chat_accounts fails", reply: new Error("sign-in required"), chat: false },
   { name: "hands the main loop no chat family on a host without chat_accounts", chat: false },
 ];
+
+/** A launch whose crew forwards /effort: the routing may pick its thinking level. */
+export const THINKING_LAUNCH = { crew: "dev-plan", brief: "/dev-plan invoice-export", thinks: true };
+
+/** The pick of `small` with the level `low` answered in the same call. */
+export const PICK_WITH_LEVEL: ProfilePick = {
+  value: "small", reason: "model", picked: "small", probability: 0.9,
+  effort: { value: "low", reason: "model", picked: "low", probability: 0.8 },
+};

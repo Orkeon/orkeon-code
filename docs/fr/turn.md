@@ -325,8 +325,13 @@ les lectures qu'il a faites restent dans son propre contexte.
   dossiers, `glob`, `grep`, l'index du code et ses requêtes de graphe). Ni shell, ni écriture, ni construction
   d'index, ni web. Il a 30 itérations d'appels d'outils. Il tourne sous le plus strict de `plan` et du mode du tour,
   sur le `agents.profile` de la session, sinon son `llm.profile`, sinon le modèle par défaut de l'hôte : ni `/model` ni
-  `/effort` ne l'atteignent, et `/route` ne le route pas. Sous un `agents.profile`, le tour et son explorateur tournent
-  sur deux profils : le tour reste sur `llm.profile`.
+  `/effort` ne l'atteignent. Sous un `agents.profile`, le tour et son explorateur tournent sur deux profils : le tour
+  reste sur `llm.profile`.
+- **Sa route** : avec `route.agents` sur `on`, son act est routé comme celui d'un relecteur
+  ([Router un crew vers un profil](#router-un-crew-vers-un-profil)). Le choix lit le brief, sous le nom `explorer`,
+  et répond un barreau de l'échelle, jamais au-dessus du profil sur lequel l'explorateur est construit. Avec
+  `route.effort` sur `on`, il répond aussi le niveau de réflexion de cet act. Sans décision, l'act reste sur le profil
+  et le niveau de l'explorateur.
 - **Combien** : un tour lance 8 agents au plus (`spawnedAgents` de `crews/main-loop/domain/turn-budget.ts` ; le
   runtime en permet 3 quand un budget n'en nomme aucun). Le neuvième `spawn_agent` est refusé par une erreur d'outil que
   le modèle lit, et le tour continue avec les rapports qu'il tient (Orkeon #423 : atteindre le compte mettait fin au
@@ -413,7 +418,24 @@ décision sur le runtime, ce profil est choisi à chaque lancement de `/dev-spec
 - **Ce qui n'est pas routé** : la boucle principale (`/assistant` : son cache de prompt suit un modèle),
   `/compact`, `/memory admit`, les crews de parole, `/advisor` (il a son propre modèle), `/dev-batches` et
   `/tasks` ; et, dans un crew, les rôles de `/dev-implement`, les agents qu'un crew démarre en arrière-plan,
-  l'explorateur de la boucle principale et l'extraction de la réponse d'un sous-agent. L'effort de raisonnement reste celui de `/effort`.
+  et l'extraction de la réponse d'un sous-agent.
+- **Le niveau de réflexion** ([ADR 0039](../adr/0039-route-effort-and-explorer.md)) : avec `route.effort` sur `on`,
+  le même appel choisit aussi le niveau, pour un lancement qui transmet `/effort` (`/dev-spec`, `/dev-change`,
+  `/dev-plan`) et pour chaque act routé d'un sous-agent. Sur `off`, le niveau reste celui de `/effort`.
+  - Le choix reçoit le niveau que `/effort` a enregistré comme le plus haut qu'il peut répondre ; une session qui
+    n'en a enregistré aucun lui laisse tous les niveaux du runtime (`Orkeon:Decision:Effort:Levels` ; `low`,
+    `medium`, `high` quand le runtime n'en liste aucun).
+  - Une décision déplace le niveau : le choix du modèle à 0,6 ou plus, ou le seul niveau que la borne laisse. Un
+    lancement le porte alors à la place du niveau enregistré, un act tourne à ce niveau pour cet appel.
+  - Sans décision, le niveau en place tient, celui enregistré pour un lancement et celui du crew pour un act, et la
+    ligne dit `effort left as it was`.
+  - Rien n'est demandé là où aucun profil ne l'est : une session sur un profil hors de l'échelle, ou dont le
+    barreau est le seul qui reste, garde son niveau.
+  - La ligne et `/route why` montrent le niveau après le profil : `route: dev-plan on 'small' (the decision model's
+    pick; picked 'small' at 0.90; effort 'low' (the decision model's pick; picked 'low' at 0.80))`.
+- **L'act de l'explorateur** est routé comme l'act d'un sous-agent, ci-dessous : sous le nom `explorer`, sur le
+  brief que `spawn_agent` lui a remis, avec pour plafond le profil sur lequel il est construit (`agents.profile`,
+  sinon celui du tour).
 - **L'act d'un sous-agent dans un crew** ([ADR 0029](../adr/0029-orkeon-after-333.md)) :
   - Le relecteur de `/dev-spec`, `/dev-change` et `/dev-plan`, le relecteur du lot suivant de `/dev-batches` et
     l'auditeur de `/dev-verify` font chacun un act que le même choix route.

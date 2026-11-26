@@ -53,7 +53,7 @@ import {
   unreadableVoiceDeps,
   voiceDeps,
   routedCrewDeps,
-  CHAT_LAUNCH_CASES,
+  CHAT_LAUNCH_CASES, PICK_WITH_LEVEL, THINKING_LAUNCH,
 } from "./dispatch.fixtures.ts";
 import { assertMemoryGuarded } from "./dispatch.assertions.ts";
 import { WORKSPACE } from "../../../src/shared/domain/vfs.ts";
@@ -203,6 +203,45 @@ describe("withRoutedProfile", () => {
 
     // Assert
     strictEqual(profiled.llmProfile, "large");
+  });
+});
+
+describe("withRoutedProfile, the thinking level", () => {
+  it("hands the launch the level the runtime picks with the rung", async () => {
+    // Arrange
+    const { deps, config, routing } = routedCrewDeps({ "llm.profile": "large", "route.agents": "on", "route.effort": "on" });
+    routing.picker.answer = PICK_WITH_LEVEL;
+
+    // Act
+    const profiled = await withRoutedProfile(deps, config, routing, THINKING_LAUNCH);
+
+    // Assert
+    strictEqual(profiled.effort, "low");
+  });
+
+  it("replaces the level /effort stored in the crew input by the one picked", async () => {
+    // Arrange
+    const { deps, config, routing } = routedCrewDeps({ "llm.profile": "large", "route.agents": "on", "route.effort": "on" });
+    routing.picker.answer = PICK_WITH_LEVEL;
+    const profiled = await withRoutedProfile(deps, config, routing, THINKING_LAUNCH);
+
+    // Act
+    launchCrew(profiled, "dev-plan", { code: "invoice-export", effort: "high" });
+
+    // Assert
+    deepStrictEqual(deps.crews.launches[0].input, { code: "invoice-export", effort: "low", llmProfile: "small", llmProfileFallback: "large" });
+  });
+
+  it("leaves the level of the crew input when the routing picked none", async () => {
+    // Arrange
+    const { deps, config, routing } = routedCrewDeps({ "llm.profile": "large", "route.agents": "on" });
+    const profiled = await withRoutedProfile(deps, config, routing, THINKING_LAUNCH);
+
+    // Act
+    launchCrew(profiled, "dev-plan", { code: "invoice-export", effort: "high" });
+
+    // Assert
+    deepStrictEqual(deps.crews.launches[0].input, { code: "invoice-export", effort: "high", llmProfile: "small", llmProfileFallback: "large" });
   });
 });
 

@@ -115,7 +115,14 @@ says why, and `/route why` does not list it. `/route why` shows the last five ch
 Inside a crew, the act of a reviewer (`/dev-spec`, `/dev-change`, `/dev-plan`, the next batch of `/dev-batches`)
 and of the auditor of `/dev-verify` is routed the same way, for that one call. When the pick is unsure or missing
 the act stays where its crew runs; on the host's default model it takes a rule's floor instead: see
-[Routing a crew to a profile](turn.md#routing-a-crew-to-a-profile). Two runs of it are
+[Routing a crew to a profile](turn.md#routing-a-crew-to-a-profile). The explorer a turn spawns is routed like these
+acts, on its brief.
+
+With `route.effort` on, the same call picks the thinking level too: one of the host's levels, never above the one
+`/effort` stored, for the launches that forward `/effort` and for every routed act
+([ADR 0039](adr/0039-route-effort-and-explorer.md)). A ladder may hold more than two rungs: the Anthropic example
+declares `haiku`, `sonnet`, `opus` and `fable`, and `/config set route.ladder haiku,sonnet,opus,fable` orders them.
+Neither was measured. Two runs of the routing of acts are
 [measured below](#measured-dev-spec-then-dev-plan-routed-and-not).
 
 ### Measured: twelve commands

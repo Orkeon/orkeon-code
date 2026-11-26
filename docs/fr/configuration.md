@@ -381,6 +381,7 @@ Dans le REPL, `/config` liste, lit et écrit les clés de session, rangées dans
 | `compaction.trigger` | la fenêtre moins la place dont un tour a besoin | le nombre de tokens auquel la compaction automatique se déclenche |
 | `compaction.prune` | `off` | le modèle de décision du runtime élague les résultats d'outils périmés d'un tour en cours et des acts des crews dev |
 | `route.agents` | `off` | à chaque lancement d'un crew, le modèle de décision du runtime choisit le profil le moins cher de `route.ladder` qui convient à la commande ; dans un crew, de même pour l'act d'un relecteur ou de l'auditeur |
+| `route.effort` | `off` | le choix de `route.agents` fixe aussi le niveau de réflexion, dans le même appel : un des niveaux du runtime, jamais au-dessus de celui que `/effort` a enregistré |
 | `route.ladder` | `small,large` | les profils LLM du runtime parmi lesquels le routage choisit, le moins cher d'abord |
 | `skills.suggest` | `off` | le modèle de décision du runtime ajoute à un tour les skills du projet qui conviennent à sa requête |
 | `dev.workDir` | le `layout.work` du pack du dépôt, sinon `workbench` | le dossier de travail que les étapes dev lisent et écrivent, relatif au checkout |
@@ -404,6 +405,7 @@ Comment certaines se règlent :
 /config set compaction.prune on
 /route on
 /config set route.ladder small,large
+/config set route.effort on
 /skills suggest on
 /config set dev.workDir backstage/tasks
 /config set memory.dir docs/memory
@@ -417,6 +419,12 @@ Ce que le tableau laisse de côté :
   est décrit dans [Le déroulement d'un tour](turn.md#compaction-et-mémoire).
 - **`route.agents`** se règle aussi par `/route on` ; voir
   [Router un crew vers un profil](turn.md#router-un-crew-vers-un-profil).
+- **`route.effort`** ne demande rien tant que `route.agents` n'est pas sur `on`. Les niveaux parmi lesquels il
+  choisit sont ceux du runtime (`Orkeon:Decision:Effort:Levels` ; `low`, `medium`, `high` quand le runtime n'en
+  liste aucun).
+- **Une échelle à quatre barreaux** : [`config/appsettings.anthropic.example.json`](../../config/appsettings.anthropic.example.json)
+  déclare les profils `haiku`, `sonnet`, `opus` et `fable` ; `/config set route.ladder haiku,sonnet,opus,fable`
+  les ordonne pour le routage.
 - **Les deux demandent le runtime de l'épingle**, donc le mode source : dans les modes tool et docker ils sont lus
   et ne font rien, sans avertissement qui leur soit propre, un runtime sans modèle de décision donnant toujours
   l'avertissement habituel

@@ -34,6 +34,7 @@
 import { CrewBuilder, publishCrew, inputs, ToolBuilder } from "../../shared/infrastructure/globals.ts";
 import {
   orkeonAgent,
+  orkeonSpawnedActRoute,
   orkeonSpawnedAgent,
   orkeonClock,
   orkeonCompactionDeps,
@@ -85,7 +86,7 @@ const explorer = () => orkeonSpawnedAgent()
   .goal(EXPLORER_CHARTER.goal)
   .tools(charterCatalogue(EXPLORER_CHARTER))
   .maxIterations(EXPLORER_CHARTER.maxIterations)
-  .body(async (input: unknown, ctx: any) => await runExplorer(input, { llm: agentLlm(ctx), log: ctx.log }));
+  .body(async (input: unknown, ctx: any) => await runExplorer(input, { llm: agentLlm(ctx), log: ctx.log, route: orkeonSpawnedActRoute(ctx) }));
 
 const coder = orkeonAgent()
   .name("coder")

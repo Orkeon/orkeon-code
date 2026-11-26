@@ -403,8 +403,8 @@ export const PROACTIVE_NOTE = "while on, /assistant answers end with up to three
 // /route
 export const ROUTE_USAGE = "usage: /route [on|off|why]";
 export const NOTHING_ROUTED_YET = "nothing routed yet in this session.";
-export const routeStatus = (on: boolean, ladder: string, model: boolean): string =>
-  `route.agents: ${on ? "on" : "off"}; ladder: ${ladder} (cheapest first); decision model: ${model ? "present" : "absent, nothing is routed"}.`;
+export const routeStatus = (on: boolean, effort: boolean, ladder: string, model: boolean): string =>
+  `route.agents: ${on ? "on" : "off"}; route.effort: ${effort ? "on" : "off"}; ladder: ${ladder} (cheapest first); decision model: ${model ? "present" : "absent, nothing is routed"}.`;
 export const routeSet = (on: boolean, model: boolean): string =>
   on
     ? `route.agents: on for this session${model ? "" : " (the host has no decision model: nothing is routed until it has one)"}; /clear clears it.`

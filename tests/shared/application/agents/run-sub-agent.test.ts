@@ -76,6 +76,30 @@ describe("runSubAgent", () => {
     });
   }
 
+  it("runs the act at the thinking level its route answers", async () => {
+    // Arrange
+    const llm = new FakeLlm();
+    llm.extractions = [{ count: 1 }];
+
+    // Act
+    await runSubAgent(llm, call(), async () => ({ profile: null, effort: "low" }));
+
+    // Assert
+    strictEqual(llm.acts[0].request.effort, "low");
+  });
+
+  it("leaves the act at the agent's own level when its route answers none", async () => {
+    // Arrange
+    const llm = new FakeLlm();
+    llm.extractions = [{ count: 1 }];
+
+    // Act
+    await runSubAgent(llm, call(), async () => ({ profile: "small", effort: null }));
+
+    // Assert
+    strictEqual("effort" in llm.acts[0].request, false);
+  });
+
   it("asks the route once, about the charter's name and the brief", async () => {
     // Arrange
     const llm = new FakeLlm();
@@ -83,7 +107,7 @@ describe("runSubAgent", () => {
     const asked: unknown[] = [];
 
     // Act
-    await runSubAgent(llm, call(), async (task) => { asked.push(task); return null; });
+    await runSubAgent(llm, call(), async (task) => { asked.push(task); return { profile: null, effort: null }; });
 
     // Assert
     deepStrictEqual(asked, [{ crew: "code-reader", brief: "BRIEF TEXT" }]);

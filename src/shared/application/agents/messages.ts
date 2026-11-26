@@ -1,6 +1,6 @@
 // The text the agent services report: the lines of a background child, the problems of a sub-agent's answer and the
 // lines of the routing.
-import type { RouteChoiceReason, RouteStands } from "../../domain/agents/model-route.ts";
+import type { EffortChoiceReason, RouteChoiceReason, RouteStands } from "../../domain/agents/model-route.ts";
 import { NO_DECISION_MODEL_CAUSES } from "../messages.ts";
 
 // child-agent.ts
@@ -53,4 +53,13 @@ export const ROUTE_STANDS: Readonly<Record<RouteStands, string>> = {
   crew: "the act stays on its crew's profile",
 };
 export const pickedWith = (picked: string, probability: number): string => `picked '${picked}' at ${probability.toFixed(2)}`;
+/** Why a thinking level stands, by its reason. */
+export const EFFORT_WHY: Readonly<Record<EffortChoiceReason, string>> = {
+  model: "the decision model's pick",
+  "single-level": "the one level left under /effort",
+  "low-confidence": "the pick was not sure enough",
+  "no-answer": "the decision model did not answer",
+};
+export const effortChosen = (level: string, why: string): string => `effort '${level}' (${why})`;
+export const effortLeft = (why: string): string => `effort left as it was (${why})`;
 export const HOST_DEFAULT_MODEL = "the host's default model";

@@ -5,7 +5,7 @@ import { describe, it } from "node:test";
 
 import { actRoute, routeAgent } from "../../../../src/shared/application/agents/route-agent.ts";
 import {
-  ACT_LINES, ACT_ROUTES, BILLING_TASK, HELD_CASES, LINE_CASES, NO_CHOICE, NO_MODEL_WARNING, OPTIONS_CASES, OUTSIDE_LADDER_LINE,
+  ACT_EFFORTS, ACT_LINES, ACT_ROUTES, BILLING_TASK, EFFORT_ASKED_CASES, EFFORT_LINE_CASES, EFFORT_RECORD, EFFORT_ROUTED_CASES, LOW_PICKED, THINKING_TASK, effortSetup, HELD_CASES, LINE_CASES, NO_CHOICE, NO_MODEL_WARNING, OPTIONS_CASES, OUTSIDE_LADDER_LINE,
   REASON_CASES, REVIEW_TASK, RULES_PATH, SMALL_RECORD, TASK, UNSURE_RECORD, answer, answeredSetup, routeSetup,
 } from "./route-agent.fixtures.ts";
 
@@ -16,7 +16,7 @@ describe("routeAgent", () => {
       const { deps, picker } = routeSetup(setting);
 
       // Act
-      const profile = await routeAgent(deps, TASK, "large");
+      const { profile } = await routeAgent(deps, TASK, "large");
 
       // Assert
       deepStrictEqual([profile, picker.asked.length], ["large", 0]);
@@ -29,7 +29,7 @@ describe("routeAgent", () => {
     decision.present = false;
 
     // Act
-    const profile = await routeAgent(deps, TASK, "large");
+    const { profile } = await routeAgent(deps, TASK, "large");
 
     // Assert
     deepStrictEqual([profile, picker.asked.length, log.lines], ["large", 0, [NO_MODEL_WARNING]]);
@@ -51,7 +51,7 @@ describe("routeAgent", () => {
     const { deps, picker, log } = routeSetup();
 
     // Act
-    const profile = await routeAgent(deps, TASK, "guarded");
+    const { profile } = await routeAgent(deps, TASK, "guarded");
 
     // Assert
     deepStrictEqual([profile, picker.asked.length, log.lines], ["guarded", 0, [OUTSIDE_LADDER_LINE]]);
@@ -63,7 +63,7 @@ describe("routeAgent", () => {
       const { deps, picker, log, session } = routeSetup("on", c);
 
       // Act
-      const profile = await routeAgent(deps, c.task, c.session);
+      const { profile } = await routeAgent(deps, c.task, c.session);
 
       // Assert
       deepStrictEqual([profile, picker.asked.length, log.lines, session.state.has("route_recent")], [c.session, 0, [], false]);
@@ -112,7 +112,7 @@ describe("routeAgent", () => {
       const { deps } = answeredSetup(c);
 
       // Act
-      const profile = await routeAgent(deps, TASK, c.session);
+      const { profile } = await routeAgent(deps, TASK, c.session);
 
       // Assert
       strictEqual(profile, c.profile);
@@ -174,7 +174,7 @@ describe("routeAgent", () => {
     session.writeStateFailure = new Error("no session");
 
     // Act
-    const profile = await routeAgent(deps, TASK, null);
+    const { profile } = await routeAgent(deps, TASK, null);
 
     // Assert
     strictEqual(profile, "large");
@@ -188,7 +188,7 @@ describe("actRoute", () => {
       const { deps } = answeredSetup(c);
 
       // Act
-      const profile = await actRoute(deps, c.profiles)(REVIEW_TASK);
+      const { profile } = await actRoute(deps, c.profiles)(REVIEW_TASK);
 
       // Assert
       strictEqual(profile, c.profile);
@@ -205,6 +205,96 @@ describe("actRoute", () => {
 
       // Assert
       deepStrictEqual(log.lines, c.lines);
+    });
+  }
+});
+
+describe("routeAgent, the thinking level", () => {
+  for (const c of EFFORT_ASKED_CASES) {
+    it(c.name, async () => {
+      // Arrange
+      const { deps, picker } = effortSetup(c);
+
+      // Act
+      await routeAgent(deps, c.task, "large");
+
+      // Assert
+      deepStrictEqual(picker.asked[0].effort, c.effort);
+    });
+  }
+
+  it("asks for any level of the host when the session cannot say what /effort stored", async () => {
+    // Arrange
+    const { deps, picker, session } = effortSetup({ stored: "high" });
+    session.readStateFailure = new Error("no session");
+
+    // Act
+    await routeAgent(deps, THINKING_TASK, "large");
+
+    // Assert
+    deepStrictEqual(picker.asked[0].effort, {});
+  });
+
+  for (const c of EFFORT_ROUTED_CASES) {
+    it(c.name, async () => {
+      // Arrange
+      const { deps } = effortSetup(c);
+
+      // Act
+      const { effort } = await routeAgent(deps, THINKING_TASK, "large");
+
+      // Assert
+      strictEqual(effort, c.level);
+    });
+  }
+
+  for (const c of EFFORT_LINE_CASES) {
+    it(c.name, async () => {
+      // Arrange
+      const { deps, log } = effortSetup(c);
+
+      // Act
+      await routeAgent(deps, THINKING_TASK, "large");
+
+      // Assert
+      deepStrictEqual(log.lines, c.lines);
+    });
+  }
+
+  it("keeps the level picked with the choice, for /route why", async () => {
+    // Arrange
+    const { deps, session } = effortSetup({ answer: LOW_PICKED });
+
+    // Act
+    await routeAgent(deps, THINKING_TASK, "large");
+
+    // Assert
+    deepStrictEqual(JSON.parse(session.state.get("route_recent") ?? "[]"), EFFORT_RECORD);
+  });
+});
+
+describe("actRoute, the thinking level", () => {
+  it("asks for the level of an act, which always takes one", async () => {
+    // Arrange
+    const { deps, picker } = effortSetup({ stored: "high" });
+
+    // Act
+    await actRoute(deps, { session: "large", crew: "large" })(REVIEW_TASK);
+
+    // Assert
+    deepStrictEqual(picker.asked[0].effort, { max: "high" });
+  });
+
+  for (const c of ACT_EFFORTS) {
+    it(c.name, async () => {
+      // Arrange
+      const { deps } = effortSetup(c);
+
+      // Act
+      const routed = await actRoute(deps, { session: "large", crew: "small" })(REVIEW_TASK);
+
+      // Assert
+      deepStrictEqual(routed, c.routed);
     });
   }
 });

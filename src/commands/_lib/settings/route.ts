@@ -2,11 +2,11 @@
 // the session, as `/config set` would; bare, it says where the routing stands; `why` shows the last routed launches.
 // A routed crew runs on a rung of the ladder, with the effort /effort stored: bare, /route also says, rung by rung,
 // what that rung's model takes and what the stored effort becomes on it, as the runtime judges them (Orkeon #359,
-// #360).
+// #360), and whether the pick chooses the thinking level too (`route.effort`, set with /config).
 import type { DecisionModel, ReasoningReader, SessionStore } from "../../../shared/application/ports.ts";
 import type { ConfigStore } from "../../../shared/application/config-store.ts";
 import {
-  ROUTE_AGENTS_CONFIG_KEY, ROUTE_LADDER_CONFIG_KEY, ladderOf, parseRecords, routeOn,
+  ROUTE_AGENTS_CONFIG_KEY, ROUTE_EFFORT_CONFIG_KEY, ROUTE_LADDER_CONFIG_KEY, ladderOf, parseRecords, routeOn,
 } from "../../../shared/domain/agents/model-route.ts";
 import { providerEffort } from "../../../shared/domain/agent-policy/behavior-flags.ts";
 import type { EffortLevel } from "../../../shared/domain/agent-policy/behavior-flags.ts";
@@ -39,7 +39,8 @@ function rungReasoning(rung: string, effort: EffortLevel | undefined, reasoning:
 async function status(deps: RouteCommandDeps): Promise<CommandView> {
   const on = routeOn((await deps.config.readValue(ROUTE_AGENTS_CONFIG_KEY)).value);
   const ladder = ladderOf((await deps.config.readValue(ROUTE_LADDER_CONFIG_KEY)).value);
-  const head = routeStatus(on, ladder.join(","), deps.decision.available());
+  const effortPicked = routeOn((await deps.config.readValue(ROUTE_EFFORT_CONFIG_KEY)).value);
+  const head = routeStatus(on, effortPicked, ladder.join(","), deps.decision.available());
   const { reasoning } = deps;
   if (reasoning === undefined) return { text: head };
   const effort = providerEffort(await deps.session.readState(EFFORT_STATE_KEY).catch(() => null));

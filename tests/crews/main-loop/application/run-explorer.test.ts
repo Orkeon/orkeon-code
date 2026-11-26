@@ -10,7 +10,7 @@ import { budgetExhaustedAnswer, iterationsExhausted } from "../../../../src/shar
 import { FakeLlm } from "../../../support/doubles/fake-llm.ts";
 import { FakeLogger } from "../../../support/doubles/fake-logger.ts";
 import {
-  EXPLORER_RULE_MARKERS, ITERATIONS_NOTICE, OUT_OF_ITERATIONS, REFUSED_BRIEFS,
+  EXPLORER_RULE_MARKERS, ITERATIONS_NOTICE, NOT_ROUTED, OUT_OF_ITERATIONS, PLAIN_REQUEST, REFUSED_BRIEFS, ROUTED_ACTS,
 } from "./run-explorer.fixtures.ts";
 
 describe("runExplorer", () => {
@@ -41,6 +41,35 @@ describe("runExplorer", () => {
       // Assert
       await rejects(run, c.error);
       strictEqual(llm.acts.length, 0);
+    });
+  }
+});
+
+describe("runExplorer, a routed act", () => {
+  it("asks its route once, under the explorer's name, about the trimmed brief", async () => {
+    // Arrange
+    const llm = new FakeLlm();
+    llm.answers = ["the report"];
+    const asked: unknown[] = [];
+
+    // Act
+    await runExplorer(" where is the shell built? ", { llm, log: new FakeLogger(), route: async (task) => { asked.push(task); return NOT_ROUTED; } });
+
+    // Assert
+    deepStrictEqual(asked, [{ crew: "explorer", brief: "where is the shell built?" }]);
+  });
+
+  for (const c of ROUTED_ACTS) {
+    it(c.name, async () => {
+      // Arrange
+      const llm = new FakeLlm();
+      llm.answers = ["the report"];
+
+      // Act
+      await runExplorer("where is the shell built?", { llm, log: new FakeLogger(), route: c.route });
+
+      // Assert
+      deepStrictEqual(llm.acts[0].request, { ...PLAIN_REQUEST, ...c.moved });
     });
   }
 });
