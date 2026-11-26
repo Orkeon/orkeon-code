@@ -15,7 +15,7 @@ import {
 } from "../../../shared/domain/config-schema.ts";
 import { CONFIG_FILE_PATH, USER_CONFIG_FILE_PATH } from "../../../shared/application/config-store.ts";
 import type { ConfigStore } from "../../../shared/application/config-store.ts";
-import { readLlmProfile } from "../../../shared/application/llm-profile.ts";
+import { readCrewProfile, readLlmProfile } from "../../../shared/application/llm-profile.ts";
 import type { ReasoningReader } from "../../../shared/application/ports.ts";
 import type { SessionIo } from "../../../shared/application/session-io.ts";
 import { storedEffortWarning } from "./effort.ts";
@@ -38,16 +38,21 @@ function takeSessionFlag(tokens: string[]): { session: boolean; rest: string[] }
 }
 
 /** `/config [list|keys|get|set|unset] …`, from the command's raw tokens. A set or an unset that changes the
- *  session's `llm.profile` moves its turns onto another model: the answer then warns, as /model does, when the
- *  effort /effort stored does not go as asked there. */
+ *  session's `llm.profile` moves its turns onto another model, and one that changes `agents.profile` its dev steps
+ *  and sub-agents: the answer then warns, as /model does, when the effort /effort stored does not go as asked there. */
 export async function runConfig(tokens: string[], deps: ConfigDeps): Promise<CommandView> {
   const { session, reasoning, config } = deps;
   if (session === undefined || reasoning === undefined) return applyConfig(tokens, deps);
-  const before = (await readLlmProfile(config)).profile;
+  const before = await profilesOf(config);
   const view = await applyConfig(tokens, deps);
-  if ((await readLlmProfile(config)).profile === before || view.text === undefined) return view;
+  if ((await profilesOf(config)) === before || view.text === undefined) return view;
   const warning = await storedEffortWarning({ session, config, reasoning });
   return warning === "" ? view : { ...view, text: `${view.text}\n${warning}` };
+}
+
+/** The profiles the turns and the other agents run on, as one value to compare. */
+async function profilesOf(config: ConfigStore): Promise<string> {
+  return JSON.stringify([(await readLlmProfile(config)).profile, (await readCrewProfile(config)).profile]);
 }
 
 async function applyConfig(tokens: string[], deps: ConfigDeps): Promise<CommandView> {

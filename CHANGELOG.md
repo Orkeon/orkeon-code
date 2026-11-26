@@ -7,6 +7,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added — `agents.profile`, the agents on another profile than the conversation
+
+- The session key `agents.profile` names the host profile of every agent but the main turn's: the crews the commands
+  launch (the dev steps and their child agents, `/review`, `/commit`, `/advisor`, `/compact` and the others) and the
+  explorer the main turn spawns. The turns of `/assistant` stay on `llm.profile`, else on the host's default model
+  ([ADR 0038](docs/adr/0038-agents-profile.md)). With the `agent-cli` example, `/config set agents.profile
+  subscription` keeps the conversation on the API key and sends the agents to the Claude subscription. Without the
+  key nothing changes: the agents follow `llm.profile`.
+- `/route` routes a crew under the profile it is launched on, `agents.profile` when the session names one; its log
+  line for a profile outside the ladder now reads `the profile '<name>' the crew is launched on is not on the ladder`.
+- `/effort` and `/config set agents.profile` judge the stored effort on the agents' profile too: `⚠ effort, dev steps
+  and sub-agents (the profile '<name>'): …` when it is not the profile the turns run on.
+
 ### Changed — the pin moves to Orkeon `main` `948d1b6`
 
 - The pin moves to Orkeon `main` `948d1b6` (Orkeon #484, #485, #486), six merges past the release `1.4.0`

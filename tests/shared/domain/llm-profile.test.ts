@@ -1,9 +1,9 @@
 // shared/domain/llm-profile.ts: the notation of `llm.profile` and the profile a crew input names. Run:
 //   node --test tests/shared/domain/llm-profile.test.ts
 import { describe, it } from "node:test";
-import { strictEqual } from "node:assert";
-import { LLM_PROFILE_CONFIG_KEY, LLM_PROFILE_INPUT_KEY, llmProfileOf, llmProfileProblem, llmSessionProfileOf, takesPromptCache } from "../../../src/shared/domain/llm-profile.ts";
-import { CACHE_PROVIDERS, INPUT_PROFILES, PROFILE_NAMES, SESSION_PROFILES } from "./llm-profile.fixtures.ts";
+import { deepStrictEqual, strictEqual } from "node:assert";
+import { LLM_PROFILE_CONFIG_KEY, LLM_PROFILE_INPUT_KEY, agentsProfileOf, llmProfileOf, llmProfileProblem, llmSessionProfileOf, spawnedAgentInput, takesPromptCache } from "../../../src/shared/domain/llm-profile.ts";
+import { AGENTS_PROFILES, CACHE_PROVIDERS, INPUT_PROFILES, SPAWNED_INPUTS, PROFILE_NAMES, SESSION_PROFILES } from "./llm-profile.fixtures.ts";
 
 describe("llmProfileProblem", () => {
   for (const c of PROFILE_NAMES) {
@@ -72,6 +72,36 @@ describe("takesPromptCache", () => {
 
       // Assert
       strictEqual(takes, c.takes);
+    });
+  }
+});
+
+describe("agentsProfileOf", () => {
+  for (const c of AGENTS_PROFILES) {
+    it(c.name, () => {
+      // Arrange
+      const input = c.input;
+
+      // Act
+      const profile = agentsProfileOf(input);
+
+      // Assert
+      strictEqual(profile, c.profile);
+    });
+  }
+});
+
+describe("spawnedAgentInput", () => {
+  for (const c of SPAWNED_INPUTS) {
+    it(c.name, () => {
+      // Arrange
+      const input = c.input;
+
+      // Act
+      const spawned = spawnedAgentInput(input);
+
+      // Assert
+      deepStrictEqual(spawned, c.spawned);
     });
   }
 });

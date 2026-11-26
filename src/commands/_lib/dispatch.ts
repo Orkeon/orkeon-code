@@ -12,7 +12,7 @@ import type { CrewHost, CrewLaunchOptions, PermissionRules, ToolCatalogue } from
 import type { ConfigStore } from "../../shared/application/config-store.ts";
 import type { SessionIo } from "../../shared/application/session-io.ts";
 import { configuredNames, resolveExtraTools } from "../../shared/application/extra-tools.ts";
-import { readLlmProfile } from "../../shared/application/llm-profile.ts";
+import { readAgentsProfile, readCrewProfile, readLlmProfile } from "../../shared/application/llm-profile.ts";
 import { readToolFamilies } from "../../shared/application/tool-families.ts";
 import { builtInRules, syncPermissionRules } from "../../shared/application/permission-rules.ts";
 import { readMemoryDir } from "../../shared/application/shared-memory/memory-settings.ts";
@@ -21,7 +21,7 @@ import type { HostSource } from "../../shared/application/host-context.ts";
 import { formatRule } from "../../shared/domain/agent-policy/permission.ts";
 import { chainDepthLine, chainDepthRefusal } from "../../shared/domain/agents/chain.ts";
 import { exclusiveLine, exclusiveRefusal } from "../../shared/domain/agents/exclusive.ts";
-import { LLM_PROFILE_FALLBACK_INPUT_KEY, LLM_PROFILE_INPUT_KEY } from "../../shared/domain/llm-profile.ts";
+import { AGENTS_PROFILE_INPUT_KEY, LLM_PROFILE_FALLBACK_INPUT_KEY, LLM_PROFILE_INPUT_KEY } from "../../shared/domain/llm-profile.ts";
 import { errorText } from "../../shared/domain/prelude.ts";
 import type { EpilogueCall, PreludeCall } from "../../shared/domain/prelude.ts";
 import type { StartOutput } from "../../shared/domain/session-start.ts";
@@ -39,9 +39,10 @@ export interface CommandLog {
   warn(message: string, data?: object): void;
 }
 
-/** What a crew launch needs: the host that runs crews, the command's log, and the session's `llm.profile` when
- *  the command read it (withLlmProfile): the crew input then carries it as `llmProfile`, and every agent of the
- *  crew runs on that profile. Undefined or null, the input carries nothing and the agents run on the host's default model. */
+/** What a crew launch needs: the host that runs crews, the command's log, and the profile the crew runs on when
+ *  the command read it (withLlmProfile: `agents.profile`, else `llm.profile`; the main loop: `llm.profile` alone):
+ *  the crew input then carries it as `llmProfile`, and every agent of the crew runs on that profile. Undefined or
+ *  null, the input carries nothing and the agents run on the host's default model. */
 export interface LaunchDeps {
   crews: Pick<CrewHost, "launch">;
   log: Pick<CommandLog, "info">;
@@ -51,9 +52,19 @@ export interface LaunchDeps {
   llmProfileFallback?: string;
 }
 
-/** `deps` with the session's `llm.profile` read: what every command hands launchCrew. A setting that cannot be
- *  read, or holds no profile name, is warned about and the launch goes on without it. */
+/** `deps` with the profile a crew other than the main loop runs on: the session's `agents.profile`, else its
+ *  `llm.profile`; what every command hands launchCrew. A setting that cannot be read, or holds no profile name, is
+ *  warned about and the launch goes on without it. */
 export async function withLlmProfile<D extends LaunchDeps & { log: Pick<CommandLog, "warn"> }>(
+  deps: D, config: Pick<ConfigStore, "readValue" | "readFile">,
+): Promise<D & { llmProfile: string | null }> {
+  const read = await readCrewProfile(config);
+  for (const warning of read.warnings) deps.log.warn(warning);
+  return { ...deps, llmProfile: read.profile };
+}
+
+/** `deps` with the session's `llm.profile` read: what the main loop's turn runs on, whatever `agents.profile` says. */
+async function withTurnProfile<D extends LaunchDeps & { log: Pick<CommandLog, "warn"> }>(
   deps: D, config: Pick<ConfigStore, "readValue" | "readFile">,
 ): Promise<D & { llmProfile: string | null }> {
   const read = await readLlmProfile(config);
@@ -61,8 +72,8 @@ export async function withLlmProfile<D extends LaunchDeps & { log: Pick<CommandL
   return { ...deps, llmProfile: read.profile };
 }
 
-/** `deps` with the profile the launch of `task.crew` runs on: the session's `llm.profile`, then, with `route.agents`
- *  on, the rung of `route.ladder` the runtime's System One pick answers for the command (shared/application/agents/route-agent). */
+/** `deps` with the profile the launch of `task.crew` runs on: the session's `agents.profile`, else its `llm.profile`,
+ *  then, with `route.agents` on, the rung of `route.ladder` the runtime's System One pick answers for the command (shared/application/agents/route-agent). */
 export async function withRoutedProfile<D extends LaunchDeps & { log: Pick<CommandLog, "warn" | "info"> }>(
   deps: D, config: Pick<ConfigStore, "readValue" | "readFile">, routing: Omit<RouteDeps, "config" | "log">, task: RouteTask,
 ): Promise<D & { llmProfile: string | null }> {
@@ -153,6 +164,8 @@ export interface MainLoopLaunchDeps extends LaunchDeps {
  *    then the built-in denies on the shared memory's candidates and entries;
  *  - the chat family, offered when the host's `chat_accounts` lists one account
  *    at least (`chatTools: true`, absent otherwise; a failed call is no account).
+ * The turn runs on the session's `llm.profile`; `agents.profile`, when the session names one, rides along as
+ * `agentsLlmProfile`: the agents the turn spawns run on it.
  * A `prelude` (a tool call the crew makes before the turn: /transcribe --then,
  * /voice --go) rides along as it is. With voice.reply on, an epilogue has the crew read the
  * answer aloud with the speech server's speak, when the host registers it. The start
@@ -183,7 +196,9 @@ export async function launchMainLoop(
   if (!sync.applied) log.warn(NO_SESSION_RULES);
   const families = await readToolFamilies(deps.catalogue);
   const epilogue = await voiceReply(deps);
-  const profiled = deps.llmProfile === undefined ? await withLlmProfile(deps, deps.config) : deps;
+  const profiled = deps.llmProfile === undefined ? await withTurnProfile(deps, deps.config) : deps;
+  const agents = await readAgentsProfile(deps.config);
+  if (agents.warning !== undefined) log.warn(agents.warning);
   return launchCrew(
     profiled,
     "main-loop",
@@ -194,6 +209,7 @@ export async function launchMainLoop(
       permissionRules: sync.rules.map(formatRule),
       extraTools: extras.present.map(formatExtraTool),
       ...(families.chat ? { chatTools: true } : {}),
+      ...(agents.profile !== null ? { [AGENTS_PROFILE_INPUT_KEY]: agents.profile } : {}),
       ...(input.prelude ? { prelude: input.prelude } : {}),
       ...(epilogue ? { epilogue } : {}),
       ...(input.sessionStart ? { sessionStart: input.sessionStart } : {}),
@@ -201,6 +217,7 @@ export async function launchMainLoop(
     {
       permissionMode, permissionRules: sync.rules.length, extraTools: extras.present.length,
       ...(families.chat ? { chatTools: true } : {}),
+      ...(agents.profile !== null ? { [AGENTS_PROFILE_INPUT_KEY]: agents.profile } : {}),
       ...(input.prelude ? { prelude: input.prelude.tool } : {}),
       ...(epilogue ? { epilogue: epilogue.tool } : {}),
       ...(input.sessionStart ? { sessionStartLines: input.sessionStart.lines.length } : {}),

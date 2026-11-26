@@ -63,8 +63,17 @@ export const LLM_PROFILE_DOC: ConfigKeyDoc = {
     "The host profile the agents of every crew run on: an LLM profile (Llm:Profiles:<name>) or a decision " +
     "profile (Orkeon:Decision:Profiles:<name>, a decision model such as Jev in front of one), e.g. 'guarded'. " +
     "A name the host does not declare fails the crew's load, listing the profiles it knows. Omitted = the host's " +
-    "default model.",
+    "default model. agents.profile moves every agent but the main turn's onto another profile.",
   consumedBy: "/assistant, /review, /commit, /advisor, /memory admit, the dev steps and every other command that launches a crew (the model its agents run on)",
+};
+
+export const AGENTS_PROFILE_DOC: ConfigKeyDoc = {
+  description:
+    "The host profile of every agent but the main turn's: the crews the commands launch (the dev steps, /review, " +
+    "/commit, /advisor, /compact and the others) and the explorer the main turn spawns, e.g. 'subscription' while " +
+    "the turns of /assistant stay on llm.profile or the host's default model. A name as llm.profile takes them; " +
+    "one the host does not declare fails the crew's load, or the turn that spawns. Omitted = they follow llm.profile.",
+  consumedBy: "/assistant (the agents its turn spawns), /review, /commit, /advisor, /memory admit, the dev steps and every other command that launches a crew other than the main loop (the model their agents run on)",
 };
 
 export const COMMIT_REQUIRE_CONFIRM_DOC: ConfigKeyDoc = {

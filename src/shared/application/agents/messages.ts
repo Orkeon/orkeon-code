@@ -33,7 +33,7 @@ export const ROUTE_NO_LADDER =
 export const routeRefused = (message: string): string =>
   `route.agents is on and the runtime refused the pick: nothing is routed, the session's profile stands (${message})`;
 export const routeKeepsProfile = (profile: string, ladder: string): string =>
-  `route.agents is on and the session's llm.profile '${profile}' is not on the ladder (${ladder}): it stands`;
+  `route.agents is on and the profile '${profile}' the crew is launched on is not on the ladder (${ladder}): it stands`;
 export const routedLine = (crew: string, profile: string, why: string): string => `route: ${crew} on '${profile}' (${why})`;
 /** Why a choice stands, by its reason: the reasons a choice can carry, and no other. */
 export const ROUTE_WHY: Readonly<Record<RouteChoiceReason, string>> = {

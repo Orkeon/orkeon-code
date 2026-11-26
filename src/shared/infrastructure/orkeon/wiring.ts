@@ -36,7 +36,7 @@ import { actRoute } from "../../application/agents/route-agent.ts";
 import { contextPruning } from "../../application/compaction/prune-context.ts";
 import { prunedLlm } from "../../application/compaction/pruned-llm.ts";
 import type { ActRoute } from "../../application/agents/route-agent.ts";
-import { llmProfileOf, llmSessionProfileOf } from "../../domain/llm-profile.ts";
+import { llmProfileOf, llmSessionProfileOf, spawnedAgentInput } from "../../domain/llm-profile.ts";
 import type { AgentFactories } from "./llm-profile.ts";
 import { createAnchorIndex, createCodeIndex, createCostIndex } from "./code-index.ts";
 import { createFiles } from "./files.ts";
@@ -154,6 +154,11 @@ export const orkeonAgentFactories = (): AgentFactories => {
 /** An agent builder on the profile the crew input names (`llmProfile`, the session's `llm.profile`), else the plain
  *  one: where every composition root starts an agent (orkeon/llm-profile.ts). */
 export const orkeonAgent = (input: Readonly<Record<string, unknown>> = inputs()): any => profiledAgent(input, orkeonAgentFactories());
+
+/** An agent builder for an agent the main turn spawns (its explorer): on the profile `agents.profile` names
+ *  (`agentsLlmProfile` of the input), else on the turn's own, as orkeonAgent. */
+export const orkeonSpawnedAgent = (input: Readonly<Record<string, unknown>> = inputs()): any =>
+  profiledAgent(spawnedAgentInput(input), orkeonAgentFactories());
 
 /** The route of a crew's sub-agent acts (a reviewer's, the auditor's): the runtime's pick (`ctx.llm.pick`) under the
  *  session's profile, an act moved only off the crew's own profile and only to a profile the host declares. `ctx` is

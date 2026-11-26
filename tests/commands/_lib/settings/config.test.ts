@@ -18,7 +18,7 @@ import {
   NARROW_USER_SETTINGS,
   NESTED_WARNING,
   NOT_JSON,
-  PROFILE_SET_LOWERED_TEXT,
+  AGENTS_PROFILE_SET_LOWERED_TEXT, PROFILE_SET_LOWERED_TEXT,
   PROFILE_UNSET_LOWERED_TEXT,
   SET_REFUSAL_CASES,
   UNLISTED_TOOL_NOTE,
@@ -367,6 +367,19 @@ describe("/config and the effort /effort stored", () => {
 
     // Assert
     deepStrictEqual(view, { text: PROFILE_SET_LOWERED_TEXT });
+  });
+
+  it("warns for the dev steps and the sub-agents when the agents.profile set lowers the stored effort", async () => {
+    // Arrange
+    const { run, store, reasoning } = configHarness();
+    store.state.set(EFFORT_STATE_KEY, "medium");
+    reasoning.byProfile = { large: { capabilities: GLM_TAKES, reports: { medium: MEDIUM_LOWERED } } };
+
+    // Act
+    const view = await run("set", "--session", "agents.profile", "large");
+
+    // Assert
+    deepStrictEqual(view, { text: AGENTS_PROFILE_SET_LOWERED_TEXT });
   });
 
   it("says nothing of the effort when the profile set takes the stored level", async () => {

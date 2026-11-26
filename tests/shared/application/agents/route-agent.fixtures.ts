@@ -65,7 +65,7 @@ export const NO_MODEL_WARNING =
   "off by --no-decision or Orkeon:Decision:Enabled false: check Orkeon:Decision:Provider and Orkeon:Decision:Enabled, " +
   "then the key of the provider's section, read from the variable its ApiKeyEnvVar names (TYPESAFE_API_KEY or " +
   "LIQUID_API_KEY by default) or from its ApiKey)";
-export const OUTSIDE_LADDER_LINE = "info: route.agents is on and the session's llm.profile 'guarded' is not on the ladder (small,large): it stands";
+export const OUTSIDE_LADDER_LINE = "info: route.agents is on and the profile 'guarded' the crew is launched on is not on the ladder (small,large): it stands";
 export const SMALL_RECORD = [{ crew: "dev-plan", profile: "small", reason: "model", picked: "small", probability: 0.9 }];
 export const UNSURE_RECORD = [{ crew: "dev-plan", profile: "large", reason: "low-confidence", picked: "small", probability: 0.4, stands: "session" }];
 

@@ -26,6 +26,7 @@ export const CONSUMERS: Record<string, string> = {
   "memory.project": "/memory-admit, /assistant (the memory_recall and memory_push tools)",
   "memory.autoAdmitAudited": "/memory-admit",
   "llm.profile": "/assistant, /review, /commit, /advisor, /memory admit, the dev steps and every other command that launches a crew (the model its agents run on)",
+  "agents.profile": "/assistant (the agents its turn spawns), /review, /commit, /advisor, /memory admit, the dev steps and every other command that launches a crew other than the main loop (the model their agents run on)",
   "paths.deny": "/assistant, the dev steps and every other command that launches a crew (each act's calls), /permissions (the deny rules in the gate), /doctor",
   "paths.allow": "/assistant, the dev steps and every other command that launches a crew (each act's calls), /permissions (the deny rules in the gate), /doctor",
 };

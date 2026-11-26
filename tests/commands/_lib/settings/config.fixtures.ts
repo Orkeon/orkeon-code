@@ -133,3 +133,9 @@ export const PROFILE_SET_LOWERED_TEXT = `llm.profile = large [session] — overr
 
 /** What `/config unset --session llm.profile` answers when the host's own model sends the stored `medium` as `low`. */
 export const PROFILE_UNSET_LOWERED_TEXT = `llm.profile session override removed (the file value applies again).\n${MEDIUM_LOWERED_WARNING}`;
+
+/** What `/config set --session agents.profile large` answers when `large` sends the stored `medium` as `low`: the
+ *  dev steps and the sub-agents run on it, the turns stay where they were. */
+export const AGENTS_PROFILE_SET_LOWERED_TEXT =
+  "agents.profile = large [session] — overrides the file until /clear.\n" +
+  "⚠ effort, dev steps and sub-agents (the profile 'large'): 'medium' is sent to glm-5.3 as 'low' (it takes low, high, max).";

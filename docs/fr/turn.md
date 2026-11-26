@@ -324,8 +324,9 @@ les lectures qu'il a faites restent dans son propre contexte.
 - **Sa charte** : le mode `plan` et les outils de lecture et de recherche du code (les fichiers, leurs nœuds, les
   dossiers, `glob`, `grep`, l'index du code et ses requêtes de graphe). Ni shell, ni écriture, ni construction
   d'index, ni web. Il a 30 itérations d'appels d'outils. Il tourne sous le plus strict de `plan` et du mode du tour,
-  sur le `llm.profile` de la session, sinon le modèle par défaut de l'hôte : ni `/model` ni `/effort` ne l'atteignent,
-  et `/route` ne le route pas.
+  sur le `agents.profile` de la session, sinon son `llm.profile`, sinon le modèle par défaut de l'hôte : ni `/model` ni
+  `/effort` ne l'atteignent, et `/route` ne le route pas. Sous un `agents.profile`, le tour et son explorateur tournent
+  sur deux profils : le tour reste sur `llm.profile`.
 - **Combien** : un tour lance 8 agents au plus (`spawnedAgents` de `crews/main-loop/domain/turn-budget.ts` ; le
   runtime en permet 3 quand un budget n'en nomme aucun). Le neuvième `spawn_agent` est refusé par une erreur d'outil que
   le modèle lit, et le tour continue avec les rapports qu'il tient (Orkeon #423 : atteindre le compte mettait fin au
@@ -367,7 +368,8 @@ les lectures qu'il a faites restent dans son propre contexte.
 `shared/domain/agents/model-route.ts`, `shared/application/agents/route-agent.ts`,
 `shared/infrastructure/orkeon/profile-picker.ts`
 ([ADR 0027](../adr/0027-decision-model-optimisations.md)). Les agents d'un crew tournent tous sur un profil du
-runtime, le `llm.profile` de la session, choisi à la construction du crew. Avec `route.agents` à `on` et un modèle de
+runtime, choisi à la construction du crew : le `agents.profile` de la session, sinon son `llm.profile` ; le tour de
+la boucle principale sur `llm.profile` seul. Ce profil est « celui de la session » ci-dessous. Avec `route.agents` à `on` et un modèle de
 décision sur le runtime, ce profil est choisi à chaque lancement de `/dev-spec` (et son alias `/dev-change`), `/dev-plan`,
 `/dev-learn`, `/review`, `/analyze`, `/commit`, `/init` et `/init-verifiers` :
 

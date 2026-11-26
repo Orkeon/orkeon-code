@@ -77,6 +77,8 @@ export function routedCrewDeps(settings: Record<string, string>) {
 
 export const NOT_A_PROFILE_WARNING = "llm.profile: 'a b' holds a space: a profile is one name, as the host's settings spell it; the host's default model this launch";
 
+export const NOT_AN_AGENTS_PROFILE_WARNING = "agents.profile: 'a b' holds a space: a profile is one name, as the host's settings spell it; the agents follow llm.profile this launch";
+
 export const CHAIN_LIMIT_ERROR = "chain depth 8 reached (MaxChainDepth 8, /dev-batches)";
 
 /** The host's refusal of an exclusive launch while the crew runs (Orkeon #239). */
@@ -111,6 +113,7 @@ export const UNREADABLE_EXTRA_TOOLS_WARNINGS = [
   `tools.extra could not be read (${WORKSPACE}/.orkeon/config.json could not be read or parsed): no extra tool this turn`,
   "permission rule 'deny create_issue' is dormant: tools.extra does not list its tool, the gate does not get it",
   `llm.profile could not be read (${WORKSPACE}/.orkeon/config.json could not be read or parsed): the host's default model this launch`,
+  `agents.profile could not be read (${WORKSPACE}/.orkeon/config.json could not be read or parsed): the agents follow llm.profile this launch`,
 ];
 
 /** A tools.extra with a tool registered, one not, a bad access, a second entry of a name and a built-in tool. */
@@ -172,6 +175,7 @@ export const UNREADABLE_VOICE_WARNINGS = [
   "tools.extra could not be read (config.json unreadable): no extra tool this turn",
   "voice.reply could not be read (config.json unreadable): the answer is not read aloud this turn",
   "llm.profile could not be read (config.json unreadable): the host's default model this launch",
+  "agents.profile could not be read (config.json unreadable): the agents follow llm.profile this launch",
 ];
 
 /** A session where /mode plan was run, with the stores it holds. */

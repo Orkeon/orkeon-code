@@ -292,8 +292,9 @@ it made stay in its own context.
 
 - **Its charter**: `plan` mode and the read and search tools of the code (files, their nodes, folders, `glob`,
   `grep`, the code index and its graph queries). No shell, no write, no index build, no web. It has 30 tool-call
-  iterations. It runs under the stricter of `plan` and the turn's mode, on the session's `llm.profile`, else the
-  host's default model: neither `/model` nor `/effort` reaches it, and `/route` does not route it.
+  iterations. It runs under the stricter of `plan` and the turn's mode, on the session's `agents.profile`, else its
+  `llm.profile`, else the host's default model: neither `/model` nor `/effort` reaches it, and `/route` does not
+  route it. Under an `agents.profile` the turn and its explorer run on two profiles: the turn stays on `llm.profile`.
 - **How many**: a turn spawns 8 agents at most (`spawnedAgents` of `crews/main-loop/domain/turn-budget.ts`; the
   runtime allows 3 when a budget names none). The ninth `spawn_agent` is refused with a tool error the model reads,
   and the turn carries on with the reports it holds (Orkeon #423: reaching the count used to end the turn at the
@@ -331,8 +332,9 @@ it made stay in its own context.
 
 `shared/domain/agents/model-route.ts`, `shared/application/agents/route-agent.ts`,
 `shared/infrastructure/orkeon/profile-picker.ts`
-([ADR 0027](adr/0027-decision-model-optimisations.md)). A crew's agents all run on one host profile, the session's
-`llm.profile`, chosen when the crew is built. With `route.agents` on and a decision model on the host, that profile
+([ADR 0027](adr/0027-decision-model-optimisations.md)). A crew's agents all run on one host profile, chosen when the crew is
+built: the session's `agents.profile`, else its `llm.profile`; the main loop's turn on `llm.profile` alone. That
+profile is "the session's" below. With `route.agents` on and a decision model on the host, that profile
 is picked at each launch of `/dev-spec` (and its alias `/dev-change`), `/dev-plan`, `/dev-learn`, `/review`, `/analyze`, `/commit`,
 `/init` and `/init-verifiers`:
 

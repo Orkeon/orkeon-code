@@ -67,6 +67,9 @@ export interface MainLoopInputs {
   /** The session's `llm.profile`, as launchCrew hands it: every agent of the crew runs on it, and the
    *  /model override is not sent under it (the profile names the model). */
   llmProfile?: unknown;
+  /** The session's `agents.profile`, as launchMainLoop hands it: the explorer the turn spawns is built on it
+   *  (the crew's entry point); absent, the explorer runs on the turn's own profile. */
+  agentsLlmProfile?: unknown;
   /** A tool call the launching command asks for before the turn ({ tool, args, label, as? }):
    *  /transcribe --then hands over the transcription this way, its result following the
    *  request under its label in the message the model reads and the session keeps;

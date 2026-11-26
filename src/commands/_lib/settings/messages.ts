@@ -180,10 +180,14 @@ export const effortUnchecked = (model: string, asked: string): string =>
   `the capability table does not know ${model}: '${asked}' is sent unchecked`;
 /** The line under an answer of /effort or /model when the effort does not go as asked. */
 export const effortWarning = (note: string): string => `⚠ effort: ${note}.`;
-/** The same line for the host's own model under a /model override: the dev steps and the sub-agents run on it. */
-export const effortWarningDevSteps = (note: string): string => `⚠ effort, dev steps and sub-agents (the host's model): ${note}.`;
-/** Under the thinking line of `show`, the same for the host's own model under a /model override. */
-export const thinkingDevSteps = (note: string): string => `\n  dev steps and sub-agents (the host's model): ${note}`;
+/** What the dev steps and the sub-agents run on, when it is not what the turns run on: the host's own model under a
+ *  /model override, or the profile `agents.profile` names. */
+export const THE_HOSTS_MODEL = "the host's model";
+export const theProfile = (name: string): string => `the profile '${name}'`;
+/** The same line for what the dev steps and the sub-agents run on, when the turns run on something else. */
+export const effortWarningDevSteps = (note: string, on: string): string => `⚠ effort, dev steps and sub-agents (${on}): ${note}.`;
+/** Under the thinking line of `show`, the same. */
+export const thinkingDevSteps = (note: string, on: string): string => `\n  dev steps and sub-agents (${on}): ${note}`;
 export const sentAs = (sent: string): string => `, sent as '${sent}'`;
 export const NONE_SENT = ", none sent";
 export const unknownEffort = (level: string, levels: readonly string[]): string =>

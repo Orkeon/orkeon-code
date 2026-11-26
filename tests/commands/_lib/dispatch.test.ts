@@ -38,7 +38,7 @@ import {
   MEMORY_PATHS,
   MIXED_EXTRA_TOOLS,
   MIXED_EXTRA_TOOLS_WARNINGS,
-  NOT_A_PROFILE_WARNING,
+  NOT_A_PROFILE_WARNING, NOT_AN_AGENTS_PROFILE_WARNING,
   NO_SPEAK_WARNING,
   QUIET_VOICE_CASES,
   START_SCRIPT,
@@ -238,6 +238,94 @@ describe("withLlmProfile", () => {
 
     // Assert
     deepStrictEqual({ profile: profiled.llmProfile, warned }, { profile: null, warned: [NOT_A_PROFILE_WARNING] });
+  });
+});
+
+describe("withLlmProfile — agents.profile", () => {
+  it("hands a crew the session's agents.profile, over its llm.profile", async () => {
+    // Arrange
+    const { deps, config } = routedCrewDeps({ "llm.profile": "large", "agents.profile": "subscription" });
+
+    // Act
+    const profiled = await withLlmProfile(deps, config);
+
+    // Assert
+    strictEqual(profiled.llmProfile, "subscription");
+  });
+
+  it("hands a crew llm.profile, with a warning, when agents.profile is not a profile name", async () => {
+    // Arrange
+    const { deps, config, warned } = routedCrewDeps({ "llm.profile": "large", "agents.profile": "a b" });
+
+    // Act
+    const profiled = await withLlmProfile(deps, config);
+
+    // Assert
+    deepStrictEqual({ profile: profiled.llmProfile, warned }, { profile: "large", warned: [NOT_AN_AGENTS_PROFILE_WARNING] });
+  });
+});
+
+describe("launchMainLoop — agents.profile", () => {
+  it("keeps the turn on llm.profile and hands agents.profile to the crew as agentsLlmProfile", async () => {
+    // Arrange
+    const { crews, config, deps } = mainLoopDeps();
+    await config.writeSession({ "llm.profile": "large", "agents.profile": "subscription" });
+
+    // Act
+    await launchMainLoop(deps, { prompt: "fix it", permissionMode: "plan" });
+
+    // Assert
+    const { llmProfile, agentsLlmProfile } = crews.launches[0].input;
+    deepStrictEqual({ llmProfile, agentsLlmProfile }, { llmProfile: "large", agentsLlmProfile: "subscription" });
+  });
+
+  it("keeps the turn on the host's default model under an agents.profile alone", async () => {
+    // Arrange
+    const { crews, config, deps } = mainLoopDeps();
+    await config.writeSession({ "agents.profile": "subscription" });
+
+    // Act
+    await launchMainLoop(deps, { prompt: "fix it", permissionMode: "plan" });
+
+    // Assert
+    const input = crews.launches[0].input;
+    deepStrictEqual(["llmProfile" in input, input.agentsLlmProfile], [false, "subscription"]);
+  });
+
+  it("hands the main loop no agentsLlmProfile when the session names no agents.profile", async () => {
+    // Arrange
+    const { crews, config, deps } = mainLoopDeps();
+    await config.writeSession({ "llm.profile": "large" });
+
+    // Act
+    await launchMainLoop(deps, { prompt: "fix it", permissionMode: "plan" });
+
+    // Assert
+    strictEqual("agentsLlmProfile" in crews.launches[0].input, false);
+  });
+
+  it("logs the agents' profile with the launch", async () => {
+    // Arrange
+    const { logged, config, deps } = mainLoopDeps();
+    await config.writeSession({ "agents.profile": "subscription" });
+
+    // Act
+    await launchMainLoop(deps, { prompt: "fix it", permissionMode: "plan" });
+
+    // Assert
+    strictEqual((logged[0].data as { agentsLlmProfile?: string }).agentsLlmProfile, "subscription");
+  });
+
+  it("launches the turn without an agents' profile, with a warning, when agents.profile is not a profile name", async () => {
+    // Arrange
+    const { crews, config, warned, deps } = mainLoopDeps();
+    await config.writeSession({ "agents.profile": "a b" });
+
+    // Act
+    await launchMainLoop(deps, { prompt: "fix it", permissionMode: "plan" });
+
+    // Assert
+    deepStrictEqual([warned, "agentsLlmProfile" in crews.launches[0].input], [[NOT_AN_AGENTS_PROFILE_WARNING], false]);
   });
 });
 
