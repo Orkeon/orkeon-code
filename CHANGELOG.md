@@ -7,6 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed — the pin moves to Orkeon `main` `948d1b6`
+
+- The pin moves to Orkeon `main` `948d1b6` (Orkeon #484, #485, #486), six merges past the release `1.4.0`
+  ([ADR 0037](docs/adr/0037-orkeon-after-486.md)). Nothing is adopted: the typings gain `chat_attach`, which sends
+  files to the Discord or Teams conversation an `orkeon-host` run answers and fails anywhere else, so the main loop
+  does not offer it. A crew's own tools (`run_validation`, `run_tests`, `run_build`) no longer enter the registry of
+  the process (Orkeon #484): a second run of `/dev-implement` or `/dev-verify` in one process cannot collide on
+  their names.
+
 ### Added — the chat tools in the main loop
 
 - The main loop offers the ten `chat_*` tools (Microsoft Teams first) when the host declares one chat account at
