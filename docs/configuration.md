@@ -175,7 +175,7 @@ the file sets. A key linked to an identity refuses every call that does not name
 - A CLI that still runs on a key rather than its login is refused before it answers, and the call does not fall back
   (`Llm:AgentCli:RequireLogin`, `true`).
 - Before the first run: `claude` on the `PATH`, signed in once (`claude /login`).
-- Any mode but docker: Orkeon `1.4.0` carries the provider, and so does the pin, three commits past it, so the tool
+- Any mode but docker: Orkeon `1.4.0` carries the provider, and so does the pin, six commits past it, so the tool
   and source modes run it. The image
   has neither `claude` nor its login.
 - Every verb of `orkeon` takes these settings, `orkeon runs list` among them (Orkeon #472).
