@@ -437,8 +437,8 @@ export const routeOutsideLadder = (profile: string, key: string): string =>
   `  ⚠ ${key} is '${profile}', which is not on the ladder: nothing is routed. Set it to a rung, or unset it.`;
 /** Under the status: the level /effort stored, refused by the runtime for the test pick, with its message. */
 export const routeLevelRefusedLine = (message: string): string =>
-  `  ⚠ route.effort is on and the runtime refuses the level /effort stored: route.effort picks no level, each launch ` +
-  `is routed on its profile alone (${message}).`;
+  `  ⚠ route.effort is on and the runtime refuses the level /effort stored: route.effort picks no level, a launch asks ` +
+  `for its profile alone (${message}).`;
 /** Under the status: a stored route.ladder that is no ladder, and the ladder used in its place. */
 export const routeLadderInvalid = (stored: string, ladder: string): string =>
   `  ⚠ ${ladderMisreadText(stored, ladder)}. Set it to two rungs or more, each once, or unset it.`;

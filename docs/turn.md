@@ -349,7 +349,7 @@ is picked at each launch of `/dev-spec` (and its alias `/dev-change`), `/dev-pla
   `Llm:Profiles`.
   - `/config set` refuses fewer than two names, a name that is no profile name, and a rung named twice, whatever its
     case (`Small,small`). A stored value that is no ladder (a hand-edited file) reads as `small,large`, and is said:
-    a warning at each routed launch, a line under a bare `/route`.
+    a warning at each launch the routing looks at, routed or not, a line under a bare `/route`.
   - The session's `llm.profile` and a rule's profile find their rung whatever their case: `llm.profile Large` is
     the rung `large` of `small,large`.
   - The runtime's pick refuses a ladder that names a profile the host does not declare: nothing is routed then, the
@@ -405,9 +405,10 @@ is picked at each launch of `/dev-spec` (and its alias `/dev-change`), `/dev-pla
     one warning, and the profile is asked once more, alone: the level stays in place. A second refusal is the usual
     one. A refusal of another part (a rung the host does not declare, a floor, a fallback) is the usual warning, with
     no second call.
-  - Inside one crew, that warning and the one of a ladder that is no ladder come once, at the first act; after a
-    refused level the next acts ask the profile alone. Acts started in parallel before the refusal came back still
-    ask the level.
+  - A route of acts gives that warning and the one of a ladder that is no ladder once, at its first act; after a
+    refused level its next acts ask the profile alone. Acts started in parallel before the refusal came back still
+    ask the level. A route lasts one crew body, one batch audit or the reviewer of `/dev-batches`, or one explorer;
+    the launch has its own, so a routed crew warns at its launch and again at its first act.
   - Nothing is asked where no profile is: a session on a profile outside the ladder, or whose own rung is the one
     rung left, keeps its level.
   - The line and `/route why` show the level after the profile: `route: dev-plan on 'small' (the decision model's
@@ -429,7 +430,7 @@ is picked at each launch of `/dev-spec` (and its alias `/dev-change`), `/dev-pla
   session's profile, an act where its crew runs.
   - The setting off or unreadable, a host without the pick (in a crew, a `ctx.llm.pick` that says the host wires
     none) and a cancelled pick: nothing is logged. The release `1.4.0` of the tool and docker modes has the pick
-    ([ADR 0034](adr/0034-orkeon-after-470.md)).
+    ([ADR 0042](adr/0042-route-review.md)).
   - No decision model for a script, whether no provider is named, the provider lacks its key or the host's
     decision circuit is off (`--no-decision`, `Orkeon:Decision:Enabled=false`): the host then withholds
     `system_one_decide`, and a warning says so at each launch and each act. The runtime does not tell a script

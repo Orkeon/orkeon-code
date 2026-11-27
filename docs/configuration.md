@@ -415,14 +415,17 @@ What the table leaves out:
     one warning, `route.agents is on and the runtime refused the pick of the profile with a thinking level: the
     profile is asked again without one, and the level /effort stored stays in place (<message>)`, then the profile
     is asked again alone.
-  - Inside one crew the warning comes once, at the first act, and the acts after it ask the profile alone; acts
-    started in parallel before the refusal came back still ask the level. Each launch is a run of its own.
+  - A route of acts warns once, at its first act, and its acts after that ask the profile alone; acts started in
+    parallel before the refusal came back still ask the level. A route lasts one crew body, one batch audit or the
+    reviewer of `/dev-batches`, or one explorer the main loop spawns. The launch has its own: a routed crew warns at
+    its launch and again at its first act.
   - Any other refusal (a rung the host does not declare, a floor, a fallback) is one warning, `route.agents is on and
     the runtime refused the pick: nothing is routed, the session's profile stands (<message>)`, and no second call.
 - **A stored `route.ladder` that is no ladder** (a hand-edited file: one name, a name twice, a malformed name) is
-  routed on `small,large`, and said: each routed launch warns `route.agents is on and route.ladder is '<value>',
-  which is no ladder: the ladder small,large is used instead`, once per crew, and a bare `/route`, with the routing
-  on or off, adds the line `⚠ route.ladder is '<value>', which is no ladder: the ladder small,large is used instead.
+  routed on `small,large`, and said. With the routing on and a decision model on the host, each launch warns, routed
+  or not (the warning comes before the checks of a profile off the ladder and of one rung left), as does the first
+  act of each route of acts: `route.agents is on and route.ladder is '<value>', which is no ladder: the ladder
+  small,large is used instead`. A bare `/route`, with the routing on or off, adds the line `⚠ route.ladder is '<value>', which is no ladder: the ladder small,large is used instead.
   Set it to two rungs or more, each once, or unset it.` A value that is not a string (an array, a number written by
   hand) reads as unset, as for every key, with no warning.
 - **A ladder of three rungs**: [`config/appsettings.anthropic.example.json`](../config/appsettings.anthropic.example.json)
@@ -437,13 +440,13 @@ What the table leaves out:
   - With `route.effort` on, the test pick asks the level a launch would ask. When the runtime refuses that level
     part, the pick is made again for the profile alone (two calls, in that case only), the state shown is the
     profile's, and the line `⚠ route.effort is on and the runtime refuses the level /effort stored: route.effort picks
-    no level, each launch is routed on its profile alone (<message>).` comes under the status. It comes before the
+    no level, a launch asks for its profile alone (<message>).` comes under the status. It comes before the
     warnings of a ladder that is no ladder and of a launch profile outside the ladder.
   - What follows `decision model:` is one of eight states:
 
     | When | `decision model:` |
     |---|---|
-    | the pick answered a profile, or the routing is off and a model is configured | `present` |
+    | the pick answered, sure or not (an unsure pick moves nothing), or the routing is off and a model is configured | `present` |
     | no decision model configured | `absent, nothing is routed` |
     | the decision model gave no answer, or the call threw | `configured, but it gave no answer to a test pick just now (a server that is down, a key refused): nothing is routed until it answers` |
     | the runtime refused the pick (a rung the host does not declare among the causes) | `configured, but the runtime refused a test pick on the ladder just now: nothing is routed until it accepts one (<message>)` |

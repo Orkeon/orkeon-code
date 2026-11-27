@@ -7,39 +7,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-### Fixed — the routing after an adversarial review
-
-- `/route` with `route.agents` off and `route.effort` on says that the level asks nothing: `route.effort: on (asks
-  nothing while route.agents is off)`.
-- A floor of `.orkeon/route-rules.json` on a path applies when the command names that path at the end of a sentence
-  (`fix src/core.`): the closing `.`, `?` or `!` no longer hides it.
-- A level the pick answers when none was asked is ignored.
-- The help of `route.agents`, `route.effort` and `llm.profile` (`/config`) says what holds since `agents.profile`:
-  the ceiling of the routing is `agents.profile` when set, `route.effort` asks nothing for a launch left with a
-  single rung, and with no `/effort` stored the pick may choose any of the host's levels.
-- The docs no longer say that `/effort` cannot reach the `agent-cli` provider, nor that `llm.profile` is the profile
-  of every agent; the measure of the level reads 7 of the 9 requests that take one.
-- A pick whose thinking level the runtime refuses (the host lists no level at or below the one `/effort` stored,
-  such as `/effort low` on `medium,high`) no longer loses the routing: one warning, then the profile is asked again
-  alone, and the level stays in place ([ADR 0042](docs/adr/0042-route-review.md)). Inside one crew the warning
-  comes once, and the next acts ask the profile alone. A refusal of anything else (a rung, a floor, a fallback) is
-  one warning and no second call, as before.
-- A stored `route.ladder` that is no ladder (one name, a name twice, a malformed name) is no longer replaced by
-  `small,large` in silence: each routed launch warns, once per crew, and a bare `/route` shows a warning line, the
-  routing on or off.
-- The docs no longer say that `compaction.prune`, `route.agents` and `route.effort` need the pin: the release `1.4.0`
-  of the tool and docker modes has the pruning and the pick, its level included.
-- `config/appsettings.agent-cli.example.json` declares the key profiles `haiku` and `sonnet`, and
-  `subscription-haiku` and `subscription-sonnet` fall back on them: a launch routed to a cheap rung is billed on the
-  key at that rung's model, not at the dearest, when the subscription cannot answer.
-
-### Changed — the pin moves to Orkeon `main` `9ca8530`, the thinking level reaches the subscription
-
-- The pin moves to Orkeon `main` `9ca8530` (Orkeon #488, which fixes #487), seven commits past the release `1.4.0`
-  ([ADR 0041](docs/adr/0041-orkeon-after-488.md)). On a profile of the `agent-cli` provider the thinking level is no
-  longer dropped: `/effort` and the level `route.effort` picks start the `claude` CLI with `--effort`. The docs
-  no longer say to leave `route.effort` off on a subscription ladder.
-
 ### Added — the routing picks the thinking level, and reaches the explorer
 
 - `route.effort` (`/config set route.effort on`): with `route.agents` on, the host's decision model picks the
@@ -47,7 +14,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   ([ADR 0039](docs/adr/0039-route-effort-and-explorer.md)). It applies to the launches that forward `/effort`
   (`/dev-spec`, `/dev-change`, `/dev-plan`) and to every routed act of a sub-agent. A level the pick is not sure of
   leaves the one in place. The log line and `/route why` show it: `…; effort 'low' (the decision model's pick; picked
-  'low' at 0.80)`. A bare `/route` says whether it is on.
+  'low' at 0.80)`. A level the pick answers when none was asked is ignored. A bare `/route` says whether it is on,
+  and that it asks nothing while `route.agents` is off: `route.effort: on (asks nothing while route.agents is off)`.
+- A pick whose thinking level the runtime refuses (the host lists no level at or below the one `/effort` stored,
+  such as `/effort low` on `medium,high`) does not lose the routing: one warning, then the profile is asked again
+  alone, and the level stays in place ([ADR 0042](docs/adr/0042-route-review.md)). The acts that follow on the same
+  route ask the profile alone. A refusal of anything else (a rung, a floor, a fallback) is one warning and no second
+  call.
 - A bare `/route` warns when the routing is on and the crews are launched on a profile outside the ladder
   (`agents.profile`, else `llm.profile`): nothing is routed then, and until now only the log said so.
 - The explorer a turn spawns is routed like a reviewer's act: with `route.agents` on, its profile, and with
@@ -67,7 +40,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   warning line ([ADR 0042](docs/adr/0042-route-review.md)).
 - `config/appsettings.agent-cli.example.json` declares `subscription-haiku` and `subscription-sonnet` beside
   `subscription`: `/config set route.ladder subscription-haiku,subscription-sonnet,subscription` routes the agents
-  on the Claude subscription.
+  on the Claude subscription. It declares the key profiles `haiku` and `sonnet` too, and each cheaper rung falls
+  back on the one of its model: a launch routed to a cheap rung is billed on the key at that rung's model, not at the
+  dearest, when the subscription cannot answer.
 
 ### Added — `agents.profile`, the agents on another profile than the conversation
 
@@ -81,15 +56,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   line for a profile outside the ladder now reads `the profile '<name>' the crew is launched on is not on the ladder`.
 - `/effort` and `/config set agents.profile` judge the stored effort on the agents' profile too: `⚠ effort, dev steps
   and sub-agents (the profile '<name>'): …` when it is not the profile the turns run on.
-
-### Changed — the pin moves to Orkeon `main` `948d1b6`
-
-- The pin moves to Orkeon `main` `948d1b6` (Orkeon #484, #485, #486), six merges past the release `1.4.0`
-  ([ADR 0037](docs/adr/0037-orkeon-after-486.md)). Nothing is adopted: the typings gain `chat_attach`, which sends
-  files to the Discord or Teams conversation an `orkeon-host` run answers and fails anywhere else, so the main loop
-  does not offer it. A crew's own tools (`run_validation`, `run_tests`, `run_build`) no longer enter the registry of
-  the process (Orkeon #484): a second run of `/dev-implement` or `/dev-verify` in one process cannot collide on
-  their names.
 
 ### Added — the chat tools in the main loop
 
@@ -114,6 +80,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   a webhook. [Permissions](docs/permissions.md) lists what the ten tools declare.
 - Never run against a real Microsoft 365 tenant: no live check was made.
 
+### Changed — the pin moves to Orkeon `main` `9ca8530`, the thinking level reaches the subscription
+
+- The pin moves to Orkeon `main` `9ca8530` (Orkeon #488, which fixes #487), seven commits past the release `1.4.0`
+  ([ADR 0041](docs/adr/0041-orkeon-after-488.md)). On a profile of the `agent-cli` provider the thinking level is no
+  longer dropped: `/effort` and the level `route.effort` picks start the `claude` CLI with `--effort`.
+
+### Changed — the pin moves to Orkeon `main` `948d1b6`
+
+- The pin moves to Orkeon `main` `948d1b6` (Orkeon #484, #485, #486), six merges past the release `1.4.0`
+  ([ADR 0037](docs/adr/0037-orkeon-after-486.md)). Nothing is adopted: the typings gain `chat_attach`, which sends
+  files to the Discord or Teams conversation an `orkeon-host` run answers and fails anywhere else, so the main loop
+  does not offer it. A crew's own tools (`run_validation`, `run_tests`, `run_build`) no longer enter the registry of
+  the process (Orkeon #484): a second run of `/dev-implement` or `/dev-verify` in one process cannot collide on
+  their names.
+
 ### Changed — the pin moves to Orkeon `main` `bbfc06c`, the `browser` tool replaces `firefox`
 
 - The pin moves to Orkeon `main` `bbfc06c` (Orkeon #480, #481, #483), three merges past the release `1.4.0`
@@ -126,6 +107,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   that name as a deprecated twin, this project does not offer it.
 - The runtime now registers ten `chat_*` tools (Microsoft Teams first, Orkeon #480) and `orkeon-repl` keeps the
   OAuth tokens of a chat account (Orkeon #483, asked by this project in Orkeon #482); the next section offers them.
+
+### Fixed — the routing after an adversarial review
+
+- A floor of `.orkeon/route-rules.json` on a path applies when the command names that path at the end of a sentence
+  (`fix src/core.`): the closing `.`, `?` or `!` no longer hides it.
+- A stored `route.ladder` that is no ladder (one name, a name twice, a malformed name) is no longer replaced by
+  `small,large` in silence: with the routing on and a decision model on the host, each launch warns, routed or not,
+  and so does the first act of a route of acts; a bare `/route` shows a warning line, the routing on or off.
+- The profile the pick answers is compared with the session's and the crew's whatever its case: a pick that answers
+  `Small` for the rung `small` leaves the launch, or the act, where it was.
+- The docs no longer say that `compaction.prune` and `route.agents` need the pin: the release `1.4.0` of the tool and
+  docker modes has the pruning and the pick, its level included.
 
 ### Fixed — `orkeon-code --version` reads the docker image
 

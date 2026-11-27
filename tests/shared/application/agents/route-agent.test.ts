@@ -446,6 +446,20 @@ describe("routeAgent, a stored ladder that is no ladder and nothing asked", () =
   });
 });
 
+describe("routeAgent, one launch after another", () => {
+  it("warns again at the next launch: a launch is a run of its own", async () => {
+    // Arrange
+    const { deps, log } = routeSetup("on", { ladder: "small" });
+    await routeAgent(deps, TASK, "large");
+
+    // Act
+    await routeAgent(deps, TASK, "large");
+
+    // Assert
+    deepStrictEqual(log.lines, MISREAD_TWO_LAUNCHES_LINES);
+  });
+});
+
 describe("actRoute, the acts of one crew run", () => {
   it("warns of a ladder that is no ladder at the first act of the run alone", async () => {
     // Arrange
@@ -484,17 +498,5 @@ describe("actRoute, the acts of one crew run", () => {
 
     // Assert
     deepStrictEqual(log.lines, LEVEL_REFUSED_TWO_ACTS_LINES);
-  });
-
-  it("warns again at the next launch: a launch is a run of its own", async () => {
-    // Arrange
-    const { deps, log } = routeSetup("on", { ladder: "small" });
-    await routeAgent(deps, TASK, "large");
-
-    // Act
-    await routeAgent(deps, TASK, "large");
-
-    // Assert
-    deepStrictEqual(log.lines, MISREAD_TWO_LAUNCHES_LINES);
   });
 });

@@ -23,13 +23,16 @@ holds them, and those of a later review of the whole pull request.
   (`pickProfile`), and the level left in place. Any other refusal (a rung the host does not declare, a floor, a
   fallback), or one whose message names no part, is one warning (`routeRefused`) and no second call: asking again
   without the level would be refused the same way.
-- **Inside one crew, the run remembers.** The acts of a crew share one `RouteRun`: a ladder that is no ladder and a
-  refused level are each warned of once, at the first act, and after a refused level the next acts ask the profile
-  alone, rather than paying a refusal each. Acts started in parallel before the refusal came back still ask the
-  level. Each launch is a run of its own.
+- **A route of acts remembers.** The acts of one route (`actRoute`) share one `RouteRun`: a ladder that is no ladder
+  and a refused level are each warned of once, at its first act, and after a refused level its next acts ask the
+  profile alone, rather than paying a refusal each. Acts started in parallel before the refusal came back still ask
+  the level. A route lasts one crew body for the crews wired by `orkeonActRoute`, one batch audit and one reviewer
+  in `/dev-batches`, one explorer the main loop spawns. The launch (`routeAgent`) has its own, so a routed crew
+  warns at its launch and again at its first act.
 - **A stored `route.ladder` that is no ladder is said.** A hand-edited file (one name, a name twice, a malformed
-  name) was read as the default ladder in silence, so a session routed on rungs it never named. Each routed launch
-  now warns (`routeLadderMisread`), and a bare `/route` shows a warning line (`routeLadderInvalid`), with the routing
+  name) was read as the default ladder in silence, so a session routed on rungs it never named. With the routing on
+  and a decision model present, each launch now warns (`routeLadderMisread`), routed or not, since the warning comes
+  before the checks of a profile off the ladder and of one rung left, and a bare `/route` shows a warning line (`routeLadderInvalid`), with the routing
   on or off. A value that is not a string (an array, a number) is not such a case: the settings keep non-blank
   strings only (`layerConfig`), so it reads as unset, with no warning, as for every key.
 - **A bare `/route` makes a test pick, not a test question.** The yes/no question of [ADR 0040](0040-route-reach.md)
@@ -58,7 +61,7 @@ holds them, and those of a later review of the whole pull request.
 - A bare `/route` makes no decision call with the routing off, without a decision model, and under a launch profile
   off the ladder or on its lowest rung; otherwise one, and two when the runtime refuses the level part.
 - A launch whose level part is refused costs a second pick; a second refusal is the usual warning, and nothing is
-  routed. In a crew, the first act pays it, and the acts after it ask the profile alone.
+  routed. On a route of acts, the first act pays it, and the acts after it ask the profile alone.
 - The comparison of the profile the pick answers with the session's and the crew's now ignores case
   (`sameProfile`), as the host reads a profile's name.
 - Tested: the part read from the runtime's message (`profile-picker.ts`); the second pick of `routeAgent` on a
@@ -70,6 +73,8 @@ holds them, and those of a later review of the whole pull request.
   the explorer (`llm-profile.ts`); the fallbacks of the example.
 - Not tested: acts started in parallel before a refusal came back; the wiring of the pick into `/route` and of the
   act routes in `src/shared/infrastructure/orkeon/wiring.ts`, exercised by the smokes only.
+- The release `v1.4.0` ships the pick with its effort part and the pruning (`SystemOnePicker.cs`, `PickService.cs`,
+  `prune` in its typings), unchanged up to the pin: the routing and the pruning run in the tool and docker modes too.
 - Checked live at `9ca8530`, with the real `/route` in a scratch project and Jev as the decision model: the ladder
   `haiku,sonnet,opus` with `route.effort` on shows `present`; a ladder naming a rung the host does not declare shows
   the runtime's refusal and its list of profiles; `route.ladder` set to one name shows the warning and `small,large`;

@@ -40,7 +40,8 @@ no ladder to route on.
 
 ## Consequences
 
-- A bare `/route` costs one decision call when the routing is on.
+- A bare `/route` costs one decision call when the routing is on. [ADR 0042](0042-route-review.md) makes it none
+  when a launch would ask nothing, and two when the runtime refuses the level part.
 - The test tells an answer from no answer, not why none came: a server down, a key refused and a timeout read the
   same.
 - The thinking level does not reach the `agent-cli` provider: on the subscription `route.effort` picks a level

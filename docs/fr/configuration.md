@@ -444,16 +444,18 @@ Ce que le tableau laisse de côté :
     Le routage n'est pas perdu : un avertissement, `route.agents is on and the runtime refused the pick of the profile
     with a thinking level: the profile is asked again without one, and the level /effort stored stays in place
     (<message>)`, puis le profil est demandé de nouveau, seul.
-  - Dans un même crew, l'avertissement vient une fois, au premier act, et les acts suivants demandent le profil seul ;
-    des acts lancés en parallèle avant le retour du refus demandent encore le niveau. Chaque lancement est une
-    exécution à part.
+  - Une route d'acts avertit une fois, à son premier act, et ses acts suivants demandent le profil seul ; des acts
+    lancés en parallèle avant le retour du refus demandent encore le niveau. Une route dure le corps d'un crew, un
+    audit de lot ou le relecteur de `/dev-batches`, ou un explorateur que lance la boucle principale. Le lancement a
+    la sienne : un crew routé avertit à son lancement et de nouveau à son premier act.
   - Tout autre refus (un barreau que le runtime ne déclare pas, un plancher, un repli) donne un avertissement,
     `route.agents is on and the runtime refused the pick: nothing is routed, the session's profile stands
     (<message>)`, et aucun second appel.
 - **Un `route.ladder` enregistré qui n'est pas une échelle** (un fichier modifié à la main : un seul nom, un nom deux
-  fois, un nom mal formé) est routé sur `small,large`, et le dit : chaque lancement routé avertit `route.agents is on
-  and route.ladder is '<value>', which is no ladder: the ladder small,large is used instead`, une fois par crew, et
-  un `/route` seul, routage sur `on` ou `off`, ajoute la ligne `⚠ route.ladder is '<value>', which is no ladder: the
+  fois, un nom mal formé) est routé sur `small,large`, et le dit. Routage sur `on` et un modèle de
+  décision sur le runtime, chaque lancement avertit, routé ou non (l'avertissement précède les contrôles d'un profil
+  hors de l'échelle et d'un seul barreau restant), comme le premier act de chaque route d'acts : `route.agents is on
+  and route.ladder is '<value>', which is no ladder: the ladder small,large is used instead`. Et un `/route` seul, routage sur `on` ou `off`, ajoute la ligne `⚠ route.ladder is '<value>', which is no ladder: the
   ladder small,large is used instead. Set it to two rungs or more, each once, or unset it.` Une valeur qui n'est pas
   une chaîne (un tableau, un nombre écrit à la main) se lit comme absente, comme pour toute clé, sans avertissement.
 - **Une échelle à trois barreaux** : [`config/appsettings.anthropic.example.json`](../../config/appsettings.anthropic.example.json)
@@ -469,13 +471,13 @@ Ce que le tableau laisse de côté :
   - Avec `route.effort` sur `on`, le choix de test demande le niveau qu'un lancement demanderait. Quand le runtime
     refuse cette part du niveau, le choix est refait pour le profil seul (deux appels, dans ce seul cas), l'état
     affiché est celui du profil, et la ligne `⚠ route.effort is on and the runtime refuses the level /effort stored:
-    route.effort picks no level, each launch is routed on its profile alone (<message>).` vient sous l'état. Elle
+    route.effort picks no level, a launch asks for its profile alone (<message>).` vient sous l'état. Elle
     précède les avertissements d'une échelle qui n'en est pas une et d'un profil de lancement hors de l'échelle.
   - Ce qui suit `decision model:` est l'un de huit états :
 
     | Quand | `decision model:` |
     |---|---|
-    | le choix a répondu un profil, ou le routage est sur `off` et un modèle est configuré | `present` |
+    | le choix a répondu, sûr ou non (un choix incertain ne déplace rien), ou le routage est sur `off` et un modèle est configuré | `present` |
     | aucun modèle de décision configuré | `absent, nothing is routed` |
     | le modèle de décision n'a pas répondu, ou l'appel a levé une erreur | `configured, but it gave no answer to a test pick just now (a server that is down, a key refused): nothing is routed until it answers` |
     | le runtime a refusé le choix (un barreau qu'il ne déclare pas parmi les causes) | `configured, but the runtime refused a test pick on the ladder just now: nothing is routed until it accepts one (<message>)` |

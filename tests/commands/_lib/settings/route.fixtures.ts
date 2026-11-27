@@ -106,7 +106,7 @@ export const OUTSIDE_LADDER_CASES: readonly { readonly name: string; readonly va
 ];
 
 const pick = (reason: ProfilePick["reason"], value: string | null = "small"): ProfilePick => ({ value, reason, picked: null, probability: null });
-const REFUSED: ProfilePickRefusal = { refused: "services.get(\"pick\").pick { profile.ladder } 'small' is not a profile of this host (known: fast, strong)" };
+const REFUSED: ProfilePickRefusal = { refused: "services.get(\"pick\").pick { profile.ladder } profile.ladder names the LLM profile 'small', which this host does not offer. Known profiles: default, fast, strong. A profile is defined by the host under Llm:Profiles:<name>.", part: "profile" };
 const NOTHING_BACK =
   "configured, but the test pick gave nothing back just now (a host without the pick, a cancelled call, a reply that does not read): nothing is routed until it does";
 
@@ -128,9 +128,9 @@ export const DECISION_STATE_CASES: readonly { name: string; answer?: ProfilePick
     text: `${STATUS_ON_HEAD}configured, but the runtime refused a test pick on the ladder just now: nothing is routed until it accepts one (${REFUSED.refused}).`,
   },
   {
-    name: "says the runtime refused the test pick when the pick failed, with the failure's message",
-    answer: { refused: "services.get(\"pick\").pick failed: connection refused" },
-    text: `${STATUS_ON_HEAD}configured, but the runtime refused a test pick on the ladder just now: nothing is routed until it accepts one (services.get("pick").pick failed: connection refused).`,
+    name: "says the runtime refused the test pick with a refusal that names no part, with its message",
+    answer: { refused: "services.get(\"pick\").pick { options } asks neither a profile nor an effort: give { profile } or { effort }, or both." },
+    text: `${STATUS_ON_HEAD}configured, but the runtime refused a test pick on the ladder just now: nothing is routed until it accepts one (services.get("pick").pick { options } asks neither a profile nor an effort: give { profile } or { effort }, or both.).`,
   },
   {
     name: "says the test pick gave nothing back", answer: null,
@@ -171,8 +171,8 @@ export const EFFORT_REFUSAL: ProfilePickRefusal = {
 };
 const STATUS_EFFORT_HEAD = "route.agents: on; route.effort: on; ladder: small,large (cheapest first); decision model: ";
 const LEVEL_REFUSED_LINE =
-  "  ⚠ route.effort is on and the runtime refuses the level /effort stored: route.effort picks no level, each launch " +
-  `is routed on its profile alone (${EFFORT_REFUSAL.refused}).`;
+  "  ⚠ route.effort is on and the runtime refuses the level /effort stored: route.effort picks no level, a launch asks " +
+  `for its profile alone (${EFFORT_REFUSAL.refused}).`;
 
 /** What a bare /route says when the runtime refuses the level part of the test pick, by what the pick asked for the
  *  profile alone answers. */
@@ -200,6 +200,10 @@ export const PROBE_BOUNDS_CASES: readonly { name: string; values: Record<string,
   { name: "asks the test pick on the ladder alone for crews on the host's default model", values: { "route.agents": "on" }, options: { ladder: LADDER } },
   {
     name: "asks the test pick under the agents.profile the crews are launched on", values: { "route.agents": "on", "agents.profile": "large", "llm.profile": "small" },
+    options: { ladder: LADDER, ceiling: "large", fallback: "large" },
+  },
+  {
+    name: "asks the test pick under a padded agents.profile, as a launch reads it", values: { "route.agents": "on", "agents.profile": " large " },
     options: { ladder: LADDER, ceiling: "large", fallback: "large" },
   },
   { name: "asks the test pick under the llm.profile the crews are launched on", values: { "route.agents": "on", "llm.profile": "large" }, options: { ladder: LADDER, ceiling: "large", fallback: "large" } },

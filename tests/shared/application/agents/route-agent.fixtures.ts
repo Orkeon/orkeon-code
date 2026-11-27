@@ -31,7 +31,7 @@ export function answer(value: string | null, reason: RouteReason, picked: string
 
 /** The runtime's refusal of a ladder that names a profile the host does not declare. */
 export const REFUSAL: ProfilePickRefusal = {
-  refused: "services.get(\"pick\").pick { profile.ladder } 'small' is not a profile of this host (known: fast, strong)", part: "profile",
+  refused: "services.get(\"pick\").pick { profile.ladder } profile.ladder names the LLM profile 'small', which this host does not offer. Known profiles: default, fast, strong. A profile is defined by the host under Llm:Profiles:<name>.", part: "profile",
 };
 
 /** The runtime's refusal of a level part that leaves the decision model no level (a level /effort stored under all of
@@ -203,7 +203,7 @@ export const NO_CHOICE: readonly { name: string; answer: Answer; lines: readonly
     name: "warns with the runtime's message when it refuses the pick, and keeps nothing", answer: REFUSAL,
     lines: [
       "warn: route.agents is on and the runtime refused the pick: nothing is routed, the session's profile stands " +
-      "(services.get(\"pick\").pick { profile.ladder } 'small' is not a profile of this host (known: fast, strong))",
+      "(services.get(\"pick\").pick { profile.ladder } profile.ladder names the LLM profile 'small', which this host does not offer. Known profiles: default, fast, strong. A profile is defined by the host under Llm:Profiles:<name>.)",
     ],
   },
   { name: "logs and keeps nothing when the host has no pick", answer: null, lines: [] },
@@ -447,8 +447,8 @@ export const MISREAD_UNASKED_CASES: readonly { name: string; setting: string; pr
 /** A stored route.ladder that is no ladder, under a session on a profile outside the ladder used: both are said. */
 export const MISREAD_AND_OUTSIDE_LINES = [misreadWarning("small"), OUTSIDE_LADDER_LINE];
 
-/** A refusal whose message names no part of the options: a failure the adapter turns into a refusal. */
-export const UNNAMED_REFUSAL: ProfilePickRefusal = { refused: "ctx.llm.pick failed: connection refused" };
+/** A refusal whose message names no part of the options: the options as a whole. */
+export const UNNAMED_REFUSAL: ProfilePickRefusal = { refused: "ctx.llm.pick { options } asks neither a profile nor an effort: give { profile } or { effort }, or both." };
 export const UNNAMED_REFUSED_LINES = [
   `warn: route.agents is on and the runtime refused the pick: nothing is routed, the session's profile stands (${UNNAMED_REFUSAL.refused})`,
 ];

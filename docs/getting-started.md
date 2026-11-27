@@ -84,8 +84,9 @@ under WSL a Windows program is reachable without confinement only, and still rec
 - The [tool mode](#tool-mode-orkeon-repl-installed) (the Debian package on the apt `stable` channel, the release
   archives) runs Orkeon's last release, `1.4.0`, and the
   [docker mode](#docker-mode-nothing-to-install-but-docker) its image, `ghcr.io/orkeon/orkeon:latest`: both are
-  seven commits behind the pin at this writing, and lack what it adds, the `browser` tool (they have it under its
-  former name `firefox`, which Orkeon Code no longer offers): `/status` says which runtime runs ([ADR 0013](adr/0013-pin-on-orkeon-commit.md)).
+  seven commits behind the pin at this writing, and lack what it adds: the `browser` tool (they have it under its
+  former name `firefox`, which Orkeon Code no longer offers), the chat tools, and `--effort` on the `agent-cli`
+  provider: `/status` says which runtime runs ([ADR 0013](adr/0013-pin-on-orkeon-commit.md)).
 - The typings are those of the pin ([Development](development.md#typings)).
 
 The launcher picks the first available mode, in this order, unless `--mode` says otherwise.

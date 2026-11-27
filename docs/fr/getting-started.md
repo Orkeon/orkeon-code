@@ -84,8 +84,9 @@ sous WSL un programme Windows n'est joignable que sans confinement, et reçoit e
 - Le [mode tool](#mode-tool--orkeon-repl-installé) (le paquet Debian sur le canal apt `stable`, les archives de
   release) exécute la dernière release d'Orkeon, `1.4.0`, et le
   [mode docker](#mode-docker--rien-à-installer-sauf-docker) son image, `ghcr.io/orkeon/orkeon:latest` : les deux sont
-  à ce jour sept commits derrière l'épingle, et n'ont pas ce qu'elle ajoute, l'outil `browser` (ils l'ont sous son
-  ancien nom `firefox`, qu'Orkeon Code n'offre plus) : `/status` dit quel runtime tourne ([ADR 0013](../adr/0013-pin-on-orkeon-commit.md)).
+  à ce jour sept commits derrière l'épingle, et n'ont pas ce qu'elle ajoute : l'outil `browser` (ils l'ont sous son
+  ancien nom `firefox`, qu'Orkeon Code n'offre plus), les outils de chat, et `--effort` sur le fournisseur
+  `agent-cli` : `/status` dit quel runtime tourne ([ADR 0013](../adr/0013-pin-on-orkeon-commit.md)).
 - Les typings sont ceux de l'épingle ([Développement](development.md#typings)).
 
 Le lanceur prend le premier mode disponible, dans cet ordre, sauf si `--mode` en décide autrement.

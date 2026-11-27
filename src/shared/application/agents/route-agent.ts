@@ -8,9 +8,12 @@
 // name, a name twice, a name that is no profile's) is one warning too, naming it and the default ladder routed on in
 // its place. A pick whose level part the runtime refuses (a level /effort stored that the decision model's levels
 // leave none under) is one warning, and the pick is asked once more for the profile alone: the level stays in place.
-// A refusal of the profile's bounds is asked once, a level asked or not. The acts of one crew run (actRoute) say a
-// misread ladder once and a refused level once, and once the level was refused they ask the profile alone. A session whose own rung is the one rung left
-// (the lowest, or a rule's floor at it or above) asks nothing and says nothing. An answer under the bar or missing
+// A refusal of the profile's bounds is asked once, a level asked or not. One route of acts (actRoute) says a misread
+// ladder once and a refused level once, and once the level was refused its acts ask the profile alone; a route of
+// acts lives as long as the caller keeps it (wiring.ts: one per crew body, one per batch audit and one for the
+// reviewer of dev-batches, one per explorer the main loop spawns), and each launch (routeAgent) has a route of its
+// own. A session whose own rung is the one rung left (the lowest, or a rule's floor at it or above) asks nothing, and
+// says nothing but the warning of a misread ladder, given before that check. An answer under the bar or missing
 // is a choice that decides nothing: the fallback stands, which is the session's profile, or, for a session on the
 // host's default model, the floor of a rule when one applies. A routed launch also carries the session's profile,
 // which the crew falls back on when the host declares no profile of the rung's name (orkeon/llm-profile.ts). Each
@@ -167,8 +170,8 @@ export async function pickProfile(
   return { answer: await picker.pick(request, bounds), levelRefused: answer.refused };
 }
 
-/** What one run of routes has met already, so that it says each once: a launch is one run, the acts of one crew run
- *  (actRoute) are one. `ladderWarned`: the misread ladder was warned of; `levelRefused`: the runtime refused the
+/** What one route has met already, so that it says each once: a launch (routeAgent) has one of its own, and one
+ *  route of acts (actRoute) one for all the acts it routes, however long its caller keeps it. `ladderWarned`: the misread ladder was warned of; `levelRefused`: the runtime refused the
  *  level part, and the following picks ask the profile alone. */
 interface RouteRun {
   ladderWarned: boolean;
@@ -196,7 +199,7 @@ async function ask(deps: RouteDeps, task: RouteTask, sessionProfile: string | nu
     return null;
   }
   const floor = routeFloor(await rulesOf(deps.files), task.crew, task.brief, ladder);
-  // The session's rung is the one rung left: the answer without a call, and nothing to say.
+  // The session's rung is the one rung left: the answer without a call, and nothing more to say.
   if (routeHeld(ladder, sessionProfile, floor)) return { choice: { profile: sessionProfile, reason: "ceiling" }, floored: false, said: false };
   const bounds = routeBounds(ladder, sessionProfile, floor);
   const request = routeState(task.crew, task.brief);
@@ -272,8 +275,10 @@ export type { ActProfiles };
  *  (routeDecided) moves the act, as does, without one, the floor of a rule for a session on the host's default model
  *  (the fallback the pick answers then); nothing asked, and no answer or an unsure pick otherwise, leave the act where
  *  the crew runs, as does an answer that is the crew's own profile, whatever its case. An act takes a thinking level: with `route.effort`
- *  on the pick is asked one, and a level it decided moves the act whatever became of its profile. The route is one run:
- *  a misread ladder and a refused level are said at its first act, and after a refused level its acts ask no level. */
+ *  on the pick is asked one, and a level it decided moves the act whatever became of its profile. The route keeps one
+ *  RouteRun for all the acts it routes, as long as its caller keeps it (one per crew body, per batch audit, per
+ *  spawned explorer: wiring.ts): a misread ladder and a refused level are said at its first act, and after a refused
+ *  level its acts ask no level. */
 export function actRoute(deps: RouteDeps, profiles: ActProfiles): ActRoute {
   const run = freshRun();
   return async (task) => {

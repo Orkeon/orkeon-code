@@ -56,6 +56,7 @@ effort })`, `ctx.services.get("pick")` for a command; Orkeon #460, #463): nothin
 - One decision call per routed launch or act, as before: the level rides in it.
 - A refusal of the `effort` part (a host whose levels all lie above the stored one) refuses the whole pick: nothing
   is routed, the session's profile and level stand, and the warning carries the runtime's message.
+  [ADR 0042](0042-route-review.md) asks the profile again alone after such a refusal, so that case costs two calls.
 - Each `spawn_agent` of a turn now places a decision call when `route.agents` is on, eight at most per turn. A crew
   on `decision.mode: none`, or a host without a decision model, gets the warning the other routed acts get.
 - A provider or a model that takes fewer levels than the host offers still receives the highest it knows below the

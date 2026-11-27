@@ -384,8 +384,8 @@ décision sur le runtime, ce profil est choisi à chaque lancement de `/dev-spec
   omis) : des noms de `Llm:Profiles`.
   - `/config set` refuse moins de deux noms, un nom qui n'est pas un nom de profil, et un barreau nommé deux fois,
     quelle que soit sa casse (`Small,small`). Une valeur enregistrée qui n'est pas une échelle (un fichier modifié à
-    la main) se lit `small,large`, et le dit : un avertissement à chaque lancement routé, une ligne sous un `/route`
-    seul.
+    la main) se lit `small,large`, et le dit : un avertissement à chaque lancement que le routage examine, routé ou
+    non, une ligne sous un `/route` seul.
   - Le `llm.profile` de la session et le profil d'une règle trouvent leur barreau quelle que soit leur casse :
     `llm.profile Large` est le barreau `large` de `small,large`.
   - Le choix du runtime refuse une échelle qui nomme un profil que le runtime ne déclare pas : rien n'est routé
@@ -448,9 +448,11 @@ décision sur le runtime, ce profil est choisi à chaque lancement de `/dev-spec
     runtime n'atteint) donne un avertissement, et le profil est demandé une fois de plus, seul : le niveau reste en
     place. Un second refus est le refus habituel. Le refus d'une autre part (un barreau que le runtime ne déclare pas,
     un plancher, un repli) donne l'avertissement habituel, sans second appel.
-  - Dans un même crew, cet avertissement et celui d'une échelle qui n'en est pas une viennent une fois, au premier
-    act ; après un niveau refusé, les acts suivants demandent le profil seul. Des acts lancés en parallèle avant le
-    retour du refus demandent encore le niveau.
+  - Une route d'acts donne cet avertissement et celui d'une échelle qui n'en est pas une une fois, à son premier act ;
+    après un niveau refusé, ses acts suivants demandent le profil seul. Des acts lancés en parallèle avant le retour
+    du refus demandent encore le niveau. Une route dure le corps d'un crew, un audit de lot ou le relecteur de
+    `/dev-batches`, ou un explorateur ; le lancement a la sienne, si bien qu'un crew routé avertit à son lancement et
+    de nouveau à son premier act.
   - Rien n'est demandé là où aucun profil ne l'est : une session sur un profil hors de l'échelle, ou dont le
     barreau est le seul qui reste, garde son niveau.
   - La ligne et `/route why` montrent le niveau après le profil : `route: dev-plan on 'small' (the decision model's
@@ -478,7 +480,7 @@ décision sur le runtime, ce profil est choisi à chaque lancement de `/dev-spec
   lancement tourne sur le profil de la session, un act là où tourne son crew.
   - Le réglage éteint ou illisible, un runtime sans le choix (dans un crew, un `ctx.llm.pick` qui dit que le runtime
     n'en branche pas) et un choix annulé : rien n'est journalisé. La release `1.4.0` des modes tool et docker a le
-    choix ([ADR 0034](../adr/0034-orkeon-after-470.md)).
+    choix ([ADR 0042](../adr/0042-route-review.md)).
   - Pas de modèle de décision pour un script, qu'aucun fournisseur ne soit nommé, que le fournisseur n'ait pas sa
     clé ou que le circuit de décision du runtime soit éteint (`--no-decision`, `Orkeon:Decision:Enabled=false`) :
     le runtime retient alors `system_one_decide`, et un avertissement le dit à chaque lancement et à chaque act. Le

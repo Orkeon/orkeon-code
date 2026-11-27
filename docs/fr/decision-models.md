@@ -22,7 +22,7 @@ Orkeon Code fait ce qu'il fait réglage éteint.
 | Suggérer des skills | `/skills suggest on` | les skills du projet qui conviennent à la demande d'un tour | [le tour](turn.md#suggérer-des-skills-pour-un-tour) |
 
 L'élagage et le routage tournent dans tous les modes : Orkeon `1.4.0`, la release qu'exécutent les modes tool et
-docker, a l'élagage et le choix, son niveau de réflexion compris ([ADR 0034](../adr/0034-orkeon-after-470.md), en
+docker, a l'élagage et le choix, son niveau de réflexion compris ([ADR 0042](../adr/0042-route-review.md), en
 anglais).
 
 Les mesures ci-dessous sont du 2026-11-11 : `jev-latest` (le Jev hébergé) décide, `glm-5.3-flashx` (Z.AI) répond,
@@ -110,7 +110,9 @@ défaut du runtime n'est jamais retenue ainsi : sous une règle dont le plancher
 répond sans appeler de modèle et le lancement tourne sur ce barreau.
 
 Un runtime dont le circuit de décision est éteint, ou un choix qui refuse une option, ne route rien : un
-avertissement du journal dit pourquoi, et `/route why` ne le liste pas. `/route why` montre les cinq derniers choix
+avertissement du journal dit pourquoi, et `/route why` ne le liste pas. Un niveau de réflexion refusé fait
+exception : le profil est demandé de nouveau, seul ([ADR 0042](../adr/0042-route-review.md), en anglais).
+`/route why` montre les cinq derniers choix
 ([ADR 0034](../adr/0034-orkeon-after-470.md)).
 
 Dans un crew, l'act d'un relecteur (`/dev-spec`, `/dev-change`, `/dev-plan`, le lot suivant de `/dev-batches`) et
@@ -188,7 +190,7 @@ barreaux. En italique, un choix sous la barre : rien ne bouge.
   barreaux se comportent comme deux barreaux plus chers. Gardez `fable` hors de l'échelle, pour `/model` ou pour un
   plancher de `.orkeon/route-rules.json`.
 - **Le niveau** est décidé pour 7 des 9 demandes qui en prennent un, dans la colonne du niveau ci-dessus (la passe à trois barreaux) : `low` et `high` le sont,
-  `medium` ne l'est pas dans ce tableau (0,50, et `high` à 0,48 sur le dernier brief) ; il l'est dans les briefs ci-dessous.
+  `medium` n'est pas décidé dans ce tableau (0,50, sous la barre, et `high` à 0,48 sur le dernier brief) ; il l'est dans les briefs ci-dessous.
 - **Sur l'abonnement**, l'échelle `subscription-haiku,subscription-sonnet,subscription` de l'exemple `agent-cli`
   décide 15 des mêmes 18 demandes, avec un partage semblable : le choix lit l'ordre des barreaux, pas leurs noms.
 
