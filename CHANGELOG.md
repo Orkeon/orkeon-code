@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed — the pin moves to Orkeon `main` `9ca8530`, the thinking level reaches the subscription
+
+- The pin moves to Orkeon `main` `9ca8530` (Orkeon #488, which fixes #487), seven commits past the release `1.4.0`
+  ([ADR 0041](docs/adr/0041-orkeon-after-488.md)). On a profile of the `agent-cli` provider the thinking level is no
+  longer dropped: `/effort` and the level `route.effort` picks start the `claude` CLI with `--effort`. The docs
+  no longer say to leave `route.effort` off on a subscription ladder.
+
 ### Added — the routing picks the thinking level, and reaches the explorer
 
 - `route.effort` (`/config set route.effort on`): with `route.agents` on, the host's decision model picks the

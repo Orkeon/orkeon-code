@@ -194,7 +194,7 @@ celui de la section).
 - Une CLI qui tourne malgré tout sur une clé plutôt que sur sa connexion est refusée avant de répondre, et l'appel
   ne bascule pas (`Llm:AgentCli:RequireLogin`, `true`).
 - Avant le premier lancement : `claude` sur le `PATH`, connecté une fois (`claude /login`).
-- Tout mode sauf docker : Orkeon `1.4.0` porte le fournisseur, et l'épingle aussi, six commits plus loin, si bien
+- Tout mode sauf docker : Orkeon `1.4.0` porte le fournisseur, et l'épingle aussi, sept commits plus loin, si bien
   que les modes tool et source l'exécutent. L'image n'a ni `claude` ni sa connexion.
 - Chaque verbe d'`orkeon` accepte ces settings, `orkeon runs list` compris (Orkeon #472).
 - [`config/appsettings.agent-cli.example.json`](../../config/appsettings.agent-cli.example.json) est l'exemple :
@@ -207,7 +207,9 @@ celui de la section).
 - Pour router sur l'abonnement, l'exemple déclare `subscription-haiku` et `subscription-sonnet`, le même profil sur
   les deux modèles moins chers : `/config set route.ladder subscription-haiku,subscription-sonnet,subscription`, puis
   `/route on`. Le profil de la session est le plafond : sous `agents.profile subscription`, les agents sont choisis
-  parmi les trois. Laissez `route.effort` sur `off` dans ce cas : aucun niveau de réflexion n'atteint la CLI.
+  parmi les trois. Avec `route.effort` sur `on`, le niveau choisi atteint la CLI par `--effort` (Orkeon
+  #488), qui vaut pour un processus de la CLI : un lancement à un autre niveau démarre son propre processus, dans la
+  limite de `Llm:AgentCli:MaxProcesses`.
 - L'exemple demande aussi `ANTHROPIC_API_KEY` : une session démarre sur le profil par défaut, le repli y arrive, et
   les services propres au runtime (planificateur, Guardian, juges) y restent.
 - Sans aucune clé, écrivez `"Provider": "agent-cli"` dans la section `Llm` elle-même, sans `Fallback`.

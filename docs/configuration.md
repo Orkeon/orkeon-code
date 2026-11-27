@@ -180,7 +180,7 @@ the file sets. A key linked to an identity refuses every call that does not name
 - A CLI that still runs on a key rather than its login is refused before it answers, and the call does not fall back
   (`Llm:AgentCli:RequireLogin`, `true`).
 - Before the first run: `claude` on the `PATH`, signed in once (`claude /login`).
-- Any mode but docker: Orkeon `1.4.0` carries the provider, and so does the pin, six commits past it, so the tool
+- Any mode but docker: Orkeon `1.4.0` carries the provider, and so does the pin, seven commits past it, so the tool
   and source modes run it. The image
   has neither `claude` nor its login.
 - Every verb of `orkeon` takes these settings, `orkeon runs list` among them (Orkeon #472).
@@ -194,7 +194,9 @@ the file sets. A key linked to an identity refuses every call that does not name
 - To route on the subscription, the example declares `subscription-haiku` and `subscription-sonnet`, the same
   profile on the two cheaper models: `/config set route.ladder subscription-haiku,subscription-sonnet,subscription`,
   then `/route on`. The session's profile is the ceiling: under `agents.profile subscription` the agents are picked
-  among the three. Leave `route.effort` off there: no thinking level reaches the CLI.
+  among the three. With `route.effort` on, the level picked
+  reaches the CLI as `--effort` (Orkeon #488), which holds for a CLI process: a launch at another level starts a
+  process of its own, within `Llm:AgentCli:MaxProcesses`.
 - The example needs `ANTHROPIC_API_KEY` as well: a session starts on the default profile, the fallback lands on it,
   and the host's own services (planner, Guardian, judges) stay on it.
 - With no key at all, write `"Provider": "agent-cli"` in the `Llm` section itself, with no `Fallback`.
