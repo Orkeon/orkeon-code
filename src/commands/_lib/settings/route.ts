@@ -4,18 +4,20 @@
 // what that rung's model takes and what the stored effort becomes on it, as the runtime judges them (Orkeon #359,
 // #360), and whether the pick chooses the thinking level too (`route.effort`, set with /config). With the routing on
 // and the crews launched on a profile outside the ladder, it says that nothing is routed, and which setting names it.
-// With the routing on it also makes one test pick on the ladder, through the runtime's pick the launches route with: a
+// With the routing on it also makes one test pick, the one a launch of this session makes (the ladder, the launch
+// profile as the ceiling and the fallback, no rule's floor), through the runtime's pick the launches route with: a
 // model the settings configure and that does not answer (a server that is down, a key refused), a pick the runtime
 // refuses (a rung the host does not declare) and a pick that gives nothing back (a host without the pick) each route
-// nothing, and the status says so. With route.effort on the test pick asks the level a launch asks; a level the
-// runtime refuses is a warning line, the state then the one of the profile asked alone, as a launch does.
+// nothing, and the status says so. A launch profile on the lowest rung, or outside the ladder, asks nothing at a
+// launch: no test pick is made then, and the state says why. With route.effort on the test pick asks the level a
+// launch asks; a level the runtime refuses is a warning line, the state then the one of the profile asked alone.
 // A stored route.ladder that is no ladder is a warning line under the status, naming the ladder used instead. A
 // setting that cannot be read reads as unset.
 import type { DecisionModel, ProfilePicker, ReasoningReader, SessionStore } from "../../../shared/application/ports.ts";
 import type { ConfigStore } from "../../../shared/application/config-store.ts";
 import {
   ROUTE_AGENTS_CONFIG_KEY, ROUTE_EFFORT_CONFIG_KEY, ROUTE_LADDER_CONFIG_KEY, ladderMisread, ladderOf, parseRecords, routable,
-  routeNotAsked, routeOn,
+  routeBounds, routeHeld, routeNotAsked, routeOn,
 } from "../../../shared/domain/agents/model-route.ts";
 import { AGENTS_PROFILE_CONFIG_KEY, LLM_PROFILE_CONFIG_KEY, llmProfileProblem } from "../../../shared/domain/llm-profile.ts";
 import { providerEffort } from "../../../shared/domain/agent-policy/behavior-flags.ts";
@@ -63,13 +65,17 @@ function rungReasoning(rung: string, effort: EffortLevel | undefined, reasoning:
   return capabilities !== null && capabilities.known ? rungLine(rung, modelTakes(capabilities.model, capabilities.efforts)) : null;
 }
 
-/** The line of a session whose crews are launched on a profile outside the ladder (`agents.profile`, else
- *  `llm.profile`): nothing is routed then; null when they are on a rung, or on the host's default model. */
-async function outsideLadder(config: RouteCommandDeps["config"], ladder: readonly string[]): Promise<string | null> {
+/** The profile the session's crews are launched on, and the key that names it: `agents.profile`, else
+ *  `llm.profile`; null for the host's default model. */
+interface LaunchProfile {
+  profile: string;
+  key: string;
+}
+
+async function launchProfile(config: RouteCommandDeps["config"]): Promise<LaunchProfile | null> {
   for (const key of [AGENTS_PROFILE_CONFIG_KEY, LLM_PROFILE_CONFIG_KEY]) {
     const value = await setting(config, key);
-    if (typeof value !== "string" || llmProfileProblem(value) !== undefined) continue;
-    return routable(value.trim(), ladder) ? null : routeOutsideLadder(value.trim(), key);
+    if (typeof value === "string" && llmProfileProblem(value) === undefined) return { profile: value.trim(), key };
   }
   return null;
 }
@@ -90,15 +96,22 @@ function stateOf(answer: Picked["answer"]): DecisionModelState {
   return answer.reason === "no-answer" ? "silent" : "present";
 }
 
-/** Where the host's decision model stands: absent, or present; with the routing on the runtime's pick is tried on
- *  `ladder` as a launch is routed, the level asked with the bounds a launch asks (route.effort on), and, when the
- *  runtime refuses that level, once more for the profile alone (pickProfile). A call that throws is silent. */
-async function decisionState(deps: RouteCommandDeps, on: boolean, ladder: readonly string[]): Promise<DecisionStanding> {
+/** Where the host's decision model stands: absent, or present; with the routing on the runtime's pick is tried with
+ *  the bounds a launch of this session sends (`launch` as the ceiling and the fallback, no rule's floor), the level
+ *  asked as a launch asks it (route.effort on), and, when the runtime refuses that level, once more for the profile
+ *  alone (pickProfile). Nothing is tried when a launch asks nothing: `launch` outside the ladder, or on its lowest
+ *  rung. A call that throws is silent: the adapter turns every failure into a refusal, and another one may not. */
+async function decisionState(
+  deps: RouteCommandDeps, on: boolean, ladder: readonly string[], launch: LaunchProfile | null,
+): Promise<DecisionStanding> {
   if (!deps.decision.available()) return { state: "absent" };
   if (!on) return { state: "present" };
+  const profile = launch?.profile ?? null;
+  if (launch !== null && !routable(launch.profile, ladder)) return { state: "outside" };
+  if (launch !== null && routeHeld(ladder, profile, 0)) return { state: { lowest: launch.profile, key: launch.key } };
   try {
     const level = await routeEffortBounds(deps);
-    const { answer, levelRefused } = await pickProfile(deps.picker, ROUTE_PROBE_REQUEST, { ladder }, level);
+    const { answer, levelRefused } = await pickProfile(deps.picker, ROUTE_PROBE_REQUEST, routeBounds(ladder, profile, 0), level);
     return levelRefused === undefined ? { state: stateOf(answer) } : { state: stateOf(answer), levelRefused };
   } catch {
     return { state: "silent" };
@@ -110,11 +123,12 @@ async function status(deps: RouteCommandDeps): Promise<CommandView> {
   const stored = await setting(deps.config, ROUTE_LADDER_CONFIG_KEY);
   const ladder = ladderOf(stored);
   const effortPicked = routeOn(await setting(deps.config, ROUTE_EFFORT_CONFIG_KEY));
-  const standing = await decisionState(deps, on, ladder);
+  const launch = on ? await launchProfile(deps.config) : null;
+  const standing = await decisionState(deps, on, ladder, launch);
   const head = routeStatus(on, effortPicked, ladder.join(","), standing.state);
   const levelLine = standing.levelRefused === undefined ? null : routeLevelRefusedLine(standing.levelRefused);
   const misread = ladderMisread(stored) ? routeLadderInvalid(stored, ladder.join(",")) : null;
-  const outside = on ? await outsideLadder(deps.config, ladder) : null;
+  const outside = launch !== null && !routable(launch.profile, ladder) ? routeOutsideLadder(launch.profile, launch.key) : null;
   const top = [head, levelLine, misread, outside].filter((line) => line !== null);
   const { reasoning } = deps;
   if (reasoning === undefined) return { text: top.join("\n") };

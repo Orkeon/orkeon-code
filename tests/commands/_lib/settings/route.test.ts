@@ -5,7 +5,7 @@ import { deepStrictEqual, strictEqual } from "node:assert";
 
 import { runRoute } from "../../../../src/commands/_lib/settings/route.ts";
 import {
-  CUSTOM_LADDER, DECISION_STATE_CASES, EFFORT_REFUSAL, LEVEL_REFUSED_CASES, MISREAD_LADDER_CASES, OUTSIDE_LADDER_CASES, PROBE_ASKED, RECENT, RECENT_WITH_CIRCUIT_OFF, RECENT_WITH_LEVEL, STATUS_EFFORT_IDLE, STATUS_EFFORT_ON, WHY_LEVEL_LINES, SET_OFF, STATUS_CUSTOM_WITH_HIGH, SET_ON, SET_ON_NO_MODEL, STATUS_OFF, STATUS_ON_NO_MODEL, STATUS_WITH_MEDIUM, STATUS_WITH_RUNGS,
+  CUSTOM_LADDER, DECISION_STATE_CASES, LINE_ORDER_CASES, PROBE_BOUNDS_CASES, UNTRIED_CASES, EFFORT_REFUSAL, LEVEL_REFUSED_CASES, MISREAD_LADDER_CASES, OUTSIDE_LADDER_CASES, PROBE_ASKED, RECENT, RECENT_WITH_CIRCUIT_OFF, RECENT_WITH_LEVEL, STATUS_EFFORT_IDLE, STATUS_EFFORT_ON, WHY_LEVEL_LINES, SET_OFF, STATUS_CUSTOM_WITH_HIGH, SET_ON, SET_ON_NO_MODEL, STATUS_OFF, STATUS_ON_NO_MODEL, STATUS_WITH_MEDIUM, STATUS_WITH_RUNGS,
   WHY_LINES, WHY_STANDS_LINES, routeCommandSetup, routeOnGlmSetup,
 } from "./route.fixtures.ts";
 import { EFFORT_STATE_KEY } from "../../../../src/shared/domain/session-keys.ts";
@@ -174,7 +174,7 @@ describe("runRoute", () => {
       const { deps, config, picker } = routeCommandSetup();
       config.values = { "route.agents": "on" };
       if (c.answer !== undefined) picker.answer = c.answer;
-      if (c.failure !== undefined) picker.failure = c.failure;
+      if (c.thrown !== undefined) picker.failure = c.thrown;
 
       // Act
       const view = await runRoute([], deps);
@@ -218,6 +218,50 @@ describe("runRoute", () => {
       config.values = { "route.agents": "on", "route.effort": "on" };
       session.state.set(EFFORT_STATE_KEY, "low");
       picker.answerFor = (_options, effort) => (effort === undefined ? c.second : EFFORT_REFUSAL);
+
+      // Act
+      const view = await runRoute([], deps);
+
+      // Assert
+      strictEqual(view.text, c.text);
+    });
+  }
+
+  for (const c of PROBE_BOUNDS_CASES) {
+    it(c.name, async () => {
+      // Arrange
+      const { deps, config, picker } = routeCommandSetup();
+      config.values = c.values;
+
+      // Act
+      await runRoute([], deps);
+
+      // Assert
+      deepStrictEqual(picker.asked.map((asked) => asked.options), [c.options]);
+    });
+  }
+
+  for (const c of UNTRIED_CASES) {
+    it(c.name, async () => {
+      // Arrange
+      const { deps, config, picker } = routeCommandSetup();
+      config.values = c.values;
+
+      // Act
+      const view = await runRoute([], deps);
+
+      // Assert
+      deepStrictEqual([view.text, picker.asked.length], [c.text, 0]);
+    });
+  }
+
+  for (const c of LINE_ORDER_CASES) {
+    it(c.name, async () => {
+      // Arrange
+      const { deps, config, session, picker } = routeCommandSetup();
+      config.values = c.values;
+      session.state.set(EFFORT_STATE_KEY, "low");
+      picker.answerFor = (_options, effort) => (effort === undefined ? picker.answer : EFFORT_REFUSAL);
 
       // Act
       const view = await runRoute([], deps);

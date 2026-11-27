@@ -421,13 +421,15 @@ décision sur le runtime, ce profil est choisi à chaque lancement de `/dev-spec
   celui par défaut du runtime. Une session sur un profil hors de l'échelle (un profil de décision qui
   garde ses requêtes) n'est pas routée : elle garde ce profil, et une ligne de journal le dit, comme un `/route`
   seul, qui nomme le réglage qui porte le profil.
-- **Un modèle de décision qui ne répond pas** : routage sur `on`, un `/route` seul fait un choix de test sur
-  l'échelle de la session, par le même choix (sa demande dans `commands/_lib/settings/prompts.ts` ;
+- **Un modèle de décision qui ne répond pas** : routage sur `on`, un `/route` seul fait un choix de test avec les
+  bornes qu'enverrait un lancement de la session, hors planchers des règles (sa demande dans `commands/_lib/settings/prompts.ts` ;
   [ADR 0042](../adr/0042-route-review.md)). Avec `route.effort` sur `on`, il demande le niveau qu'un lancement
   demanderait, et une part du niveau refusée lui fait choisir le profil seul et ajouter une ligne d'avertissement. Il
   signale un modèle qui a répondu, un qui n'a pas répondu, un choix que le runtime a refusé (avec son message), un
   choix qui n'a rien rendu (un runtime sans le choix, un appel annulé, une réponse illisible) et un choix qui n'a rien
-  demandé au modèle (son circuit éteint), puisque rien n'est routé dans les quatre derniers cas.
+  demandé au modèle (son circuit éteint), puisque rien n'est routé dans les quatre derniers cas. Un profil de
+  lancement hors de l'échelle ou sur son barreau le plus bas n'est pas essayé du tout, et l'état dit pourquoi
+  ([les huit états](configuration.md#réglages-de-session)).
 - **Ce qui n'est pas routé** : la boucle principale (`/assistant` : son cache de prompt suit un modèle),
   `/compact`, `/memory admit`, les crews de parole, `/advisor` (il a son propre modèle), `/dev-batches` et
   `/tasks` ; et, dans un crew, les rôles de `/dev-implement`, les agents qu'un crew démarre en arrière-plan,
@@ -446,6 +448,9 @@ décision sur le runtime, ce profil est choisi à chaque lancement de `/dev-spec
     runtime n'atteint) donne un avertissement, et le profil est demandé une fois de plus, seul : le niveau reste en
     place. Un second refus est le refus habituel. Le refus d'une autre part (un barreau que le runtime ne déclare pas,
     un plancher, un repli) donne l'avertissement habituel, sans second appel.
+  - Dans un même crew, cet avertissement et celui d'une échelle qui n'en est pas une viennent une fois, au premier
+    act ; après un niveau refusé, les acts suivants demandent le profil seul. Des acts lancés en parallèle avant le
+    retour du refus demandent encore le niveau.
   - Rien n'est demandé là où aucun profil ne l'est : une session sur un profil hors de l'échelle, ou dont le
     barreau est le seul qui reste, garde son niveau.
   - La ligne et `/route why` montrent le niveau après le profil : `route: dev-plan on 'small' (the decision model's
@@ -472,9 +477,8 @@ décision sur le runtime, ce profil est choisi à chaque lancement de `/dev-spec
 - **Le routage échoue ouvert** : chaque cas ci-dessous ne route rien et ne garde rien pour `/route why`. Un
   lancement tourne sur le profil de la session, un act là où tourne son crew.
   - Le réglage éteint ou illisible, un runtime sans le choix (dans un crew, un `ctx.llm.pick` qui dit que le runtime
-    n'en branche pas) et un choix annulé : rien n'est journalisé. Les modes tool et docker
-    lancent une release sans le choix, rien n'y est donc routé
-    ([ADR 0034](../adr/0034-orkeon-after-470.md)).
+    n'en branche pas) et un choix annulé : rien n'est journalisé. La release `1.4.0` des modes tool et docker a le
+    choix ([ADR 0034](../adr/0034-orkeon-after-470.md)).
   - Pas de modèle de décision pour un script, qu'aucun fournisseur ne soit nommé, que le fournisseur n'ait pas sa
     clé ou que le circuit de décision du runtime soit éteint (`--no-decision`, `Orkeon:Decision:Enabled=false`) :
     le runtime retient alors `system_one_decide`, et un avertissement le dit à chaque lancement et à chaque act. Le

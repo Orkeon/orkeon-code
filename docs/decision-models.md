@@ -20,10 +20,8 @@ setting off.
 | Routing a crew | `/route on` | the cheapest LLM profile that fits the command | [the turn](turn.md#routing-a-crew-to-a-profile) |
 | Suggesting skills | `/skills suggest on` | the project's skills that fit the request of a turn | [the turn](turn.md#suggesting-skills-for-a-turn) |
 
-The pruning and the routing need the runtime of the pin, source mode. The tool and docker modes run the last
-release, where both settings are read and do nothing, without a warning of their own: a host with no
-decision model still gets the usual one
-([ADR 0034](adr/0034-orkeon-after-470.md)).
+The pruning and the routing run in every mode: Orkeon `1.4.0`, the release the tool and docker modes run, has the
+pruning and the pick, its thinking level included ([ADR 0034](adr/0034-orkeon-after-470.md)).
 
 The measures below are of 2026-11-11: `jev-latest` (the hosted Jev) decides, `glm-5.3-flashx` (Z.AI) answers,
 Orkeon's sources at the pin of that day. Orkeon Code then asked the pruning and the routing questions itself: these
@@ -184,7 +182,7 @@ under the bar: nothing moves.
   between the two ends fall under the bar.
 - **A fourth rung moves the hard work to the dearest model** and decides fewer requests: four rungs behave as two
   rungs priced higher. Keep `fable` off the ladder, for `/model` or for a floor of `.orkeon/route-rules.json`.
-- **The level** is decided for 7 of the 9 requests that take one, on both passes: `low` and `high` are, `medium`
+- **The level** is decided for 7 of the 9 requests that take one, in the level column above (the pass on three rungs): `low` and `high` are, `medium`
   is not in this table (0.50, and `high` at 0.48 on the last brief); it is in the briefs below.
 - **On the subscription**, the ladder `subscription-haiku,subscription-sonnet,subscription` of the `agent-cli`
   example decides 15 of the same 18 requests, with a similar split: the pick reads the order of the rungs, not their

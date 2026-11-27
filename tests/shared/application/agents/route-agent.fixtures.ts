@@ -433,3 +433,36 @@ export const MISREAD_LADDERS: readonly { name: string; ladder: string; lines: re
     "info: route: dev-plan on 'small' (the decision model's pick; picked 'small' at 0.90)",
   ],
 }));
+
+const misreadWarning = (ladder: string): string =>
+  `warn: route.agents is on and route.ladder is '${ladder}', which is no ladder: the ladder small,large is used instead`;
+
+/** A stored route.ladder that is no ladder where no pick is asked: the setting off says nothing, no decision model
+ *  says that alone. */
+export const MISREAD_UNASKED_CASES: readonly { name: string; setting: string; present: boolean; lines: readonly string[] }[] = [
+  { name: "says nothing of a ladder that is no ladder while route.agents is off", setting: "off", present: true, lines: [] },
+  { name: "says only that the host has no decision model, whatever route.ladder holds", setting: "on", present: false, lines: [NO_MODEL_WARNING] },
+];
+
+/** A stored route.ladder that is no ladder, under a session on a profile outside the ladder used: both are said. */
+export const MISREAD_AND_OUTSIDE_LINES = [misreadWarning("small"), OUTSIDE_LADDER_LINE];
+
+/** A refusal whose message names no part of the options: a failure the adapter turns into a refusal. */
+export const UNNAMED_REFUSAL: ProfilePickRefusal = { refused: "ctx.llm.pick failed: connection refused" };
+export const UNNAMED_REFUSED_LINES = [
+  `warn: route.agents is on and the runtime refused the pick: nothing is routed, the session's profile stands (${UNNAMED_REFUSAL.refused})`,
+];
+
+const ACT_ON_SMALL = "info: route: dev-reviewer on 'small' (the decision model's pick; picked 'small' at 0.90)";
+
+/** Two acts of one crew run on a ladder that is no ladder: one warning, then the line of each act. */
+export const MISREAD_TWO_ACTS_LINES = [misreadWarning("small"), ACT_ON_SMALL, ACT_ON_SMALL];
+
+/** Two acts of one crew run whose level the runtime refuses: one warning, then the line of each act. */
+export const LEVEL_REFUSED_TWO_ACTS_LINES = [LEVEL_REFUSED_WARNING, ACT_ON_SMALL, ACT_ON_SMALL];
+
+/** Two launches on a ladder that is no ladder: each is a run of its own, and warns. */
+export const MISREAD_TWO_LAUNCHES_LINES = [
+  misreadWarning("small"), "info: route: dev-plan on 'small' (the decision model's pick; picked 'small' at 0.90)",
+  misreadWarning("small"), "info: route: dev-plan on 'small' (the decision model's pick; picked 'small' at 0.90)",
+];

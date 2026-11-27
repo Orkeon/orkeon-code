@@ -36,6 +36,7 @@ no ladder to route on.
   `subscription-sonnet`, the profile `subscription` on the two cheaper models, with the same fallback. The ladder
   `subscription-haiku,subscription-sonnet,subscription` then routes under `agents.profile subscription`, its top
   rung. Measured on the same requests: 15 of 18 decided, a similar split to `haiku,sonnet,opus`.
+  [ADR 0042](0042-route-review.md) gives each rung the fallback of its own model, on the key.
 
 ## Consequences
 

@@ -13,8 +13,8 @@ The pin moves from `948d1b6` to Orkeon `main` `9ca8530`, one merge later:
   warning, on the ground that the `claude` CLI had no flag for it; the CLI has `--effort`. A call that carries
   a level (`low`, `medium`, `high`, `xhigh`, `max`) now starts the CLI with `--effort <level>`. The level holds for
   a CLI process, so it is part of what makes two calls share one: a call at another level gets a process of its
-  own. Thinking switched off, switched on with no level, or bounded by a budget still has no flag and keeps the
-  warning. The provider declares its five levels in the capability table.
+  own. Thinking switched off, switched on with no level, bounded by a budget, or a vendor value outside the five
+  levels still has no flag and keeps the warning. The provider declares its five levels in the capability table.
 
 Before it, [ADR 0040](0040-route-reach.md) recorded that on a subscription ladder `route.effort` picked a level
 nothing applied, and the docs said to leave it off there.
@@ -39,4 +39,5 @@ The typings do not change. The last release is still `1.4.0`, seven commits behi
   levels costs in CLI processes against `MaxProcesses` (4 in the example).
 - The check, the REPL smoke, the crew smoke under `--llm-mock` and the validate smoke pass in source mode at
   `9ca8530`.
-- The tool and docker modes still run `1.4.0`, where the level is still dropped on this provider.
+- The tool mode still runs `1.4.0`, where the level is still dropped on this provider; the docker mode does not run
+  the provider (its image has no `claude`).

@@ -19,17 +19,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   single rung, and with no `/effort` stored the pick may choose any of the host's levels.
 - The docs no longer say that `/effort` cannot reach the `agent-cli` provider, nor that `llm.profile` is the profile
   of every agent; the measure of the level reads 7 of the 9 requests that take one.
-- A pick whose thinking level the runtime refuses (a level `/effort` stored that is not one of the decision model's
-  levels) no longer loses the routing: one warning, then the profile is asked again alone, and the level stays in
-  place ([ADR 0042](docs/adr/0042-route-review.md)). A refusal of anything else (a rung, a floor, a fallback) is one
-  warning and no second call, as before.
+- A pick whose thinking level the runtime refuses (the host lists no level at or below the one `/effort` stored,
+  such as `/effort low` on `medium,high`) no longer loses the routing: one warning, then the profile is asked again
+  alone, and the level stays in place ([ADR 0042](docs/adr/0042-route-review.md)). Inside one crew the warning
+  comes once, and the next acts ask the profile alone. A refusal of anything else (a rung, a floor, a fallback) is
+  one warning and no second call, as before.
 - A stored `route.ladder` that is no ladder (one name, a name twice, a malformed name) is no longer replaced by
-  `small,large` in silence: each routed launch warns, and a bare `/route` shows a warning line, the routing on or off.
-- A bare `/route` with the routing on makes one test pick on the ladder, the path the routing takes, in place of a
-  yes/no test question, and says what came of it after `decision model:`: present, absent, no answer, refused by
-  the runtime (with its message), nothing back (a host without the pick, a cancelled call, a reply that does not
-  read), or nothing asked (the runtime's decision circuit off). With `route.effort` on it asks the level a launch
-  would ask; when the runtime refuses that level, it picks the profile alone and adds a warning line.
+  `small,large` in silence: each routed launch warns, once per crew, and a bare `/route` shows a warning line, the
+  routing on or off.
+- The docs no longer say that `compaction.prune`, `route.agents` and `route.effort` need the pin: the release `1.4.0`
+  of the tool and docker modes has the pruning and the pick, its level included.
 - `config/appsettings.agent-cli.example.json` declares the key profiles `haiku` and `sonnet`, and
   `subscription-haiku` and `subscription-sonnet` fall back on them: a launch routed to a cheap rung is billed on the
   key at that rung's model, not at the dearest, when the subscription cannot answer.
@@ -59,8 +58,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   three and four rungs are measured in [the decision models](docs/decision-models.md): a fourth rung decides fewer
   requests and takes every hard one, so the docs keep `fable` off the ladder
   ([ADR 0040](docs/adr/0040-route-reach.md)).
-- A bare `/route` with the routing on asks the decision model one test question, and says when a model the settings
-  name gives no answer (a server that is down, a key refused): it used to read `decision model: present`.
+- A bare `/route` with the routing on makes one test pick with the bounds a launch of the session sends, and says
+  what came of it after `decision model:`, where it used to read `present` throughout: present, absent, no answer
+  (a server that is down, a key refused), refused by the runtime (with its message), nothing back (a host without
+  the pick, a cancelled call, a reply that does not read), nothing asked (the runtime's decision circuit off), or
+  not tried, with no call, under a launch profile off the ladder or on its lowest rung. With `route.effort` on it
+  asks the level a launch would ask; when the runtime refuses that level, it picks the profile alone and adds a
+  warning line ([ADR 0042](docs/adr/0042-route-review.md)).
 - `config/appsettings.agent-cli.example.json` declares `subscription-haiku` and `subscription-sonnet` beside
   `subscription`: `/config set route.ladder subscription-haiku,subscription-sonnet,subscription` routes the agents
   on the Claude subscription.

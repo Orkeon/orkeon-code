@@ -7,7 +7,8 @@ import { actRoute, routeAgent } from "../../../../src/shared/application/agents/
 import {
   ACT_EFFORTS, ACT_LINES, ACT_ROUTES, BILLING_TASK, EFFORT_ASKED_CASES, EFFORT_LINE_CASES, EFFORT_RECORD, EFFORT_ROUTED_CASES, LOW_PICKED, THINKING_TASK, effortSetup, HELD_CASES, LINE_CASES, NO_CHOICE, NO_MODEL_WARNING, OPTIONS_CASES, OUTSIDE_LADDER_LINE,
   REASON_CASES, REVIEW_TASK, RULES_PATH, SMALL_RECORD, TASK, UNSURE_RECORD, answer, answeredSetup, routeSetup,
-  LADDER_REFUSED_LINES, MISREAD_LADDERS, REFUSAL, RETRY_CASES, levelRefusedSetup,
+  LADDER_REFUSED_LINES, MISREAD_LADDERS, REFUSAL, RETRY_CASES, levelRefusedSetup, EFFORT_REFUSAL, LEVEL_REFUSED_TWO_ACTS_LINES,
+  MISREAD_AND_OUTSIDE_LINES, MISREAD_TWO_ACTS_LINES, MISREAD_TWO_LAUNCHES_LINES, MISREAD_UNASKED_CASES, UNNAMED_REFUSAL, UNNAMED_REFUSED_LINES,
 } from "./route-agent.fixtures.ts";
 
 describe("routeAgent", () => {
@@ -369,6 +370,28 @@ describe("routeAgent, a pick refused with a thinking level", () => {
     deepStrictEqual(log.lines, LADDER_REFUSED_LINES);
   });
 
+  it("asks once, and warns once, when a refusal that names no part comes with a level asked", async () => {
+    // Arrange
+    const { deps, picker, log } = effortSetup({ stored: "high", answer: UNNAMED_REFUSAL });
+
+    // Act
+    await routeAgent(deps, THINKING_TASK, "large");
+
+    // Assert
+    deepStrictEqual([picker.asked.length, log.lines], [1, UNNAMED_REFUSED_LINES]);
+  });
+
+  it("asks once when the runtime refuses the level part of a pick that asked no level", async () => {
+    // Arrange
+    const { deps, picker } = answeredSetup({ answer: EFFORT_REFUSAL });
+
+    // Act
+    await routeAgent(deps, THINKING_TASK, "large");
+
+    // Assert
+    strictEqual(picker.asked.length, 1);
+  });
+
   it("asks nothing more when the runtime refuses a pick with no level asked", async () => {
     // Arrange
     const { deps, picker } = answeredSetup({ answer: REFUSAL });
@@ -394,4 +417,84 @@ describe("routeAgent, a stored ladder that is no ladder", () => {
       deepStrictEqual(log.lines, c.lines);
     });
   }
+});
+
+describe("routeAgent, a stored ladder that is no ladder and nothing asked", () => {
+  for (const c of MISREAD_UNASKED_CASES) {
+    it(c.name, async () => {
+      // Arrange
+      const { deps, decision, log } = routeSetup(c.setting, { ladder: "small" });
+      decision.present = c.present;
+
+      // Act
+      await routeAgent(deps, TASK, "large");
+
+      // Assert
+      deepStrictEqual(log.lines, c.lines);
+    });
+  }
+
+  it("says both that the ladder is no ladder and that the session's profile is off the ladder used", async () => {
+    // Arrange
+    const { deps, log } = routeSetup("on", { ladder: "small" });
+
+    // Act
+    await routeAgent(deps, TASK, "guarded");
+
+    // Assert
+    deepStrictEqual(log.lines, MISREAD_AND_OUTSIDE_LINES);
+  });
+});
+
+describe("actRoute, the acts of one crew run", () => {
+  it("warns of a ladder that is no ladder at the first act of the run alone", async () => {
+    // Arrange
+    const { deps, log } = routeSetup("on", { ladder: "small" });
+    const route = actRoute(deps, { session: "large", crew: "large" });
+    await route(REVIEW_TASK);
+
+    // Act
+    await route(REVIEW_TASK);
+
+    // Assert
+    deepStrictEqual(log.lines, MISREAD_TWO_ACTS_LINES);
+  });
+
+  it("asks the act after a refused level for its profile alone, in one pick", async () => {
+    // Arrange
+    const { deps, picker } = levelRefusedSetup();
+    const route = actRoute(deps, { session: "large", crew: "large" });
+    await route(REVIEW_TASK);
+
+    // Act
+    await route(REVIEW_TASK);
+
+    // Assert
+    deepStrictEqual(picker.asked.map((asked) => asked.effort), [{ max: "low" }, undefined, undefined]);
+  });
+
+  it("warns of a refused level at the first act of the run alone", async () => {
+    // Arrange
+    const { deps, log } = levelRefusedSetup();
+    const route = actRoute(deps, { session: "large", crew: "large" });
+    await route(REVIEW_TASK);
+
+    // Act
+    await route(REVIEW_TASK);
+
+    // Assert
+    deepStrictEqual(log.lines, LEVEL_REFUSED_TWO_ACTS_LINES);
+  });
+
+  it("warns again at the next launch: a launch is a run of its own", async () => {
+    // Arrange
+    const { deps, log } = routeSetup("on", { ladder: "small" });
+    await routeAgent(deps, TASK, "large");
+
+    // Act
+    await routeAgent(deps, TASK, "large");
+
+    // Assert
+    deepStrictEqual(log.lines, MISREAD_TWO_LAUNCHES_LINES);
+  });
 });

@@ -208,13 +208,15 @@ describe("withRoutedProfile", () => {
   it("routes a launch from agents.profile, its ceiling and its fallback, not from llm.profile", async () => {
     // Arrange
     const { deps, config, routing } = routedCrewDeps({ "agents.profile": "large", "llm.profile": "small", "route.agents": "on" });
-    const profiled = await withRoutedProfile(deps, config, routing, { crew: "dev-plan", brief: "/dev-plan invoice-export" });
 
     // Act
-    launchCrew(profiled, "dev-plan", { code: "invoice-export" });
+    const profiled = await withRoutedProfile(deps, config, routing, { crew: "dev-plan", brief: "/dev-plan invoice-export" });
 
     // Assert
-    deepStrictEqual(deps.crews.launches[0].input, { code: "invoice-export", llmProfile: "small", llmProfileFallback: "large" });
+    deepStrictEqual(
+      [routing.picker.asked[0].options, profiled.llmProfile, (profiled as { llmProfileFallback?: string }).llmProfileFallback],
+      [{ ladder: ["small", "large"], ceiling: "large", fallback: "large" }, "small", "large"],
+    );
   });
 
   it("leaves the launch on the session's profile when the pick answers it in the ladder's case", async () => {

@@ -21,10 +21,9 @@ Orkeon Code fait ce qu'il fait réglage éteint.
 | Router un crew | `/route on` | le profil LLM le moins cher qui convient à la commande | [le tour](turn.md#router-un-crew-vers-un-profil) |
 | Suggérer des skills | `/skills suggest on` | les skills du projet qui conviennent à la demande d'un tour | [le tour](turn.md#suggérer-des-skills-pour-un-tour) |
 
-L'élagage et le routage demandent le runtime de l'épingle, le mode source. Les modes tool et docker lancent la
-dernière release, où les deux réglages sont lus et ne font rien, sans avertissement qui leur soit propre : un
-runtime sans modèle de décision donne toujours l'avertissement habituel
-([ADR 0034](../adr/0034-orkeon-after-470.md), en anglais).
+L'élagage et le routage tournent dans tous les modes : Orkeon `1.4.0`, la release qu'exécutent les modes tool et
+docker, a l'élagage et le choix, son niveau de réflexion compris ([ADR 0034](../adr/0034-orkeon-after-470.md), en
+anglais).
 
 Les mesures ci-dessous sont du 2026-11-11 : `jev-latest` (le Jev hébergé) décide, `glm-5.3-flashx` (Z.AI) répond,
 les sources d'Orkeon à l'épingle de ce jour-là. Orkeon Code posait alors lui-même les questions d'élagage et de
@@ -188,7 +187,7 @@ barreaux. En italique, un choix sous la barre : rien ne bouge.
 - **Un quatrième barreau envoie le travail difficile au modèle le plus cher** et décide moins de demandes : quatre
   barreaux se comportent comme deux barreaux plus chers. Gardez `fable` hors de l'échelle, pour `/model` ou pour un
   plancher de `.orkeon/route-rules.json`.
-- **Le niveau** est décidé pour 7 des 9 demandes qui en prennent un, sur les deux passes : `low` et `high` le sont,
+- **Le niveau** est décidé pour 7 des 9 demandes qui en prennent un, dans la colonne du niveau ci-dessus (la passe à trois barreaux) : `low` et `high` le sont,
   `medium` ne l'est pas dans ce tableau (0,50, et `high` à 0,48 sur le dernier brief) ; il l'est dans les briefs ci-dessous.
 - **Sur l'abonnement**, l'échelle `subscription-haiku,subscription-sonnet,subscription` de l'exemple `agent-cli`
   décide 15 des mêmes 18 demandes, avec un partage semblable : le choix lit l'ordre des barreaux, pas leurs noms.

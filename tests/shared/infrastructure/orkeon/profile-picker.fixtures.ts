@@ -40,6 +40,14 @@ export const REFUSED_PARTS: readonly { readonly name: string; readonly message: 
   { name: "tells a refusal of a bound of the profile", message: REFUSED_LADDER, part: "profile" },
   { name: "names no part for a refusal of the options as a whole", message: "ctx.llm.pick { options } takes { profile?, effort? }: give one of them, or both.", part: undefined },
   { name: "names no part for a failure that names no option", message: "the services of this run are gone", part: undefined },
+  { name: "tells a refusal of the fallback of the profile from a command", message: "services.get(\"pick\").pick { profile.fallback } 'ghost' is not on the ladder.", part: "profile" },
+  { name: "tells a refusal of the floor of the level from a crew", message: "ctx.llm.pick { effort.min } 'huge' is not a thinking level.", part: "effort" },
+  { name: "tells a refusal of the ceiling of the profile from a crew", message: "ctx.llm.pick { profile.ceiling } 'large' is below the floor 'xl'.", part: "profile" },
+  { name: "names no part for an option named with no pick before it", message: "{ effort } leaves no level between min '(none)' and max 'low'.", part: undefined },
+  { name: "names no part for an option named after a word that ends in pick", message: "repick { effort } leaves no level.", part: undefined },
+  { name: "names no part for an option whose name only starts with a part's", message: "ctx.llm.pick { effortless } is not an option.", part: undefined },
+  { name: "names no part for an option with a name under a part's that is no word", message: "ctx.llm.pick { profile.ladder2 } is not an option.", part: undefined },
+  { name: "names no part for a bound named two levels down", message: "ctx.llm.pick { effort.max.value } is not an option.", part: undefined },
 ];
 /** What a locator throws when it is used outside the run that got it. */
 export const LOCATOR_GONE = "the services of this run are gone";

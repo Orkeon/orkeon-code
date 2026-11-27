@@ -36,6 +36,7 @@ export const SAME_PROFILE_CASES: readonly { readonly name: string; readonly a: s
   { name: "tells two names apart", a: "small", b: "large", same: false },
   { name: "takes the host's default model as itself", a: null, b: null, same: true },
   { name: "tells the host's default model from a profile", a: null, b: "small", same: false },
+  { name: "tells the host's default model from an empty name", a: null, b: "", same: false },
 ];
 
 export const RULES: RouteRules = {

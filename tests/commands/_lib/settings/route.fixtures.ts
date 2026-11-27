@@ -76,18 +76,22 @@ export const WHY_LEVEL_LINES = [
 ];
 
 const STATUS_ON = "route.agents: on; route.effort: off; ladder: small,large (cheapest first); decision model: present.";
+const STATUS_ON_HEAD = "route.agents: on; route.effort: off; ladder: small,large (cheapest first); decision model: ";
+/** The state of a decision model a launch asks nothing, its profile being off the ladder: no test pick is made. */
+const NOT_TRIED_OUTSIDE = "configured, not tried: a launch of this session asks it nothing, its profile being off the ladder";
+const STATUS_OUTSIDE = `${STATUS_ON_HEAD}${NOT_TRIED_OUTSIDE}.`;
 
 /** What a bare /route says of the profile the crews are launched on, by where it stands on the ladder. */
 export const OUTSIDE_LADDER_CASES: readonly { readonly name: string; readonly values: Record<string, string>; readonly text: string }[] = [
   {
     name: "says that nothing is routed under an agents.profile outside the ladder",
     values: { "route.agents": "on", "agents.profile": "subscription", "llm.profile": "large" },
-    text: `${STATUS_ON}\n  ⚠ agents.profile is 'subscription', which is not on the ladder: nothing is routed. Set it to a rung, or unset it.`,
+    text: `${STATUS_OUTSIDE}\n  ⚠ agents.profile is 'subscription', which is not on the ladder: nothing is routed. Set it to a rung, or unset it.`,
   },
   {
     name: "says that nothing is routed under an llm.profile outside the ladder",
     values: { "route.agents": "on", "llm.profile": "guarded" },
-    text: `${STATUS_ON}\n  ⚠ llm.profile is 'guarded', which is not on the ladder: nothing is routed. Set it to a rung, or unset it.`,
+    text: `${STATUS_OUTSIDE}\n  ⚠ llm.profile is 'guarded', which is not on the ladder: nothing is routed. Set it to a rung, or unset it.`,
   },
   { name: "says nothing more under a profile that is a rung, whatever its case", values: { "route.agents": "on", "agents.profile": "Large" }, text: STATUS_ON },
   {
@@ -97,18 +101,17 @@ export const OUTSIDE_LADDER_CASES: readonly { readonly name: string; readonly va
   {
     name: "says that nothing is routed under an llm.profile outside the ladder behind an agents.profile that is no name",
     values: { "route.agents": "on", "agents.profile": "two words", "llm.profile": "guarded" },
-    text: `${STATUS_ON}\n  ⚠ llm.profile is 'guarded', which is not on the ladder: nothing is routed. Set it to a rung, or unset it.`,
+    text: `${STATUS_OUTSIDE}\n  ⚠ llm.profile is 'guarded', which is not on the ladder: nothing is routed. Set it to a rung, or unset it.`,
   },
 ];
 
 const pick = (reason: ProfilePick["reason"], value: string | null = "small"): ProfilePick => ({ value, reason, picked: null, probability: null });
 const REFUSED: ProfilePickRefusal = { refused: "services.get(\"pick\").pick { profile.ladder } 'small' is not a profile of this host (known: fast, strong)" };
-const STATUS_ON_HEAD = "route.agents: on; route.effort: off; ladder: small,large (cheapest first); decision model: ";
 const NOTHING_BACK =
   "configured, but the test pick gave nothing back just now (a host without the pick, a cancelled call, a reply that does not read): nothing is routed until it does";
 
 /** What a bare /route with the routing on says of the decision model, by what its test pick answers. */
-export const DECISION_STATE_CASES: readonly { name: string; answer?: ProfilePick | ProfilePickRefusal | null; failure?: Error; text: string }[] = [
+export const DECISION_STATE_CASES: readonly { name: string; answer?: ProfilePick | ProfilePickRefusal | null; thrown?: Error; text: string }[] = [
   { name: "says the decision model is present when the test pick decides a rung", answer: { ...pick("model"), picked: "small", probability: 0.9 }, text: STATUS_ON },
   { name: "says the decision model is present when the test pick answers, unsure", answer: { value: "large", reason: "low-confidence", picked: "small", probability: 0.4 }, text: STATUS_ON },
   {
@@ -116,7 +119,8 @@ export const DECISION_STATE_CASES: readonly { name: string; answer?: ProfilePick
     text: `${STATUS_ON_HEAD}configured, but it gave no answer to a test pick just now (a server that is down, a key refused): nothing is routed until it answers.`,
   },
   {
-    name: "says that a configured decision model gave no answer when the test pick throws", failure: new Error("connection refused"),
+    name: "reads a picker that throws, which the runtime's adapter never does, as a decision model that gave no answer",
+    thrown: new Error("a picker that throws"),
     text: `${STATUS_ON_HEAD}configured, but it gave no answer to a test pick just now (a server that is down, a key refused): nothing is routed until it answers.`,
   },
   {
@@ -124,11 +128,20 @@ export const DECISION_STATE_CASES: readonly { name: string; answer?: ProfilePick
     text: `${STATUS_ON_HEAD}configured, but the runtime refused a test pick on the ladder just now: nothing is routed until it accepts one (${REFUSED.refused}).`,
   },
   {
+    name: "says the runtime refused the test pick when the pick failed, with the failure's message",
+    answer: { refused: "services.get(\"pick\").pick failed: connection refused" },
+    text: `${STATUS_ON_HEAD}configured, but the runtime refused a test pick on the ladder just now: nothing is routed until it accepts one (services.get("pick").pick failed: connection refused).`,
+  },
+  {
     name: "says the test pick gave nothing back", answer: null,
     text: `${STATUS_ON_HEAD}${NOTHING_BACK}.`,
   },
   {
     name: "says the runtime asked the decision model nothing when its circuit is off", answer: pick("circuit-off", null),
+    text: `${STATUS_ON_HEAD}configured, but the runtime asked it nothing for a test pick just now (its decision circuit is off for this run): nothing is routed.`,
+  },
+  {
+    name: "says the runtime asked the decision model nothing when it has no ladder", answer: pick("no-ladder", null),
     text: `${STATUS_ON_HEAD}configured, but the runtime asked it nothing for a test pick just now (its decision circuit is off for this run): nothing is routed.`,
   },
 ];
@@ -178,4 +191,46 @@ export const LEVEL_REFUSED_CASES: readonly { name: string; second: ProfilePick |
     text: `${STATUS_EFFORT_HEAD}configured, but the runtime refused a test pick on the ladder just now: nothing is routed until it accepts one (${REFUSED.refused}).\n${LEVEL_REFUSED_LINE}`,
   },
   { name: "says the level refused and nothing back when the profile asked alone gives nothing", second: null, text: `${STATUS_EFFORT_HEAD}${NOTHING_BACK}.\n${LEVEL_REFUSED_LINE}` },
+];
+
+const LADDER = ["small", "large"];
+
+/** The bounds of the test pick, by the profile the session's crews are launched on: those a launch sends, no floor. */
+export const PROBE_BOUNDS_CASES: readonly { name: string; values: Record<string, string>; options: Record<string, unknown> }[] = [
+  { name: "asks the test pick on the ladder alone for crews on the host's default model", values: { "route.agents": "on" }, options: { ladder: LADDER } },
+  {
+    name: "asks the test pick under the agents.profile the crews are launched on", values: { "route.agents": "on", "agents.profile": "large", "llm.profile": "small" },
+    options: { ladder: LADDER, ceiling: "large", fallback: "large" },
+  },
+  { name: "asks the test pick under the llm.profile the crews are launched on", values: { "route.agents": "on", "llm.profile": "large" }, options: { ladder: LADDER, ceiling: "large", fallback: "large" } },
+  {
+    name: "asks the test pick under a middle rung as a launch on it does", values: { "route.agents": "on", "route.ladder": "small,medium,large", "llm.profile": "medium" },
+    options: { ladder: ["small", "medium", "large"], ceiling: "medium", fallback: "medium" },
+  },
+];
+
+const notTriedLowest = (key: string, profile: string): string =>
+  `${STATUS_ON_HEAD}configured, not tried: a launch of this session asks it nothing, ${key} being '${profile}', the lowest rung, which no pick lowers.`;
+
+/** A session whose launches ask nothing: no test pick, and the state says why. */
+export const UNTRIED_CASES: readonly { name: string; values: Record<string, string>; text: string }[] = [
+  { name: "tries nothing and says so under an agents.profile on the lowest rung", values: { "route.agents": "on", "agents.profile": "small", "llm.profile": "large" }, text: notTriedLowest("agents.profile", "small") },
+  { name: "tries nothing and says so under an llm.profile on the lowest rung, whatever its case", values: { "route.agents": "on", "llm.profile": "Small" }, text: notTriedLowest("llm.profile", "Small") },
+  {
+    name: "tries nothing under a profile off the ladder", values: { "route.agents": "on", "agents.profile": "subscription" },
+    text: `${STATUS_OUTSIDE}\n  ⚠ agents.profile is 'subscription', which is not on the ladder: nothing is routed. Set it to a rung, or unset it.`,
+  },
+];
+
+/** The warning lines under the status, two at a time, in their order: the level refused, the ladder misread, the
+ *  profile off the ladder (a profile off the ladder makes no test pick, so no level is refused beside it). */
+export const LINE_ORDER_CASES: readonly { name: string; values: Record<string, string>; text: string }[] = [
+  {
+    name: "says the level refused, then the ladder misread", values: { "route.agents": "on", "route.effort": "on", "route.ladder": "small" },
+    text: `${STATUS_EFFORT_HEAD}present.\n${LEVEL_REFUSED_LINE}\n${misreadLine("small")}`,
+  },
+  {
+    name: "says the ladder misread, then the profile off the ladder", values: { "route.agents": "on", "route.ladder": "small", "agents.profile": "subscription" },
+    text: `${STATUS_OUTSIDE}\n${misreadLine("small")}\n  ⚠ agents.profile is 'subscription', which is not on the ladder: nothing is routed. Set it to a rung, or unset it.`,
+  },
 ];

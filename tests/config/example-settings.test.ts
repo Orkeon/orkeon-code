@@ -117,7 +117,7 @@ test("the agent-cli example's subscription profile holds its provider, model, ti
 });
 
 for (const c of SUBSCRIPTION_RUNG_FALLBACKS) {
-  test(`the agent-cli example's ${c.profile} profile falls back on the key profile ${c.fallback}`, () => {
+  test(`the agent-cli example's ${c.profile} profile runs keyless on agent-cli and falls back on the key profile ${c.fallback}`, () => {
     // Arrange
     const file = "appsettings.agent-cli.example.json";
 
@@ -125,7 +125,18 @@ for (const c of SUBSCRIPTION_RUNG_FALLBACKS) {
     const profile = load(file).Llm.Profiles[c.profile];
 
     // Assert
-    assert.deepEqual(profile.Fallback, [c.fallback], `Llm:Profiles:${c.profile} does not fall back on ${c.fallback}`);
+    assert.deepEqual(profile, c.whole, `Llm:Profiles:${c.profile} holds another key or value than the documented ones`);
+  });
+
+  test(`the agent-cli example's ${c.profile} profile runs the model of the key profile ${c.fallback} it falls back on`, () => {
+    // Arrange
+    const file = "appsettings.agent-cli.example.json";
+
+    // Act
+    const profiles = load(file).Llm.Profiles;
+
+    // Assert
+    assert.equal(profiles[c.profile].Model, profiles[c.fallback].Model, `Llm:Profiles:${c.profile} and ${c.fallback} run two models`);
   });
 
   test(`the agent-cli example declares the key profile ${c.fallback} as the Anthropic example does`, () => {

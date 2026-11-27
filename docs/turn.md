@@ -381,13 +381,14 @@ is picked at each launch of `/dev-spec` (and its alias `/dev-change`), `/dev-pla
   whole ladder: routed, a launch may then run on a dearer model than the host's default. A session on a profile
   outside the ladder (a decision profile that guards its requests) is not routed: it keeps that profile, and one log
   line says so, as does a bare `/route`, which names the setting that holds the profile.
-- **A decision model that does not answer**: with the routing on, a bare `/route` makes one test pick on the
-  session's ladder, through the same pick (its request in `commands/_lib/settings/prompts.ts`;
+- **A decision model that does not answer**: with the routing on, a bare `/route` makes one test pick with the
+  bounds a launch of the session sends, the rules' floors aside (its request in `commands/_lib/settings/prompts.ts`;
   [ADR 0042](adr/0042-route-review.md)). With `route.effort` on it asks the level a launch would ask, and a refused
   level part makes it pick the profile alone and add a warning line. It reports a model that answered, one that gave
   no answer, a pick the runtime refused (with its message), a pick that gave nothing back (a host without the pick, a
   cancelled call, a reply that does not read) and a pick that asked the model nothing (its circuit off), since
-  nothing is routed in the last four cases.
+  nothing is routed in the last four cases. A launch profile off the ladder or on its lowest rung is tried not at
+  all, and the state says why ([the eight states](configuration.md#session-settings)).
 - **What is not routed**: the main loop (`/assistant`: its prompt cache follows one model), `/compact`, `/memory
   admit`, the speech crews, `/advisor` (it has its own model), `/dev-batches` and `/tasks`; and, inside a crew, the
   roles of `/dev-implement`, the agents a crew starts in the background and the extraction of a sub-agent's answer.
@@ -404,6 +405,9 @@ is picked at each launch of `/dev-spec` (and its alias `/dev-change`), `/dev-pla
     one warning, and the profile is asked once more, alone: the level stays in place. A second refusal is the usual
     one. A refusal of another part (a rung the host does not declare, a floor, a fallback) is the usual warning, with
     no second call.
+  - Inside one crew, that warning and the one of a ladder that is no ladder come once, at the first act; after a
+    refused level the next acts ask the profile alone. Acts started in parallel before the refusal came back still
+    ask the level.
   - Nothing is asked where no profile is: a session on a profile outside the ladder, or whose own rung is the one
     rung left, keeps its level.
   - The line and `/route why` show the level after the profile: `route: dev-plan on 'small' (the decision model's
@@ -424,8 +428,8 @@ is picked at each launch of `/dev-spec` (and its alias `/dev-change`), `/dev-pla
 - **It fails open**: each case below routes nothing and keeps nothing for `/route why`. A launch runs on the
   session's profile, an act where its crew runs.
   - The setting off or unreadable, a host without the pick (in a crew, a `ctx.llm.pick` that says the host wires
-    none) and a cancelled pick: nothing is logged. The tool and docker modes run a release without the pick, so
-    nothing is routed there ([ADR 0034](adr/0034-orkeon-after-470.md)).
+    none) and a cancelled pick: nothing is logged. The release `1.4.0` of the tool and docker modes has the pick
+    ([ADR 0034](adr/0034-orkeon-after-470.md)).
   - No decision model for a script, whether no provider is named, the provider lacks its key or the host's
     decision circuit is off (`--no-decision`, `Orkeon:Decision:Enabled=false`): the host then withholds
     `system_one_decide`, and a warning says so at each launch and each act. The runtime does not tell a script
