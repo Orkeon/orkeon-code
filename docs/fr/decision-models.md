@@ -124,8 +124,9 @@ comme ces acts, sur son brief.
 Avec `route.effort` sur `on`, le même appel choisit aussi le niveau de réflexion : un des niveaux du runtime, jamais
 au-dessus de celui que `/effort` a enregistré, pour les lancements qui transmettent `/effort` et pour chaque act
 routé ([ADR 0039](../adr/0039-route-effort-and-explorer.md)). Une échelle peut compter plus de deux barreaux :
-l'exemple Anthropic déclare `haiku`, `sonnet`, `opus` et `fable`, et `/config set route.ladder
-haiku,sonnet,opus,fable` les ordonne. Ni l'un ni l'autre n'a été mesuré. Deux exécutions du routage des acts sont
+l'exemple Anthropic déclare `haiku`, `sonnet`, `opus` et `fable`. Les deux sont
+[mesurés plus bas](#mesuré--des-échelles-de-deux-trois-et-quatre-barreaux) : gardez une échelle à trois barreaux. Deux
+exécutions du routage des acts sont
 [mesurées plus bas](#mesuré--dev-spec-puis-dev-plan-routés-ou-non).
 
 ### Mesuré : douze commandes
@@ -150,6 +151,50 @@ de l'auteur sur chaque commande.
 
 Onze sur douze comme attendu. La douzième montre le seuil à l'œuvre : un choix à 0,54 n'est pas suivi, et le
 lancement tourne comme sans routage.
+
+### Mesuré : des échelles de deux, trois et quatre barreaux
+
+Mesuré le 27 novembre 2026 avec Jev, la session sur le modèle par défaut du runtime : les douze commandes ci-dessus et
+six briefs de l'explorateur, chacun envoyé au choix comme le routage l'envoie, sur `haiku,opus`, `haiku,sonnet,opus`
+et `haiku,sonnet,opus,fable`. Deux passes : le même choix à chaque fois, sa probabilité à 0,09 près. Le niveau de
+réflexion a été demandé là où le routage le demande, sans niveau enregistré ; sa colonne est la passe à trois
+barreaux. En italique, un choix sous la barre : rien ne bouge.
+
+| Demande | Deux barreaux | Trois barreaux | Quatre barreaux | Niveau |
+|---|---|---|---|---|
+| `/commit` | haiku 0.85 | haiku 0.67 | haiku 0.65 |  |
+| `/commit fix a typo in the README` | haiku 0.98 | haiku 0.86 | haiku 0.89 |  |
+| `/analyze what does README.md say` | haiku 1.00 | haiku 0.99 | haiku 0.97 |  |
+| `/analyze list the public functions of src/text.ts` | haiku 0.99 | haiku 0.88 | haiku 0.89 |  |
+| `/init` | haiku 0.86 | haiku 0.76 | haiku 0.79 |  |
+| `/dev-learn` | haiku 0.82 | haiku 0.73 | haiku 0.76 |  |
+| `/dev-plan rewrite-the-billing-engine-across-all-modules` | opus 0.99 | opus 0.98 | fable 0.96 | high 0.90 |
+| `/dev-spec design a multi-tenant permission model with row-level security` | opus 0.99 | opus 0.94 | fable 0.87 | high 0.99 |
+| `/dev-change replace the session store by an event-sourced one, keep every caller working` | opus 0.99 | opus 0.99 | fable 0.98 | high 0.97 |
+| `/review --lens security` | opus 0.94 | opus 0.66 | *fable 0.50* |  |
+| `/review --lens style` | opus 0.69 | sonnet 0.63 | *sonnet 0.47* |  |
+| `/analyze find the race condition between the worker pool and the cache invalidation` | opus 0.97 | opus 0.61 | *fable 0.54* |  |
+| explorateur : lister les fichiers du dossier docs/ | haiku 1.00 | haiku 0.98 | haiku 0.99 | low 0.99 |
+| explorateur : où la chaîne de version est définie | haiku 0.96 | haiku 0.79 | haiku 0.84 | low 0.83 |
+| explorateur : trouver chaque lecture d'un réglage | haiku 0.98 | haiku 0.93 | haiku 0.92 | low 0.94 |
+| explorateur : recenser les doublures de test, dire quels ports n'en ont pas | haiku 0.94 | haiku 0.72 | haiku 0.72 | low 0.65 |
+| explorateur : expliquer comment une classe choisit un profil et un niveau, fichiers et lignes | haiku 0.71 | *sonnet 0.54* | *opus 0.35* | *medium 0.50* |
+| explorateur : suivre la décision de permission d'un appel d'outil à travers tous les crews | opus 0.79 | *opus 0.47* | *opus 0.35* | *high 0.48* |
+
+- **Décidés** : 18 sur 18 à deux barreaux, 16 à trois, 13 à quatre.
+- **Les barreaux du milieu ne reçoivent presque aucune décision.** À trois barreaux, `sonnet` est décidé une fois, à
+  0,63. À quatre, aucune demande n'est décidée sur `sonnet` ni sur `opus` : chaque commande difficile va à `fable`,
+  le barreau du haut, et les demandes entre les deux bouts tombent sous la barre.
+- **Un quatrième barreau envoie le travail difficile au modèle le plus cher** et décide moins de demandes : quatre
+  barreaux se comportent comme deux barreaux plus chers. Gardez `fable` hors de l'échelle, pour `/model` ou pour un
+  plancher de `.orkeon/route-rules.json`.
+- **Le niveau** est décidé pour 14 des 18 demandes qui en prennent un, sur chaque échelle : `low` et `high` le sont,
+  `medium` jamais (0,50 à 0,57), si bien qu'une demande du milieu garde le niveau en place.
+- **Sur l'abonnement**, l'échelle `subscription-haiku,subscription-sonnet,subscription` de l'exemple `agent-cli`
+  décide 15 des mêmes 18 demandes, avec le même partage : le choix lit l'ordre des barreaux, pas leurs noms.
+
+Ce sont des choix, pas des exécutions : aucun crew n'a été lancé, donc le tableau dit où chaque demande tournerait,
+pas ce que le modèle moins cher en a fait.
 
 ### Mesuré : `/dev-spec` puis `/dev-plan`, routés ou non
 

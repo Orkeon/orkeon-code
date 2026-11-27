@@ -57,3 +57,4 @@ changes for Orkeon Code: what is adopted, what is set aside, what is removed.
 | [0037](0037-orkeon-after-486.md) | Orkeon main after #486, nothing adopted, `chat_attach` left to the hosted conversations |
 | [0038](0038-agents-profile.md) | `agents.profile`: the agents on another profile than the main turn |
 | [0039](0039-route-effort-and-explorer.md) | The routing picks the thinking level too (`route.effort`), and reaches the explorer |
+| [0040](0040-route-reach.md) | A ladder of three rungs (measured), a `/route` that says when the decision model gives no answer, the subscription ladder |

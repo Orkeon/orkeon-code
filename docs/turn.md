@@ -378,6 +378,9 @@ is picked at each launch of `/dev-spec` (and its alias `/dev-change`), `/dev-pla
   whole ladder: routed, a launch may then run on a dearer model than the host's default. A session on a profile
   outside the ladder (a decision profile that guards its requests) is not routed: it keeps that profile, and one log
   line says so, as does a bare `/route`, which names the setting that holds the profile.
+- **A decision model that does not answer**: with the routing on, a bare `/route` asks the host's decision model one
+  test question (`commands/_lib/settings/prompts.ts`); a model that is configured and gives no answer is reported as
+  such, since nothing is routed until it answers.
 - **What is not routed**: the main loop (`/assistant`: its prompt cache follows one model), `/compact`, `/memory
   admit`, the speech crews, `/advisor` (it has its own model), `/dev-batches` and `/tasks`; and, inside a crew, the
   roles of `/dev-implement`, the agents a crew starts in the background and the extraction of a sub-agent's answer.

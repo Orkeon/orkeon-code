@@ -403,8 +403,16 @@ export const PROACTIVE_NOTE = "while on, /assistant answers end with up to three
 // /route
 export const ROUTE_USAGE = "usage: /route [on|off|why]";
 export const NOTHING_ROUTED_YET = "nothing routed yet in this session.";
-export const routeStatus = (on: boolean, effort: boolean, ladder: string, model: boolean): string =>
-  `route.agents: ${on ? "on" : "off"}; route.effort: ${effort ? "on" : "off"}; ladder: ${ladder} (cheapest first); decision model: ${model ? "present" : "absent, nothing is routed"}.`;
+/** Where the host's decision model stands for /route: configured and answering (or not asked), not configured, or
+ *  configured and giving no answer to a test question. */
+export type DecisionModelState = "present" | "absent" | "silent";
+const DECISION_MODEL_STATE: Readonly<Record<DecisionModelState, string>> = {
+  present: "present",
+  absent: "absent, nothing is routed",
+  silent: "configured, but it gave no answer to a test question just now (a server that is down, a key refused): nothing is routed until it answers",
+};
+export const routeStatus = (on: boolean, effort: boolean, ladder: string, model: DecisionModelState): string =>
+  `route.agents: ${on ? "on" : "off"}; route.effort: ${effort ? "on" : "off"}; ladder: ${ladder} (cheapest first); decision model: ${DECISION_MODEL_STATE[model]}.`;
 export const routeSet = (on: boolean, model: boolean): string =>
   on
     ? `route.agents: on for this session${model ? "" : " (the host has no decision model: nothing is routed until it has one)"}; /clear clears it.`

@@ -21,7 +21,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `route.effort` its level, are picked from its brief, under `agents.profile` (else the turn's profile) as the
   ceiling.
 - `config/appsettings.anthropic.example.json` declares four profiles, `haiku`, `sonnet`, `opus` and `fable`:
-  `/config set route.ladder haiku,sonnet,opus,fable` gives the routing the four Claude models to pick among.
+  `/config set route.ladder haiku,sonnet,opus` gives the routing three Claude models to pick among. Ladders of two,
+  three and four rungs are measured in [the decision models](docs/decision-models.md): a fourth rung decides fewer
+  requests and takes every hard one, so the docs keep `fable` off the ladder
+  ([ADR 0040](docs/adr/0040-route-reach.md)).
+- A bare `/route` with the routing on asks the decision model one test question, and says when a model the settings
+  name gives no answer (a server that is down, a key refused): it used to read `decision model: present`.
+- `config/appsettings.agent-cli.example.json` declares `subscription-haiku` and `subscription-sonnet` beside
+  `subscription`: `/config set route.ladder subscription-haiku,subscription-sonnet,subscription` routes the agents
+  on the Claude subscription.
 
 ### Added — `agents.profile`, the agents on another profile than the conversation
 

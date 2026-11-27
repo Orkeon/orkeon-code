@@ -191,6 +191,10 @@ the file sets. A key linked to an identity refuses every call that does not name
 - To keep the conversation on the key and send the agents alone to the subscription, set `/config set agents.profile
   subscription` instead and leave `llm.profile` unset: the turns of `/assistant` run on the default profile, the
   explorer they spawn and every crew a command launches on the CLI.
+- To route on the subscription, the example declares `subscription-haiku` and `subscription-sonnet`, the same
+  profile on the two cheaper models: `/config set route.ladder subscription-haiku,subscription-sonnet,subscription`,
+  then `/route on`. The session's profile is the ceiling: under `agents.profile subscription` the agents are picked
+  among the three. Leave `route.effort` off there: no thinking level reaches the CLI.
 - The example needs `ANTHROPIC_API_KEY` as well: a session starts on the default profile, the fallback lands on it,
   and the host's own services (planner, Guardian, judges) stay on it.
 - With no key at all, write `"Provider": "agent-cli"` in the `Llm` section itself, with no `Fallback`.
@@ -395,9 +399,13 @@ What the table leaves out:
 - **`route.agents`** is also set by `/route on`; see [Routing a crew to a profile](turn.md#routing-a-crew-to-a-profile).
 - **`route.effort`** asks nothing unless `route.agents` is on. The levels it picks among are the host's
   (`Orkeon:Decision:Effort:Levels`; `low`, `medium`, `high` when the host lists none).
-- **A ladder of four rungs**: [`config/appsettings.anthropic.example.json`](../config/appsettings.anthropic.example.json)
-  declares the profiles `haiku`, `sonnet`, `opus` and `fable`; `/config set route.ladder haiku,sonnet,opus,fable`
-  orders them for the routing.
+- **A ladder of three rungs**: [`config/appsettings.anthropic.example.json`](../config/appsettings.anthropic.example.json)
+  declares the profiles `haiku`, `sonnet`, `opus` and `fable`; `/config set route.ladder haiku,sonnet,opus` orders
+  three of them for the routing. A fourth rung is taken, and
+  [measured](decision-models.md#measured-ladders-of-two-three-and-four-rungs) to decide fewer requests while sending
+  the hard ones to the dearest model.
+- **A bare `/route`** with the routing on asks the decision model one test question: a model the settings name and
+  that gives no answer (a server that is down, a key refused) is said so, where `present` used to stand.
 - **Both need the runtime of the pin**, hence the source mode: in the tool and docker modes they are read and do
   nothing, without a warning of their own, a host with no decision model still getting the usual one
   ([the modes](getting-started.md#source-mode-an-orkeon-checkout)).

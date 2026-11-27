@@ -416,6 +416,9 @@ décision sur le runtime, ce profil est choisi à chaque lancement de `/dev-spec
   celui par défaut du runtime. Une session sur un profil hors de l'échelle (un profil de décision qui
   garde ses requêtes) n'est pas routée : elle garde ce profil, et une ligne de journal le dit, comme un `/route`
   seul, qui nomme le réglage qui porte le profil.
+- **Un modèle de décision qui ne répond pas** : routage sur `on`, un `/route` seul pose au modèle de décision du
+  runtime une question de test (`commands/_lib/settings/prompts.ts`) ; un modèle configuré qui ne répond pas est
+  signalé comme tel, puisque rien n'est routé tant qu'il ne répond pas.
 - **Ce qui n'est pas routé** : la boucle principale (`/assistant` : son cache de prompt suit un modèle),
   `/compact`, `/memory admit`, les crews de parole, `/advisor` (il a son propre modèle), `/dev-batches` et
   `/tasks` ; et, dans un crew, les rôles de `/dev-implement`, les agents qu'un crew démarre en arrière-plan,
