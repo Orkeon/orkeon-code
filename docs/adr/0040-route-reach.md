@@ -44,5 +44,7 @@ no ladder to route on.
 - The thinking level does not reach the `agent-cli` provider: on the subscription `route.effort` picks a level
   nothing applies, and the docs say to leave it off.
 - The measure is of picks, not of runs: it says where a request would run, not what the cheaper model makes of it.
-  `medium` was never decided as a level, so the level moves only at the two ends.
+  `medium` was not decided as a level on the eighteen requests; a later pass on twelve briefs worded as the main
+  loop words them decided it three times, and `sonnet` five times
+  ([the measure](../decision-models.md#measured-ladders-of-two-three-and-four-rungs)).
 - Not done: a pick of the level alone, a level for the launches that forward none, a test question at `/route on`.

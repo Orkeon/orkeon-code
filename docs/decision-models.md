@@ -179,19 +179,44 @@ under the bar: nothing moves.
 | explorer: trace how a tool call's permission is decided across every crew | opus 0.79 | *opus 0.47* | *opus 0.35* | *high 0.48* |
 
 - **Decided**: 18 of 18 on two rungs, 16 on three, 13 on four.
-- **The middle rungs take almost no decision.** On three rungs `sonnet` is decided once, at 0.63. On four, no
-  request is decided on `sonnet` nor on `opus`: every hard command goes to `fable`, the top rung, and the requests
+- **On four rungs the middle takes no decision.** On three rungs `sonnet` is decided once in this table, at 0.63,
+  and five times in the twelve briefs below. On four, no request is decided on `sonnet` nor on `opus`: every hard command goes to `fable`, the top rung, and the requests
   between the two ends fall under the bar.
 - **A fourth rung moves the hard work to the dearest model** and decides fewer requests: four rungs behave as two
   rungs priced higher. Keep `fable` off the ladder, for `/model` or for a floor of `.orkeon/route-rules.json`.
 - **The level** is decided for 14 of the 18 requests that take one, on every ladder: `low` and `high` are, `medium`
-  never is (0.50 to 0.57), so a request of the middle keeps the level in place.
+  is not in this table (0.50 to 0.57); it is in the briefs below.
 - **On the subscription**, the ladder `subscription-haiku,subscription-sonnet,subscription` of the `agent-cli`
   example decides 15 of the same 18 requests, with the same split: the pick reads the order of the rungs, not their
   names.
 
 These are picks, not runs: no crew was launched, so the table says where each request would run, not what the
 cheaper model made of it.
+
+A second pass the same day sent twelve more briefs of the explorer, worded as the main loop words them (a question,
+what to report, files and lines asked for), on `haiku,sonnet,opus`, three passes each; the six briefs above gave
+the same picks again. The value is the middle one of the three passes:
+
+| Brief | Profile | Level |
+|---|---|---|
+| where the routing of crews is defined, with the main functions, files and lines | sonnet 0.66 | medium 0.72 |
+| how the configuration file is read, its layers merged and a key validated | sonnet 0.68 | medium 0.61 |
+| which test files cover the pick, and the cases each one holds | *haiku 0.49* | *low 0.57* |
+| how the compaction decides what to prune, with the functions involved | sonnet 0.66 | *medium 0.58* |
+| how a slash command is registered and dispatched to a crew | sonnet 0.61 | *medium 0.50* |
+| compare how the reviewer and the auditor build their prompts | sonnet 0.81 | medium 0.76 |
+| which ports the main loop depends on, each with its adapter and its fake | *haiku 0.52* | low 0.62 |
+| how the session memory is stored and reloaded at start | *haiku 0.50* | *medium 0.53* |
+| the places that read the clock, and whether each goes through the port | *haiku 0.59* | *low 0.52* |
+| what the docs say of the permission modes, checked against the code's list | haiku 0.72 | low 0.67 |
+| how the launcher chooses between its three modes | *sonnet 0.58* | *medium 0.53* |
+| every caller of one function, and the input each passes | *haiku 0.59* | low 0.69 |
+
+- **The profile** is decided for 6 of the 12: `sonnet` five times, `haiku` once, `opus` never.
+- **The level** is decided for 6 of the 12: `medium` three times, `low` three times.
+- **A brief that says what to report is decided more often** than a bare question, and on the middle rung. A live
+  session agreed: three explorers launched in one turn went to `sonnet` at `medium` twice (0.80 with 0.83, 0.80 with
+  0.76) and to `haiku` at `low` once (0.77 with 0.66).
 
 ### Measured: `/dev-spec` then `/dev-plan`, routed and not
 
