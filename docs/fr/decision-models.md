@@ -182,19 +182,44 @@ barreaux. En italique, un choix sous la barre : rien ne bouge.
 | explorateur : suivre la décision de permission d'un appel d'outil à travers tous les crews | opus 0.79 | *opus 0.47* | *opus 0.35* | *high 0.48* |
 
 - **Décidés** : 18 sur 18 à deux barreaux, 16 à trois, 13 à quatre.
-- **Les barreaux du milieu ne reçoivent presque aucune décision.** À trois barreaux, `sonnet` est décidé une fois, à
-  0,63. À quatre, aucune demande n'est décidée sur `sonnet` ni sur `opus` : chaque commande difficile va à `fable`,
+- **À quatre barreaux, le milieu ne reçoit aucune décision.** À trois barreaux, `sonnet` est décidé une fois dans ce
+  tableau, à 0,63, et cinq fois dans les douze briefs ci-dessous. À quatre, aucune demande n'est décidée sur `sonnet` ni sur `opus` : chaque commande difficile va à `fable`,
   le barreau du haut, et les demandes entre les deux bouts tombent sous la barre.
 - **Un quatrième barreau envoie le travail difficile au modèle le plus cher** et décide moins de demandes : quatre
   barreaux se comportent comme deux barreaux plus chers. Gardez `fable` hors de l'échelle, pour `/model` ou pour un
   plancher de `.orkeon/route-rules.json`.
 - **Le niveau** est décidé pour 14 des 18 demandes qui en prennent un, sur chaque échelle : `low` et `high` le sont,
-  `medium` jamais (0,50 à 0,57), si bien qu'une demande du milieu garde le niveau en place.
+  `medium` ne l'est pas dans ce tableau (0,50 à 0,57) ; il l'est dans les briefs ci-dessous.
 - **Sur l'abonnement**, l'échelle `subscription-haiku,subscription-sonnet,subscription` de l'exemple `agent-cli`
   décide 15 des mêmes 18 demandes, avec le même partage : le choix lit l'ordre des barreaux, pas leurs noms.
 
 Ce sont des choix, pas des exécutions : aucun crew n'a été lancé, donc le tableau dit où chaque demande tournerait,
 pas ce que le modèle moins cher en a fait.
+
+Une seconde passe le même jour a envoyé douze autres briefs de l'explorateur, formulés comme la boucle principale
+les formule (une question, quoi rapporter, fichiers et lignes demandés), sur `haiku,sonnet,opus`, trois passes
+chacun ; les six briefs ci-dessus ont redonné les mêmes choix. La valeur est celle du milieu des trois passes :
+
+| Brief | Profil | Niveau |
+|---|---|---|
+| où le routage des crews est défini, avec les fonctions principales, fichiers et lignes | sonnet 0,66 | medium 0,72 |
+| comment le fichier de configuration est lu, ses couches fusionnées et une clé validée | sonnet 0,68 | medium 0,61 |
+| quels fichiers de test couvrent le choix, et les cas de chacun | *haiku 0,49* | *low 0,57* |
+| comment la compaction décide quoi élaguer, avec les fonctions en jeu | sonnet 0,66 | *medium 0,58* |
+| comment une commande est enregistrée puis envoyée à un crew | sonnet 0,61 | *medium 0,50* |
+| comparer la façon dont le relecteur et l'auditeur construisent leurs prompts | sonnet 0,81 | medium 0,76 |
+| de quels ports dépend la boucle principale, chacun avec son adaptateur et son faux | *haiku 0,52* | low 0,62 |
+| comment la mémoire de session est stockée puis rechargée au démarrage | *haiku 0,50* | *medium 0,53* |
+| les endroits qui lisent l'horloge, et si chacun passe par le port | *haiku 0,59* | *low 0,52* |
+| ce que la doc dit des modes de permission, vérifié contre la liste du code | haiku 0,72 | low 0,67 |
+| comment le lanceur choisit entre ses trois modes | *sonnet 0,58* | *medium 0,53* |
+| chaque appelant d'une fonction, et l'entrée que chacun passe | *haiku 0,59* | low 0,69 |
+
+- **Le profil** est décidé pour 6 des 12 : `sonnet` cinq fois, `haiku` une fois, `opus` jamais.
+- **Le niveau** est décidé pour 6 des 12 : `medium` trois fois, `low` trois fois.
+- **Un brief qui dit quoi rapporter est décidé plus souvent** qu'une question nue, et sur le barreau du milieu. Une
+  session réelle l'a confirmé : trois explorateurs lancés dans un tour sont allés deux fois sur `sonnet` en `medium`
+  (0,80 avec 0,83, 0,80 avec 0,76) et une fois sur `haiku` en `low` (0,77 avec 0,66).
 
 ### Mesuré : `/dev-spec` puis `/dev-plan`, routés ou non
 
