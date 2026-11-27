@@ -162,24 +162,24 @@ barreaux. En italique, un choix sous la barre : rien ne bouge.
 
 | Demande | Deux barreaux | Trois barreaux | Quatre barreaux | Niveau |
 |---|---|---|---|---|
-| `/commit` | haiku 0.85 | haiku 0.67 | haiku 0.65 |  |
-| `/commit fix a typo in the README` | haiku 0.98 | haiku 0.86 | haiku 0.89 |  |
-| `/analyze what does README.md say` | haiku 1.00 | haiku 0.99 | haiku 0.97 |  |
-| `/analyze list the public functions of src/text.ts` | haiku 0.99 | haiku 0.88 | haiku 0.89 |  |
-| `/init` | haiku 0.86 | haiku 0.76 | haiku 0.79 |  |
-| `/dev-learn` | haiku 0.82 | haiku 0.73 | haiku 0.76 |  |
-| `/dev-plan rewrite-the-billing-engine-across-all-modules` | opus 0.99 | opus 0.98 | fable 0.96 | high 0.90 |
-| `/dev-spec design a multi-tenant permission model with row-level security` | opus 0.99 | opus 0.94 | fable 0.87 | high 0.99 |
-| `/dev-change replace the session store by an event-sourced one, keep every caller working` | opus 0.99 | opus 0.99 | fable 0.98 | high 0.97 |
-| `/review --lens security` | opus 0.94 | opus 0.66 | *fable 0.50* |  |
-| `/review --lens style` | opus 0.69 | sonnet 0.63 | *sonnet 0.47* |  |
-| `/analyze find the race condition between the worker pool and the cache invalidation` | opus 0.97 | opus 0.61 | *fable 0.54* |  |
-| explorateur : lister les fichiers du dossier docs/ | haiku 1.00 | haiku 0.98 | haiku 0.99 | low 0.99 |
-| explorateur : où la chaîne de version est définie | haiku 0.96 | haiku 0.79 | haiku 0.84 | low 0.83 |
-| explorateur : trouver chaque lecture d'un réglage | haiku 0.98 | haiku 0.93 | haiku 0.92 | low 0.94 |
-| explorateur : recenser les doublures de test, dire quels ports n'en ont pas | haiku 0.94 | haiku 0.72 | haiku 0.72 | low 0.65 |
-| explorateur : expliquer comment une classe choisit un profil et un niveau, fichiers et lignes | haiku 0.71 | *sonnet 0.54* | *opus 0.35* | *medium 0.50* |
-| explorateur : suivre la décision de permission d'un appel d'outil à travers tous les crews | opus 0.79 | *opus 0.47* | *opus 0.35* | *high 0.48* |
+| `/commit` | haiku 0,85 | haiku 0,67 | haiku 0,65 |  |
+| `/commit fix a typo in the README` | haiku 0,98 | haiku 0,86 | haiku 0,89 |  |
+| `/analyze what does README.md say` | haiku 1,00 | haiku 0,99 | haiku 0,97 |  |
+| `/analyze list the public functions of src/text.ts` | haiku 0,99 | haiku 0,88 | haiku 0,89 |  |
+| `/init` | haiku 0,86 | haiku 0,76 | haiku 0,79 |  |
+| `/dev-learn` | haiku 0,82 | haiku 0,73 | haiku 0,76 |  |
+| `/dev-plan rewrite-the-billing-engine-across-all-modules` | opus 0,99 | opus 0,98 | fable 0,96 | high 0,90 |
+| `/dev-spec design a multi-tenant permission model with row-level security` | opus 0,99 | opus 0,94 | fable 0,87 | high 0,99 |
+| `/dev-change replace the session store by an event-sourced one, keep every caller working` | opus 0,99 | opus 0,99 | fable 0,98 | high 0,97 |
+| `/review --lens security` | opus 0,94 | opus 0,66 | *fable 0,50* |  |
+| `/review --lens style` | opus 0,69 | sonnet 0,63 | *sonnet 0,47* |  |
+| `/analyze find the race condition between the worker pool and the cache invalidation` | opus 0,97 | opus 0,61 | *fable 0,54* |  |
+| explorateur : lister les fichiers du dossier docs/ | haiku 1,00 | haiku 0,98 | haiku 0,99 | low 0,99 |
+| explorateur : où la chaîne de version est définie | haiku 0,96 | haiku 0,79 | haiku 0,84 | low 0,83 |
+| explorateur : trouver chaque lecture d'un réglage | haiku 0,98 | haiku 0,93 | haiku 0,92 | low 0,94 |
+| explorateur : recenser les doublures de test, dire quels ports n'en ont pas | haiku 0,94 | haiku 0,72 | haiku 0,72 | low 0,65 |
+| explorateur : expliquer comment une classe choisit un profil et un niveau, fichiers et lignes | haiku 0,71 | *sonnet 0,54* | *opus 0,35* | *medium 0,50* |
+| explorateur : suivre la décision de permission d'un appel d'outil à travers tous les crews | opus 0,79 | *opus 0,47* | *opus 0,35* | *high 0,48* |
 
 - **Décidés** : 18 sur 18 à deux barreaux, 16 à trois, 13 à quatre.
 - **À quatre barreaux, le milieu ne reçoit aucune décision.** À trois barreaux, `sonnet` est décidé une fois dans ce
@@ -188,10 +188,10 @@ barreaux. En italique, un choix sous la barre : rien ne bouge.
 - **Un quatrième barreau envoie le travail difficile au modèle le plus cher** et décide moins de demandes : quatre
   barreaux se comportent comme deux barreaux plus chers. Gardez `fable` hors de l'échelle, pour `/model` ou pour un
   plancher de `.orkeon/route-rules.json`.
-- **Le niveau** est décidé pour 14 des 18 demandes qui en prennent un, sur chaque échelle : `low` et `high` le sont,
-  `medium` ne l'est pas dans ce tableau (0,50 à 0,57) ; il l'est dans les briefs ci-dessous.
+- **Le niveau** est décidé pour 7 des 9 demandes qui en prennent un, sur les deux passes : `low` et `high` le sont,
+  `medium` ne l'est pas dans ce tableau (0,50, et `high` à 0,48 sur le dernier brief) ; il l'est dans les briefs ci-dessous.
 - **Sur l'abonnement**, l'échelle `subscription-haiku,subscription-sonnet,subscription` de l'exemple `agent-cli`
-  décide 15 des mêmes 18 demandes, avec le même partage : le choix lit l'ordre des barreaux, pas leurs noms.
+  décide 15 des mêmes 18 demandes, avec un partage semblable : le choix lit l'ordre des barreaux, pas leurs noms.
 
 Ce sont des choix, pas des exécutions : aucun crew n'a été lancé, donc le tableau dit où chaque demande tournerait,
 pas ce que le modèle moins cher en a fait.

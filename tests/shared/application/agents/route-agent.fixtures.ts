@@ -284,6 +284,9 @@ function withLevel(effort: EffortPick): ProfilePick {
 /** The model picked `low` for the level, sure of it. */
 export const LOW_PICKED = withLevel({ value: "low", reason: "model", picked: "low", probability: 0.8 });
 const LOW_UNSURE = withLevel({ value: null, reason: "low-confidence", picked: "low", probability: 0.4 });
+/** The level is answered, yet the pick was not sure of it, or the decision model gave no answer. */
+const LOW_ANSWERED_UNSURE = withLevel({ value: "low", reason: "low-confidence", picked: "low", probability: 0.4 });
+const LOW_ANSWERED_UNANSWERED = withLevel({ value: "low", reason: "no-answer", picked: null, probability: null });
 const LEVEL_UNANSWERED = withLevel({ value: null, reason: "no-answer", picked: null, probability: null });
 const ONE_LEVEL_LEFT = withLevel({ value: "low", reason: "single-level", picked: null, probability: null });
 const LEVEL_CIRCUIT_OFF = withLevel({ value: null, reason: "circuit-off", picked: null, probability: null });
@@ -321,6 +324,8 @@ export const EFFORT_ROUTED_CASES: readonly (EffortGround & { name: string; level
   { name: "leaves the level in place when the pick of it is not sure", answer: LOW_UNSURE, level: null },
   { name: "leaves the level in place when the decision model answers none", answer: LEVEL_UNANSWERED, level: null },
   { name: "leaves the level in place when the reply holds none", answer: answer("small", "model", "small", 0.9), level: null },
+  { name: "leaves the level in place when the pick answers one it is not sure of", answer: LOW_ANSWERED_UNSURE, level: null },
+  { name: "leaves the level in place when the pick answers one without the decision model's answer", answer: LOW_ANSWERED_UNANSWERED, level: null },
 ];
 
 /** The line a launch logs when its level was asked: the profile's part, then the level's. */
@@ -361,5 +366,7 @@ export const ACT_EFFORTS: readonly (EffortGround & { name: string; routed: Route
     routed: { profile: null, effort: "low" },
   },
   { name: "leaves the level of an act when the pick of it is not sure", answer: LOW_UNSURE, routed: { profile: null, effort: null } },
-  { name: "leaves an act where it is with route.agents asking nothing of the host", answer: null, routed: { profile: null, effort: null } },
+  { name: "leaves the level of an act when the pick answers one it is not sure of", answer: LOW_ANSWERED_UNSURE, routed: { profile: null, effort: null } },
+  { name: "leaves the level of an act when the pick answers one without the decision model's answer", answer: LOW_ANSWERED_UNANSWERED, routed: { profile: null, effort: null } },
+  { name: "leaves an act where it is when the host has no pick", answer: null, routed: { profile: null, effort: null } },
 ];

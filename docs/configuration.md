@@ -133,8 +133,9 @@ on the Ollama service, or the model silently loses its instructions and its tool
   `Orkeon:TypeSafe` section (the key in `TYPESAFE_API_KEY`, never in the file), two LLM profiles, `small` and
   `large`, and the decision profile `guarded` over them.
 - The session key `llm.profile` names the profile the agents of the commands run on, `/config set llm.profile
-  guarded`: every crew a command launches builds its agents on it, the child agents of the dev steps included, and
-  the launch log and `/config list` show it.
+  guarded`: every crew a command launches builds its agents on it, the child agents of the dev steps included, unless
+  `agents.profile` (below) names another profile, which leaves `llm.profile` to the main turn alone; the launch log
+  and `/config list` show it.
 - Without the key nothing changes: the agents run on the host's default model, as before.
 - The session key `agents.profile` names the profile of every agent but the main turn's, `/config set agents.profile
   subscription`: the crews the commands launch (the dev steps and their child agents, `/review`, `/commit`,
@@ -195,7 +196,8 @@ the file sets. A key linked to an identity refuses every call that does not name
   profile on the two cheaper models: `/config set route.ladder subscription-haiku,subscription-sonnet,subscription`,
   then `/route on`. The session's profile is the ceiling: under `agents.profile subscription` the agents are picked
   among the three. With `route.effort` on, the level picked
-  reaches the CLI as `--effort` (Orkeon #488), which holds for a CLI process: a launch at another level starts a
+  reaches the CLI as `--effort` (Orkeon #488) at the pin, in source mode; the release `1.4.0` of the tool and docker
+  modes still drops it with a warning. The level holds for a CLI process: a launch at another level starts a
   process of its own, within `Llm:AgentCli:MaxProcesses`.
 - The example needs `ANTHROPIC_API_KEY` as well: a session starts on the default profile, the fallback lands on it,
   and the host's own services (planner, Guardian, judges) stay on it.
@@ -214,7 +216,8 @@ the file sets. A key linked to an identity refuses every call that does not name
   does not show it.
 - A call that fell back is answered on the key: it is billed there and priced as any call of that profile.
 - Options the CLI cannot receive are not sent, each warned about once per run: `Temperature`, `MaxTokens`, top-p and
-  the penalties, a seed, stop sequences, a response format, a grammar, thinking and so `/effort`, cache breakpoints,
+  the penalties, a seed, stop sequences, a response format, a grammar, thinking switched off, switched on with no level or bounded by
+  a budget (a level, `/effort`'s, reaches the CLI as `--effort` at the pin, not on the release `1.4.0`), cache breakpoints,
   `Llm:WorkspaceId`, a required tool mode. An agent on this provider asks for no cache breakpoint, so that warning
   never comes from Orkeon Code: the CLI caches by its own rules.
 - `compaction.prune` and the routing of `route.agents` are judged by the host's decision model, never by this
@@ -372,7 +375,7 @@ Inside the REPL, `/config` lists, reads and writes the session keys, stored in t
 | `memory.autoAdmitAudited` | `false` | `/memory admit` admits a candidate an audit backs without asking |
 | `paths.deny`, `paths.allow` | | the paths no tool of the model reads or writes, and the only paths it may reach ([permissions](permissions.md#the-path-lists)) |
 | `review.lenses` | all three | the lenses of `/review`, comma-separated among `correctness`, `security` and `style` |
-| `llm.profile` | the host's default model | the host profile every crew's agents run on ([the LLM](#the-llm)) |
+| `llm.profile` | the host's default model | the host profile the main turn runs on, and every crew's agents unless `agents.profile` is set ([the LLM](#the-llm)) |
 | `agents.profile` | `llm.profile` | the host profile of every agent but the main turn's: the crews the commands launch and the explorer a turn spawns ([the LLM](#the-llm)) |
 | `advisor.model` | the session's own, which makes it a self-review | the model of `/advisor`'s second opinion |
 | `commit.requireConfirm` | `true` | `false` lets `/commit` run without its confirmation, as `--yes` does |
@@ -399,8 +402,11 @@ What the table leaves out:
 - **`compaction.prune`** needs a [decision provider](decision-models-local.md) on the host; the mechanism is in
   [How a turn runs](turn.md#compaction-and-memory).
 - **`route.agents`** is also set by `/route on`; see [Routing a crew to a profile](turn.md#routing-a-crew-to-a-profile).
-- **`route.effort`** asks nothing unless `route.agents` is on. The levels it picks among are the host's
-  (`Orkeon:Decision:Effort:Levels`; `low`, `medium`, `high` when the host lists none).
+  The ceiling of the pick is `agents.profile` when set, else `llm.profile`. A launch with a single rung to choose
+  from (a session on the lowest rung, or a rule's floor at the session's rung) asks nothing.
+- **`route.effort`** asks nothing unless `route.agents` is on, nor for a launch the pick does not ask. The levels it
+  picks among are the host's (`Orkeon:Decision:Effort:Levels`; `low`, `medium`, `high` when the host lists none):
+  with no `/effort` stored, any of them.
 - **A ladder of three rungs**: [`config/appsettings.anthropic.example.json`](../config/appsettings.anthropic.example.json)
   declares the profiles `haiku`, `sonnet`, `opus` and `fable`; `/config set route.ladder haiku,sonnet,opus` orders
   three of them for the routing. A fourth rung is taken, and
@@ -408,7 +414,7 @@ What the table leaves out:
   the hard ones to the dearest model.
 - **A bare `/route`** with the routing on asks the decision model one test question: a model the settings name and
   that gives no answer (a server that is down, a key refused) is said so, where `present` used to stand.
-- **Both need the runtime of the pin**, hence the source mode: in the tool and docker modes they are read and do
+- **`compaction.prune`, `route.agents` and `route.effort` need the runtime of the pin**, hence the source mode: in the tool and docker modes they are read and do
   nothing, without a warning of their own, a host with no decision model still getting the usual one
   ([the modes](getting-started.md#source-mode-an-orkeon-checkout)).
 - **`skills.suggest`** is also set by `/skills suggest on`; see

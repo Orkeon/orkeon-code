@@ -62,6 +62,8 @@ const STATUS_CUSTOM_LADDER = "route.agents: off; route.effort: off; ladder: cust
 export const STATUS_CUSTOM_WITH_HIGH = `${STATUS_CUSTOM_LADDER}\n  large: glm-5.3 takes low, high, max`;
 
 export const STATUS_EFFORT_ON = "route.agents: on; route.effort: on; ladder: small,large (cheapest first); decision model: present.";
+export const STATUS_EFFORT_IDLE =
+  "route.agents: off; route.effort: on (asks nothing while route.agents is off); ladder: small,large (cheapest first); decision model: present.";
 
 /** A launch whose thinking level was picked with its profile, and one whose level the pick was not sure of. */
 export const RECENT_WITH_LEVEL = JSON.stringify([
@@ -91,6 +93,11 @@ export const OUTSIDE_LADDER_CASES: readonly { readonly name: string; readonly va
   {
     name: "says nothing of a profile outside the ladder while the routing is off",
     values: { "agents.profile": "subscription" }, text: "route.agents: off; route.effort: off; ladder: small,large (cheapest first); decision model: present.",
+  },
+  {
+    name: "says that nothing is routed under an llm.profile outside the ladder behind an agents.profile that is no name",
+    values: { "route.agents": "on", "agents.profile": "two words", "llm.profile": "guarded" },
+    text: `${STATUS_ON}\n  ⚠ llm.profile is 'guarded', which is not on the ladder: nothing is routed. Set it to a rung, or unset it.`,
   },
 ];
 

@@ -261,6 +261,17 @@ describe("routeAgent, the thinking level", () => {
     });
   }
 
+  it("ignores a level the pick answers when none was asked", async () => {
+    // Arrange
+    const { deps } = effortSetup({ answer: LOW_PICKED });
+
+    // Act
+    const { effort } = await routeAgent(deps, TASK, "large");
+
+    // Assert
+    strictEqual(effort, null);
+  });
+
   it("keeps the level picked with the choice, for /route why", async () => {
     // Arrange
     const { deps, session } = effortSetup({ answer: LOW_PICKED });

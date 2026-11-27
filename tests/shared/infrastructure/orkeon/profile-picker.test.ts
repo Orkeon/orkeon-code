@@ -7,7 +7,7 @@ import { createLlmProfilePicker, createServicesProfilePicker } from "../../../..
 import { FakePickService } from "../../../support/doubles/fake-pick-service.ts";
 import { FakeServiceLocator } from "../../../support/doubles/fake-script-host.ts";
 import {
-  ALL_BOUNDS, CANCELLATIONS, LEVEL_REPLY, MODEL_PICK_WITH_LEVEL, UNREAD_LEVELS, DEFAULT_SPELLINGS, LOCATOR_GONE, MISTYPED_PICK, MODEL_PICK, NO_PICK_WIRED, OPTIONS, REFUSED_FLOOR, REFUSED_LADDER, REQUEST, UNREAD,
+  ALL_BOUNDS, CANCELLATIONS, LEVEL_REPLY, MODEL_PICK_WITH_LEVEL, READ_LEVELS, UNREAD_LEVELS, DEFAULT_SPELLINGS, LOCATOR_GONE, MISTYPED_PICK, MODEL_PICK, NO_PICK_WIRED, OPTIONS, REFUSED_FLOOR, REFUSED_LADDER, REQUEST, UNREAD,
   llmWhosePickThrows, pickerOverLlm, pickerOverServices,
 } from "./profile-picker.fixtures.ts";
 
@@ -303,6 +303,20 @@ describe("createServicesProfilePicker, the thinking level", () => {
     // Assert
     deepStrictEqual(answer, MODEL_PICK_WITH_LEVEL);
   });
+
+  for (const c of READ_LEVELS) {
+    it(c.name, async () => {
+      // Arrange
+      const { service, picker } = pickerOverServices();
+      service.reply = { ...LEVEL_REPLY, effort: c.effort };
+
+      // Act
+      const answer = await picker.pick(REQUEST, OPTIONS, { max: "high" });
+
+      // Assert
+      deepStrictEqual(answer, c.answer);
+    });
+  }
 
   for (const c of UNREAD_LEVELS) {
     it(c.name, async () => {

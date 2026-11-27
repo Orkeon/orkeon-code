@@ -144,7 +144,8 @@ prompt système d'un tour fait environ 2 250 tokens avant les schémas d'outils 
   et le profil de décision `guarded` par-dessus.
 - La clé de session `llm.profile` nomme le profil sur lequel tournent les agents des commandes, `/config set
   llm.profile guarded` : chaque crew qu'une commande lance y construit ses agents, agents enfants des étapes dev
-  compris, et le journal du lancement et `/config list` le montrent.
+  compris, sauf quand `agents.profile` (plus bas) nomme un autre profil, qui laisse `llm.profile` au seul tour
+  principal ; le journal du lancement et `/config list` le montrent.
 - Sans la clé rien ne change : les agents tournent sur le modèle par défaut du runtime, comme avant.
 - La clé de session `agents.profile` nomme le profil de tous les agents sauf celui du tour principal, `/config set
   agents.profile subscription` : les crews que lancent les commandes (les étapes dev et leurs agents enfants,
@@ -208,7 +209,8 @@ celui de la section).
   les deux modèles moins chers : `/config set route.ladder subscription-haiku,subscription-sonnet,subscription`, puis
   `/route on`. Le profil de la session est le plafond : sous `agents.profile subscription`, les agents sont choisis
   parmi les trois. Avec `route.effort` sur `on`, le niveau choisi atteint la CLI par `--effort` (Orkeon
-  #488), qui vaut pour un processus de la CLI : un lancement à un autre niveau démarre son propre processus, dans la
+  #488) à l'épingle, en mode source ; la release `1.4.0` des modes tool et docker l'abandonne encore avec un
+  avertissement. Le niveau vaut pour un processus de la CLI : un lancement à un autre niveau démarre son propre processus, dans la
   limite de `Llm:AgentCli:MaxProcesses`.
 - L'exemple demande aussi `ANTHROPIC_API_KEY` : une session démarre sur le profil par défaut, le repli y arrive, et
   les services propres au runtime (planificateur, Guardian, juges) y restent.
@@ -230,7 +232,8 @@ celui de la section).
 - Un appel passé par le repli reçoit sa réponse sur la clé : il y est facturé, et compté comme tout appel de ce profil.
 - Les options que la CLI ne peut recevoir ne sont pas envoyées, chacune signalée une fois par exécution :
   `Temperature`, `MaxTokens`, top-p et les pénalités, une graine, des séquences d'arrêt, un format de réponse, une grammaire, la
-  réflexion et donc `/effort`, les points de cache, `Llm:WorkspaceId`, un mode d'outil obligatoire. Un agent sur ce
+  réflexion coupée, activée sans niveau ou bornée par un budget (un niveau, celui de `/effort`, atteint la CLI par
+  `--effort` à l'épingle, pas sur la release `1.4.0`), les points de cache, `Llm:WorkspaceId`, un mode d'outil obligatoire. Un agent sur ce
   fournisseur ne demande aucun point de cache, si bien que cet avertissement ne vient jamais d'Orkeon Code : la CLI
   gère son cache selon ses propres règles.
 - `compaction.prune` et le routage de `route.agents` sont jugés par le modèle de décision du runtime, jamais par ce
@@ -397,7 +400,7 @@ Dans le REPL, `/config` liste, lit et écrit les clés de session, rangées dans
 | `memory.autoAdmitAudited` | `false` | `/memory admit` admet sans demander un candidat qu'un audit appuie |
 | `paths.deny`, `paths.allow` | | les chemins qu'aucun outil du modèle ne lit ni n'écrit, et les seuls chemins qu'il peut atteindre ([permissions](permissions.md#les-listes-de-chemins)) |
 | `review.lenses` | les trois | les angles de `/review`, séparés par des virgules parmi `correctness`, `security` et `style` |
-| `llm.profile` | le modèle par défaut du runtime | le profil du runtime sur lequel tournent les agents de chaque crew ([le LLM](#le-llm)) |
+| `llm.profile` | le modèle par défaut du runtime | le profil du runtime sur lequel tourne le tour principal, et les agents de chaque crew sauf si `agents.profile` est posé ([le LLM](#le-llm)) |
 | `agents.profile` | `llm.profile` | le profil du runtime de tous les agents sauf celui du tour principal : les crews que lancent les commandes et l'explorateur que lance un tour ([le LLM](#le-llm)) |
 | `advisor.model` | celui de la session, ce qui en fait une auto-relecture | le modèle du second avis de `/advisor` |
 | `commit.requireConfirm` | `true` | `false` laisse `/commit` s'exécuter sans sa confirmation, comme `--yes` |
@@ -424,10 +427,12 @@ Ce que le tableau laisse de côté :
 - **`compaction.prune`** demande un [fournisseur de décision](decision-models-local.md) sur le runtime ; le mécanisme
   est décrit dans [Le déroulement d'un tour](turn.md#compaction-et-mémoire).
 - **`route.agents`** se règle aussi par `/route on` ; voir
-  [Router un crew vers un profil](turn.md#router-un-crew-vers-un-profil).
-- **`route.effort`** ne demande rien tant que `route.agents` n'est pas sur `on`. Les niveaux parmi lesquels il
-  choisit sont ceux du runtime (`Orkeon:Decision:Effort:Levels` ; `low`, `medium`, `high` quand le runtime n'en
-  liste aucun).
+  [Router un crew vers un profil](turn.md#router-un-crew-vers-un-profil). Le plafond du choix est `agents.profile`
+  quand il est posé, sinon `llm.profile`. Un lancement qui n'a qu'un barreau où choisir (une session sur le plus bas,
+  ou le plancher d'une règle au barreau de la session) ne demande rien.
+- **`route.effort`** ne demande rien tant que `route.agents` n'est pas sur `on`, ni pour un lancement que le choix
+  ne demande pas. Les niveaux parmi lesquels il choisit sont ceux du runtime (`Orkeon:Decision:Effort:Levels` ;
+  `low`, `medium`, `high` quand le runtime n'en liste aucun) : sans `/effort` enregistré, n'importe lequel.
 - **Une échelle à trois barreaux** : [`config/appsettings.anthropic.example.json`](../../config/appsettings.anthropic.example.json)
   déclare les profils `haiku`, `sonnet`, `opus` et `fable` ; `/config set route.ladder haiku,sonnet,opus` en ordonne
   trois pour le routage. Un quatrième barreau est accepté, et
@@ -436,7 +441,7 @@ Ce que le tableau laisse de côté :
 - **Un `/route` seul**, routage sur `on`, pose une question de test au modèle de décision : un modèle que les
   réglages nomment et qui ne répond pas (un serveur arrêté, une clé refusée) est signalé, là où `present`
   s'affichait.
-- **Les deux demandent le runtime de l'épingle**, donc le mode source : dans les modes tool et docker ils sont lus
+- **`compaction.prune`, `route.agents` et `route.effort` demandent le runtime de l'épingle**, donc le mode source : dans les modes tool et docker ils sont lus
   et ne font rien, sans avertissement qui leur soit propre, un runtime sans modèle de décision donnant toujours
   l'avertissement habituel
   ([les modes](getting-started.md#mode-source--un-checkout-dorkeon)).

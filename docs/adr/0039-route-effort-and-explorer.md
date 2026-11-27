@@ -48,7 +48,8 @@ effort })`, `ctx.services.get("pick")` for a command; Orkeon #460, #463): nothin
   whether `route.effort` is on.
 - **A ladder of four rungs is configuration.** The Anthropic example declares `haiku`, `sonnet`, `opus` and `fable`
   under `Llm:Profiles`; `route.ladder haiku,sonnet,opus,fable` orders them. The code takes a ladder of any length,
-  and the default stays `small,large`, the profiles of the decision-model examples.
+  and the default stays `small,large`, the profiles of the decision-model examples. [ADR 0040](0040-route-reach.md)
+  narrowed the recommended ladder to three rungs, `haiku,sonnet,opus`.
 
 ## Consequences
 

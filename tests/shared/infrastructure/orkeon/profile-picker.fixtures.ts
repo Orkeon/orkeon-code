@@ -79,6 +79,20 @@ export const LEVEL_REPLY = {
 };
 export const MODEL_PICK_WITH_LEVEL = { ...MODEL_PICK, effort: { value: "low", reason: "model", picked: "low", probability: 0.8 } };
 
+/** The effort parts of a reply that read, and the answer the pick makes of them. */
+export const READ_LEVELS: readonly { readonly name: string; readonly effort: unknown; readonly answer: unknown }[] = [
+  {
+    name: "reads a level the pick was not sure of, with its reason, pick and probability",
+    effort: { value: null, reason: "low-confidence", picked: "low", probability: 0.4 },
+    answer: { ...MODEL_PICK, effort: { value: null, reason: "low-confidence", picked: "low", probability: 0.4 } },
+  },
+  {
+    name: "reads a level whose probability is no number without a probability",
+    effort: { value: "low", reason: "model", picked: "low", probability: "0.8" },
+    answer: { ...MODEL_PICK, effort: { value: "low", reason: "model", picked: "low", probability: null } },
+  },
+];
+
 /** The effort parts of a reply that do not read: the profile is answered without a level. */
 export const UNREAD_LEVELS: readonly { readonly name: string; readonly effort: unknown }[] = [
   { name: "leaves out a level that is none of the runtime's", effort: { value: "extreme", reason: "model", picked: null, probability: null } },

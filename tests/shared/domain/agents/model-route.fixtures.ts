@@ -49,6 +49,9 @@ export const FLOOR_CASES: readonly { readonly name: string; readonly crew: strin
   { name: "raises the floor for a folder named bare", crew: "dev-plan", brief: "/dev-plan rework src/billing", floor: 2 },
   { name: "reads a path written with backslashes", crew: "dev-plan", brief: "/analyze src\\billing\\tax.ts", floor: 2 },
   { name: "reads a path in quotes, a comma after it", crew: "dev-plan", brief: '/analyze "src/billing/tax.ts", then stop', floor: 2 },
+  { name: "reads a path that ends a sentence", crew: "dev-plan", brief: "/dev-plan fix src/billing.", floor: 2 },
+  { name: "reads a path that ends a question", crew: "dev-plan", brief: "/dev-plan why does src/billing/tax.ts fail?", floor: 2 },
+  { name: "reads a path that ends an exclamation", crew: "dev-plan", brief: "/dev-plan fix src/billing!", floor: 2 },
   { name: "ignores a rule that names a profile outside the ladder", crew: "dev-plan", brief: "/analyze src/auth/token.ts", floor: 0 },
   { name: "reads a rule's profile whatever its case", crew: "security-audit", brief: "/audit", floor: 2 },
 ];
@@ -169,5 +172,6 @@ export const UNREAD_LEVEL_RECORDS: readonly { readonly name: string; readonly ef
   { name: "its level is no level", effort: { level: "extreme", reason: "model" } },
   { name: "its reason is none of a choice", effort: { level: "low", reason: "circuit-off" } },
   { name: "its probability is no number", effort: { level: "low", reason: "model", picked: "low", probability: "0.8" } },
+  { name: "its pick is no name", effort: { level: "low", reason: "model", picked: 7, probability: 0.8 } },
   { name: "it is no object", effort: "low" },
 ];

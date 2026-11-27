@@ -127,7 +127,7 @@ overrides it).
 
 ### Docker mode: nothing to install but Docker
 
-The launcher runs `ghcr.io/orkeon/orkeon:latest`, the image of the last release (`1.4.0` at this writing, six
+The launcher runs `ghcr.io/orkeon/orkeon:latest`, the image of the last release (`1.4.0` at this writing, seven
 commits behind the pin; `ORKEON_CODE_IMAGE` names another image), which carries the
 REPL and esbuild; the image is built for `linux/amd64` and `linux/arm64`, and Docker pulls the one of your machine. The project is mounted in the
 container; on Linux the container runs with your uid, so the files the agent writes belong to you. The shell tool

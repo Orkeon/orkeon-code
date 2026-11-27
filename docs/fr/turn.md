@@ -324,14 +324,16 @@ les lectures qu'il a faites restent dans son propre contexte.
 - **Sa charte** : le mode `plan` et les outils de lecture et de recherche du code (les fichiers, leurs nœuds, les
   dossiers, `glob`, `grep`, l'index du code et ses requêtes de graphe). Ni shell, ni écriture, ni construction
   d'index, ni web. Il a 30 itérations d'appels d'outils. Il tourne sous le plus strict de `plan` et du mode du tour,
-  sur le `agents.profile` de la session, sinon son `llm.profile`, sinon le modèle par défaut de l'hôte : ni `/model` ni
-  `/effort` ne l'atteignent. Sous un `agents.profile`, le tour et son explorateur tournent sur deux profils : le tour
+  sur le `agents.profile` de la session, sinon son `llm.profile`, sinon le modèle par défaut de l'hôte : `/model` ne l'atteint
+  pas, ni `/effort` sinon comme plafond du niveau que `route.effort` lui choisit (plus bas). Sous un `agents.profile`, le tour et son explorateur tournent sur deux profils : le tour
   reste sur `llm.profile`.
 - **Sa route** : avec `route.agents` sur `on`, son act est routé comme celui d'un relecteur
   ([Router un crew vers un profil](#router-un-crew-vers-un-profil)). Le choix lit le brief, sous le nom `explorer`,
   et répond un barreau de l'échelle, jamais au-dessus du profil sur lequel l'explorateur est construit. Avec
-  `route.effort` sur `on`, il répond aussi le niveau de réflexion de cet act. Sans décision, l'act reste sur le profil
-  et le niveau de l'explorateur.
+  `route.effort` sur `on`, il répond aussi le niveau de réflexion de cet act, jamais au-dessus de celui que `/effort` a
+  enregistré. Sans décision, l'act reste sur le profil et le niveau de l'explorateur, sauf pour une session sur le
+  modèle par défaut de l'hôte sous le plancher d'une règle (`.orkeon/route-rules.json`), qui prend le barreau du
+  plancher comme un lancement.
 - **Combien** : un tour lance 8 agents au plus (`spawnedAgents` de `crews/main-loop/domain/turn-budget.ts` ; le
   runtime en permet 3 quand un budget n'en nomme aucun). Le neuvième `spawn_agent` est refusé par une erreur d'outil que
   le modèle lit, et le tour continue avec les rapports qu'il tient (Orkeon #423 : atteindre le compte mettait fin au
@@ -410,9 +412,10 @@ décision sur le runtime, ce profil est choisi à chaque lancement de `/dev-spec
   du plancher même quand le modèle n'a pas été suivi, ce barreau étant son repli. Un fichier absent, illisible ou
   mal formé, une règle nommant un profil hors de l'échelle et une règle sur l'espace de travail lui-même (`/`, `./`)
   ne relèvent rien.
-- **Le plafond** : jamais au-dessus du barreau de la session ; il l'emporte sur un plancher (un plancher plus haut
-  est donné comme le barreau de la session, le choix refusant un plancher au-dessus de son plafond). Une session sans
-  `llm.profile` dispose de toute l'échelle : routé, un lancement peut alors tourner sur un modèle plus cher que
+- **Le plafond** : jamais au-dessus du barreau de la session, `agents.profile` quand il est posé, sinon
+  `llm.profile` ; il l'emporte sur un plancher (un plancher plus haut
+  est donné comme le barreau de la session, le choix refusant un plancher au-dessus de son plafond). Une session sans l'une ni
+  l'autre clé dispose de toute l'échelle : routé, un lancement peut alors tourner sur un modèle plus cher que
   celui par défaut du runtime. Une session sur un profil hors de l'échelle (un profil de décision qui
   garde ses requêtes) n'est pas routée : elle garde ce profil, et une ligne de journal le dit, comme un `/route`
   seul, qui nomme le réglage qui porte le profil.

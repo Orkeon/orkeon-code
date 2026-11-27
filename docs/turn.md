@@ -293,13 +293,15 @@ it made stay in its own context.
 - **Its charter**: `plan` mode and the read and search tools of the code (files, their nodes, folders, `glob`,
   `grep`, the code index and its graph queries). No shell, no write, no index build, no web. It has 30 tool-call
   iterations. It runs under the stricter of `plan` and the turn's mode, on the session's `agents.profile`, else its
-  `llm.profile`, else the host's default model: neither `/model` nor `/effort` reaches it. Under an `agents.profile`
+  `llm.profile`, else the host's default model: `/model` does not reach it, nor `/effort` save as the ceiling of the level
+  `route.effort` picks for it (below). Under an `agents.profile`
   the turn and its explorer run on two profiles: the turn stays on `llm.profile`.
 - **Its route**: with `route.agents` on, its act is routed as a reviewer's is
   ([Routing a crew to a profile](#routing-a-crew-to-a-profile)). The pick reads the brief, under the name
   `explorer`, and answers a rung of the ladder, never above the profile the explorer is built on. With `route.effort`
-  on it answers the thinking level of that act too. Without a decision the act stays on the explorer's own profile
-  and level.
+  on it answers the thinking level of that act too, never above the one `/effort` stored. Without a decision the act
+  stays on the explorer's own profile and level, save for a session on the host's default model under a rule's floor
+  (`.orkeon/route-rules.json`), which takes the floor's rung as a launch does.
 - **How many**: a turn spawns 8 agents at most (`spawnedAgents` of `crews/main-loop/domain/turn-budget.ts`; the
   runtime allows 3 when a budget names none). The ninth `spawn_agent` is refused with a tool error the model reads,
   and the turn carries on with the reports it holds (Orkeon #423: reaching the count used to end the turn at the
@@ -373,8 +375,8 @@ is picked at each launch of `/dev-spec` (and its alias `/dev-change`), `/dev-pla
   the pick to at least that rung. A session on the host's default model takes the floor's rung even when the
   model was not followed, since that rung is its fallback. A file absent, unreadable or malformed, a rule naming a
   profile outside the ladder and a rule on the workspace itself (`/`, `./`) raise nothing.
-- **The ceiling**: never above the session's own rung; it wins over a floor (a floor above it is given as the
-  session's rung, since the pick refuses a floor above its ceiling). A session without `llm.profile` has the
+- **The ceiling**: never above the session's own rung, `agents.profile` when set, else `llm.profile`; it wins over a floor (a floor above it is given as the
+  session's rung, since the pick refuses a floor above its ceiling). A session with neither key has the
   whole ladder: routed, a launch may then run on a dearer model than the host's default. A session on a profile
   outside the ladder (a decision profile that guards its requests) is not routed: it keeps that profile, and one log
   line says so, as does a bare `/route`, which names the setting that holds the profile.

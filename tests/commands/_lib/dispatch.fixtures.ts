@@ -220,3 +220,9 @@ export const PICK_WITH_LEVEL: ProfilePick = {
   value: "small", reason: "model", picked: "small", probability: 0.9,
   effort: { value: "low", reason: "model", picked: "low", probability: 0.8 },
 };
+
+/** The pick of `large`, the session's own rung, with the level `low` answered in the same call. */
+export const SAME_RUNG_WITH_LEVEL: ProfilePick = {
+  value: "large", reason: "model", picked: "large", probability: 0.9,
+  effort: { value: "low", reason: "model", picked: "low", probability: 0.8 },
+};

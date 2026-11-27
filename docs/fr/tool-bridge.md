@@ -14,7 +14,7 @@ Les modes outil et source n'en ont pas besoin : le runtime tourne sur votre mach
 ## Ce qu'il faut
 
 - Les deux côtés au même commit d'Orkeon : le pont refuse un outil dont le contrat diffère. Le pont est arrivé avec
-  Orkeon `1.4.0`, l'outil `browser` trois commits plus tard, avec l'épingle de `.orkeon-version` : la release `1.4.0`
+  Orkeon `1.4.0`, l'outil `browser` deux commits plus tard, avec l'épingle de `.orkeon-version` : la release `1.4.0`
   n'a l'outil que sous son ancien nom `firefox`, qu'Orkeon Code n'offre plus. Tant qu'aucune release ne porte
   `browser`, les deux côtés se construisent à l'épingle, comme plus bas :
   - dans le conteneur, une image construite à l'épingle ;

@@ -104,12 +104,12 @@ interface Asked {
   said: boolean;
 }
 
-/** The choice an answer of the pick makes. */
-function choiceOf(answer: ProfilePick, reason: RouteChoiceReason, ladder: readonly string[]): RouteChoice {
+/** The choice an answer of the pick makes; its level only when one was asked (`levelAsked`). */
+function choiceOf(answer: ProfilePick, reason: RouteChoiceReason, ladder: readonly string[], levelAsked: boolean): RouteChoice {
   const choice: RouteChoice = { profile: answer.value === null ? null : asOnLadder(ladder, answer.value), reason };
   if (answer.picked !== null) choice.picked = asOnLadder(ladder, answer.picked);
   if (answer.picked !== null && answer.probability !== null) choice.probability = answer.probability;
-  const effort = effortChoiceOf(answer.effort);
+  const effort = levelAsked ? effortChoiceOf(answer.effort) : undefined;
   if (effort !== undefined) choice.effort = effort;
   return choice;
 }
@@ -151,7 +151,8 @@ async function ask(deps: RouteDeps, task: RouteTask, sessionProfile: string | nu
   // The session's rung is the one rung left: the answer without a call, and nothing to say.
   if (routeHeld(ladder, sessionProfile, floor)) return { choice: { profile: sessionProfile, reason: "ceiling" }, floored: false, said: false };
   const bounds = routeBounds(ladder, sessionProfile, floor);
-  const answer = await deps.picker.pick(routeState(task.crew, task.brief), bounds, await effortAsked(deps, task));
+  const level = await effortAsked(deps, task);
+  const answer = await deps.picker.pick(routeState(task.crew, task.brief), bounds, level);
   if (answer === null) return null;
   if ("refused" in answer) {
     deps.log.warn(routeRefused(answer.refused));
@@ -162,7 +163,7 @@ async function ask(deps: RouteDeps, task: RouteTask, sessionProfile: string | nu
     deps.log.warn(reason === "circuit-off" ? ROUTE_CIRCUIT_OFF : ROUTE_NO_LADDER);
     return null;
   }
-  return { choice: choiceOf(answer, reason, ladder), floored: sessionProfile === null && bounds.floor !== undefined, said: true };
+  return { choice: choiceOf(answer, reason, ladder, level !== undefined), floored: sessionProfile === null && bounds.floor !== undefined, said: true };
 }
 
 async function remember(session: RouteDeps["session"], crew: string, choice: RouteChoice): Promise<void> {

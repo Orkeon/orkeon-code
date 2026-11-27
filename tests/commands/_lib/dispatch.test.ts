@@ -53,7 +53,7 @@ import {
   unreadableVoiceDeps,
   voiceDeps,
   routedCrewDeps,
-  CHAT_LAUNCH_CASES, PICK_WITH_LEVEL, THINKING_LAUNCH,
+  CHAT_LAUNCH_CASES, PICK_WITH_LEVEL, SAME_RUNG_WITH_LEVEL, THINKING_LAUNCH,
 } from "./dispatch.fixtures.ts";
 import { assertMemoryGuarded } from "./dispatch.assertions.ts";
 import { WORKSPACE } from "../../../src/shared/domain/vfs.ts";
@@ -194,6 +194,18 @@ describe("withRoutedProfile", () => {
     deepStrictEqual(deps.crews.launches[0].input, { code: "invoice-export", llmProfile: "large" });
   });
 
+  it("routes a launch from agents.profile, its ceiling and its fallback, not from llm.profile", async () => {
+    // Arrange
+    const { deps, config, routing } = routedCrewDeps({ "agents.profile": "large", "llm.profile": "small", "route.agents": "on" });
+    const profiled = await withRoutedProfile(deps, config, routing, { crew: "dev-plan", brief: "/dev-plan invoice-export" });
+
+    // Act
+    launchCrew(profiled, "dev-plan", { code: "invoice-export" });
+
+    // Assert
+    deepStrictEqual(deps.crews.launches[0].input, { code: "invoice-export", llmProfile: "small", llmProfileFallback: "large" });
+  });
+
   it("hands the launch the session's profile when the routing is off", async () => {
     // Arrange
     const { deps, config, routing } = routedCrewDeps({ "llm.profile": "large" });
@@ -217,6 +229,18 @@ describe("withRoutedProfile, the thinking level", () => {
 
     // Assert
     strictEqual(profiled.effort, "low");
+  });
+
+  it("hands the launch the level picked while its profile stays the session's", async () => {
+    // Arrange
+    const { deps, config, routing } = routedCrewDeps({ "llm.profile": "large", "route.agents": "on", "route.effort": "on" });
+    routing.picker.answer = SAME_RUNG_WITH_LEVEL;
+
+    // Act
+    const profiled = await withRoutedProfile(deps, config, routing, THINKING_LAUNCH);
+
+    // Assert
+    deepStrictEqual([profiled.llmProfile, profiled.effort], ["large", "low"]);
   });
 
   it("replaces the level /effort stored in the crew input by the one picked", async () => {

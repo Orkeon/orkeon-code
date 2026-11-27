@@ -411,8 +411,10 @@ const DECISION_MODEL_STATE: Readonly<Record<DecisionModelState, string>> = {
   absent: "absent, nothing is routed",
   silent: "configured, but it gave no answer to a test question just now (a server that is down, a key refused): nothing is routed until it answers",
 };
+/** Beside `route.effort: on` while `route.agents` is off: the level rides on the pick of a profile, and none is made. */
+const ROUTE_EFFORT_IDLE = " (asks nothing while route.agents is off)";
 export const routeStatus = (on: boolean, effort: boolean, ladder: string, model: DecisionModelState): string =>
-  `route.agents: ${on ? "on" : "off"}; route.effort: ${effort ? "on" : "off"}; ladder: ${ladder} (cheapest first); decision model: ${DECISION_MODEL_STATE[model]}.`;
+  `route.agents: ${on ? "on" : "off"}; route.effort: ${effort ? `on${on ? "" : ROUTE_EFFORT_IDLE}` : "off"}; ladder: ${ladder} (cheapest first); decision model: ${DECISION_MODEL_STATE[model]}.`;
 export const routeSet = (on: boolean, model: boolean): string =>
   on
     ? `route.agents: on for this session${model ? "" : " (the host has no decision model: nothing is routed until it has one)"}; /clear clears it.`

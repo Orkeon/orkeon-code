@@ -7,6 +7,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed — the routing after an adversarial review
+
+- `/route` with `route.agents` off and `route.effort` on says that the level asks nothing: `route.effort: on (asks
+  nothing while route.agents is off)`.
+- A floor of `.orkeon/route-rules.json` on a path applies when the command names that path at the end of a sentence
+  (`fix src/core.`): the closing `.`, `?` or `!` no longer hides it.
+- A level the pick answers when none was asked is ignored.
+- The help of `route.agents`, `route.effort` and `llm.profile` (`/config`) says what holds since `agents.profile`:
+  the ceiling of the routing is `agents.profile` when set, `route.effort` asks nothing for a launch left with a
+  single rung, and with no `/effort` stored the pick may choose any of the host's levels.
+- The docs no longer say that `/effort` cannot reach the `agent-cli` provider, nor that `llm.profile` is the profile
+  of every agent; the measure of the level reads 7 of the 9 requests that take one.
+
 ### Changed — the pin moves to Orkeon `main` `9ca8530`, the thinking level reaches the subscription
 
 - The pin moves to Orkeon `main` `9ca8530` (Orkeon #488, which fixes #487), seven commits past the release `1.4.0`

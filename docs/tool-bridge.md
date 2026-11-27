@@ -13,7 +13,7 @@ Tool and source modes need none of this: the runtime runs on your machine and dr
 ## What you need
 
 - Both sides at the same Orkeon commit: the bridge refuses a tool whose contract differs. The bridge came with Orkeon
-  `1.4.0`, the `browser` tool three commits later, with the pin of `.orkeon-version`: the release `1.4.0` has the
+  `1.4.0`, the `browser` tool two commits later, with the pin of `.orkeon-version`: the release `1.4.0` has the
   tool under its former name `firefox` only, which Orkeon Code no longer offers. Until a release carries `browser`,
   both sides are built at the pin, as below:
   - in the container, an image built at the pin;

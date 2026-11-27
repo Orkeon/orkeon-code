@@ -148,9 +148,9 @@ function bare(path: string): string {
   return path.replace(/\\/g, "/").replace(/^\/workspace\//, "").replace(/^\.\//, "").replace(/\/+$/, "");
 }
 
-/** The words of a command, as paths: quotes and the punctuation around a word dropped. */
+/** The words of a command, as paths: quotes and the punctuation around a word dropped, the end of a sentence too. */
 function wordsOf(brief: string): string[] {
-  return brief.split(/\s+/).map((word) => bare(word.replace(/^["'`(]+|["'`),;:]+$/g, ""))).filter((word) => word.length > 0);
+  return brief.split(/\s+/).map((word) => bare(word.replace(/^["'`(]+|["'`),;:.?!]+$/g, ""))).filter((word) => word.length > 0);
 }
 
 /** The rung of `profile` on the ladder, whatever its case (the host reads a profile's name so); -1 when it is none. */

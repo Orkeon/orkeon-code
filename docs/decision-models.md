@@ -184,10 +184,10 @@ under the bar: nothing moves.
   between the two ends fall under the bar.
 - **A fourth rung moves the hard work to the dearest model** and decides fewer requests: four rungs behave as two
   rungs priced higher. Keep `fable` off the ladder, for `/model` or for a floor of `.orkeon/route-rules.json`.
-- **The level** is decided for 14 of the 18 requests that take one, on every ladder: `low` and `high` are, `medium`
-  is not in this table (0.50 to 0.57); it is in the briefs below.
+- **The level** is decided for 7 of the 9 requests that take one, on both passes: `low` and `high` are, `medium`
+  is not in this table (0.50, and `high` at 0.48 on the last brief); it is in the briefs below.
 - **On the subscription**, the ladder `subscription-haiku,subscription-sonnet,subscription` of the `agent-cli`
-  example decides 15 of the same 18 requests, with the same split: the pick reads the order of the rungs, not their
+  example decides 15 of the same 18 requests, with a similar split: the pick reads the order of the rungs, not their
   names.
 
 These are picks, not runs: no crew was launched, so the table says where each request would run, not what the

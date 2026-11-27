@@ -34,7 +34,7 @@ no ladder to route on.
 - **The subscription gets its rungs as configuration.** The `agent-cli` example declares `subscription-haiku` and
   `subscription-sonnet`, the profile `subscription` on the two cheaper models, with the same fallback. The ladder
   `subscription-haiku,subscription-sonnet,subscription` then routes under `agents.profile subscription`, its top
-  rung. Measured on the same requests: 15 of 18 decided, the same split as `haiku,sonnet,opus`.
+  rung. Measured on the same requests: 15 of 18 decided, a similar split to `haiku,sonnet,opus`.
 
 ## Consequences
 
@@ -42,7 +42,8 @@ no ladder to route on.
 - The test tells an answer from no answer, not why none came: a server down, a key refused and a timeout read the
   same.
 - The thinking level does not reach the `agent-cli` provider: on the subscription `route.effort` picks a level
-  nothing applies, and the docs say to leave it off.
+  nothing applies, and the docs say to leave it off. [ADR 0041](0041-orkeon-after-488.md) supersedes this line: at
+  the pin the level reaches the CLI as `--effort`.
 - The measure is of picks, not of runs: it says where a request would run, not what the cheaper model makes of it.
   `medium` was not decided as a level on the eighteen requests; a later pass on twelve briefs worded as the main
   loop words them decided it three times, and `sonnet` five times

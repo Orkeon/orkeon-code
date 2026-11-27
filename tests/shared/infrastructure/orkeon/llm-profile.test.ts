@@ -4,7 +4,7 @@ import { describe, it } from "node:test";
 import { deepStrictEqual, rejects, strictEqual, throws } from "node:assert";
 import { PROMPT_CACHE, declaredRoute, profiledAgent } from "../../../../src/shared/infrastructure/orkeon/llm-profile.ts";
 import { assertBuiltOn } from "./llm-profile.assertions.ts";
-import { CACHE_CASES, DECLARED_ROUTES, FALLBACK_CASES, NO_CACHE_CASES, TASK, factories } from "./llm-profile.fixtures.ts";
+import { CACHE_CASES, DECLARED_ROUTES, FALLBACK_CASES, LEVEL_KEPT_ROUTES, NO_CACHE_CASES, TASK, factories } from "./llm-profile.fixtures.ts";
 
 describe("profiledAgent", () => {
   it("builds the agent on the profile the input names", () => {
@@ -148,6 +148,19 @@ describe("declaredRoute", () => {
     // Assert
     deepStrictEqual(routed, { profile: null, effort: "low" });
   });
+
+  for (const c of LEVEL_KEPT_ROUTES) {
+    it(c.name, async () => {
+      // Arrange
+      const host = factories(c.withProfile, ["small"]);
+
+      // Act
+      const routed = await declaredRoute(async () => ({ profile: c.answer, effort: "low" }), host)(TASK);
+
+      // Assert
+      deepStrictEqual(routed, { profile: null, effort: "low" });
+    });
+  }
 
   it("rejects with a failure of the routed profile that is no refusal", async () => {
     // Arrange
