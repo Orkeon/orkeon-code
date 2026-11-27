@@ -15,6 +15,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   (`/dev-spec`, `/dev-change`, `/dev-plan`) and to every routed act of a sub-agent. A level the pick is not sure of
   leaves the one in place. The log line and `/route why` show it: `…; effort 'low' (the decision model's pick; picked
   'low' at 0.80)`. A bare `/route` says whether it is on.
+- A bare `/route` warns when the routing is on and the crews are launched on a profile outside the ladder
+  (`agents.profile`, else `llm.profile`): nothing is routed then, and until now only the log said so.
 - The explorer a turn spawns is routed like a reviewer's act: with `route.agents` on, its profile, and with
   `route.effort` its level, are picked from its brief, under `agents.profile` (else the turn's profile) as the
   ceiling.

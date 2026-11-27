@@ -68,3 +68,24 @@ export const WHY_LEVEL_LINES = [
   "dev-plan on 'small': the decision model's pick; picked 'small' at 0.90; effort 'low' (the decision model's pick; picked 'low' at 0.80)",
   "dev-reviewer on 'small': the decision model's pick; picked 'small' at 0.70; effort left as it was (the decision model did not answer)",
 ];
+
+const STATUS_ON = "route.agents: on; route.effort: off; ladder: small,large (cheapest first); decision model: present.";
+
+/** What a bare /route says of the profile the crews are launched on, by where it stands on the ladder. */
+export const OUTSIDE_LADDER_CASES: readonly { readonly name: string; readonly values: Record<string, string>; readonly text: string }[] = [
+  {
+    name: "says that nothing is routed under an agents.profile outside the ladder",
+    values: { "route.agents": "on", "agents.profile": "subscription", "llm.profile": "large" },
+    text: `${STATUS_ON}\n  ⚠ agents.profile is 'subscription', which is not on the ladder: nothing is routed. Set it to a rung, or unset it.`,
+  },
+  {
+    name: "says that nothing is routed under an llm.profile outside the ladder",
+    values: { "route.agents": "on", "llm.profile": "guarded" },
+    text: `${STATUS_ON}\n  ⚠ llm.profile is 'guarded', which is not on the ladder: nothing is routed. Set it to a rung, or unset it.`,
+  },
+  { name: "says nothing more under a profile that is a rung, whatever its case", values: { "route.agents": "on", "agents.profile": "Large" }, text: STATUS_ON },
+  {
+    name: "says nothing of a profile outside the ladder while the routing is off",
+    values: { "agents.profile": "subscription" }, text: "route.agents: off; route.effort: off; ladder: small,large (cheapest first); decision model: present.",
+  },
+];

@@ -5,7 +5,7 @@ import { deepStrictEqual, strictEqual } from "node:assert";
 
 import { runRoute } from "../../../../src/commands/_lib/settings/route.ts";
 import {
-  CUSTOM_LADDER, RECENT, RECENT_WITH_CIRCUIT_OFF, RECENT_WITH_LEVEL, STATUS_EFFORT_ON, WHY_LEVEL_LINES, SET_OFF, STATUS_CUSTOM_WITH_HIGH, SET_ON, SET_ON_NO_MODEL, STATUS_OFF, STATUS_ON_NO_MODEL, STATUS_WITH_MEDIUM, STATUS_WITH_RUNGS,
+  CUSTOM_LADDER, OUTSIDE_LADDER_CASES, RECENT, RECENT_WITH_CIRCUIT_OFF, RECENT_WITH_LEVEL, STATUS_EFFORT_ON, WHY_LEVEL_LINES, SET_OFF, STATUS_CUSTOM_WITH_HIGH, SET_ON, SET_ON_NO_MODEL, STATUS_OFF, STATUS_ON_NO_MODEL, STATUS_WITH_MEDIUM, STATUS_WITH_RUNGS,
   WHY_LINES, WHY_STANDS_LINES, routeCommandSetup, routeOnGlmSetup,
 } from "./route.fixtures.ts";
 import { EFFORT_STATE_KEY } from "../../../../src/shared/domain/session-keys.ts";
@@ -118,6 +118,20 @@ describe("runRoute", () => {
     // Assert
     strictEqual(view.text, STATUS_EFFORT_ON);
   });
+
+  for (const c of OUTSIDE_LADDER_CASES) {
+    it(c.name, async () => {
+      // Arrange
+      const { deps, config } = routeCommandSetup();
+      config.values = c.values;
+
+      // Act
+      const view = await runRoute([], deps);
+
+      // Assert
+      strictEqual(view.text, c.text);
+    });
+  }
 
   it("says nothing was routed yet", async () => {
     // Arrange

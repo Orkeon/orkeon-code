@@ -410,5 +410,7 @@ export const routeSet = (on: boolean, model: boolean): string =>
     ? `route.agents: on for this session${model ? "" : " (the host has no decision model: nothing is routed until it has one)"}; /clear clears it.`
     : "route.agents: off for this session; /clear clears it.";
 /** Under the status: what a rung's model takes, or what the stored effort becomes on it. */
+export const routeOutsideLadder = (profile: string, key: string): string =>
+  `  ⚠ ${key} is '${profile}', which is not on the ladder: nothing is routed. Set it to a rung, or unset it.`;
 export const rungLine = (rung: string, what: string): string => `  ${rung}: ${what}`;
 export const routedRecord = (crew: string, profile: string, why: string): string => `${crew} on '${profile}': ${why}`;

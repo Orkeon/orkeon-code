@@ -377,7 +377,7 @@ is picked at each launch of `/dev-spec` (and its alias `/dev-change`), `/dev-pla
   session's rung, since the pick refuses a floor above its ceiling). A session without `llm.profile` has the
   whole ladder: routed, a launch may then run on a dearer model than the host's default. A session on a profile
   outside the ladder (a decision profile that guards its requests) is not routed: it keeps that profile, and one log
-  line says so.
+  line says so, as does a bare `/route`, which names the setting that holds the profile.
 - **What is not routed**: the main loop (`/assistant`: its prompt cache follows one model), `/compact`, `/memory
   admit`, the speech crews, `/advisor` (it has its own model), `/dev-batches` and `/tasks`; and, inside a crew, the
   roles of `/dev-implement`, the agents a crew starts in the background and the extraction of a sub-agent's answer.

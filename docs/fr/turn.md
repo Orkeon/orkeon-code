@@ -414,7 +414,8 @@ décision sur le runtime, ce profil est choisi à chaque lancement de `/dev-spec
   est donné comme le barreau de la session, le choix refusant un plancher au-dessus de son plafond). Une session sans
   `llm.profile` dispose de toute l'échelle : routé, un lancement peut alors tourner sur un modèle plus cher que
   celui par défaut du runtime. Une session sur un profil hors de l'échelle (un profil de décision qui
-  garde ses requêtes) n'est pas routée : elle garde ce profil, et une ligne de journal le dit.
+  garde ses requêtes) n'est pas routée : elle garde ce profil, et une ligne de journal le dit, comme un `/route`
+  seul, qui nomme le réglage qui porte le profil.
 - **Ce qui n'est pas routé** : la boucle principale (`/assistant` : son cache de prompt suit un modèle),
   `/compact`, `/memory admit`, les crews de parole, `/advisor` (il a son propre modèle), `/dev-batches` et
   `/tasks` ; et, dans un crew, les rôles de `/dev-implement`, les agents qu'un crew démarre en arrière-plan,

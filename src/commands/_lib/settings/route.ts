@@ -2,12 +2,14 @@
 // the session, as `/config set` would; bare, it says where the routing stands; `why` shows the last routed launches.
 // A routed crew runs on a rung of the ladder, with the effort /effort stored: bare, /route also says, rung by rung,
 // what that rung's model takes and what the stored effort becomes on it, as the runtime judges them (Orkeon #359,
-// #360), and whether the pick chooses the thinking level too (`route.effort`, set with /config).
+// #360), and whether the pick chooses the thinking level too (`route.effort`, set with /config). With the routing on
+// and the crews launched on a profile outside the ladder, it says that nothing is routed, and which setting names it.
 import type { DecisionModel, ReasoningReader, SessionStore } from "../../../shared/application/ports.ts";
 import type { ConfigStore } from "../../../shared/application/config-store.ts";
 import {
-  ROUTE_AGENTS_CONFIG_KEY, ROUTE_EFFORT_CONFIG_KEY, ROUTE_LADDER_CONFIG_KEY, ladderOf, parseRecords, routeOn,
+  ROUTE_AGENTS_CONFIG_KEY, ROUTE_EFFORT_CONFIG_KEY, ROUTE_LADDER_CONFIG_KEY, ladderOf, parseRecords, routable, routeOn,
 } from "../../../shared/domain/agents/model-route.ts";
+import { AGENTS_PROFILE_CONFIG_KEY, LLM_PROFILE_CONFIG_KEY, llmProfileProblem } from "../../../shared/domain/llm-profile.ts";
 import { providerEffort } from "../../../shared/domain/agent-policy/behavior-flags.ts";
 import type { EffortLevel } from "../../../shared/domain/agent-policy/behavior-flags.ts";
 import { EFFORT_STATE_KEY, ROUTE_RECENT_STATE_KEY } from "../../../shared/domain/session-keys.ts";
@@ -15,7 +17,9 @@ import { routeWhy } from "../../../shared/application/agents/route-agent.ts";
 import { HOST_DEFAULT_MODEL } from "../../../shared/application/agents/messages.ts";
 import type { CommandView } from "../view.ts";
 import { effortWarningNote } from "./effort.ts";
-import { NOTHING_ROUTED_YET, ROUTE_USAGE, modelTakes, routeSet, routeStatus, routedRecord, rungLine } from "./messages.ts";
+import {
+  NOTHING_ROUTED_YET, ROUTE_USAGE, modelTakes, routeOutsideLadder, routeSet, routeStatus, routedRecord, rungLine,
+} from "./messages.ts";
 
 export interface RouteCommandDeps {
   config: Pick<ConfigStore, "readValue" | "readSession" | "writeSession">;
@@ -36,16 +40,29 @@ function rungReasoning(rung: string, effort: EffortLevel | undefined, reasoning:
   return capabilities !== null && capabilities.known ? rungLine(rung, modelTakes(capabilities.model, capabilities.efforts)) : null;
 }
 
+/** The line of a session whose crews are launched on a profile outside the ladder (`agents.profile`, else
+ *  `llm.profile`): nothing is routed then; null when they are on a rung, or on the host's default model. */
+async function outsideLadder(config: RouteCommandDeps["config"], ladder: readonly string[]): Promise<string | null> {
+  for (const key of [AGENTS_PROFILE_CONFIG_KEY, LLM_PROFILE_CONFIG_KEY]) {
+    const { value } = await config.readValue(key);
+    if (typeof value !== "string" || llmProfileProblem(value) !== undefined) continue;
+    return routable(value.trim(), ladder) ? null : routeOutsideLadder(value.trim(), key);
+  }
+  return null;
+}
+
 async function status(deps: RouteCommandDeps): Promise<CommandView> {
   const on = routeOn((await deps.config.readValue(ROUTE_AGENTS_CONFIG_KEY)).value);
   const ladder = ladderOf((await deps.config.readValue(ROUTE_LADDER_CONFIG_KEY)).value);
   const effortPicked = routeOn((await deps.config.readValue(ROUTE_EFFORT_CONFIG_KEY)).value);
   const head = routeStatus(on, effortPicked, ladder.join(","), deps.decision.available());
+  const outside = on ? await outsideLadder(deps.config, ladder) : null;
+  const top = outside === null ? [head] : [head, outside];
   const { reasoning } = deps;
-  if (reasoning === undefined) return { text: head };
+  if (reasoning === undefined) return { text: top.join("\n") };
   const effort = providerEffort(await deps.session.readState(EFFORT_STATE_KEY).catch(() => null));
   const rungs = ladder.map((rung) => rungReasoning(rung, effort, reasoning)).filter((line) => line !== null);
-  return { text: [head, ...rungs].join("\n") };
+  return { text: [...top, ...rungs].join("\n") };
 }
 
 async function why(deps: RouteCommandDeps): Promise<CommandView> {
