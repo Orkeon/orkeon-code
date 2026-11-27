@@ -12,6 +12,7 @@ import {
   NOTHING_STORED_TEXT, SET_HIGH_DROPPED_TEXT, SET_HIGH_TEXT, SET_MEDIUM_ON_GLM_TEXT, SET_MEDIUM_SWITCHED_OFF_TEXT,
   NO_THINKING_ASKED_TEXT, UNKNOWN_LEVEL_TEXT, DEV_STEPS_CASES, HOST_HIGH_ON_GLM_TEXT, HOST_MEDIUM_ON_GLM_TEXT, PANEL_CASES,
   SHOW_DEV_STEPS_CASES, TARGET_CASES, XHIGH_LOWERED_UNKNOWN_TEXT, profiledHarness,
+  AGENTS_PROFILE_CASES, SHOW_AGENTS_PROFILE_TEXT, agentsProfileHarness,
 } from "./effort.fixtures.ts";
 
 describe("/effort without a panel", () => {
@@ -465,5 +466,32 @@ describe("/effort show under a /model override", () => {
 
     // Assert
     strictEqual(reasoning.targets.length, 2);
+  });
+});
+
+describe("/effort under an agents.profile", () => {
+  for (const c of AGENTS_PROFILE_CASES) {
+    it(c.name, async () => {
+      // Arrange
+      const { run } = agentsProfileHarness(c.settings);
+
+      // Act
+      const view = await run("medium");
+
+      // Assert
+      strictEqual(view.text, c.text);
+    });
+  }
+
+  it("shows apart what the stored level becomes on the agents' profile", async () => {
+    // Arrange
+    const { session, run } = agentsProfileHarness({ "agents.profile": "subscription" });
+    session.state.set(EFFORT_STATE_KEY, "medium");
+
+    // Act
+    const view = await run("show");
+
+    // Assert
+    strictEqual(view.text, SHOW_AGENTS_PROFILE_TEXT);
   });
 });

@@ -131,19 +131,30 @@ describe("declaredRoute", () => {
       const host = factories(c.withProfile, ["small"]);
 
       // Act
-      const profile = await declaredRoute(async () => c.answer, host)(TASK);
+      const { profile } = await declaredRoute(async () => ({ profile: c.answer, effort: null }), host)(TASK);
 
       // Assert
       strictEqual(profile, c.profile);
     });
   }
 
+  it("keeps the thinking level of a route whose profile the host does not declare", async () => {
+    // Arrange
+    const host = factories(true, ["small"]);
+
+    // Act
+    const routed = await declaredRoute(async () => ({ profile: "small", effort: "low" }), host)(TASK);
+
+    // Assert
+    deepStrictEqual(routed, { profile: null, effort: "low" });
+  });
+
   it("rejects with a failure of the routed profile that is no refusal", async () => {
     // Arrange
     const host = factories(true, [], ["small"]);
 
     // Act
-    const act = declaredRoute(async () => "small", host)(TASK);
+    const act = declaredRoute(async () => ({ profile: "small", effort: null }), host)(TASK);
 
     // Assert
     await rejects(act, /the profile 'small' cannot be read/);

@@ -5,10 +5,11 @@
 // that throws a cancellation (the host cancelled the run, /tasks stop stopped the
 // child) is `cancelled`; a step budget spent during the extraction is the model's
 // failure, not an answer that did not parse. A route, when given, is asked once before the act for the profile it
-// runs on (route-agent.ts actRoute): null, or a route that throws, leaves the act on the agent's own profile; the
-// extractions are never routed.
+// runs on and its thinking level (route-agent.ts actRoute): a null one, or a route that throws, leaves the act on the
+// agent's own; the extractions are never routed.
 
 import type { Llm, Logger } from "../ports.ts";
+import { actRouted } from "./route-agent.ts";
 import type { ActRoute } from "./route-agent.ts";
 import { MAX_BRIEF_CHARS, charterProblems } from "../../domain/agents/charter.ts";
 import type { Charter, Checked } from "../../domain/agents/charter.ts";
@@ -72,16 +73,6 @@ async function tryAnswer<T>(
   return check(value);
 }
 
-/** The profile the act of `call` is moved to: none without a route, when it answers null, or when it throws. */
-async function routedProfile(route: ActRoute | undefined, crew: string, brief: string): Promise<string | null> {
-  if (route === undefined) return null;
-  try {
-    return await route({ crew, brief });
-  } catch {
-    return null;
-  }
-}
-
 export async function runSubAgent<T>(
   llm: Pick<Llm, "act" | "extract">, call: SubAgentCall<T>, route?: ActRoute, log?: Pick<Logger, "info">,
 ): Promise<SubAgentOutcome<T>> {
@@ -94,7 +85,7 @@ export async function runSubAgent<T>(
       problems: [briefTooLong(brief.length, MAX_BRIEF_CHARS)],
     };
   }
-  const profile = await routedProfile(route, charter.name, brief);
+  const { profile, effort } = await actRouted(route, { crew: charter.name, brief });
   let reply: string;
   try {
     reply = await llm.act(brief, {
@@ -103,6 +94,7 @@ export async function runSubAgent<T>(
       maxIterations: charter.maxIterations,
       ...(charter.model === undefined ? {} : { model: charter.model }),
       ...(profile === null ? {} : { profile }),
+      ...(effort === null ? {} : { effort }),
       ...(call.tools === undefined ? {} : { tools: [...call.tools] }),
     });
   } catch (error) {

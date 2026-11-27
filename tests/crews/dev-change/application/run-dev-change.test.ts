@@ -29,7 +29,7 @@ describe("runDevChange — a bug", () => {
     f.llm.extractions = [answer(), answer({ questions: [] }), CLEAR];
 
     // Act
-    await runDevChange(bug, { ...f.deps, route: async () => "small" });
+    await runDevChange(bug, { ...f.deps, route: async () => ({ profile: "small", effort: null }) });
 
     // Assert
     strictEqual(f.llm.acts[0].request.profile, "small");

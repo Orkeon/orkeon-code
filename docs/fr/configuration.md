@@ -146,6 +146,12 @@ prompt système d'un tour fait environ 2 250 tokens avant les schémas d'outils 
   llm.profile guarded` : chaque crew qu'une commande lance y construit ses agents, agents enfants des étapes dev
   compris, et le journal du lancement et `/config list` le montrent.
 - Sans la clé rien ne change : les agents tournent sur le modèle par défaut du runtime, comme avant.
+- La clé de session `agents.profile` nomme le profil de tous les agents sauf celui du tour principal, `/config set
+  agents.profile subscription` : les crews que lancent les commandes (les étapes dev et leurs agents enfants,
+  `/review`, `/commit`, `/advisor`, `/compact` et les autres) et l'explorateur que lance le tour principal. Les tours
+  de `/assistant` restent sur `llm.profile`, sinon sur le modèle par défaut du runtime : la conversation tourne sur un
+  modèle, les agents sur un autre. Sans la clé, les agents suivent `llm.profile`. Le journal du lancement d'un tour la
+  montre sous `agentsLlmProfile`.
 - Un nom que le runtime ne déclare pas fait échouer le chargement du crew, son erreur listant les profils que le runtime
   connaît.
 - Un simple profil LLM marche de la même façon, sans modèle de décision devant.
@@ -195,6 +201,9 @@ celui de la section).
   celui d'Anthropic, son profil par défaut sur `ANTHROPIC_API_KEY`, plus un profil `subscription` sur `agent-cli` dont
   le `Fallback` est `default`. Copiez-le, puis `/config set llm.profile subscription` : chaque crew qu'une commande
   lance construit ses agents dessus.
+- Pour garder la conversation sur la clé et n'envoyer que les agents sur l'abonnement, faites plutôt `/config set
+  agents.profile subscription` et laissez `llm.profile` absent : les tours de `/assistant` tournent sur le profil par
+  défaut, l'explorateur qu'ils lancent et chaque crew qu'une commande lance sur la CLI.
 - L'exemple demande aussi `ANTHROPIC_API_KEY` : une session démarre sur le profil par défaut, le repli y arrive, et
   les services propres au runtime (planificateur, Guardian, juges) y restent.
 - Sans aucune clé, écrivez `"Provider": "agent-cli"` dans la section `Llm` elle-même, sans `Fallback`.
@@ -372,6 +381,7 @@ Dans le REPL, `/config` liste, lit et écrit les clés de session, rangées dans
 | `compaction.trigger` | la fenêtre moins la place dont un tour a besoin | le nombre de tokens auquel la compaction automatique se déclenche |
 | `compaction.prune` | `off` | le modèle de décision du runtime élague les résultats d'outils périmés d'un tour en cours et des acts des crews dev |
 | `route.agents` | `off` | à chaque lancement d'un crew, le modèle de décision du runtime choisit le profil le moins cher de `route.ladder` qui convient à la commande ; dans un crew, de même pour l'act d'un relecteur ou de l'auditeur |
+| `route.effort` | `off` | le choix de `route.agents` fixe aussi le niveau de réflexion, dans le même appel : un des niveaux du runtime, jamais au-dessus de celui que `/effort` a enregistré |
 | `route.ladder` | `small,large` | les profils LLM du runtime parmi lesquels le routage choisit, le moins cher d'abord |
 | `skills.suggest` | `off` | le modèle de décision du runtime ajoute à un tour les skills du projet qui conviennent à sa requête |
 | `dev.workDir` | le `layout.work` du pack du dépôt, sinon `workbench` | le dossier de travail que les étapes dev lisent et écrivent, relatif au checkout |
@@ -382,6 +392,7 @@ Dans le REPL, `/config` liste, lit et écrit les clés de session, rangées dans
 | `paths.deny`, `paths.allow` | | les chemins qu'aucun outil du modèle ne lit ni n'écrit, et les seuls chemins qu'il peut atteindre ([permissions](permissions.md#les-listes-de-chemins)) |
 | `review.lenses` | les trois | les angles de `/review`, séparés par des virgules parmi `correctness`, `security` et `style` |
 | `llm.profile` | le modèle par défaut du runtime | le profil du runtime sur lequel tournent les agents de chaque crew ([le LLM](#le-llm)) |
+| `agents.profile` | `llm.profile` | le profil du runtime de tous les agents sauf celui du tour principal : les crews que lancent les commandes et l'explorateur que lance un tour ([le LLM](#le-llm)) |
 | `advisor.model` | celui de la session, ce qui en fait une auto-relecture | le modèle du second avis de `/advisor` |
 | `commit.requireConfirm` | `true` | `false` laisse `/commit` s'exécuter sans sa confirmation, comme `--yes` |
 | `spinnerVerbs` | | |
@@ -394,6 +405,7 @@ Comment certaines se règlent :
 /config set compaction.prune on
 /route on
 /config set route.ladder small,large
+/config set route.effort on
 /skills suggest on
 /config set dev.workDir backstage/tasks
 /config set memory.dir docs/memory
@@ -407,6 +419,12 @@ Ce que le tableau laisse de côté :
   est décrit dans [Le déroulement d'un tour](turn.md#compaction-et-mémoire).
 - **`route.agents`** se règle aussi par `/route on` ; voir
   [Router un crew vers un profil](turn.md#router-un-crew-vers-un-profil).
+- **`route.effort`** ne demande rien tant que `route.agents` n'est pas sur `on`. Les niveaux parmi lesquels il
+  choisit sont ceux du runtime (`Orkeon:Decision:Effort:Levels` ; `low`, `medium`, `high` quand le runtime n'en
+  liste aucun).
+- **Une échelle à quatre barreaux** : [`config/appsettings.anthropic.example.json`](../../config/appsettings.anthropic.example.json)
+  déclare les profils `haiku`, `sonnet`, `opus` et `fable` ; `/config set route.ladder haiku,sonnet,opus,fable`
+  les ordonne pour le routage.
 - **Les deux demandent le runtime de l'épingle**, donc le mode source : dans les modes tool et docker ils sont lus
   et ne font rien, sans avertissement qui leur soit propre, un runtime sans modèle de décision donnant toujours
   l'avertissement habituel
@@ -423,6 +441,7 @@ Ce que le tableau laisse de côté :
 - **`paths.deny` et `paths.allow`** sont séparés par des virgules, dans n'importe quelle écriture de la machine
   hôte. Ils sont comparés sur l'écriture virtuelle, un deny l'emportant, et appliqués au prochain démarrage.
 - **`llm.profile`** nomme un profil LLM, ou un profil de décision avec Jev devant.
+- **`agents.profile`** prend les mêmes noms. Il déplace les agents et laisse les tours de `/assistant` où ils sont.
 
 ### Les commandes qui changent le déroulement des tours suivants
 
@@ -454,6 +473,9 @@ surcharge `/model`, sinon le modèle de l'hôte.
   le niveau n'y part pas tel quel, et pas de la façon que dit la première ligne, une deuxième ligne le dit, `⚠ effort, dev steps and sub-agents (the
   host's model): …`. `/effort show` dit la même chose sous sa ligne de thinking (`dev steps and sub-agents (the
   host's model): …`), pour le niveau enregistré, sinon pour celui de l'hôte.
+- Sous un `agents.profile`, les étapes dev et les sous-agents tournent sur ce profil : la deuxième ligne le juge et le
+  nomme, `⚠ effort, dev steps and sub-agents (the profile '<nom>'): …`, dès qu'il n'est pas le profil des tours.
+  `/config set agents.profile <nom>` donne l'avertissement comme le fait `/config set llm.profile`.
 - Le panneau d'un `/effort` sans argument marque chaque niveau qui partirait sous un autre, ou pas du tout.
 - `/model` donne les mêmes avertissements après un changement ou une remise à zéro, et `/config unset llm.profile`
   quand les tours reviennent à ce modèle. Quand le panneau de `/model` change le modèle et l'effort ensemble, seul le

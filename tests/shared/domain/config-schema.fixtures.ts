@@ -17,7 +17,8 @@ export const CONSUMERS: Record<string, string> = {
   "answer.language": "/assistant, /summary, /transcribe --then, /voice send and /voice --go (the main loop's prompt)",
   "compaction.trigger": "/assistant (the automatic compaction at the head and the tail of a turn), /usage",
   "compaction.prune": "/assistant, /summary, /transcribe --then, /voice send and /voice --go (the tool results of a turn in progress); /dev-spec, /dev-change, /dev-plan, /dev-implement, /dev-verify and /dev-batches (the acts of their reviewer, roles and auditor)",
-  "route.agents": "/route, and the commands that launch a crew routed by it (/dev-spec, /dev-change, /dev-plan, /dev-learn, /review, /analyze, /commit, /init, /init-verifiers)",
+  "route.agents": "/route, the commands that launch a crew routed by it (/dev-spec, /dev-change, /dev-plan, /dev-learn, /review, /analyze, /commit, /init, /init-verifiers) and the explorer a turn spawns",
+  "route.effort": "/route, the launches that forward /effort (/dev-spec, /dev-change, /dev-plan) and the acts route.agents routes",
   "route.ladder": "/route, and the commands route.agents routes",
   "skills.suggest": "/skills suggest, /assistant, /summary, /transcribe --then, /voice send and /voice --go (the turn's attached skills)",
   "dev.workDir": "/dev-status (the work folder it reads), /commit (the work folder it leaves out)",
@@ -26,6 +27,7 @@ export const CONSUMERS: Record<string, string> = {
   "memory.project": "/memory-admit, /assistant (the memory_recall and memory_push tools)",
   "memory.autoAdmitAudited": "/memory-admit",
   "llm.profile": "/assistant, /review, /commit, /advisor, /memory admit, the dev steps and every other command that launches a crew (the model its agents run on)",
+  "agents.profile": "/assistant (the agents its turn spawns), /review, /commit, /advisor, /memory admit, the dev steps and every other command that launches a crew other than the main loop (the model their agents run on)",
   "paths.deny": "/assistant, the dev steps and every other command that launches a crew (each act's calls), /permissions (the deny rules in the gate), /doctor",
   "paths.allow": "/assistant, the dev steps and every other command that launches a crew (each act's calls), /permissions (the deny rules in the gate), /doctor",
 };

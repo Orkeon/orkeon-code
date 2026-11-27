@@ -118,7 +118,14 @@ Dans un crew, l'act d'un relecteur (`/dev-spec`, `/dev-change`, `/dev-plan`, le 
 celui de l'auditeur de `/dev-verify` sont routés de la même façon, pour ce seul appel. Quand le choix est incertain
 ou absent, l'act reste là où tourne son crew ; sur le modèle par défaut du runtime il prend plutôt le plancher d'une
 règle : voir
-[Router un crew vers un profil](turn.md#router-un-crew-vers-un-profil). Deux exécutions en sont
+[Router un crew vers un profil](turn.md#router-un-crew-vers-un-profil). L'explorateur qu'un tour lance est routé
+comme ces acts, sur son brief.
+
+Avec `route.effort` sur `on`, le même appel choisit aussi le niveau de réflexion : un des niveaux du runtime, jamais
+au-dessus de celui que `/effort` a enregistré, pour les lancements qui transmettent `/effort` et pour chaque act
+routé ([ADR 0039](../adr/0039-route-effort-and-explorer.md)). Une échelle peut compter plus de deux barreaux :
+l'exemple Anthropic déclare `haiku`, `sonnet`, `opus` et `fable`, et `/config set route.ladder
+haiku,sonnet,opus,fable` les ordonne. Ni l'un ni l'autre n'a été mesuré. Deux exécutions du routage des acts sont
 [mesurées plus bas](#mesuré--dev-spec-puis-dev-plan-routés-ou-non).
 
 ### Mesuré : douze commandes

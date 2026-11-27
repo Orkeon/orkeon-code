@@ -1,5 +1,8 @@
 // The briefs runExplorer refuses, and the rules of the explorer's system message with the marker that pins each one
 // (docs/turn.md, "The explorer").
+import { EXPLORER_SYSTEM } from "../../../../src/crews/main-loop/application/prompts.ts";
+import type { ActRoute, Routed } from "../../../../src/shared/application/agents/route-agent.ts";
+import type { ActRequest } from "../../../../src/shared/application/ports.ts";
 import { MAX_BRIEF_CHARS } from "../../../../src/shared/domain/agents/charter.ts";
 
 export interface RefusedBriefCase {
@@ -41,3 +44,17 @@ export const ITERATIONS_NOTICE = "(max tool-call iterations reached without a fi
 
 /** The refusal of an explorer stopped at its 30 iterations: what happened, then what to send instead. */
 export const OUT_OF_ITERATIONS = /used its 30 tool-call turns without a report.*send a narrower brief/;
+
+/** A route that moves nothing. */
+export const NOT_ROUTED: Routed = { profile: null, effort: null };
+
+/** The request of an act no route moved. */
+export const PLAIN_REQUEST = { system: EXPLORER_SYSTEM, permissionMode: "plan", maxIterations: 30 };
+
+/** What the explorer's act carries, by what its route answers. */
+export const ROUTED_ACTS: readonly { readonly name: string; readonly route: ActRoute; readonly moved: Partial<ActRequest> }[] = [
+  { name: "runs its act on the profile and at the level its route answers", route: async () => ({ profile: "small", effort: "low" }), moved: { profile: "small", effort: "low" } },
+  { name: "runs its act at the level its route answers, on its own profile", route: async () => ({ profile: null, effort: "medium" }), moved: { effort: "medium" } },
+  { name: "runs its act on its own profile and level when its route moves nothing", route: async () => NOT_ROUTED, moved: {} },
+  { name: "runs its act on its own profile and level when its route throws", route: async () => { throw new Error("no decision model"); }, moved: {} },
+];

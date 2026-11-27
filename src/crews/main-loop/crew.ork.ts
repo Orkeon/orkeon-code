@@ -34,6 +34,8 @@
 import { CrewBuilder, publishCrew, inputs, ToolBuilder } from "../../shared/infrastructure/globals.ts";
 import {
   orkeonAgent,
+  orkeonSpawnedActRoute,
+  orkeonSpawnedAgent,
   orkeonClock,
   orkeonCompactionDeps,
   orkeonConfigStore,
@@ -78,13 +80,13 @@ const ports = {
 
 /** The read-only explorer `spawn_agent` reaches by name (docs/turn.md, "The explorer"), added to the crew by the
  *  coder's turn: the runtime runs an agent the crew holds, never the coder inside itself. */
-const explorer = () => orkeonAgent()
+const explorer = () => orkeonSpawnedAgent()
   .name(EXPLORER_CHARTER.name)
   .role(EXPLORER_CHARTER.role)
   .goal(EXPLORER_CHARTER.goal)
   .tools(charterCatalogue(EXPLORER_CHARTER))
   .maxIterations(EXPLORER_CHARTER.maxIterations)
-  .body(async (input: unknown, ctx: any) => await runExplorer(input, { llm: agentLlm(ctx), log: ctx.log }));
+  .body(async (input: unknown, ctx: any) => await runExplorer(input, { llm: agentLlm(ctx), log: ctx.log, route: orkeonSpawnedActRoute(ctx) }));
 
 const coder = orkeonAgent()
   .name("coder")

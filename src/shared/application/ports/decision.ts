@@ -2,7 +2,19 @@
 // pick of a profile. Types only, re-exported by ../ports.ts.
 
 import type { DecisionAnswers, DecisionQuestions } from "../../domain/decision/questions.ts";
-import type { RouteBounds, RouteReason } from "../../domain/agents/model-route.ts";
+import type { EffortLevel } from "../../domain/agent-policy/behavior-flags.ts";
+import type { EffortBounds, EffortPickReason, RouteBounds, RouteReason } from "../../domain/agents/model-route.ts";
+
+/** The answer of a pick of a thinking level. */
+export interface EffortPick {
+  /** The level to use: the model's pick, or the one level the bounds leave, else the runtime's fallback; null: none. */
+  value: EffortLevel | null;
+  reason: EffortPickReason;
+  /** What the decision model answered, when it answered one of the levels; else null. */
+  picked: string | null;
+  /** The probability the answer gave `picked`; else null. */
+  probability: number | null;
+}
 
 /** The answer of a profile pick. */
 export interface ProfilePick {
@@ -14,6 +26,8 @@ export interface ProfilePick {
   picked: string | null;
   /** The probability the answer gave `picked`; else null. */
   probability: number | null;
+  /** The thinking level picked in the same call, when one was asked and the reply holds one that reads. */
+  effort?: EffortPick;
 }
 
 /** A pick the runtime refused (a rung the host does not declare, a floor above the ceiling), or that failed. */
@@ -23,12 +37,14 @@ export interface ProfilePickRefusal {
 }
 
 /** The runtime's System One pick of a profile (Orkeon #460, experimental ORKEXP008): the decision model reads the
- *  request and picks a rung; under its bar (0.6) or without an answer the fallback stands. */
+ *  request and picks a rung; under its bar (0.6) or without an answer the fallback stands. Given `effort`, the same
+ *  call picks a thinking level among the host's (`Orkeon:Decision:Effort:Levels`), held to the same bar. */
 export interface ProfilePicker {
   /** Never throws nor rejects: a host without the pick (no `pick` service, or a `ctx.llm.pick` that says the host
    *  wires none), a cancelled call and a reply that does not read are null, without a word; an option the runtime
-   *  refuses, and any other failure of the call, is a refusal that carries the runtime's message. */
-  pick(request: string, options: RouteBounds): Promise<ProfilePick | ProfilePickRefusal | null>;
+   *  refuses (a bound of the level among them), and any other failure of the call, is a refusal that carries the
+   *  runtime's message. */
+  pick(request: string, options: RouteBounds, effort?: EffortBounds): Promise<ProfilePick | ProfilePickRefusal | null>;
 }
 
 /** The decision model the host's settings configure (`Orkeon:Decision`), whichever provider serves it. A use case

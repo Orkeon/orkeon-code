@@ -1,6 +1,6 @@
 // The text the agent services report: the lines of a background child, the problems of a sub-agent's answer and the
 // lines of the routing.
-import type { RouteChoiceReason, RouteStands } from "../../domain/agents/model-route.ts";
+import type { EffortChoiceReason, RouteChoiceReason, RouteStands } from "../../domain/agents/model-route.ts";
 import { NO_DECISION_MODEL_CAUSES } from "../messages.ts";
 
 // child-agent.ts
@@ -33,7 +33,7 @@ export const ROUTE_NO_LADDER =
 export const routeRefused = (message: string): string =>
   `route.agents is on and the runtime refused the pick: nothing is routed, the session's profile stands (${message})`;
 export const routeKeepsProfile = (profile: string, ladder: string): string =>
-  `route.agents is on and the session's llm.profile '${profile}' is not on the ladder (${ladder}): it stands`;
+  `route.agents is on and the profile '${profile}' the crew is launched on is not on the ladder (${ladder}): it stands`;
 export const routedLine = (crew: string, profile: string, why: string): string => `route: ${crew} on '${profile}' (${why})`;
 /** Why a choice stands, by its reason: the reasons a choice can carry, and no other. */
 export const ROUTE_WHY: Readonly<Record<RouteChoiceReason, string>> = {
@@ -53,4 +53,13 @@ export const ROUTE_STANDS: Readonly<Record<RouteStands, string>> = {
   crew: "the act stays on its crew's profile",
 };
 export const pickedWith = (picked: string, probability: number): string => `picked '${picked}' at ${probability.toFixed(2)}`;
+/** Why a thinking level stands, by its reason. */
+export const EFFORT_WHY: Readonly<Record<EffortChoiceReason, string>> = {
+  model: "the decision model's pick",
+  "single-level": "the one level left under /effort",
+  "low-confidence": "the pick was not sure enough",
+  "no-answer": "the decision model did not answer",
+};
+export const effortChosen = (level: string, why: string): string => `effort '${level}' (${why})`;
+export const effortLeft = (why: string): string => `effort left as it was (${why})`;
 export const HOST_DEFAULT_MODEL = "the host's default model";

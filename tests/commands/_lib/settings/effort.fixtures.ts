@@ -171,3 +171,40 @@ export const SHOW_DEV_STEPS_CASES: readonly ShowDevStepsCase[] = [
     text: shown("medium (default)", `not requested by the session; the host asks for 'medium' — ${MEDIUM_NOTE}${SHOW_DEV_STEPS_LINE}`),
   },
 ];
+
+/** /effort under the user settings `settings` (`llm.profile`, `agents.profile`): the profile `large` lowers `medium`,
+ *  the profile `subscription` drops it, and the host's own model takes it. */
+export function agentsProfileHarness(settings: Record<string, string>) {
+  const session = new FakeSessionStore();
+  const files = new FakeFiles();
+  files.files.set(USER_CONFIG_FILE_PATH, JSON.stringify(settings));
+  const config = createConfigStore({ files, session });
+  const reasoning = new FakeReasoningReader();
+  reasoning.byProfile = { large: LOWERED, subscription: DROPPED };
+  const run = (...tokens: string[]): Promise<CommandView> => runEffort(tokens, { session, config, reasoning });
+  return { session, reasoning, run };
+}
+
+const AGENTS_LINE = `⚠ effort, dev steps and sub-agents (the profile 'subscription'): ${MEDIUM_DROPPED_NOTE}.`;
+
+export interface AgentsProfileCase { name: string; settings: Record<string, string>; text: string }
+
+/** `/effort medium` under an `agents.profile`: the dev steps and the sub-agents run on it, the turns elsewhere. */
+export const AGENTS_PROFILE_CASES: readonly AgentsProfileCase[] = [
+  {
+    name: "warns apart for the dev steps and the sub-agents, naming their profile, when the turns stay on the host's model",
+    settings: { "agents.profile": "subscription" }, text: `${setText("medium", 40)}\n${AGENTS_LINE}`,
+  },
+  {
+    name: "warns for the turns' profile and for the agents' profile when both make something of the level",
+    settings: { "llm.profile": "large", "agents.profile": "subscription" }, text: `${setText("medium", 40)}\n${TURNS_LINE}\n${AGENTS_LINE}`,
+  },
+  {
+    name: "warns once when agents.profile names the profile the turns run on",
+    settings: { "llm.profile": "large", "agents.profile": "large" }, text: `${setText("medium", 40)}\n${TURNS_LINE}`,
+  },
+];
+
+/** `/effort show` with `medium` stored, under `agents.profile subscription` and the turns on the host's own model. */
+export const SHOW_AGENTS_PROFILE_TEXT =
+  shown("medium", `at 'medium' (act effort)\n  dev steps and sub-agents (the profile 'subscription'): ${MEDIUM_DROPPED_NOTE}`);

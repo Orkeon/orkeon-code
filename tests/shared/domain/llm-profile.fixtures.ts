@@ -37,3 +37,34 @@ export const CACHE_PROVIDERS: readonly { readonly name: string; readonly provide
   { name: "requests no prompt cache on the agent-cli provider", provider: "agent-cli", takes: false },
   { name: "requests no prompt cache on the agent-cli provider whatever its case", provider: " Agent-CLI ", takes: false },
 ];
+
+/** The profile of the agents the main turn spawns, as the main loop's input carries `agents.profile`. */
+export const AGENTS_PROFILES: readonly { readonly name: string; readonly input: Record<string, unknown>; readonly profile: string | null }[] = [
+  { name: "names the agents' profile the input carries", input: { llmProfile: "large", agentsLlmProfile: " subscription " }, profile: "subscription" },
+  { name: "names no agents' profile on an input without the field", input: { llmProfile: "large" }, profile: null },
+  { name: "names no agents' profile on a field that is not a profile name", input: { agentsLlmProfile: "a b" }, profile: null },
+];
+
+/** The input an agent the main turn spawns is built from. */
+export const SPAWNED_INPUTS: readonly { readonly name: string; readonly input: Record<string, unknown>; readonly spawned: Record<string, unknown> }[] = [
+  {
+    name: "puts a spawned agent on the agents' profile, over the turn's own",
+    input: { prompt: "hi", llmProfile: "large", agentsLlmProfile: "subscription" },
+    spawned: { prompt: "hi", llmProfile: "subscription", agentsLlmProfile: "subscription" },
+  },
+  {
+    name: "puts a spawned agent on the agents' profile when the turn runs on the host's default model",
+    input: { prompt: "hi", agentsLlmProfile: "subscription" },
+    spawned: { prompt: "hi", llmProfile: "subscription", agentsLlmProfile: "subscription" },
+  },
+  {
+    name: "leaves a spawned agent on the turn's own profile when the input names no agents' profile",
+    input: { prompt: "hi", llmProfile: "large" },
+    spawned: { prompt: "hi", llmProfile: "large" },
+  },
+  {
+    name: "drops the routing's fallback mark from a spawned agent's input, the agents' profile being no routed pick",
+    input: { llmProfile: "small", llmProfileFallback: "large", agentsLlmProfile: "subscription" },
+    spawned: { llmProfile: "subscription", agentsLlmProfile: "subscription" },
+  },
+];

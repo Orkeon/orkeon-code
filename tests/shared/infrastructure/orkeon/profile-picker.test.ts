@@ -7,7 +7,7 @@ import { createLlmProfilePicker, createServicesProfilePicker } from "../../../..
 import { FakePickService } from "../../../support/doubles/fake-pick-service.ts";
 import { FakeServiceLocator } from "../../../support/doubles/fake-script-host.ts";
 import {
-  ALL_BOUNDS, CANCELLATIONS, DEFAULT_SPELLINGS, LOCATOR_GONE, MISTYPED_PICK, MODEL_PICK, NO_PICK_WIRED, OPTIONS, REFUSED_FLOOR, REFUSED_LADDER, REQUEST, UNREAD,
+  ALL_BOUNDS, CANCELLATIONS, LEVEL_REPLY, MODEL_PICK_WITH_LEVEL, UNREAD_LEVELS, DEFAULT_SPELLINGS, LOCATOR_GONE, MISTYPED_PICK, MODEL_PICK, NO_PICK_WIRED, OPTIONS, REFUSED_FLOOR, REFUSED_LADDER, REQUEST, UNREAD,
   llmWhosePickThrows, pickerOverLlm, pickerOverServices,
 } from "./profile-picker.fixtures.ts";
 
@@ -267,4 +267,67 @@ describe("createLlmProfilePicker", () => {
       strictEqual(answer, null);
     });
   }
+});
+
+describe("createServicesProfilePicker, the thinking level", () => {
+  it("sends the bounds of the level as the effort part, in the same call", async () => {
+    // Arrange
+    const { service, picker } = pickerOverServices();
+
+    // Act
+    await picker.pick(REQUEST, { ladder: ["small", "large"] }, { max: "high" });
+
+    // Assert
+    deepStrictEqual(service.calls, [{ request: REQUEST, options: { profile: { ladder: ["small", "large"] }, effort: { max: "high" } } }]);
+  });
+
+  it("sends an effort part without a bound for a level left to the host's own", async () => {
+    // Arrange
+    const { service, picker } = pickerOverServices();
+
+    // Act
+    await picker.pick(REQUEST, { ladder: ["small", "large"] }, {});
+
+    // Assert
+    deepStrictEqual(service.calls[0].options, { profile: { ladder: ["small", "large"] }, effort: {} });
+  });
+
+  it("reads the effort part of the reply beside the profile", async () => {
+    // Arrange
+    const { service, picker } = pickerOverServices();
+    service.reply = LEVEL_REPLY;
+
+    // Act
+    const answer = await picker.pick(REQUEST, OPTIONS, { max: "high" });
+
+    // Assert
+    deepStrictEqual(answer, MODEL_PICK_WITH_LEVEL);
+  });
+
+  for (const c of UNREAD_LEVELS) {
+    it(c.name, async () => {
+      // Arrange
+      const { service, picker } = pickerOverServices();
+      service.reply = { ...LEVEL_REPLY, effort: c.effort };
+
+      // Act
+      const answer = await picker.pick(REQUEST, OPTIONS, { max: "high" });
+
+      // Assert
+      deepStrictEqual(answer, MODEL_PICK);
+    });
+  }
+});
+
+describe("createLlmProfilePicker, the thinking level", () => {
+  it("sends the bounds of the level to ctx.llm.pick as the effort part", async () => {
+    // Arrange
+    const { service, picker } = pickerOverLlm();
+
+    // Act
+    await picker.pick(REQUEST, { ladder: ["small", "large"] }, { max: "medium" });
+
+    // Assert
+    deepStrictEqual(service.calls[0].options, { profile: { ladder: ["small", "large"] }, effort: { max: "medium" } });
+  });
 });

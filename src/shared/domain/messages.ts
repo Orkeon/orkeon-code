@@ -63,8 +63,17 @@ export const LLM_PROFILE_DOC: ConfigKeyDoc = {
     "The host profile the agents of every crew run on: an LLM profile (Llm:Profiles:<name>) or a decision " +
     "profile (Orkeon:Decision:Profiles:<name>, a decision model such as Jev in front of one), e.g. 'guarded'. " +
     "A name the host does not declare fails the crew's load, listing the profiles it knows. Omitted = the host's " +
-    "default model.",
+    "default model. agents.profile moves every agent but the main turn's onto another profile.",
   consumedBy: "/assistant, /review, /commit, /advisor, /memory admit, the dev steps and every other command that launches a crew (the model its agents run on)",
+};
+
+export const AGENTS_PROFILE_DOC: ConfigKeyDoc = {
+  description:
+    "The host profile of every agent but the main turn's: the crews the commands launch (the dev steps, /review, " +
+    "/commit, /advisor, /compact and the others) and the explorer the main turn spawns, e.g. 'subscription' while " +
+    "the turns of /assistant stay on llm.profile or the host's default model. A name as llm.profile takes them; " +
+    "one the host does not declare fails the crew's load, or the turn that spawns. Omitted = they follow llm.profile.",
+  consumedBy: "/assistant (the agents its turn spawns), /review, /commit, /advisor, /memory admit, the dev steps and every other command that launches a crew other than the main loop (the model their agents run on)",
 };
 
 export const COMMIT_REQUIRE_CONFIRM_DOC: ConfigKeyDoc = {
@@ -134,7 +143,15 @@ export const ROUTE_AGENTS_DOC: ConfigKeyDoc = {
     "fits the command; never one above the session's llm.profile (without one, any rung), and the floors of " +
     ".orkeon/route-rules.json apply. A rung the host does not declare leaves the session's profile. " +
     "Needs a decision provider on the host; without one the session's profile stands. Omitted = 'off'.",
-  consumedBy: "/route, and the commands that launch a crew routed by it (/dev-spec, /dev-change, /dev-plan, /dev-learn, /review, /analyze, /commit, /init, /init-verifiers)",
+  consumedBy: "/route, the commands that launch a crew routed by it (/dev-spec, /dev-change, /dev-plan, /dev-learn, /review, /analyze, /commit, /init, /init-verifiers) and the explorer a turn spawns",
+};
+
+export const ROUTE_EFFORT_DOC: ConfigKeyDoc = {
+  description:
+    "'on' lets the pick of route.agents choose the thinking level too, in the same call: one of the host's levels " +
+    "(Orkeon:Decision:Effort:Levels), never above the one /effort stored. A level it is not sure of leaves the one " +
+    "in place. Asks nothing unless route.agents is on. Omitted = 'off'.",
+  consumedBy: "/route, the launches that forward /effort (/dev-spec, /dev-change, /dev-plan) and the acts route.agents routes",
 };
 
 export const ROUTE_LADDER_DOC: ConfigKeyDoc = {

@@ -4,7 +4,7 @@
 // level stored stays the one asked, since the ladder follows it and the model may change.
 import type { Chooser, ReasoningReader } from "../../../shared/application/ports.ts";
 import type { ConfigStore } from "../../../shared/application/config-store.ts";
-import { readLlmProfile } from "../../../shared/application/llm-profile.ts";
+import { readCrewProfile, readLlmProfile } from "../../../shared/application/llm-profile.ts";
 import type { SessionIo } from "../../../shared/application/session-io.ts";
 import {
   DEFAULT_EFFORT, EFFORT_LEVELS as LEVELS, EFFORT_MAX_ITERATIONS, providerEffort,
@@ -17,7 +17,7 @@ import { optionsOf } from "./choices.ts";
 import {
   EFFORT_CHOICE, EFFORT_UNCHANGED, NONE_SENT, THINKING_NOT_REQUESTED, actIterations, effortDropped, effortLowered,
   effortSet, effortShown, effortUnchangedNoneStored, effortUnchecked, effortWarning, effortWarningDevSteps, hostAsks, itTakes, modelTakes, sentAs,
-  thinkingAt, thinkingDevSteps, unknownEffort,
+  THE_HOSTS_MODEL, theProfile, thinkingAt, thinkingDevSteps, unknownEffort,
 } from "./messages.ts";
 import { markedDefault as defaultLevel } from "../messages.ts";
 
@@ -27,7 +27,7 @@ export interface EffortDeps {
   chooser?: Chooser;
   /** What the session's model takes and what a level becomes on it; absent, or answering nothing: nothing is said. */
   reasoning?: ReasoningReader;
-  /** Where the session's `llm.profile` is read: under a profile, its model is the one judged. */
+  /** Where the session's `llm.profile` and `agents.profile` are read: under a profile, its model is the one judged. */
   config?: Pick<ConfigStore, "readValue" | "readFile">;
 }
 
@@ -42,13 +42,21 @@ async function sessionTarget(deps: TargetDeps): Promise<ReasoningTarget> {
   return { profile, model: (model ?? "").trim() };
 }
 
-/** The host's own model: under a /model override, the dev steps and the sub-agents still run on it. */
-const HOST_TARGET: ReasoningTarget = { profile: null, model: "" };
-
-/** Whether the turns run on a /model override: no profile, which would win over it, and a model named. */
-function overridden(target: ReasoningTarget): boolean {
-  return target.profile === null && target.model !== "";
+/** What the dev steps and the sub-agents run on: the session's `agents.profile`, else its `llm.profile`, else the
+ *  host's own model; never the /model override, which reaches the turns alone. */
+async function agentsTarget(deps: TargetDeps): Promise<ReasoningTarget> {
+  const profile = deps.config === undefined ? null : (await readCrewProfile(deps.config)).profile;
+  return { profile, model: "" };
 }
+
+/** Whether the dev steps and the sub-agents run on something else than the turns: another profile, or the host's
+ *  own model under a /model override. */
+function apart(turns: ReasoningTarget, agents: ReasoningTarget): boolean {
+  return turns.profile !== agents.profile || (turns.profile === null && turns.model !== "");
+}
+
+/** How a line names what the dev steps and the sub-agents run on. */
+const named = (agents: ReasoningTarget): string => (agents.profile === null ? THE_HOSTS_MODEL : theProfile(agents.profile));
 
 /** What to say of an effort that does not go as asked; empty when it does, or when the runtime did not say. */
 export function effortNote(report: EffortReport | null, capabilities: ReasoningCapabilities | null): string {
@@ -70,25 +78,28 @@ export function effortWarningNote(report: EffortReport | null, capabilities: Rea
 
 /** The warning lines for the effort the session stored, on what it reaches; empty when no level is stored or the
  *  level goes out as asked, checked or not. The turns of /assistant run on the session's target; under a /model
- *  override the dev steps and the sub-agents still run on the host's own model, so that one is judged too, and
- *  said when its line differs. /model says it after a switch. */
+ *  override the dev steps and the sub-agents still run on the host's own model, and under `agents.profile` on that
+ *  profile, so that one is judged too, and said when its line differs. /model says it after a switch. */
 export async function storedEffortWarning(deps: TargetDeps & Pick<EffortDeps, "reasoning">): Promise<string> {
   const { reasoning } = deps;
   if (reasoning === undefined) return "";
   const level = providerEffort(await deps.session.readState(EFFORT_STATE_KEY).catch(() => null));
   if (level === undefined) return "";
-  const target = await sessionTarget(deps);
-  const targets = overridden(target) ? [target, HOST_TARGET] : [target];
+  const [target, agents] = await Promise.all([sessionTarget(deps), agentsTarget(deps)]);
+  const targets = apart(target, agents) ? [target, agents] : [target];
   const [turns, devSteps] = targets.map((each) => effortWarningNote(reasoning.effort(each, level), reasoning.capabilities(each)));
   const lines = [turns === "" ? "" : effortWarning(turns)];
-  if (devSteps !== undefined && devSteps !== "" && devSteps !== turns) lines.push(effortWarningDevSteps(devSteps));
+  if (devSteps !== undefined && devSteps !== "" && devSteps !== turns) lines.push(effortWarningDevSteps(devSteps, named(agents)));
   return lines.filter((line) => line !== "").join("\n");
 }
 
 /** The thinking line of `show`: the level asked, then what does not go as asked, else the levels the model takes.
- *  Under a /model override, a second line for the host's own model, which the dev steps and the sub-agents keep,
- *  when the level (the one stored, else the host's own) does not go as asked there and not the way the first says. */
-function thinkingShown(stored: EffortLevel | undefined, reasoning: ReasoningReader | undefined, target: ReasoningTarget): string {
+ *  When the dev steps and the sub-agents run on something else (the host's own model under a /model override, the
+ *  profile of `agents.profile`), a second line for it, when the level (the one stored, else the host's own) does not
+ *  go as asked there and not the way the first says. */
+function thinkingShown(
+  stored: EffortLevel | undefined, reasoning: ReasoningReader | undefined, target: ReasoningTarget, agents: ReasoningTarget,
+): string {
   const capabilities = reasoning?.capabilities(target) ?? null;
   const takes = capabilities !== null && capabilities.known ? `; ${modelTakes(capabilities.model, capabilities.efforts)}` : "";
   // With no level stored, the host's own `Llm:Thinking:Effort` goes out on every call all the same.
@@ -96,9 +107,9 @@ function thinkingShown(stored: EffortLevel | undefined, reasoning: ReasoningRead
   const note = effortNote(report, capabilities);
   const asked = stored !== undefined ? thinkingAt(stored) : report === null ? THINKING_NOT_REQUESTED : hostAsks(report.asked);
   const line = asked + (note === "" ? takes : ` — ${note}`);
-  if (reasoning === undefined || !overridden(target)) return line;
-  const hostNote = effortNote(reasoning.effort(HOST_TARGET, stored ?? null), reasoning.capabilities(HOST_TARGET));
-  return hostNote === "" || hostNote === note ? line : line + thinkingDevSteps(hostNote);
+  if (reasoning === undefined || !apart(target, agents)) return line;
+  const agentsNote = effortNote(reasoning.effort(agents, stored ?? null), reasoning.capabilities(agents));
+  return agentsNote === "" || agentsNote === note ? line : line + thinkingDevSteps(agentsNote, named(agents));
 }
 
 /** What a level of the panel becomes on the session's model, after its iterations; empty when it goes as asked. */
@@ -133,7 +144,8 @@ export async function runEffort(tokens: string[], deps: EffortDeps): Promise<Com
     }
     const level = stored ?? defaultLevel(DEFAULT_EFFORT);
     const ladder = LEVELS.map((l) => `${l}=${EFFORT_MAX_ITERATIONS[l]}`).join(", ");
-    return { text: effortShown(level, ladder, thinkingShown(providerEffort(stored), deps.reasoning, target), LEVELS) };
+    const thinking = thinkingShown(providerEffort(stored), deps.reasoning, target, await agentsTarget(deps));
+    return { text: effortShown(level, ladder, thinking, LEVELS) };
   }
   if (!LEVELS.includes(requested as (typeof LEVELS)[number])) {
     return { text: unknownEffort(requested, LEVELS) };

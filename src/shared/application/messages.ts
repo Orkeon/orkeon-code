@@ -6,6 +6,10 @@ export const llmProfileRejected = (key: string, problem: string): string =>
   `${key}: ${problem}; the host's default model this launch`;
 export const llmProfileUnreadable = (key: string, why: string): string =>
   `${key} could not be read (${why}): the host's default model this launch`;
+export const agentsProfileRejected = (key: string, problem: string): string =>
+  `${key}: ${problem}; the agents follow llm.profile this launch`;
+export const agentsProfileUnreadable = (key: string, why: string): string =>
+  `${key} could not be read (${why}): the agents follow llm.profile this launch`;
 export const SESSION_DEFAULT_VIA_MODE = "session default via /mode";
 
 // Shared by several application folders

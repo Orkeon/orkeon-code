@@ -14,6 +14,7 @@ import { FakeCrewHost } from "../../support/doubles/fake-crew-host.ts";
 import { FakeDecisionModel } from "../../support/doubles/fake-decision-model.ts";
 import { FakeFiles } from "../../support/doubles/fake-files.ts";
 import { FakeLogger } from "../../support/doubles/fake-logger.ts";
+import type { ProfilePick } from "../../../src/shared/application/ports.ts";
 import { FakeProfilePicker } from "../../support/doubles/fake-profile-picker.ts";
 import { FakePermissionRules } from "../../support/doubles/fake-permission-rules.ts";
 import { FakeSessionStore } from "../../support/doubles/fake-session-store.ts";
@@ -77,6 +78,8 @@ export function routedCrewDeps(settings: Record<string, string>) {
 
 export const NOT_A_PROFILE_WARNING = "llm.profile: 'a b' holds a space: a profile is one name, as the host's settings spell it; the host's default model this launch";
 
+export const NOT_AN_AGENTS_PROFILE_WARNING = "agents.profile: 'a b' holds a space: a profile is one name, as the host's settings spell it; the agents follow llm.profile this launch";
+
 export const CHAIN_LIMIT_ERROR = "chain depth 8 reached (MaxChainDepth 8, /dev-batches)";
 
 /** The host's refusal of an exclusive launch while the crew runs (Orkeon #239). */
@@ -111,6 +114,7 @@ export const UNREADABLE_EXTRA_TOOLS_WARNINGS = [
   `tools.extra could not be read (${WORKSPACE}/.orkeon/config.json could not be read or parsed): no extra tool this turn`,
   "permission rule 'deny create_issue' is dormant: tools.extra does not list its tool, the gate does not get it",
   `llm.profile could not be read (${WORKSPACE}/.orkeon/config.json could not be read or parsed): the host's default model this launch`,
+  `agents.profile could not be read (${WORKSPACE}/.orkeon/config.json could not be read or parsed): the agents follow llm.profile this launch`,
 ];
 
 /** A tools.extra with a tool registered, one not, a bad access, a second entry of a name and a built-in tool. */
@@ -172,6 +176,7 @@ export const UNREADABLE_VOICE_WARNINGS = [
   "tools.extra could not be read (config.json unreadable): no extra tool this turn",
   "voice.reply could not be read (config.json unreadable): the answer is not read aloud this turn",
   "llm.profile could not be read (config.json unreadable): the host's default model this launch",
+  "agents.profile could not be read (config.json unreadable): the agents follow llm.profile this launch",
 ];
 
 /** A session where /mode plan was run, with the stores it holds. */
@@ -206,3 +211,12 @@ export const CHAT_LAUNCH_CASES: readonly { name: string; reply?: unknown; chat: 
   { name: "hands the main loop no chat family when chat_accounts fails", reply: new Error("sign-in required"), chat: false },
   { name: "hands the main loop no chat family on a host without chat_accounts", chat: false },
 ];
+
+/** A launch whose crew forwards /effort: the routing may pick its thinking level. */
+export const THINKING_LAUNCH = { crew: "dev-plan", brief: "/dev-plan invoice-export", thinks: true };
+
+/** The pick of `small` with the level `low` answered in the same call. */
+export const PICK_WITH_LEVEL: ProfilePick = {
+  value: "small", reason: "model", picked: "small", probability: 0.9,
+  effort: { value: "low", reason: "model", picked: "low", probability: 0.8 },
+};

@@ -7,10 +7,15 @@
 import { PROFILE_NAME_EXPECTED, profileHoldsColon, profileHoldsSpace, profileIsAuto } from "./messages.ts";
 
 export const LLM_PROFILE_CONFIG_KEY = "llm.profile";
+/** The profile of every agent but the main turn's: the crews the commands launch and the explorer the main turn
+ *  spawns. Omitted, they follow `llm.profile`. */
+export const AGENTS_PROFILE_CONFIG_KEY = "agents.profile";
 /** The name the runtime reserves for its own pick of a profile per task (Orkeon #434), in any case. */
 export const RESERVED_AUTO_PROFILE = "auto";
 /** The field of a crew input that carries the profile's name. */
 export const LLM_PROFILE_INPUT_KEY = "llmProfile";
+/** The field of the main loop's input that carries `agents.profile`: the profile of the agents its turn spawns. */
+export const AGENTS_PROFILE_INPUT_KEY = "agentsLlmProfile";
 /** The field of a crew input that marks `llmProfile` as picked by the routing, and carries the session's own profile
  *  ("" for the host's default model): what the crew runs on when the host declares no profile of the routed name. */
 export const LLM_PROFILE_FALLBACK_INPUT_KEY = "llmProfileFallback";
@@ -45,6 +50,21 @@ export function llmProfileProblem(value: string): string | undefined {
 export function llmProfileOf(input: Readonly<Record<string, unknown>>): string | null {
   const value = input[LLM_PROFILE_INPUT_KEY];
   return typeof value === "string" && llmProfileProblem(value) === undefined ? value.trim() : null;
+}
+
+/** The profile the main loop's input names for the agents its turn spawns, or null when it names none. */
+export function agentsProfileOf(input: Readonly<Record<string, unknown>>): string | null {
+  const value = input[AGENTS_PROFILE_INPUT_KEY];
+  return typeof value === "string" && llmProfileProblem(value) === undefined ? value.trim() : null;
+}
+
+/** The input an agent the main turn spawns is built from: the turn's own, its profile replaced by the one
+ *  `agents.profile` names; the turn's own, untouched, when it names none. */
+export function spawnedAgentInput(input: Readonly<Record<string, unknown>>): Readonly<Record<string, unknown>> {
+  const profile = agentsProfileOf(input);
+  if (profile === null) return input;
+  const { [LLM_PROFILE_FALLBACK_INPUT_KEY]: _routed, ...rest } = input;
+  return { ...rest, [LLM_PROFILE_INPUT_KEY]: profile };
 }
 
 /** The host providers that take no prompt-cache request: the runtime says at each call that it ignores one (the

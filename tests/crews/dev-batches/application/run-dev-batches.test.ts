@@ -365,7 +365,7 @@ describe("runDevBatches — back from a batch", () => {
     markDone(files, "F1");
 
     // Act
-    await run({ after: ["✓ committed 1111111 on feat/demo: 2 file(s)"] }, { ...deps, reviewerFor: () => llm, route: async () => "small" });
+    await run({ after: ["✓ committed 1111111 on feat/demo: 2 file(s)"] }, { ...deps, reviewerFor: () => llm, route: async () => ({ profile: "small", effort: null }) });
 
     // Assert
     strictEqual(llm.acts[0].request.profile, "small");

@@ -4,7 +4,10 @@
 // the crew itself) and the session's own profile, the ceiling; under its bar, or without an answer, the fallback
 // stands. This module holds what Orkeon Code gives that pick and what it keeps of the answer. The runtime frames the
 // request and cuts it to its own size: this module sends one lead line and the command whole. Routing picks a profile,
-// it forbids nothing. Pure.
+// it forbids nothing. With `route.effort` on, the same call picks the thinking level too, among the host's levels and
+// never above the one `/effort` stored (ADR 0039). Pure.
+import { isEffortLevel } from "../agent-policy/behavior-flags.ts";
+import type { EffortLevel } from "../agent-policy/behavior-flags.ts";
 import { llmProfileProblem } from "../llm-profile.ts";
 import { ladderNeedsTwo, ladderRepeats } from "./messages.ts";
 import { routeStateText } from "./prompts.ts";
@@ -13,6 +16,8 @@ import { routeStateText } from "./prompts.ts";
 export const ROUTE_AGENTS_CONFIG_KEY = "route.agents";
 /** The setting that orders the profiles, cheapest first, comma-separated. */
 export const ROUTE_LADDER_CONFIG_KEY = "route.ladder";
+/** The setting that lets the pick choose the thinking level with the profile: `on`, anything else is off. */
+export const ROUTE_EFFORT_CONFIG_KEY = "route.effort";
 /** The ladder of the example settings: their two profiles. */
 export const DEFAULT_LADDER: readonly string[] = ["small", "large"];
 /** The choices `/route why` shows. */
@@ -32,6 +37,44 @@ export type RouteChoiceReason = Exclude<RouteReason, RouteNotAskedReason>;
 export const ROUTE_STANDS_KINDS = ["session", "floor", "default", "crew"] as const;
 export type RouteStands = typeof ROUTE_STANDS_KINDS[number];
 
+/** The reasons of the runtime's pick of a thinking level, as it spells them. */
+export const EFFORT_PICK_REASONS = ["model", "low-confidence", "no-answer", "circuit-off", "single-level"] as const;
+/** Why a pick of a thinking level answers what it answers. */
+export type EffortPickReason = typeof EFFORT_PICK_REASONS[number];
+/** The reasons a choice of a level can carry: with the circuit off nothing was asked, and nothing is kept. */
+export type EffortChoiceReason = Exclude<EffortPickReason, "circuit-off">;
+
+/** The thinking level a pick answered beside the profile. */
+export interface EffortChoice {
+  /** The level the pick answers: the model's, the one level left, else what the runtime falls back on (null: none). */
+  level: EffortLevel | null;
+  reason: EffortChoiceReason;
+  /** What the model picked and the probability its answer gave it, when it answered one of the levels. */
+  picked?: string;
+  probability?: number;
+}
+
+/** What the pick of a thinking level is given: the highest level it may answer; left out, the host's highest. */
+export interface EffortBounds {
+  max?: EffortLevel;
+}
+
+/** The bounds of a pick of a thinking level: never above the level `/effort` stored; any of the host's without one. */
+export function effortBounds(stored: EffortLevel | undefined): EffortBounds {
+  return stored === undefined ? {} : { max: stored };
+}
+
+/** Whether a pick of a level is a decision (the model's pick, or the one level the bounds leave), not a fallback. */
+export function effortDecided(reason: EffortPickReason): boolean {
+  return reason === "model" || reason === "single-level";
+}
+
+/** The level a choice moves a launch or an act to: the one it decided; null when it decided none, and the level in
+ *  place stands. */
+export function effortMoved(choice: EffortChoice | undefined): EffortLevel | null {
+  return choice !== undefined && effortDecided(choice.reason) ? choice.level : null;
+}
+
 export interface RouteChoice {
   /** The profile the crew, or the act, runs on; null: the host's default model, as without routing. */
   profile: string | null;
@@ -41,6 +84,8 @@ export interface RouteChoice {
   probability?: number;
   /** What stands, when the reason is no decision. */
   stands?: RouteStands;
+  /** The thinking level picked in the same call, with `route.effort` on. */
+  effort?: EffortChoice;
 }
 
 /** The floors of a project: a profile of the ladder at least, for a path prefix or for a crew. */
@@ -212,13 +257,28 @@ function choiceReason(reason: unknown): reason is RouteChoiceReason {
   return (ROUTE_REASONS as readonly unknown[]).includes(reason) && !routeNotAsked(reason as RouteReason);
 }
 
+/** The choice of a level a stored record holds; undefined when a field is not of its type. */
+function effortChoiceOf(raw: unknown): EffortChoice | undefined {
+  if (typeof raw !== "object" || raw === null || Array.isArray(raw)) return undefined;
+  const { level, reason, picked, probability } = raw as Record<string, unknown>;
+  if (level !== null && !isEffortLevel(level)) return undefined;
+  if (!(EFFORT_PICK_REASONS as readonly unknown[]).includes(reason) || reason === "circuit-off") return undefined;
+  if (picked !== undefined && typeof picked !== "string") return undefined;
+  if (probability !== undefined && (typeof probability !== "number" || !Number.isFinite(probability))) return undefined;
+  const choice: EffortChoice = { level: level as EffortLevel | null, reason: reason as EffortChoiceReason };
+  if (picked !== undefined) choice.picked = picked;
+  if (probability !== undefined) choice.probability = probability;
+  return choice;
+}
+
 /** A record as read; null when a field is not of its type (a crew or a pick that is no name, a probability that is no
  *  finite number, a reason or a `stands` no choice carries). One kept before the runtime's pick carries its
  *  probability as `confidence`; one of them with the reason `floor` is dropped: that shape kept `floor` for an act left
- *  on a rule's floor without a sure pick, which the reason no longer says. */
+ *  on a rule's floor without a sure pick, which the reason no longer says. A choice of a level that
+ *  does not read is left out, the record kept. */
 function recordOf(raw: unknown): RouteRecord | null {
   if (typeof raw !== "object" || raw === null || Array.isArray(raw)) return null;
-  const { crew, profile, reason, picked, probability, stands, confidence } = raw as Record<string, unknown>;
+  const { crew, profile, reason, picked, probability, stands, confidence, effort } = raw as Record<string, unknown>;
   const old = "confidence" in raw && probability === undefined;
   if (typeof crew !== "string" || !choiceReason(reason) || (old && reason === "floor")) return null;
   if (profile !== null && typeof profile !== "string") return null;
@@ -230,6 +290,8 @@ function recordOf(raw: unknown): RouteRecord | null {
   if (picked !== undefined) record.picked = picked;
   if (chance !== undefined) record.probability = chance;
   if (stands !== undefined) record.stands = stands as RouteStands;
+  const level = effortChoiceOf(effort);
+  if (level !== undefined) record.effort = level;
   return record;
 }
 

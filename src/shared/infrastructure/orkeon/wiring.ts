@@ -36,7 +36,7 @@ import { actRoute } from "../../application/agents/route-agent.ts";
 import { contextPruning } from "../../application/compaction/prune-context.ts";
 import { prunedLlm } from "../../application/compaction/pruned-llm.ts";
 import type { ActRoute } from "../../application/agents/route-agent.ts";
-import { llmProfileOf, llmSessionProfileOf } from "../../domain/llm-profile.ts";
+import { llmProfileOf, llmSessionProfileOf, spawnedAgentInput } from "../../domain/llm-profile.ts";
 import type { AgentFactories } from "./llm-profile.ts";
 import { createAnchorIndex, createCodeIndex, createCostIndex } from "./code-index.ts";
 import { createFiles } from "./files.ts";
@@ -155,6 +155,11 @@ export const orkeonAgentFactories = (): AgentFactories => {
  *  one: where every composition root starts an agent (orkeon/llm-profile.ts). */
 export const orkeonAgent = (input: Readonly<Record<string, unknown>> = inputs()): any => profiledAgent(input, orkeonAgentFactories());
 
+/** An agent builder for an agent the main turn spawns (its explorer): on the profile `agents.profile` names
+ *  (`agentsLlmProfile` of the input), else on the turn's own, as orkeonAgent. */
+export const orkeonSpawnedAgent = (input: Readonly<Record<string, unknown>> = inputs()): any =>
+  profiledAgent(spawnedAgentInput(input), orkeonAgentFactories());
+
 /** The route of a crew's sub-agent acts (a reviewer's, the auditor's): the runtime's pick (`ctx.llm.pick`) under the
  *  session's profile, an act moved only off the crew's own profile and only to a profile the host declares. `ctx` is
  *  the body's (its `llm` and `log`); `tools` and `root` the body's too when it runs under a working root of its own. */
@@ -171,6 +176,12 @@ export const orkeonActRoute = (
   ),
   orkeonAgentFactories(),
 );
+
+/** The route of the act of an agent the main turn spawns (its explorer): orkeonActRoute between the profiles such an
+ *  agent is built on (`agents.profile`, else the turn's own), so the pick never answers a rung above it. */
+export const orkeonSpawnedActRoute = (
+  ctx: { llm: Partial<Pick<LlmFacade, "pick">>; log: Pick<Logger, "info" | "warn"> }, input: Readonly<Record<string, unknown>> = inputs(),
+): ActRoute => orkeonActRoute(ctx, Tools, undefined, spawnedAgentInput(input));
 
 /** `llm` with the pruning of its acts' tool loops (`compaction.prune`, shared/application/compaction/pruned-llm.ts):
  *  the acts of the dev crews' sub-agents and roles. `log`, `tools` and `root` are the body's, as for orkeonActRoute.

@@ -65,17 +65,19 @@ function defaultProvider({ profile }: AgentFactories): string | undefined {
   }
 }
 
-/** `route`, answering null for a profile the host does not declare (or on a host without `llm`). */
+/** `route`, moving no act to a profile the host does not declare (or on a host without `llm`); the level it answers
+ *  stands. */
 export function declaredRoute(route: ActRoute, { profile, refusal }: Pick<AgentFactories, "profile" | "refusal">): ActRoute {
   return async (task) => {
-    const name = await route(task);
-    if (name === null || profile === undefined) return null;
+    const routed = await route(task);
+    if (routed.profile === null) return routed;
+    if (profile === undefined) return { ...routed, profile: null };
     try {
-      profile(name);
-      return name;
+      profile(routed.profile);
+      return routed;
     } catch (error) {
       if (!refusal(error)) throw error;
-      return null;
+      return { ...routed, profile: null };
     }
   };
 }

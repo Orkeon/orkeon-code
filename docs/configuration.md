@@ -136,6 +136,11 @@ on the Ollama service, or the model silently loses its instructions and its tool
   guarded`: every crew a command launches builds its agents on it, the child agents of the dev steps included, and
   the launch log and `/config list` show it.
 - Without the key nothing changes: the agents run on the host's default model, as before.
+- The session key `agents.profile` names the profile of every agent but the main turn's, `/config set agents.profile
+  subscription`: the crews the commands launch (the dev steps and their child agents, `/review`, `/commit`,
+  `/advisor`, `/compact` and the others) and the explorer the main turn spawns. The turns of `/assistant` stay on
+  `llm.profile`, else on the host's default model: the conversation runs on one model, the agents on another.
+  Without the key the agents follow `llm.profile`. The launch log of a turn shows it as `agentsLlmProfile`.
 - A name the host does not declare fails the crew's load, its error listing the profiles the host knows.
 - A plain LLM profile works the same way, with no decision model in front.
 - The per-call model of `/advisor` (`advisor.model`) still applies on top of the profile.
@@ -183,6 +188,9 @@ the file sets. A key linked to an identity refuses every call that does not name
   Anthropic one, its default profile on `ANTHROPIC_API_KEY`, plus a profile `subscription` on `agent-cli` whose
   `Fallback` is `default`. Copy it, then `/config set llm.profile subscription`: every crew a command launches builds
   its agents on it.
+- To keep the conversation on the key and send the agents alone to the subscription, set `/config set agents.profile
+  subscription` instead and leave `llm.profile` unset: the turns of `/assistant` run on the default profile, the
+  explorer they spawn and every crew a command launches on the CLI.
 - The example needs `ANTHROPIC_API_KEY` as well: a session starts on the default profile, the fallback lands on it,
   and the host's own services (planner, Guardian, judges) stay on it.
 - With no key at all, write `"Provider": "agent-cli"` in the `Llm` section itself, with no `Fallback`.
@@ -348,6 +356,7 @@ Inside the REPL, `/config` lists, reads and writes the session keys, stored in t
 | `compaction.trigger` | the window minus the room one turn needs | the token count at which the automatic compaction runs |
 | `compaction.prune` | `off` | the host's decision model prunes the stale tool results of a turn in progress and of the acts of the dev crews |
 | `route.agents` | `off` | at each launch of a crew, the host's decision model picks the cheapest profile of `route.ladder` that fits the command; inside a crew, the same for the act of a reviewer or of the auditor |
+| `route.effort` | `off` | the pick of `route.agents` chooses the thinking level too, in the same call: one of the host's levels, never above the one `/effort` stored |
 | `route.ladder` | `small,large` | the host's LLM profiles the routing picks among, cheapest first |
 | `skills.suggest` | `off` | the host's decision model adds to a turn the project's skills that fit its request |
 | `dev.workDir` | the repository pack's `layout.work`, else `workbench` | the work folder the dev steps read and write, relative to the checkout |
@@ -358,6 +367,7 @@ Inside the REPL, `/config` lists, reads and writes the session keys, stored in t
 | `paths.deny`, `paths.allow` | | the paths no tool of the model reads or writes, and the only paths it may reach ([permissions](permissions.md#the-path-lists)) |
 | `review.lenses` | all three | the lenses of `/review`, comma-separated among `correctness`, `security` and `style` |
 | `llm.profile` | the host's default model | the host profile every crew's agents run on ([the LLM](#the-llm)) |
+| `agents.profile` | `llm.profile` | the host profile of every agent but the main turn's: the crews the commands launch and the explorer a turn spawns ([the LLM](#the-llm)) |
 | `advisor.model` | the session's own, which makes it a self-review | the model of `/advisor`'s second opinion |
 | `commit.requireConfirm` | `true` | `false` lets `/commit` run without its confirmation, as `--yes` does |
 | `spinnerVerbs` | | |
@@ -370,6 +380,7 @@ How some of them are set:
 /config set compaction.prune on
 /route on
 /config set route.ladder small,large
+/config set route.effort on
 /skills suggest on
 /config set dev.workDir backstage/tasks
 /config set memory.dir docs/memory
@@ -382,6 +393,11 @@ What the table leaves out:
 - **`compaction.prune`** needs a [decision provider](decision-models-local.md) on the host; the mechanism is in
   [How a turn runs](turn.md#compaction-and-memory).
 - **`route.agents`** is also set by `/route on`; see [Routing a crew to a profile](turn.md#routing-a-crew-to-a-profile).
+- **`route.effort`** asks nothing unless `route.agents` is on. The levels it picks among are the host's
+  (`Orkeon:Decision:Effort:Levels`; `low`, `medium`, `high` when the host lists none).
+- **A ladder of four rungs**: [`config/appsettings.anthropic.example.json`](../config/appsettings.anthropic.example.json)
+  declares the profiles `haiku`, `sonnet`, `opus` and `fable`; `/config set route.ladder haiku,sonnet,opus,fable`
+  orders them for the routing.
 - **Both need the runtime of the pin**, hence the source mode: in the tool and docker modes they are read and do
   nothing, without a warning of their own, a host with no decision model still getting the usual one
   ([the modes](getting-started.md#source-mode-an-orkeon-checkout)).
@@ -397,6 +413,7 @@ What the table leaves out:
 - **`paths.deny` and `paths.allow`** are comma-separated, in any spelling of the host. They are matched on the
   virtual spelling, a deny winning, and applied at the next start.
 - **`llm.profile`** names an LLM profile, or a decision profile with Jev in front.
+- **`agents.profile`** takes the same names. It moves the agents and leaves the turns of `/assistant` where they are.
 
 ### Commands that change how the next turns run
 
@@ -427,6 +444,9 @@ else the host's own model.
   does not go as asked there, and not the way the first line says, a second line says so, `⚠ effort, dev steps and sub-agents (the host's model):
   …`. `/effort show` says the same under its thinking line (`dev steps and sub-agents (the host's model): …`), for
   the stored level, else for the host's own.
+- Under an `agents.profile` the dev steps and the sub-agents run on that profile: the second line judges it and names
+  it, `⚠ effort, dev steps and sub-agents (the profile '<name>'): …`, whenever it is not the profile the turns run on.
+  `/config set agents.profile <name>` gives the warning as `/config set llm.profile` does.
 - The panel of a bare `/effort` marks each level that would be sent as another one, or not at all.
 - `/model` gives the same warnings after a switch or a reset, and `/config unset llm.profile` when the turns go
   back to that model. When the panel of `/model` changes the model and the effort together, only the new level is

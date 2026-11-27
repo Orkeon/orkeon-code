@@ -43,7 +43,7 @@ defineAsyncCommand({
     for (const line of start.lines) ctx.writeLine(line);
     const details = { ruleSets: start.sets.join(" "), rules: start.rules, hooks: start.hooks.length };
     return launchCrew(
-      await withRoutedProfile({ crews: createCrewHost(ctx.services), log: ctx.log }, orkeonConfigStore(), orkeonRouting(ctx.services), { crew: "dev-plan", brief: String(ctx.command?.rawInput ?? "") }), "dev-plan",
+      await withRoutedProfile({ crews: createCrewHost(ctx.services), log: ctx.log }, orkeonConfigStore(), orkeonRouting(ctx.services), { crew: "dev-plan", brief: String(ctx.command?.rawInput ?? ""), thinks: true }), "dev-plan",
       { ...parsed.args, ...start.input, effort: await storedEffort(deps.session) }, details,
     );
   },

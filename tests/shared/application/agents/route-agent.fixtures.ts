@@ -1,8 +1,10 @@
 // The ports of shared/application/agents/route-agent.ts over fakes, and what the runtime's pick answers. Every answer
 // played here is one the runtime can give for the bounds of its case: a floor or a ceiling with a pick needs two rungs
 // or more between the bounds, a floor with no pick is the one rung a rule leaves.
-import type { ProfilePick, ProfilePickRefusal } from "../../../../src/shared/application/ports.ts";
-import type { RouteBounds, RouteReason } from "../../../../src/shared/domain/agents/model-route.ts";
+import type { EffortPick, ProfilePick, ProfilePickRefusal } from "../../../../src/shared/application/ports.ts";
+import type { Routed } from "../../../../src/shared/application/agents/route-agent.ts";
+import type { EffortLevel } from "../../../../src/shared/domain/agent-policy/behavior-flags.ts";
+import type { EffortBounds, RouteBounds, RouteReason } from "../../../../src/shared/domain/agents/model-route.ts";
 import { FakeConfigStore } from "../../../support/doubles/fake-config-store.ts";
 import { FakeDecisionModel } from "../../../support/doubles/fake-decision-model.ts";
 import { FakeFiles } from "../../../support/doubles/fake-files.ts";
@@ -65,7 +67,7 @@ export const NO_MODEL_WARNING =
   "off by --no-decision or Orkeon:Decision:Enabled false: check Orkeon:Decision:Provider and Orkeon:Decision:Enabled, " +
   "then the key of the provider's section, read from the variable its ApiKeyEnvVar names (TYPESAFE_API_KEY or " +
   "LIQUID_API_KEY by default) or from its ApiKey)";
-export const OUTSIDE_LADDER_LINE = "info: route.agents is on and the session's llm.profile 'guarded' is not on the ladder (small,large): it stands";
+export const OUTSIDE_LADDER_LINE = "info: route.agents is on and the profile 'guarded' the crew is launched on is not on the ladder (small,large): it stands";
 export const SMALL_RECORD = [{ crew: "dev-plan", profile: "small", reason: "model", picked: "small", probability: 0.9 }];
 export const UNSURE_RECORD = [{ crew: "dev-plan", profile: "large", reason: "low-confidence", picked: "small", probability: 0.4, stands: "session" }];
 
@@ -269,4 +271,95 @@ export const ACT_LINES: readonly ActLineCase[] = [
     name: "says nothing of an act moved to the session's rung, the one rung a rule leaves", answer: null, profiles: { session: "medium", crew: "small" },
     rules: REVIEWER_ON_LARGE, ladder: THREE_RUNGS, lines: [],
   },
+];
+
+/** A launch that forwards /effort to its crew: the pick may be asked its thinking level. */
+export const THINKING_TASK = { ...TASK, thinks: true };
+
+/** The pick of `small` with the level `effort` answered in the same call. */
+function withLevel(effort: EffortPick): ProfilePick {
+  return { ...answer("small", "model", "small", 0.9), effort };
+}
+
+/** The model picked `low` for the level, sure of it. */
+export const LOW_PICKED = withLevel({ value: "low", reason: "model", picked: "low", probability: 0.8 });
+const LOW_UNSURE = withLevel({ value: null, reason: "low-confidence", picked: "low", probability: 0.4 });
+const LEVEL_UNANSWERED = withLevel({ value: null, reason: "no-answer", picked: null, probability: null });
+const ONE_LEVEL_LEFT = withLevel({ value: "low", reason: "single-level", picked: null, probability: null });
+const LEVEL_CIRCUIT_OFF = withLevel({ value: null, reason: "circuit-off", picked: null, probability: null });
+
+/** What a case of the thinking level sets: `route.effort` (on unless said), the level /effort stored, the answer. */
+interface EffortGround {
+  effortSetting?: string | null;
+  stored?: EffortLevel;
+  answer?: Answer;
+}
+
+/** The ports with the routing on and `route.effort` as the case sets it. */
+export function effortSetup(c: EffortGround = {}) {
+  const setup = routeSetup();
+  const effortSetting = c.effortSetting === undefined ? "on" : c.effortSetting;
+  if (effortSetting !== null) setup.config.values["route.effort"] = effortSetting;
+  if (c.stored !== undefined) setup.session.state.set("reasoning_effort", c.stored);
+  if (c.answer !== undefined) setup.picker.answer = c.answer;
+  return setup;
+}
+
+/** What the pick is asked for the level, by the setting, the task and the level /effort stored. */
+export const EFFORT_ASKED_CASES: readonly (EffortGround & { name: string; task: typeof THINKING_TASK | typeof TASK; effort: EffortBounds | undefined })[] = [
+  { name: "asks for a level under the one /effort stored, with route.effort on", task: THINKING_TASK, stored: "high", effort: { max: "high" } },
+  { name: "asks for any level of the host when /effort stored none", task: THINKING_TASK, effort: {} },
+  { name: "asks for no level with route.effort off", task: THINKING_TASK, effortSetting: "off", stored: "high", effort: undefined },
+  { name: "asks for no level with route.effort unset", task: THINKING_TASK, effortSetting: null, stored: "high", effort: undefined },
+  { name: "asks for no level for a launch whose crew takes none", task: TASK, stored: "high", effort: undefined },
+];
+
+/** The level a launch gets, by what the pick answers for it. */
+export const EFFORT_ROUTED_CASES: readonly (EffortGround & { name: string; level: EffortLevel | null })[] = [
+  { name: "launches on the level the model picked", answer: LOW_PICKED, level: "low" },
+  { name: "launches on the one level the bounds leave", answer: ONE_LEVEL_LEFT, level: "low" },
+  { name: "leaves the level in place when the pick of it is not sure", answer: LOW_UNSURE, level: null },
+  { name: "leaves the level in place when the decision model answers none", answer: LEVEL_UNANSWERED, level: null },
+  { name: "leaves the level in place when the reply holds none", answer: answer("small", "model", "small", 0.9), level: null },
+];
+
+/** The line a launch logs when its level was asked: the profile's part, then the level's. */
+export const EFFORT_LINE_CASES: readonly (EffortGround & { name: string; lines: readonly string[] })[] = [
+  {
+    name: "says the level picked after the profile", answer: LOW_PICKED,
+    lines: ["info: route: dev-plan on 'small' (the decision model's pick; picked 'small' at 0.90; effort 'low' (the decision model's pick; picked 'low' at 0.80))"],
+  },
+  {
+    name: "says the level is the one left under /effort", answer: ONE_LEVEL_LEFT,
+    lines: ["info: route: dev-plan on 'small' (the decision model's pick; picked 'small' at 0.90; effort 'low' (the one level left under /effort))"],
+  },
+  {
+    name: "says the level was left as it was when the pick of it is not sure", answer: LOW_UNSURE,
+    lines: ["info: route: dev-plan on 'small' (the decision model's pick; picked 'small' at 0.90; effort left as it was (the pick was not sure enough; picked 'low' at 0.40))"],
+  },
+  {
+    name: "says the level was left as it was when the decision model answers none", answer: LEVEL_UNANSWERED,
+    lines: ["info: route: dev-plan on 'small' (the decision model's pick; picked 'small' at 0.90; effort left as it was (the decision model did not answer))"],
+  },
+  {
+    name: "says nothing of a level the runtime's circuit left unasked", answer: LEVEL_CIRCUIT_OFF,
+    lines: ["info: route: dev-plan on 'small' (the decision model's pick; picked 'small' at 0.90)"],
+  },
+];
+
+export const EFFORT_RECORD = [{
+  crew: "dev-plan", profile: "small", reason: "model", picked: "small", probability: 0.9,
+  effort: { level: "low", reason: "model", picked: "low", probability: 0.8 },
+}];
+
+/** Where an act of a crew on `small`, under a session on `large`, goes with its level. */
+export const ACT_EFFORTS: readonly (EffortGround & { name: string; routed: Routed })[] = [
+  { name: "moves the level of an act the pick leaves on its crew's profile", answer: LOW_PICKED, routed: { profile: null, effort: "low" } },
+  {
+    name: "moves the level of an act whose profile the pick is not sure of",
+    answer: { ...answer("large", "low-confidence", "large", 0.4), effort: { value: "low", reason: "model", picked: "low", probability: 0.8 } },
+    routed: { profile: null, effort: "low" },
+  },
+  { name: "leaves the level of an act when the pick of it is not sure", answer: LOW_UNSURE, routed: { profile: null, effort: null } },
+  { name: "leaves an act where it is with route.agents asking nothing of the host", answer: null, routed: { profile: null, effort: null } },
 ];

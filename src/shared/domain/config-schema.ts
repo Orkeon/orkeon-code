@@ -21,10 +21,10 @@ import { ANSWER_LANGUAGE_CONFIG_KEY } from "./agent-policy/output-styles.ts";
 import { COMPACTION_TRIGGER_CONFIG_KEY, compactionTriggerProblem } from "./compaction-thresholds.ts";
 import { PRUNE_CONFIG_KEY } from "./context-prune.ts";
 import { SKILLS_SUGGEST_CONFIG_KEY } from "./skills/shortlist.ts";
-import { ROUTE_AGENTS_CONFIG_KEY, ROUTE_LADDER_CONFIG_KEY, ladderProblem } from "./agents/model-route.ts";
+import { ROUTE_AGENTS_CONFIG_KEY, ROUTE_EFFORT_CONFIG_KEY, ROUTE_LADDER_CONFIG_KEY, ladderProblem } from "./agents/model-route.ts";
 import { DEV_WORK_DIR_CONFIG_KEY, workFolderProblem } from "./dev/work-folder.ts";
 import { COMMIT_REQUIRE_CONFIRM_CONFIG_KEY, DEV_PR_AUTO_CONFIG_KEY } from "./git/close.ts";
-import { LLM_PROFILE_CONFIG_KEY, llmProfileProblem } from "./llm-profile.ts";
+import { AGENTS_PROFILE_CONFIG_KEY, LLM_PROFILE_CONFIG_KEY, llmProfileProblem } from "./llm-profile.ts";
 import {
   MEMORY_AUTO_ADMIT_CONFIG_KEY, MEMORY_DIR_CONFIG_KEY, MEMORY_PROJECT_CONFIG_KEY, memoryDirProblem, memoryProjectProblem,
 } from "./shared-memory/layout.ts";
@@ -33,10 +33,10 @@ import {
 } from "./agent-policy/path-rules.ts";
 import {
   ADVISOR_MODEL_DOC, ANSWER_LANGUAGE_DOC, AUTO_ADMIT_FROM_USER, COMMIT_REQUIRE_CONFIRM_DOC, COMPACTION_TRIGGER_DOC,
-  DEV_PR_AUTO_DOC, DEV_WORK_DIR_DOC, EXTRA_TOOLS_DOC, EXTRA_TOOLS_NOT_ALLOWED, invalidValue, LLM_PROFILE_DOC,
+  AGENTS_PROFILE_DOC, DEV_PR_AUTO_DOC, DEV_WORK_DIR_DOC, EXTRA_TOOLS_DOC, EXTRA_TOOLS_NOT_ALLOWED, invalidValue, LLM_PROFILE_DOC,
   MEMORY_AUTO_ADMIT_DOC, MEMORY_DIR_DOC, MEMORY_PROJECT_DOC, needsAValue, notAllowedValue, PATHS_ALLOW_DOC,
   PATHS_ALLOW_OUTSIDE_USER, PATHS_DENY_DOC, PERMISSION_FALLBACK_DOC, PR_AUTO_FROM_USER, PRUNE_DOC, PROJECT_FALLBACK_TOO_WIDE,
-  REVIEW_LENSES_DOC, ROUTE_AGENTS_DOC, ROUTE_LADDER_DOC, SKILLS_SUGGEST_DOC, SPINNER_VERBS_DOC, unknownConfigKey, VOICE_REPLY_DOC, widerThanUserFallback,
+  REVIEW_LENSES_DOC, ROUTE_AGENTS_DOC, ROUTE_EFFORT_DOC, ROUTE_LADDER_DOC, SKILLS_SUGGEST_DOC, SPINNER_VERBS_DOC, unknownConfigKey, VOICE_REPLY_DOC, widerThanUserFallback,
 } from "./messages.ts";
 
 export interface ConfigKeySpec {
@@ -76,6 +76,11 @@ export const CONFIG_KEYS: readonly ConfigKeySpec[] = [
     problem: llmProfileProblem,
   },
   {
+    key: AGENTS_PROFILE_CONFIG_KEY,
+    ...AGENTS_PROFILE_DOC,
+    problem: llmProfileProblem,
+  },
+  {
     key: COMMIT_REQUIRE_CONFIRM_CONFIG_KEY,
     ...COMMIT_REQUIRE_CONFIRM_DOC,
     allowed: ["true", "false"],
@@ -111,6 +116,11 @@ export const CONFIG_KEYS: readonly ConfigKeySpec[] = [
   {
     key: ROUTE_AGENTS_CONFIG_KEY,
     ...ROUTE_AGENTS_DOC,
+    allowed: ["on", "off"],
+  },
+  {
+    key: ROUTE_EFFORT_CONFIG_KEY,
+    ...ROUTE_EFFORT_DOC,
     allowed: ["on", "off"],
   },
   {
