@@ -18,9 +18,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   and that it asks nothing while `route.agents` is off: `route.effort: on (asks nothing while route.agents is off)`.
 - A pick whose thinking level the runtime refuses (the host lists no level at or below the one `/effort` stored,
   such as `/effort low` on `medium,high`) does not lose the routing: one warning, then the profile is asked again
-  alone, and the level stays in place ([ADR 0042](docs/adr/0042-route-review.md)). The acts that follow on the same
-  route ask the profile alone. A refusal of anything else (a rung, a floor, a fallback) is one warning and no second
-  call.
+  alone, and the level stays in place ([ADR 0042](docs/adr/0042-route-review.md)). In one crew run (a crew body, one
+  `/dev-batches` run, the explorers of one main turn) the level is refused and warned of once: the acts started
+  together wait for the first one's answer, then ask the profile alone. A refusal of anything else (a rung, a floor, a
+  fallback) is one warning and no second call.
 - A bare `/route` warns when the routing is on and the crews are launched on a profile outside the ladder
   (`agents.profile`, else `llm.profile`): nothing is routed then, and until now only the log said so.
 - The explorer a turn spawns is routed like a reviewer's act: with `route.agents` on, its profile, and with
@@ -114,7 +115,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   (`fix src/core.`): the closing `.`, `?` or `!` no longer hides it.
 - A stored `route.ladder` that is no ladder (one name, a name twice, a malformed name) is no longer replaced by
   `small,large` in silence: with the routing on and a decision model on the host, each launch warns, routed or not,
-  and so does the first act of a route of acts; a bare `/route` shows a warning line, the routing on or off.
+  and so does the first act of each crew run; a bare `/route` shows a warning line, the routing on or off.
 - The profile the pick answers is compared with the session's and the crew's whatever its case: a pick that answers
   `Small` for the rung `small` leaves the launch, or the act, where it was.
 - The docs no longer say that `compaction.prune` and `route.agents` need the pin: the release `1.4.0` of the tool and

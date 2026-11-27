@@ -23,12 +23,15 @@ holds them, and those of a later review of the whole pull request.
   (`pickProfile`), and the level left in place. Any other refusal (a rung the host does not declare, a floor, a
   fallback), or one whose message names no part, is one warning (`routeRefused`) and no second call: asking again
   without the level would be refused the same way.
-- **A route of acts remembers.** The acts of one route (`actRoute`) share one `RouteRun`: a ladder that is no ladder
-  and a refused level are each warned of once, at its first act, and after a refused level its next acts ask the
-  profile alone, rather than paying a refusal each. Acts started in parallel before the refusal came back still ask
-  the level. A route lasts one crew body for the crews wired by `orkeonActRoute`, one batch audit and one reviewer
-  in `/dev-batches`, one explorer the main loop spawns. The launch (`routeAgent`) has its own, so a routed crew
-  warns at its launch and again at its first act.
+- **A crew run remembers.** The acts of one crew run share one `RouteRun` (`routeRun`), which the caller hands every
+  route (`actRoute`) it builds for that run: a crew body's route for the crews wired by `orkeonActRoute`; the
+  reviewer and every batch audit of one `/dev-batches` run; the explorers one main turn spawns
+  (`orkeonSpawnedActRoute`). A ladder that is no ladder and a refused level are each warned of once per crew run, at
+  its first act, and after a refused level the acts ask the profile alone, so the second pick is paid once per crew
+  run rather than once per act. Acts started together ask the level once: the first act that asks one sets
+  `levelAsked` and is the only one to ask it until its answer is in (`levelOf`); the others wait for it, then ask the
+  profile alone if it was refused. Each act still makes its own pick. The launch (`routeAgent`) has a state of its
+  own, so a routed crew warns at its launch, then once more in its run if its acts are routed.
 - **A stored `route.ladder` that is no ladder is said.** A hand-edited file (one name, a name twice, a malformed
   name) was read as the default ladder in silence, so a session routed on rungs it never named. With the routing on
   and a decision model present, each launch now warns (`routeLadderMisread`), routed or not, since the warning comes
@@ -51,7 +54,9 @@ holds them, and those of a later review of the whole pull request.
 - **The subscription rungs fall back at their own model.** `subscription-haiku` and `subscription-sonnet` fell back
   on `default`, the dearest model, so a launch routed to a cheap rung cost the most on the key when the subscription
   could not answer. The `agent-cli` example now declares the key profiles `haiku` and `sonnet` and each rung falls
-  back on the one of its model; `subscription` still falls back on `default`.
+  back on the one of its model; `subscription` still falls back on `default`. A profile of `Llm:Profiles` reads its
+  own section only (`LlmSettings.cs` at the pin), so the root `Llm:MaxTokens` of the example does not reach the
+  subscription profiles and raises no warning there.
 - **`no-ladder` stays handled.** The runtime answers it only for an empty ladder, and the bounds sent always hold two
   rungs or more, so it cannot come back today. It is one of the runtime's typed reasons all the same: dropped, a
   change on either side would make it silent. It keeps its warning (the comment in `route-agent.ts`).
@@ -61,18 +66,22 @@ holds them, and those of a later review of the whole pull request.
 - A bare `/route` makes no decision call with the routing off, without a decision model, and under a launch profile
   off the ladder or on its lowest rung; otherwise one, and two when the runtime refuses the level part.
 - A launch whose level part is refused costs a second pick; a second refusal is the usual warning, and nothing is
-  routed. On a route of acts, the first act pays it, and the acts after it ask the profile alone.
+  routed. In a crew run, the first act that asks a level pays it, once, and every other act asks the profile alone.
 - The comparison of the profile the pick answers with the session's and the crew's now ignores case
   (`sameProfile`), as the host reads a profile's name.
 - Tested: the part read from the runtime's message (`profile-picker.ts`); the second pick of `routeAgent` on a
   refused level part, its warnings, and a single call for a refused ladder, a refusal naming no part and a level
   part refused with no level asked; the misread ladder at a launch, with nothing asked, and under `/route`; the
-  acts of one run (each warning once, the profile alone after a refused level, a new launch warning again); the
+  acts of one crew run, on one route and on two (each warning once, the profile alone after a refused level, a new
+  launch warning again); two acts started together (the level in the first pick alone, each act its own profile
+  when the level is refused, each its level when it is taken); the
   states of the test pick, its bounds under `agents.profile` and `llm.profile`, the two cases tried not at all, its
   level under `/effort` and its second pick with the level line; `sameProfile`; the act profiles of a crew and of
-  the explorer (`llm-profile.ts`); the fallbacks of the example.
-- Not tested: acts started in parallel before a refusal came back; the wiring of the pick into `/route` and of the
-  act routes in `src/shared/infrastructure/orkeon/wiring.ts`, exercised by the smokes only.
+  the explorer (`src/shared/domain/llm-profile.ts`); `declaredRoute` and `agentFactories`
+  (`src/shared/infrastructure/orkeon/llm-profile.ts`); the fallbacks of the example.
+- Not tested: which profile function each export of `src/shared/infrastructure/orkeon/wiring.ts` calls, exercised by
+  the bundle check and the smokes only. That file now holds construction alone: its two conditions (a host without
+  `llm`, the refusal of an invalid script) moved to `agentFactories` in `llm-profile.ts`, which is tested.
 - The release `v1.4.0` ships the pick with its effort part and the pruning (`SystemOnePicker.cs`, `PickService.cs`,
   `prune` in its typings), unchanged up to the pin: the routing and the pruning run in the tool and docker modes too.
 - Checked live at `9ca8530`, with the real `/route` in a scratch project and Jev as the decision model: the ladder
@@ -85,3 +94,6 @@ holds them, and those of a later review of the whole pull request.
   each show their `not tried` state and make no call; `agents.profile sonnet` with `route.effort` on shows `present`;
   `route.ladder` written as a JSON array shows `small,large` and no warning. Not run live: two acts of one crew
   meeting a refused level.
+- Checked live, third pass: a real main turn, the host's levels set to `medium,high` and `/effort low` stored, spawned
+  three explorers: one warning of the refused level for the three, and three routed acts in `/route why`, each on its
+  profile with no level. Not run live: a `/dev-batches` run.

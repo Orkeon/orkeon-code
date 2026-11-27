@@ -444,17 +444,21 @@ Ce que le tableau laisse de côté :
     Le routage n'est pas perdu : un avertissement, `route.agents is on and the runtime refused the pick of the profile
     with a thinking level: the profile is asked again without one, and the level /effort stored stays in place
     (<message>)`, puis le profil est demandé de nouveau, seul.
-  - Une route d'acts avertit une fois, à son premier act, et ses acts suivants demandent le profil seul ; des acts
-    lancés en parallèle avant le retour du refus demandent encore le niveau. Une route dure le corps d'un crew, un
-    audit de lot ou le relecteur de `/dev-batches`, ou un explorateur que lance la boucle principale. Le lancement a
-    la sienne : un crew routé avertit à son lancement et de nouveau à son premier act.
+  - Les acts d'une exécution de crew avertissent une fois, au premier act, et les acts suivants demandent le profil
+    seul. Une exécution de crew est le corps d'un crew, une exécution de `/dev-batches` (son relecteur et chaque audit
+    de lot) ou un tour principal (les explorateurs qu'il lance). Des acts lancés ensemble demandent le niveau une
+    fois : le premier act qui en demande un est le seul à le demander tant que sa réponse n'est pas revenue, les
+    autres l'attendent, puis demandent le profil seul s'il a été refusé ; chaque act fait toujours son propre choix.
+    Le lancement d'un crew par une commande a le sien : un crew routé avertit à son lancement, puis une fois de plus
+    dans son exécution si ses acts sont routés.
   - Tout autre refus (un barreau que le runtime ne déclare pas, un plancher, un repli) donne un avertissement,
     `route.agents is on and the runtime refused the pick: nothing is routed, the session's profile stands
     (<message>)`, et aucun second appel.
 - **Un `route.ladder` enregistré qui n'est pas une échelle** (un fichier modifié à la main : un seul nom, un nom deux
   fois, un nom mal formé) est routé sur `small,large`, et le dit. Routage sur `on` et un modèle de
   décision sur le runtime, chaque lancement avertit, routé ou non (l'avertissement précède les contrôles d'un profil
-  hors de l'échelle et d'un seul barreau restant), comme le premier act de chaque route d'acts : `route.agents is on
+  hors de l'échelle et d'un seul barreau restant), comme le premier act de chaque
+  exécution de crew : `route.agents is on
   and route.ladder is '<value>', which is no ladder: the ladder small,large is used instead`. Et un `/route` seul, routage sur `on` ou `off`, ajoute la ligne `⚠ route.ladder is '<value>', which is no ladder: the
   ladder small,large is used instead. Set it to two rungs or more, each once, or unset it.` Une valeur qui n'est pas
   une chaîne (un tableau, un nombre écrit à la main) se lit comme absente, comme pour toute clé, sans avertissement.

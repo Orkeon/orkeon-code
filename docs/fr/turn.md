@@ -448,11 +448,13 @@ décision sur le runtime, ce profil est choisi à chaque lancement de `/dev-spec
     runtime n'atteint) donne un avertissement, et le profil est demandé une fois de plus, seul : le niveau reste en
     place. Un second refus est le refus habituel. Le refus d'une autre part (un barreau que le runtime ne déclare pas,
     un plancher, un repli) donne l'avertissement habituel, sans second appel.
-  - Une route d'acts donne cet avertissement et celui d'une échelle qui n'en est pas une une fois, à son premier act ;
-    après un niveau refusé, ses acts suivants demandent le profil seul. Des acts lancés en parallèle avant le retour
-    du refus demandent encore le niveau. Une route dure le corps d'un crew, un audit de lot ou le relecteur de
-    `/dev-batches`, ou un explorateur ; le lancement a la sienne, si bien qu'un crew routé avertit à son lancement et
-    de nouveau à son premier act.
+  - Les acts d'une exécution de crew donnent cet avertissement et celui d'une échelle qui n'en est pas une une fois,
+    au premier act ; après un niveau refusé, les acts suivants demandent le profil seul. Une exécution de crew est le
+    corps d'un crew, une exécution de `/dev-batches` (son relecteur et chaque audit de lot) ou un tour principal (les
+    explorateurs qu'il lance). Des acts lancés ensemble demandent le niveau une fois : le premier act qui en demande
+    un est le seul à le demander tant que sa réponse n'est pas revenue, les autres l'attendent, puis demandent le
+    profil seul s'il a été refusé ; chaque act fait toujours son propre choix. Le lancement a le sien, si bien qu'un
+    crew routé avertit à son lancement, puis une fois de plus dans son exécution si ses acts sont routés.
   - Rien n'est demandé là où aucun profil ne l'est : une session sur un profil hors de l'échelle, ou dont le
     barreau est le seul qui reste, garde son niveau.
   - La ligne et `/route why` montrent le niveau après le profil : `route: dev-plan on 'small' (the decision model's

@@ -84,3 +84,13 @@ export const DECLARED_ROUTES: { name: string; withProfile: boolean; answer: stri
   { name: "keeps a route that moves nothing as it is", withProfile: true, answer: null, profile: null },
   { name: "drops every route on a host without llm", withProfile: false, answer: "large", profile: null },
 ];
+
+/** The `llm` namespace of a host whose every profile is read as profileConfig answers it. */
+export const HOST_LLM = { profile: (name: string): LlmConfig => profileConfig(name) };
+
+/** Whether agentFactories takes an error for the runtime's refusal, by what the runtime plants. */
+export const REFUSAL_CLASS_CASES: { name: string; invalidScript: typeof ScriptRefusal | undefined; error: unknown; refused: boolean }[] = [
+  { name: "takes an instance of the runtime's refusal class for a refusal", invalidScript: ScriptRefusal, error: new ScriptRefusal("unknown LLM profile 'small'"), refused: true },
+  { name: "takes another error for no refusal", invalidScript: ScriptRefusal, error: new Error("the profile cannot be read"), refused: false },
+  { name: "takes no error for a refusal on a host that plants no refusal class", invalidScript: undefined, error: new ScriptRefusal("unknown LLM profile 'small'"), refused: false },
+];

@@ -2,7 +2,7 @@
 // played here is one the runtime can give for the bounds of its case: a floor or a ceiling with a pick needs two rungs
 // or more between the bounds, a floor with no pick is the one rung a rule leaves.
 import type { EffortPick, ProfilePick, ProfilePickRefusal } from "../../../../src/shared/application/ports.ts";
-import type { Routed } from "../../../../src/shared/application/agents/route-agent.ts";
+import type { ActRoute, Routed } from "../../../../src/shared/application/agents/route-agent.ts";
 import type { EffortLevel } from "../../../../src/shared/domain/agent-policy/behavior-flags.ts";
 import type { EffortBounds, RouteBounds, RouteReason } from "../../../../src/shared/domain/agents/model-route.ts";
 import { FakeConfigStore } from "../../../support/doubles/fake-config-store.ts";
@@ -466,3 +466,27 @@ export const MISREAD_TWO_LAUNCHES_LINES = [
   misreadWarning("small"), "info: route: dev-plan on 'small' (the decision model's pick; picked 'small' at 0.90)",
   misreadWarning("small"), "info: route: dev-plan on 'small' (the decision model's pick; picked 'small' at 0.90)",
 ];
+
+/** A hold the test releases: `promise` stays pending until `release` is called. */
+function held(): { promise: Promise<void>; release: () => void } {
+  let release: () => void = () => undefined;
+  const promise = new Promise<void>((resolve) => { release = resolve; });
+  return { promise, release };
+}
+
+/** The microtask turns let pass before the held pick is released: enough for the second act to reach its own pick. */
+const TURNS_BEFORE_RELEASE = 1000;
+
+/** Two acts of `route` started together, every pick of `picker` held while the acts run for TURNS_BEFORE_RELEASE
+ *  microtask turns, then released: what each act got. No timer: the acts advance on the microtask queue alone. */
+export async function twoActsTogether(route: ActRoute, picker: FakeProfilePicker): Promise<Routed[]> {
+  const gate = held();
+  picker.hold = gate.promise;
+  const acts = Promise.all([route(REVIEW_TASK), route(REVIEW_TASK)]);
+  for (let turn = 0; turn < TURNS_BEFORE_RELEASE; turn++) await Promise.resolve();
+  gate.release();
+  return await acts;
+}
+
+/** Two acts started together on a level the runtime refuses: each moved to the profile picked alone, no level. */
+export const TWO_ACTS_ON_SMALL: readonly Routed[] = [{ profile: "small", effort: null }, { profile: "small", effort: null }];

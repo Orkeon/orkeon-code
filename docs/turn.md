@@ -405,10 +405,12 @@ is picked at each launch of `/dev-spec` (and its alias `/dev-change`), `/dev-pla
     one warning, and the profile is asked once more, alone: the level stays in place. A second refusal is the usual
     one. A refusal of another part (a rung the host does not declare, a floor, a fallback) is the usual warning, with
     no second call.
-  - A route of acts gives that warning and the one of a ladder that is no ladder once, at its first act; after a
-    refused level its next acts ask the profile alone. Acts started in parallel before the refusal came back still
-    ask the level. A route lasts one crew body, one batch audit or the reviewer of `/dev-batches`, or one explorer;
-    the launch has its own, so a routed crew warns at its launch and again at its first act.
+  - The acts of one crew run give that warning and the one of a ladder that is no ladder once, at the first act;
+    after a refused level the acts after it ask the profile alone. A crew run is one crew body, one `/dev-batches`
+    run (its reviewer and every batch audit) or one main turn (the explorers it spawns). Acts started together ask
+    the level once: the first act that asks one is the only one to ask it until its answer is in, and the others wait
+    for it, then ask the profile alone if it was refused; each act still makes its own pick. The launch has its own,
+    so a routed crew warns at its launch, then once more in its run if its acts are routed.
   - Nothing is asked where no profile is: a session on a profile outside the ladder, or whose own rung is the one
     rung left, keeps its level.
   - The line and `/route why` show the level after the profile: `route: dev-plan on 'small' (the decision model's

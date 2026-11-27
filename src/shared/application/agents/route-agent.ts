@@ -170,19 +170,39 @@ export async function pickProfile(
   return { answer: await picker.pick(request, bounds), levelRefused: answer.refused };
 }
 
-/** What one route has met already, so that it says each once: a launch (routeAgent) has one of its own, and one
- *  route of acts (actRoute) one for all the acts it routes, however long its caller keeps it. `ladderWarned`: the misread ladder was warned of; `levelRefused`: the runtime refused the
- *  level part, and the following picks ask the profile alone. */
-interface RouteRun {
+/** What one route has met already, so that it says each once: a launch (routeAgent) has one of its own, and the acts
+ *  of one crew run share one (actRoute), however many routes are built over it. `ladderWarned`: the misread ladder
+ *  was warned of; `levelRefused`: the runtime refused the level part, and the following picks ask the profile alone;
+ *  `levelAsked`: the first pick asked a level, settled once it came back, which the acts that would ask one after it
+ *  wait for, so that the run asks a level the runtime refuses once, however many acts start together. */
+export interface RouteRun {
   ladderWarned: boolean;
   levelRefused: boolean;
+  levelAsked?: Promise<void>;
 }
 
-const freshRun = (): RouteRun => ({ ladderWarned: false, levelRefused: false });
+/** A route that has met nothing yet: one per launch, one per crew run of acts. */
+export const routeRun = (): RouteRun => ({ ladderWarned: false, levelRefused: false });
+
+/** The level asked for `task` in `run`, and, for the first pick of the run that asks one, `settle`, to call once its
+ *  answer is in. An act that would ask a level while that first pick is in flight waits for it, then asks none if
+ *  the runtime refused it. The run's `levelAsked` is set with no await between its check and its set. */
+async function levelOf(deps: RouteDeps, task: RouteTask, run: RouteRun): Promise<{ level: EffortBounds | undefined; settle?: () => void }> {
+  if (run.levelRefused) return { level: undefined };
+  const level = await effortAsked(deps, task);
+  if (level === undefined) return { level };
+  if (run.levelAsked !== undefined) {
+    await run.levelAsked;
+    return { level: run.levelRefused ? undefined : level };
+  }
+  let settle: () => void = () => undefined;
+  run.levelAsked = new Promise<void>((resolve) => { settle = resolve; });
+  return { level, settle };
+}
 
 /** What the pick answers for `task`; null when there is no choice (the setting off, no decision model, a session's
  *  profile outside the ladder, a host without the pick, a refusal, a circuit off, no ladder), the cause said. */
-async function ask(deps: RouteDeps, task: RouteTask, sessionProfile: string | null, run: RouteRun = freshRun()): Promise<Asked | null> {
+async function ask(deps: RouteDeps, task: RouteTask, sessionProfile: string | null, run: RouteRun = routeRun()): Promise<Asked | null> {
   if (!routeOn(await setting(deps.config, ROUTE_AGENTS_CONFIG_KEY))) return null;
   if (!deps.decision.available()) {
     deps.log.warn(ROUTE_WITHOUT_DECISION_MODEL);
@@ -203,13 +223,19 @@ async function ask(deps: RouteDeps, task: RouteTask, sessionProfile: string | nu
   if (routeHeld(ladder, sessionProfile, floor)) return { choice: { profile: sessionProfile, reason: "ceiling" }, floored: false, said: false };
   const bounds = routeBounds(ladder, sessionProfile, floor);
   const request = routeState(task.crew, task.brief);
-  const level = run.levelRefused ? undefined : await effortAsked(deps, task);
-  const { answer, levelRefused } = await pickProfile(deps.picker, request, bounds, level);
-  // The level refused, the profile was asked alone: the level stays where it is, and the run asks no level again.
-  if (levelRefused !== undefined) {
-    run.levelRefused = true;
-    deps.log.warn(routeLevelRefused(levelRefused));
+  const { level, settle } = await levelOf(deps, task, run);
+  let picked: Picked;
+  try {
+    picked = await pickProfile(deps.picker, request, bounds, level);
+    // The level refused, the profile was asked alone: the level stays where it is, and the run asks no level again.
+    if (picked.levelRefused !== undefined) {
+      run.levelRefused = true;
+      deps.log.warn(routeLevelRefused(picked.levelRefused));
+    }
+  } finally {
+    settle?.();
   }
+  const { answer, levelRefused } = picked;
   if (answer === null) return null;
   if ("refused" in answer) {
     deps.log.warn(routeRefused(answer.refused));
@@ -274,13 +300,14 @@ export type { ActProfiles };
 /** The route of a crew's sub-agent acts: the launch's pick, with the session's profile as the ceiling. A decision
  *  (routeDecided) moves the act, as does, without one, the floor of a rule for a session on the host's default model
  *  (the fallback the pick answers then); nothing asked, and no answer or an unsure pick otherwise, leave the act where
- *  the crew runs, as does an answer that is the crew's own profile, whatever its case. An act takes a thinking level: with `route.effort`
- *  on the pick is asked one, and a level it decided moves the act whatever became of its profile. The route keeps one
- *  RouteRun for all the acts it routes, as long as its caller keeps it (one per crew body, per batch audit, per
- *  spawned explorer: wiring.ts): a misread ladder and a refused level are said at its first act, and after a refused
- *  level its acts ask no level. */
-export function actRoute(deps: RouteDeps, profiles: ActProfiles): ActRoute {
-  const run = freshRun();
+ *  the crew runs, as does an answer that is the crew's own profile, whatever its case. An act takes a thinking level:
+ *  with `route.effort` on the pick is asked one, and a level it decided moves the act whatever became of its profile.
+ *  The acts share `run`
+ *  (routeRun), one per crew run, which its caller hands every route it builds for that run (wiring.ts: a crew body's
+ *  route, the batch audits and the reviewer of one /dev-batches run, the explorers one main turn spawns): a misread
+ *  ladder and a refused level are said once, the first act that asks a level is the only one to ask it until its
+ *  answer is in, and after a refused level the acts ask no level. */
+export function actRoute(deps: RouteDeps, profiles: ActProfiles, run: RouteRun = routeRun()): ActRoute {
   return async (task) => {
     const asked = await ask(deps, { ...task, thinks: true }, profiles.session, run);
     if (asked === null) return NOT_MOVED;

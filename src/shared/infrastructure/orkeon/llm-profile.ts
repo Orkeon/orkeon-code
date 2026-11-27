@@ -25,6 +25,19 @@ export interface AgentFactories {
   refusal: (error: unknown) => boolean;
 }
 
+/** The agent factories over what the runtime plants: `agent`, the agent builder; `host`, its `llm` namespace, absent
+ *  where it declares none (no `profile` then); `invalidScript`, the class of its refusals, absent where it plants none
+ *  (no error is a refusal then). */
+export function agentFactories(
+  agent: () => any, host: { profile(name: string): LlmConfig } | undefined, invalidScript: (abstract new (...args: any[]) => unknown) | undefined,
+): AgentFactories {
+  return {
+    agent,
+    profile: host === undefined ? undefined : (name) => host.profile(name),
+    refusal: (error) => invalidScript !== undefined && error instanceof invalidScript,
+  };
+}
+
 /** The prompt cache every agent requests: the system prompt and the tools, for the vendor's default lifetime. */
 export const PROMPT_CACHE: LlmCacheOptions = { systemPrompt: true, tools: true };
 /** The name `llm.profile` takes for the host's own provider. */

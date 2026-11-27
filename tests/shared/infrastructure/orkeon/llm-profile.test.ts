@@ -2,9 +2,11 @@
 //   node --test tests/shared/infrastructure/orkeon/llm-profile.test.ts
 import { describe, it } from "node:test";
 import { deepStrictEqual, rejects, strictEqual, throws } from "node:assert";
-import { PROMPT_CACHE, declaredRoute, profiledAgent } from "../../../../src/shared/infrastructure/orkeon/llm-profile.ts";
+import { PROMPT_CACHE, agentFactories, declaredRoute, profiledAgent } from "../../../../src/shared/infrastructure/orkeon/llm-profile.ts";
 import { assertBuiltOn } from "./llm-profile.assertions.ts";
-import { CACHE_CASES, DECLARED_ROUTES, FALLBACK_CASES, LEVEL_KEPT_ROUTES, NO_CACHE_CASES, TASK, factories } from "./llm-profile.fixtures.ts";
+import {
+  CACHE_CASES, DECLARED_ROUTES, FALLBACK_CASES, HOST_LLM, LEVEL_KEPT_ROUTES, NO_CACHE_CASES, REFUSAL_CLASS_CASES, RecordingAgentBuilder, ScriptRefusal, TASK, factories,
+} from "./llm-profile.fixtures.ts";
 
 describe("profiledAgent", () => {
   it("builds the agent on the profile the input names", () => {
@@ -172,4 +174,52 @@ describe("declaredRoute", () => {
     // Assert
     await rejects(act, /the profile 'small' cannot be read/);
   });
+});
+
+describe("agentFactories", () => {
+  it("offers no profile on a host that declares no llm", () => {
+    // Arrange
+    const agent = () => new RecordingAgentBuilder();
+
+    // Act
+    const built = agentFactories(agent, undefined, ScriptRefusal);
+
+    // Assert
+    strictEqual(built.profile, undefined);
+  });
+
+  it("reads a profile through the host's llm", () => {
+    // Arrange
+    const built = agentFactories(() => new RecordingAgentBuilder(), HOST_LLM, undefined);
+
+    // Act
+    const config = built.profile?.("small");
+
+    // Assert
+    strictEqual(config?.profile, "small");
+  });
+
+  it("hands the agent builder the runtime planted", () => {
+    // Arrange
+    const agent = () => new RecordingAgentBuilder();
+
+    // Act
+    const built = agentFactories(agent, HOST_LLM, undefined);
+
+    // Assert
+    strictEqual(built.agent, agent);
+  });
+
+  for (const c of REFUSAL_CLASS_CASES) {
+    it(c.name, () => {
+      // Arrange
+      const built = agentFactories(() => new RecordingAgentBuilder(), HOST_LLM, c.invalidScript);
+
+      // Act
+      const refused = built.refusal(c.error);
+
+      // Assert
+      strictEqual(refused, c.refused);
+    });
+  }
 });

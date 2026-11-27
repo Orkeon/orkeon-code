@@ -415,16 +415,18 @@ What the table leaves out:
     one warning, `route.agents is on and the runtime refused the pick of the profile with a thinking level: the
     profile is asked again without one, and the level /effort stored stays in place (<message>)`, then the profile
     is asked again alone.
-  - A route of acts warns once, at its first act, and its acts after that ask the profile alone; acts started in
-    parallel before the refusal came back still ask the level. A route lasts one crew body, one batch audit or the
-    reviewer of `/dev-batches`, or one explorer the main loop spawns. The launch has its own: a routed crew warns at
-    its launch and again at its first act.
+  - The acts of one crew run warn once, at the first act, and the acts after it ask the profile alone. A crew run
+    is one crew body, one `/dev-batches` run (its reviewer and every batch audit) or one main turn (the explorers it
+    spawns). Acts started together ask the level once: the first act that asks one is the only one to ask it until
+    its answer is in, and the others wait for it, then ask the profile alone if it was refused; each act still makes
+    its own pick. The launch of a crew by a command has its own: a routed crew warns at its launch, then once more in
+    its run if its acts are routed.
   - Any other refusal (a rung the host does not declare, a floor, a fallback) is one warning, `route.agents is on and
     the runtime refused the pick: nothing is routed, the session's profile stands (<message>)`, and no second call.
 - **A stored `route.ladder` that is no ladder** (a hand-edited file: one name, a name twice, a malformed name) is
   routed on `small,large`, and said. With the routing on and a decision model on the host, each launch warns, routed
   or not (the warning comes before the checks of a profile off the ladder and of one rung left), as does the first
-  act of each route of acts: `route.agents is on and route.ladder is '<value>', which is no ladder: the ladder
+  act of each crew run: `route.agents is on and route.ladder is '<value>', which is no ladder: the ladder
   small,large is used instead`. A bare `/route`, with the routing on or off, adds the line `⚠ route.ladder is '<value>', which is no ladder: the ladder small,large is used instead.
   Set it to two rungs or more, each once, or unset it.` A value that is not a string (an array, a number written by
   hand) reads as unset, as for every key, with no warning.

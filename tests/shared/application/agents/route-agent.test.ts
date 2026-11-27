@@ -3,11 +3,12 @@
 import { deepStrictEqual, strictEqual } from "node:assert";
 import { describe, it } from "node:test";
 
-import { actRoute, routeAgent } from "../../../../src/shared/application/agents/route-agent.ts";
+import { actRoute, routeAgent, routeRun } from "../../../../src/shared/application/agents/route-agent.ts";
 import {
   ACT_EFFORTS, ACT_LINES, ACT_ROUTES, BILLING_TASK, EFFORT_ASKED_CASES, EFFORT_LINE_CASES, EFFORT_RECORD, EFFORT_ROUTED_CASES, LOW_PICKED, THINKING_TASK, effortSetup, HELD_CASES, LINE_CASES, NO_CHOICE, NO_MODEL_WARNING, OPTIONS_CASES, OUTSIDE_LADDER_LINE,
   REASON_CASES, REVIEW_TASK, RULES_PATH, SMALL_RECORD, TASK, UNSURE_RECORD, answer, answeredSetup, routeSetup,
   LADDER_REFUSED_LINES, MISREAD_LADDERS, REFUSAL, RETRY_CASES, levelRefusedSetup, EFFORT_REFUSAL, LEVEL_REFUSED_TWO_ACTS_LINES,
+  TWO_ACTS_ON_SMALL, twoActsTogether,
   MISREAD_AND_OUTSIDE_LINES, MISREAD_TWO_ACTS_LINES, MISREAD_TWO_LAUNCHES_LINES, MISREAD_UNASKED_CASES, UNNAMED_REFUSAL, UNNAMED_REFUSED_LINES,
 } from "./route-agent.fixtures.ts";
 
@@ -498,5 +499,96 @@ describe("actRoute, the acts of one crew run", () => {
 
     // Assert
     deepStrictEqual(log.lines, LEVEL_REFUSED_TWO_ACTS_LINES);
+  });
+});
+
+describe("actRoute, two routes of one crew run", () => {
+  it("warns of a ladder that is no ladder at the first act of the run alone, whichever route acts", async () => {
+    // Arrange
+    const { deps, log } = routeSetup("on", { ladder: "small" });
+    const run = routeRun();
+    await actRoute(deps, { session: "large", crew: "large" }, run)(REVIEW_TASK);
+
+    // Act
+    await actRoute(deps, { session: "large", crew: "large" }, run)(REVIEW_TASK);
+
+    // Assert
+    deepStrictEqual(log.lines, MISREAD_TWO_ACTS_LINES);
+  });
+
+  it("asks the act of a second route after a refused level for its profile alone, in one pick", async () => {
+    // Arrange
+    const { deps, picker } = levelRefusedSetup();
+    const run = routeRun();
+    await actRoute(deps, { session: "large", crew: "large" }, run)(REVIEW_TASK);
+
+    // Act
+    await actRoute(deps, { session: "large", crew: "large" }, run)(REVIEW_TASK);
+
+    // Assert
+    deepStrictEqual(picker.asked.map((asked) => asked.effort), [{ max: "low" }, undefined, undefined]);
+  });
+
+  it("warns of a refused level at the first act of the run alone, whichever route acts", async () => {
+    // Arrange
+    const { deps, log } = levelRefusedSetup();
+    const run = routeRun();
+    await actRoute(deps, { session: "large", crew: "large" }, run)(REVIEW_TASK);
+
+    // Act
+    await actRoute(deps, { session: "large", crew: "large" }, run)(REVIEW_TASK);
+
+    // Assert
+    deepStrictEqual(log.lines, LEVEL_REFUSED_TWO_ACTS_LINES);
+  });
+});
+
+describe("actRoute, two acts started together", () => {
+  it("asks the level in the first pick alone when the runtime refuses it", async () => {
+    // Arrange
+    const { deps, picker } = levelRefusedSetup();
+    const route = actRoute(deps, { session: "large", crew: "large" });
+
+    // Act
+    await twoActsTogether(route, picker);
+
+    // Assert
+    deepStrictEqual(picker.asked.map((asked) => asked.effort), [{ max: "low" }, undefined, undefined]);
+  });
+
+  it("warns of a refused level once", async () => {
+    // Arrange
+    const { deps, picker, log } = levelRefusedSetup();
+    const route = actRoute(deps, { session: "large", crew: "large" });
+
+    // Act
+    await twoActsTogether(route, picker);
+
+    // Assert
+    deepStrictEqual(log.lines, LEVEL_REFUSED_TWO_ACTS_LINES);
+  });
+
+  it("gives each act the profile picked for it when the runtime refuses the level", async () => {
+    // Arrange
+    const { deps, picker } = levelRefusedSetup();
+    const route = actRoute(deps, { session: "large", crew: "large" });
+
+    // Act
+    const routed = await twoActsTogether(route, picker);
+
+    // Assert
+    deepStrictEqual(routed, TWO_ACTS_ON_SMALL);
+  });
+
+  it("asks each act its level when the runtime takes it", async () => {
+    // Arrange
+    const { deps, picker } = effortSetup({ stored: "low", answer: LOW_PICKED });
+    const route = actRoute(deps, { session: "large", crew: "large" });
+
+    // Act
+    await twoActsTogether(route, picker);
+
+    // Assert
+    deepStrictEqual(picker.asked.map((asked) => asked.effort), [{ max: "low" }, { max: "low" }]);
   });
 });
