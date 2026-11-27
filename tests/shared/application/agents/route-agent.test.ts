@@ -7,6 +7,7 @@ import { actRoute, routeAgent } from "../../../../src/shared/application/agents/
 import {
   ACT_EFFORTS, ACT_LINES, ACT_ROUTES, BILLING_TASK, EFFORT_ASKED_CASES, EFFORT_LINE_CASES, EFFORT_RECORD, EFFORT_ROUTED_CASES, LOW_PICKED, THINKING_TASK, effortSetup, HELD_CASES, LINE_CASES, NO_CHOICE, NO_MODEL_WARNING, OPTIONS_CASES, OUTSIDE_LADDER_LINE,
   REASON_CASES, REVIEW_TASK, RULES_PATH, SMALL_RECORD, TASK, UNSURE_RECORD, answer, answeredSetup, routeSetup,
+  LADDER_REFUSED_LINES, MISREAD_LADDERS, REFUSAL, RETRY_CASES, levelRefusedSetup,
 } from "./route-agent.fixtures.ts";
 
 describe("routeAgent", () => {
@@ -306,6 +307,91 @@ describe("actRoute, the thinking level", () => {
 
       // Assert
       deepStrictEqual(routed, c.routed);
+    });
+  }
+});
+
+describe("routeAgent, a pick refused with a thinking level", () => {
+  it("asks the pick once more without the level when the runtime refuses the level part", async () => {
+    // Arrange
+    const { deps, picker } = levelRefusedSetup();
+
+    // Act
+    await routeAgent(deps, THINKING_TASK, "large");
+
+    // Assert
+    deepStrictEqual(picker.asked.map((asked) => asked.effort), [{ max: "low" }, undefined]);
+  });
+
+  it("leaves the level in place, whatever level the pick asked alone holds", async () => {
+    // Arrange
+    const { deps } = levelRefusedSetup(LOW_PICKED);
+
+    // Act
+    const { effort } = await routeAgent(deps, THINKING_TASK, "large");
+
+    // Assert
+    strictEqual(effort, null);
+  });
+
+  for (const c of RETRY_CASES) {
+    it(c.name, async () => {
+      // Arrange
+      const { deps, log } = levelRefusedSetup(c.second);
+
+      // Act
+      const { profile } = await routeAgent(deps, THINKING_TASK, "large");
+
+      // Assert
+      deepStrictEqual([profile, log.lines], [c.profile, c.lines]);
+    });
+  }
+
+  it("asks once when the runtime refuses the ladder with a level asked", async () => {
+    // Arrange
+    const { deps, picker } = effortSetup({ stored: "high", answer: REFUSAL });
+
+    // Act
+    await routeAgent(deps, THINKING_TASK, "large");
+
+    // Assert
+    strictEqual(picker.asked.length, 1);
+  });
+
+  it("warns once, of the refusal, when the runtime refuses the ladder with a level asked", async () => {
+    // Arrange
+    const { deps, log } = effortSetup({ stored: "high", answer: REFUSAL });
+
+    // Act
+    await routeAgent(deps, THINKING_TASK, "large");
+
+    // Assert
+    deepStrictEqual(log.lines, LADDER_REFUSED_LINES);
+  });
+
+  it("asks nothing more when the runtime refuses a pick with no level asked", async () => {
+    // Arrange
+    const { deps, picker } = answeredSetup({ answer: REFUSAL });
+
+    // Act
+    await routeAgent(deps, THINKING_TASK, "large");
+
+    // Assert
+    strictEqual(picker.asked.length, 1);
+  });
+});
+
+describe("routeAgent, a stored ladder that is no ladder", () => {
+  for (const c of MISREAD_LADDERS) {
+    it(c.name, async () => {
+      // Arrange
+      const { deps, log } = routeSetup("on", { ladder: c.ladder });
+
+      // Act
+      await routeAgent(deps, TASK, "large");
+
+      // Assert
+      deepStrictEqual(log.lines, c.lines);
     });
   }
 });

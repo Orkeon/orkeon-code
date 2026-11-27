@@ -26,7 +26,8 @@ no ladder to route on.
   model a yes/no question about a fixed text (`DecisionModel.ask`, the port the skill suggestions use) and reads
   only whether an answer came back. None, or a throw, reads `configured, but it gave no answer to a test question
   just now`. With the routing off nothing is asked. `/route on` and `/route why` ask nothing either: one decision
-  call per status, never per launch.
+  call per status, never per launch. [ADR 0042](0042-route-review.md) replaces this test question by a test pick on
+  the ladder.
 - **No new port.** `available()` keeps its meaning, a model the settings configure; the test goes through `ask`,
   which already answers null for a failed call.
 - **A bare `/route` names a launch profile outside the ladder** (`agents.profile`, else `llm.profile`), the other

@@ -32,6 +32,16 @@ export const ROUTE_NO_LADDER =
   "route.agents is on and the runtime had no usable ladder to pick from: nothing is routed, the session's profile stands";
 export const routeRefused = (message: string): string =>
   `route.agents is on and the runtime refused the pick: nothing is routed, the session's profile stands (${message})`;
+/** The pick refused with a thinking level asked (a level /effort stored that none of the decision model's levels
+ *  reaches): asked again for the profile alone. */
+export const routeLevelRefused = (message: string): string =>
+  `route.agents is on and the runtime refused the pick of the profile with a thinking level: the profile is asked ` +
+  `again without one, and the level /effort stored stays in place (${message})`;
+/** A stored `route.ladder` that is no ladder, and the ladder used in its place. */
+export const ladderMisreadText = (stored: string, ladder: string): string =>
+  `route.ladder is '${stored}', which is no ladder: the ladder ${ladder} is used instead`;
+export const routeLadderMisread = (stored: string, ladder: string): string =>
+  `route.agents is on and ${ladderMisreadText(stored, ladder)}`;
 export const routeKeepsProfile = (profile: string, ladder: string): string =>
   `route.agents is on and the profile '${profile}' the crew is launched on is not on the ladder (${ladder}): it stands`;
 export const routedLine = (crew: string, profile: string, why: string): string => `route: ${crew} on '${profile}' (${why})`;

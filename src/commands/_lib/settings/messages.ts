@@ -1,5 +1,6 @@
 // The text the settings commands show the user (ADR 0026): usages, refusals, report lines and hints.
 import { USER_CONFIG_FILE_PATH } from "../../../shared/application/config-store.ts";
+import { ladderMisreadText } from "../../../shared/application/agents/messages.ts";
 import { EXTRA_TOOLS_CONFIG_KEY } from "../../../shared/domain/agent-policy/extra-tools.ts";
 import { PERMISSION_FALLBACK_CONFIG_KEY } from "../../../shared/domain/permission-modes.ts";
 import { RULE_SYNTAX } from "../../../shared/domain/agent-policy/permission.ts";
@@ -403,18 +404,23 @@ export const PROACTIVE_NOTE = "while on, /assistant answers end with up to three
 // /route
 export const ROUTE_USAGE = "usage: /route [on|off|why]";
 export const NOTHING_ROUTED_YET = "nothing routed yet in this session.";
-/** Where the host's decision model stands for /route: configured and answering (or not asked), not configured, or
- *  configured and giving no answer to a test question. */
-export type DecisionModelState = "present" | "absent" | "silent";
-const DECISION_MODEL_STATE: Readonly<Record<DecisionModelState, string>> = {
+/** Where the host's decision model stands for /route: configured and answering a test pick (or not tried, the routing
+ *  off), not configured, configured and giving no answer, a pick that asked it nothing, a pick that gave nothing back,
+ *  or a pick the runtime refused (its message). */
+export type DecisionModelState = "present" | "absent" | "silent" | "not-asked" | "no-pick" | { refused: string };
+const DECISION_MODEL_STATE: Readonly<Record<Exclude<DecisionModelState, { refused: string }>, string>> = {
   present: "present",
   absent: "absent, nothing is routed",
-  silent: "configured, but it gave no answer to a test question just now (a server that is down, a key refused): nothing is routed until it answers",
+  silent: "configured, but it gave no answer to a test pick just now (a server that is down, a key refused): nothing is routed until it answers",
+  "not-asked": "configured, but the runtime asked it nothing for a test pick just now (its decision circuit is off for this run): nothing is routed",
+  "no-pick": "configured, but the test pick gave nothing back just now (a host without the pick, a cancelled call, a reply that does not read): nothing is routed until it does",
 };
+const decisionModelRefused = (message: string): string =>
+  `configured, but the runtime refused a test pick on the ladder just now: nothing is routed until it accepts one (${message})`;
 /** Beside `route.effort: on` while `route.agents` is off: the level rides on the pick of a profile, and none is made. */
 const ROUTE_EFFORT_IDLE = " (asks nothing while route.agents is off)";
 export const routeStatus = (on: boolean, effort: boolean, ladder: string, model: DecisionModelState): string =>
-  `route.agents: ${on ? "on" : "off"}; route.effort: ${effort ? `on${on ? "" : ROUTE_EFFORT_IDLE}` : "off"}; ladder: ${ladder} (cheapest first); decision model: ${DECISION_MODEL_STATE[model]}.`;
+  `route.agents: ${on ? "on" : "off"}; route.effort: ${effort ? `on${on ? "" : ROUTE_EFFORT_IDLE}` : "off"}; ladder: ${ladder} (cheapest first); decision model: ${typeof model === "string" ? DECISION_MODEL_STATE[model] : decisionModelRefused(model.refused)}.`;
 export const routeSet = (on: boolean, model: boolean): string =>
   on
     ? `route.agents: on for this session${model ? "" : " (the host has no decision model: nothing is routed until it has one)"}; /clear clears it.`
@@ -422,5 +428,12 @@ export const routeSet = (on: boolean, model: boolean): string =>
 /** Under the status: what a rung's model takes, or what the stored effort becomes on it. */
 export const routeOutsideLadder = (profile: string, key: string): string =>
   `  ⚠ ${key} is '${profile}', which is not on the ladder: nothing is routed. Set it to a rung, or unset it.`;
+/** Under the status: the level /effort stored, refused by the runtime for the test pick, with its message. */
+export const routeLevelRefusedLine = (message: string): string =>
+  `  ⚠ route.effort is on and the runtime refuses the level /effort stored: route.effort picks no level, each launch ` +
+  `is routed on its profile alone (${message}).`;
+/** Under the status: a stored route.ladder that is no ladder, and the ladder used in its place. */
+export const routeLadderInvalid = (stored: string, ladder: string): string =>
+  `  ⚠ ${ladderMisreadText(stored, ladder)}. Set it to two rungs or more, each once, or unset it.`;
 export const rungLine = (rung: string, what: string): string => `  ${rung}: ${what}`;
 export const routedRecord = (crew: string, profile: string, why: string): string => `${crew} on '${profile}': ${why}`;

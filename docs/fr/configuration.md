@@ -199,8 +199,8 @@ celui de la section).
   que les modes tool et source l'exécutent. L'image n'a ni `claude` ni sa connexion.
 - Chaque verbe d'`orkeon` accepte ces settings, `orkeon runs list` compris (Orkeon #472).
 - [`config/appsettings.agent-cli.example.json`](../../config/appsettings.agent-cli.example.json) est l'exemple :
-  celui d'Anthropic, son profil par défaut sur `ANTHROPIC_API_KEY`, plus un profil `subscription` sur `agent-cli` dont
-  le `Fallback` est `default`. Copiez-le, puis `/config set llm.profile subscription` : chaque crew qu'une commande
+  celui d'Anthropic, son profil par défaut sur `ANTHROPIC_API_KEY` et les profils sur la clé `haiku` et `sonnet`, plus
+  un profil `subscription` sur `agent-cli` dont le `Fallback` est `default`. Copiez-le, puis `/config set llm.profile subscription` : chaque crew qu'une commande
   lance construit ses agents dessus.
 - Pour garder la conversation sur la clé et n'envoyer que les agents sur l'abonnement, faites plutôt `/config set
   agents.profile subscription` et laissez `llm.profile` absent : les tours de `/assistant` tournent sur le profil par
@@ -208,11 +208,15 @@ celui de la section).
 - Pour router sur l'abonnement, l'exemple déclare `subscription-haiku` et `subscription-sonnet`, le même profil sur
   les deux modèles moins chers : `/config set route.ladder subscription-haiku,subscription-sonnet,subscription`, puis
   `/route on`. Le profil de la session est le plafond : sous `agents.profile subscription`, les agents sont choisis
-  parmi les trois. Avec `route.effort` sur `on`, le niveau choisi atteint la CLI par `--effort` (Orkeon
+  parmi les trois. Chaque barreau se replie sur le profil sur la clé de son propre modèle : `subscription-haiku` sur
+  `haiku`, `subscription-sonnet` sur `sonnet`, `subscription` sur `default`. Un lancement routé vers un barreau moins
+  cher est alors facturé sur la clé au modèle de ce barreau, pas au plus cher, quand l'abonnement ne peut pas
+  répondre. Avec `route.effort` sur `on`, le niveau choisi atteint la CLI par `--effort` (Orkeon
   #488) à l'épingle, en mode source ; la release `1.4.0` des modes tool et docker l'abandonne encore avec un
   avertissement. Le niveau vaut pour un processus de la CLI : un lancement à un autre niveau démarre son propre processus, dans la
   limite de `Llm:AgentCli:MaxProcesses`.
-- L'exemple demande aussi `ANTHROPIC_API_KEY` : une session démarre sur le profil par défaut, le repli y arrive, et
+- L'exemple demande aussi `ANTHROPIC_API_KEY` : une session démarre sur le profil par défaut, les replis arrivent sur
+  la clé, et
   les services propres au runtime (planificateur, Guardian, juges) y restent.
 - Sans aucune clé, écrivez `"Provider": "agent-cli"` dans la section `Llm` elle-même, sans `Fallback`.
 - `Fallback` passe un appel au profil sur la clé quand l'abonnement est à sa limite, qu'Orkeon reçoit comme une
@@ -432,15 +436,41 @@ Ce que le tableau laisse de côté :
   ou le plancher d'une règle au barreau de la session) ne demande rien.
 - **`route.effort`** ne demande rien tant que `route.agents` n'est pas sur `on`, ni pour un lancement que le choix
   ne demande pas. Les niveaux parmi lesquels il choisit sont ceux du runtime (`Orkeon:Decision:Effort:Levels` ;
-  `low`, `medium`, `high` quand le runtime n'en liste aucun) : sans `/effort` enregistré, n'importe lequel.
+  `low`, `medium`, `high` quand le runtime n'en liste aucun) : sans `/effort` enregistré, n'importe lequel. Un choix
+  dont le runtime refuse la part du niveau (le plus souvent un niveau enregistré par `/effort` qui n'est pas l'un des
+  niveaux du runtime) ne perd pas le routage : un avertissement, `route.agents is on and the runtime refused the pick
+  of the profile with a thinking level: the profile is asked again without one, and the level /effort stored stays in
+  place (<message>)`, puis le profil est demandé de nouveau, seul. Tout autre refus (un barreau que le runtime ne
+  déclare pas, un plancher, un repli) donne un avertissement, `route.agents is on and the runtime refused the pick:
+  nothing is routed, the session's profile stands (<message>)`, et aucun second appel.
+- **Un `route.ladder` enregistré qui n'est pas une échelle** (un fichier modifié à la main : un seul nom, un nom deux
+  fois, un nom mal formé) est routé sur `small,large`, et le dit : chaque lancement routé avertit `route.agents is on
+  and route.ladder is '<value>', which is no ladder: the ladder small,large is used instead`, et un `/route` seul,
+  routage sur `on` ou `off`, ajoute la ligne `⚠ route.ladder is '<value>', which is no ladder: the ladder small,large
+  is used instead. Set it to two rungs or more, each once, or unset it.`
 - **Une échelle à trois barreaux** : [`config/appsettings.anthropic.example.json`](../../config/appsettings.anthropic.example.json)
   déclare les profils `haiku`, `sonnet`, `opus` et `fable` ; `/config set route.ladder haiku,sonnet,opus` en ordonne
   trois pour le routage. Un quatrième barreau est accepté, et
   [mesuré](decision-models.md#mesuré--des-échelles-de-deux-trois-et-quatre-barreaux) : il décide moins de demandes et
   envoie les plus difficiles au modèle le plus cher.
-- **Un `/route` seul**, routage sur `on`, pose une question de test au modèle de décision : un modèle que les
-  réglages nomment et qui ne répond pas (un serveur arrêté, une clé refusée) est signalé, là où `present`
-  s'affichait.
+- **Un `/route` seul**, routage sur `on`, fait un choix de test sur l'échelle de la session, par le choix du runtime
+  que le routage lui-même emprunte ([ADR 0042](../adr/0042-route-review.md)). Routage sur `off`, il ne demande rien.
+  Avec `route.effort` sur `on`, le choix de test demande le niveau qu'un lancement demanderait ; quand le runtime
+  refuse cette part du niveau, le choix est refait pour le profil seul (deux appels, dans ce seul cas), l'état
+  affiché est celui du profil, et la ligne `⚠ route.effort is on and the runtime refuses the level /effort stored:
+  route.effort picks no level, each launch is routed on its profile alone (<message>).` vient sous l'état, avant
+  les avertissements d'une échelle qui n'en est pas une et d'un profil de lancement hors de l'échelle. Ce qui suit
+  `decision model:` est l'un de :
+  - `present` : le choix a répondu (routage sur `off` : un modèle que les réglages configurent) ;
+  - `absent, nothing is routed` ;
+  - `configured, but it gave no answer to a test pick just now (a server that is down, a key refused): nothing is
+    routed until it answers` ;
+  - `configured, but the runtime refused a test pick on the ladder just now: nothing is routed until it accepts one
+    (<message>)`, un barreau que le runtime ne déclare pas parmi les causes ;
+  - `configured, but the test pick gave nothing back just now (a host without the pick, a cancelled call, a reply
+    that does not read): nothing is routed until it does` ;
+  - `configured, but the runtime asked it nothing for a test pick just now (its decision circuit is off for this
+    run): nothing is routed`.
 - **`compaction.prune`, `route.agents` et `route.effort` demandent le runtime de l'épingle**, donc le mode source : dans les modes tool et docker ils sont lus
   et ne font rien, sans avertissement qui leur soit propre, un runtime sans modèle de décision donnant toujours
   l'avertissement habituel

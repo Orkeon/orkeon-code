@@ -5,7 +5,7 @@ import { deepStrictEqual, strictEqual } from "node:assert";
 
 import { runRoute } from "../../../../src/commands/_lib/settings/route.ts";
 import {
-  CUSTOM_LADDER, OUTSIDE_LADDER_CASES, PROBE_ASKED, RECENT, STATUS_SILENT, RECENT_WITH_CIRCUIT_OFF, RECENT_WITH_LEVEL, STATUS_EFFORT_IDLE, STATUS_EFFORT_ON, WHY_LEVEL_LINES, SET_OFF, STATUS_CUSTOM_WITH_HIGH, SET_ON, SET_ON_NO_MODEL, STATUS_OFF, STATUS_ON_NO_MODEL, STATUS_WITH_MEDIUM, STATUS_WITH_RUNGS,
+  CUSTOM_LADDER, DECISION_STATE_CASES, EFFORT_REFUSAL, LEVEL_REFUSED_CASES, MISREAD_LADDER_CASES, OUTSIDE_LADDER_CASES, PROBE_ASKED, RECENT, RECENT_WITH_CIRCUIT_OFF, RECENT_WITH_LEVEL, STATUS_EFFORT_IDLE, STATUS_EFFORT_ON, WHY_LEVEL_LINES, SET_OFF, STATUS_CUSTOM_WITH_HIGH, SET_ON, SET_ON_NO_MODEL, STATUS_OFF, STATUS_ON_NO_MODEL, STATUS_WITH_MEDIUM, STATUS_WITH_RUNGS,
   WHY_LINES, WHY_STANDS_LINES, routeCommandSetup, routeOnGlmSetup,
 } from "./route.fixtures.ts";
 import { EFFORT_STATE_KEY } from "../../../../src/shared/domain/session-keys.ts";
@@ -145,53 +145,112 @@ describe("runRoute", () => {
     });
   }
 
-  it("asks the decision model one test question when the routing is on", async () => {
+  it("makes one test pick on the ladder when the routing is on", async () => {
     // Arrange
-    const { deps, config, decision } = routeCommandSetup();
+    const { deps, config, picker } = routeCommandSetup();
     config.values = { "route.agents": "on" };
 
     // Act
     await runRoute([], deps);
 
     // Assert
-    deepStrictEqual(decision.asked, PROBE_ASKED);
+    deepStrictEqual(picker.asked, PROBE_ASKED);
   });
 
-  it("asks the decision model nothing while the routing is off", async () => {
+  it("makes no test pick while the routing is off", async () => {
     // Arrange
-    const { deps, decision } = routeCommandSetup();
+    const { deps, picker } = routeCommandSetup();
 
     // Act
     await runRoute([], deps);
 
     // Assert
-    strictEqual(decision.asked.length, 0);
+    strictEqual(picker.asked.length, 0);
   });
 
-  it("says that a configured decision model gave no answer", async () => {
+  for (const c of DECISION_STATE_CASES) {
+    it(c.name, async () => {
+      // Arrange
+      const { deps, config, picker } = routeCommandSetup();
+      config.values = { "route.agents": "on" };
+      if (c.answer !== undefined) picker.answer = c.answer;
+      if (c.failure !== undefined) picker.failure = c.failure;
+
+      // Act
+      const view = await runRoute([], deps);
+
+      // Assert
+      strictEqual(view.text, c.text);
+    });
+  }
+
+  it("asks the test pick for a level under the one /effort stored with route.effort on", async () => {
     // Arrange
-    const { deps, config, decision } = routeCommandSetup();
-    config.values = { "route.agents": "on" };
-    decision.replies = [null];
+    const { deps, config, session, picker } = routeCommandSetup();
+    config.values = { "route.agents": "on", "route.effort": "on" };
+    session.state.set(EFFORT_STATE_KEY, "high");
+
+    // Act
+    await runRoute([], deps);
+
+    // Assert
+    deepStrictEqual(picker.asked.map((asked) => asked.effort), [{ max: "high" }]);
+  });
+
+  it("asks the test pick once more, for the profile alone, when the runtime refuses its level", async () => {
+    // Arrange
+    const { deps, config, session, picker } = routeCommandSetup();
+    config.values = { "route.agents": "on", "route.effort": "on" };
+    session.state.set(EFFORT_STATE_KEY, "low");
+    picker.answerFor = (_options, effort) => (effort === undefined ? picker.answer : EFFORT_REFUSAL);
+
+    // Act
+    await runRoute([], deps);
+
+    // Assert
+    deepStrictEqual(picker.asked.map((asked) => asked.effort), [{ max: "low" }, undefined]);
+  });
+
+  for (const c of LEVEL_REFUSED_CASES) {
+    it(c.name, async () => {
+      // Arrange
+      const { deps, config, session, picker } = routeCommandSetup();
+      config.values = { "route.agents": "on", "route.effort": "on" };
+      session.state.set(EFFORT_STATE_KEY, "low");
+      picker.answerFor = (_options, effort) => (effort === undefined ? c.second : EFFORT_REFUSAL);
+
+      // Act
+      const view = await runRoute([], deps);
+
+      // Assert
+      strictEqual(view.text, c.text);
+    });
+  }
+
+  for (const c of MISREAD_LADDER_CASES) {
+    it(c.name, async () => {
+      // Arrange
+      const { deps, config } = routeCommandSetup();
+      config.values = c.values;
+
+      // Act
+      const view = await runRoute([], deps);
+
+      // Assert
+      strictEqual(view.text, c.text);
+    });
+  }
+
+  it("reads every setting as unset when the store cannot be read", async () => {
+    // Arrange
+    const { deps, config } = routeCommandSetup();
+    config.failure = new Error("unreadable settings");
 
     // Act
     const view = await runRoute([], deps);
 
     // Assert
-    strictEqual(view.text, STATUS_SILENT);
-  });
-
-  it("says that a configured decision model gave no answer when the question throws", async () => {
-    // Arrange
-    const { deps, config, decision } = routeCommandSetup();
-    config.values = { "route.agents": "on" };
-    decision.failure = new Error("connection refused");
-
-    // Act
-    const view = await runRoute([], deps);
-
-    // Assert
-    strictEqual(view.text, STATUS_SILENT);
+    strictEqual(view.text, STATUS_OFF);
   });
 
   it("says nothing was routed yet", async () => {

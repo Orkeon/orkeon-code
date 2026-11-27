@@ -20,6 +20,24 @@ export const LADDER_PROBLEM_CASES: readonly { readonly name: string; readonly va
   { name: "refuses the name the runtime reserves for its own pick as a rung", value: "small,auto", problem: true },
 ];
 
+/** Whether a stored `route.ladder` is misread as no ladder: a value that names one, or nothing, is not. */
+export const LADDER_MISREAD_CASES: readonly { readonly name: string; readonly value: unknown; readonly misread: boolean }[] = [
+  { name: "reads a ladder of two profiles as one", value: "small,large", misread: false },
+  { name: "tells one profile alone", value: "small", misread: true },
+  { name: "tells a profile named twice", value: "small,Small", misread: true },
+  { name: "tells a name that is no profile's", value: "small,very large", misread: true },
+  { name: "says nothing of a value unset", value: undefined, misread: false },
+  { name: "says nothing of a blank value", value: "  ", misread: false },
+];
+
+/** Whether two profile names are one profile for the host. */
+export const SAME_PROFILE_CASES: readonly { readonly name: string; readonly a: string | null; readonly b: string | null; readonly same: boolean }[] = [
+  { name: "takes two spellings of one name in two cases as one profile", a: "Small", b: "small", same: true },
+  { name: "tells two names apart", a: "small", b: "large", same: false },
+  { name: "takes the host's default model as itself", a: null, b: null, same: true },
+  { name: "tells the host's default model from a profile", a: null, b: "small", same: false },
+];
+
 export const RULES: RouteRules = {
   paths: { "src/billing": "large", "src/billing/fixtures": "small", "docs/": "small", "src/auth": "opus" },
   crews: { "code-review": "medium", "security-audit": "Large" },

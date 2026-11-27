@@ -1,7 +1,5 @@
 // The text the settings commands send the host's decision model.
 
-// /route: the test question a bare /route asks, to know that the decision model answers.
-/** What the question is asked about. */
-export const DECISION_PROBE_STATE = "ready";
-/** What a yes means; the answer itself is not read, only that one came back. */
-export const DECISION_PROBE_YES = "The text is the single word 'ready'";
+// /route: the request of the test pick a bare /route makes, to know that the pick answers with a profile. Any rung is
+// a right answer: only that one came back is read.
+export const ROUTE_PROBE_REQUEST = "A test request from /route, to check that the routing answers: any rung of the ladder is a right answer.";

@@ -212,6 +212,16 @@ export const CHAT_LAUNCH_CASES: readonly { name: string; reply?: unknown; chat: 
   { name: "hands the main loop no chat family on a host without chat_accounts", chat: false },
 ];
 
+/** crewDeps as withRoutedProfile hands them on when the pick moved the launch to `small` under a session on `large`,
+ *  with the level `low` decided. */
+export function routedLaunchDeps() {
+  const base = crewDeps();
+  return { ...base, deps: { ...base.deps, llmProfile: "small", llmProfileFallback: "large", effort: "low" as const } };
+}
+
+/** The pick of `Large`, the session's own rung as the host spells it on the ladder `Small,Large`. */
+export const SAME_RUNG_OTHER_CASE: ProfilePick = { value: "Large", reason: "model", picked: "Large", probability: 0.9 };
+
 /** A launch whose crew forwards /effort: the routing may pick its thinking level. */
 export const THINKING_LAUNCH = { crew: "dev-plan", brief: "/dev-plan invoice-export", thinks: true };
 

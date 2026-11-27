@@ -31,7 +31,14 @@ export function answer(value: string | null, reason: RouteReason, picked: string
 
 /** The runtime's refusal of a ladder that names a profile the host does not declare. */
 export const REFUSAL: ProfilePickRefusal = {
-  refused: "services.get(\"pick\").pick { profile.ladder } 'small' is not a profile of this host (known: fast, strong)",
+  refused: "services.get(\"pick\").pick { profile.ladder } 'small' is not a profile of this host (known: fast, strong)", part: "profile",
+};
+
+/** The runtime's refusal of a level part that leaves the decision model no level (a level /effort stored under all of
+ *  its levels). */
+export const EFFORT_REFUSAL: ProfilePickRefusal = {
+  refused: "services.get(\"pick\").pick { effort } leaves no level of Orkeon:Decision:Effort:Levels (medium, high) between min '(none)' and max 'low'.",
+  part: "effort",
 };
 
 /** What a case sets besides the pick's answer: the project's rules, and `route.ladder`. */
@@ -242,6 +249,10 @@ export const ACT_ROUTES: readonly ActRouteCase[] = [
   { name: "leaves an act on a crew routed lower when the runtime refuses the pick", answer: REFUSAL, profiles: { session: "large", crew: "small" }, profile: null },
   { name: "leaves an act on a crew routed lower when route.agents is off", setting: "off", answer: answer("large", "model", "large", 0.9), profiles: { session: "large", crew: "small" }, profile: null },
   { name: "moves an act of a session on the host's default model to the rung picked", answer: answer("small", "model", "small", 0.9), profiles: { session: null, crew: null }, profile: "small" },
+  {
+    name: "leaves an act where it is when the pick is the crew's profile spelled in another case", answer: answer("Small", "model", "Small", 0.9),
+    profiles: { session: "large", crew: "small" }, profile: null, ladder: "Small,Large",
+  },
 ];
 
 interface ActLineCase extends Ground {
@@ -370,3 +381,55 @@ export const ACT_EFFORTS: readonly (EffortGround & { name: string; routed: Route
   { name: "leaves the level of an act when the pick answers one without the decision model's answer", answer: LOW_ANSWERED_UNANSWERED, routed: { profile: null, effort: null } },
   { name: "leaves an act where it is when the host has no pick", answer: null, routed: { profile: null, effort: null } },
 ];
+
+/** The ports with a level stored at `low` and a pick whose level part the runtime refuses, answering `second` when
+ *  asked for the profile alone. */
+export function levelRefusedSetup(second: Answer = answer("small", "model", "small", 0.9)) {
+  const setup = effortSetup({ stored: "low" });
+  setup.picker.answerFor = (_options, effort) => (effort === undefined ? second : EFFORT_REFUSAL);
+  return setup;
+}
+
+const LEVEL_REFUSED_WARNING =
+  "warn: route.agents is on and the runtime refused the pick of the profile with a thinking level: the profile is asked " +
+  `again without one, and the level /effort stored stays in place (${EFFORT_REFUSAL.refused})`;
+
+/** What a launch gets, and what is said, by what the pick asked for the profile alone answers. */
+export const RETRY_CASES: readonly { name: string; second: Answer; profile: string; lines: readonly string[] }[] = [
+  {
+    name: "routes on the profile the pick asked alone answers, after one warning", second: answer("small", "model", "small", 0.9), profile: "small",
+    lines: [LEVEL_REFUSED_WARNING, "info: route: dev-plan on 'small' (the decision model's pick; picked 'small' at 0.90)"],
+  },
+  {
+    name: "keeps the session's profile and warns of both refusals when the pick asked alone is refused too", second: REFUSAL, profile: "large",
+    lines: [LEVEL_REFUSED_WARNING, `warn: route.agents is on and the runtime refused the pick: nothing is routed, the session's profile stands (${REFUSAL.refused})`],
+  },
+  { name: "keeps the session's profile when the pick asked alone gives nothing back", second: null, profile: "large", lines: [LEVEL_REFUSED_WARNING] },
+  {
+    name: "keeps the session's profile when the pick asked alone finds the circuit off", second: answer("large", "circuit-off"), profile: "large",
+    lines: [
+      LEVEL_REFUSED_WARNING,
+      "warn: route.agents is on and the runtime's decision circuit is off for this run (a crew on decision.mode none, a run " +
+      "scope that turns the circuit off, such as a forge trial pass): nothing is routed, the session's profile stands",
+    ],
+  },
+];
+
+/** A refusal of the ladder with a level asked: one warning, of the refusal, and no second pick. */
+export const LADDER_REFUSED_LINES = [
+  `warn: route.agents is on and the runtime refused the pick: nothing is routed, the session's profile stands (${REFUSAL.refused})`,
+];
+
+/** A stored route.ladder that is no ladder: one warning naming it and the ladder used, then the line of the launch. */
+export const MISREAD_LADDERS: readonly { name: string; ladder: string; lines: readonly string[] }[] = [
+  { name: "one profile alone", ladder: "small" },
+  { name: "a profile named twice", ladder: "small,Small,large" },
+  { name: "a name that is no profile's", ladder: "small,very large" },
+].map((c) => ({
+  name: `warns that route.ladder names ${c.name}, and the ladder used instead`,
+  ladder: c.ladder,
+  lines: [
+    `warn: route.agents is on and route.ladder is '${c.ladder}', which is no ladder: the ladder small,large is used instead`,
+    "info: route: dev-plan on 'small' (the decision model's pick; picked 'small' at 0.90)",
+  ],
+}));

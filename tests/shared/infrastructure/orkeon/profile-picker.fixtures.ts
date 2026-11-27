@@ -29,6 +29,18 @@ export const ALL_BOUNDS: RouteBounds = { ladder: ["small", "medium", "large"], f
 export const REFUSED_LADDER = "services.get(\"pick\").pick { profile.ladder } 'tiny' is not a profile of this host (known: small, large)";
 /** What the runtime throws on a floor above the ceiling. */
 export const REFUSED_FLOOR = "ctx.llm.pick { profile.floor } 'large' is above the ceiling 'small' on the ladder (small, large)";
+/** The part of the options a refusal names, by the option the runtime writes after what was called. */
+export const REFUSED_PARTS: readonly { readonly name: string; readonly message: string; readonly part: "profile" | "effort" | undefined }[] = [
+  {
+    name: "tells a refusal of the level part",
+    message: "services.get(\"pick\").pick { effort } leaves no level of Orkeon:Decision:Effort:Levels (medium, high) between min '(none)' and max 'low'.",
+    part: "effort",
+  },
+  { name: "tells a refusal of a bound of the level", message: "ctx.llm.pick { effort.max } 'huge' is not a thinking level: write one of low, medium, high.", part: "effort" },
+  { name: "tells a refusal of a bound of the profile", message: REFUSED_LADDER, part: "profile" },
+  { name: "names no part for a refusal of the options as a whole", message: "ctx.llm.pick { options } takes { profile?, effort? }: give one of them, or both.", part: undefined },
+  { name: "names no part for a failure that names no option", message: "the services of this run are gone", part: undefined },
+];
 /** What a locator throws when it is used outside the run that got it. */
 export const LOCATOR_GONE = "the services of this run are gone";
 

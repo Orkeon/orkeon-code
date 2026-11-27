@@ -348,7 +348,8 @@ is picked at each launch of `/dev-spec` (and its alias `/dev-change`), `/dev-pla
 - **The ladder**: `route.ladder` orders the host's LLM profiles, cheapest first (`small,large` when omitted): names of
   `Llm:Profiles`.
   - `/config set` refuses fewer than two names, a name that is no profile name, and a rung named twice, whatever its
-    case (`Small,small`). A stored value that is no ladder reads as `small,large`.
+    case (`Small,small`). A stored value that is no ladder (a hand-edited file) reads as `small,large`, and is said:
+    a warning at each routed launch, a line under a bare `/route`.
   - The session's `llm.profile` and a rule's profile find their rung whatever their case: `llm.profile Large` is
     the rung `large` of `small,large`.
   - The runtime's pick refuses a ladder that names a profile the host does not declare: nothing is routed then, the
@@ -380,9 +381,13 @@ is picked at each launch of `/dev-spec` (and its alias `/dev-change`), `/dev-pla
   whole ladder: routed, a launch may then run on a dearer model than the host's default. A session on a profile
   outside the ladder (a decision profile that guards its requests) is not routed: it keeps that profile, and one log
   line says so, as does a bare `/route`, which names the setting that holds the profile.
-- **A decision model that does not answer**: with the routing on, a bare `/route` asks the host's decision model one
-  test question (`commands/_lib/settings/prompts.ts`); a model that is configured and gives no answer is reported as
-  such, since nothing is routed until it answers.
+- **A decision model that does not answer**: with the routing on, a bare `/route` makes one test pick on the
+  session's ladder, through the same pick (its request in `commands/_lib/settings/prompts.ts`;
+  [ADR 0042](adr/0042-route-review.md)). With `route.effort` on it asks the level a launch would ask, and a refused
+  level part makes it pick the profile alone and add a warning line. It reports a model that answered, one that gave
+  no answer, a pick the runtime refused (with its message), a pick that gave nothing back (a host without the pick, a
+  cancelled call, a reply that does not read) and a pick that asked the model nothing (its circuit off), since
+  nothing is routed in the last four cases.
 - **What is not routed**: the main loop (`/assistant`: its prompt cache follows one model), `/compact`, `/memory
   admit`, the speech crews, `/advisor` (it has its own model), `/dev-batches` and `/tasks`; and, inside a crew, the
   roles of `/dev-implement`, the agents a crew starts in the background and the extraction of a sub-agent's answer.
@@ -395,6 +400,10 @@ is picked at each launch of `/dev-spec` (and its alias `/dev-change`), `/dev-pla
     carries it in place of the stored one, an act runs at it for that call.
   - Without a decision the level in place stands, the stored one for a launch and the crew's own for an act, and the
     line says `effort left as it was`.
+  - A pick whose level part the runtime refuses (a level `/effort` stored that none of the host's levels reaches) is
+    one warning, and the profile is asked once more, alone: the level stays in place. A second refusal is the usual
+    one. A refusal of another part (a rung the host does not declare, a floor, a fallback) is the usual warning, with
+    no second call.
   - Nothing is asked where no profile is: a session on a profile outside the ladder, or whose own rung is the one
     rung left, keeps its level.
   - The line and `/route why` show the level after the profile: `route: dev-plan on 'small' (the decision model's

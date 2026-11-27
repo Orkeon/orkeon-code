@@ -35,8 +35,8 @@ import { createReasoningReader } from "./reasoning.ts";
 import { actRoute } from "../../application/agents/route-agent.ts";
 import { contextPruning } from "../../application/compaction/prune-context.ts";
 import { prunedLlm } from "../../application/compaction/pruned-llm.ts";
-import type { ActRoute } from "../../application/agents/route-agent.ts";
-import { llmProfileOf, llmSessionProfileOf, spawnedAgentInput } from "../../domain/llm-profile.ts";
+import type { ActProfiles, ActRoute } from "../../application/agents/route-agent.ts";
+import { actProfilesOf, spawnedActProfilesOf, spawnedAgentInput } from "../../domain/llm-profile.ts";
 import type { AgentFactories } from "./llm-profile.ts";
 import { createAnchorIndex, createCodeIndex, createCostIndex } from "./code-index.ts";
 import { createFiles } from "./files.ts";
@@ -166,13 +166,19 @@ export const orkeonSpawnedAgent = (input: Readonly<Record<string, unknown>> = in
 export const orkeonActRoute = (
   ctx: { llm: Partial<Pick<LlmFacade, "pick">>; log: Pick<Logger, "info" | "warn"> }, tools: OrkeonTools = Tools, root?: string,
   input: Readonly<Record<string, unknown>> = inputs(),
+): ActRoute => actRouteBetween(ctx, tools, root, actProfilesOf(input));
+
+/** orkeonActRoute between the profiles given. */
+const actRouteBetween = (
+  ctx: { llm: Partial<Pick<LlmFacade, "pick">>; log: Pick<Logger, "info" | "warn"> }, tools: OrkeonTools, root: string | undefined,
+  profiles: ActProfiles,
 ): ActRoute => declaredRoute(
   actRoute(
     {
       decision: orkeonDecisionModel(tools), picker: createLlmProfilePicker(ctx.llm), files: orkeonFiles(tools, root),
       session: orkeonSessionStore(tools), config: orkeonConfigStore(tools, root), log: ctx.log,
     },
-    { session: llmSessionProfileOf(input), crew: llmProfileOf(input) },
+    profiles,
   ),
   orkeonAgentFactories(),
 );
@@ -181,7 +187,7 @@ export const orkeonActRoute = (
  *  agent is built on (`agents.profile`, else the turn's own), so the pick never answers a rung above it. */
 export const orkeonSpawnedActRoute = (
   ctx: { llm: Partial<Pick<LlmFacade, "pick">>; log: Pick<Logger, "info" | "warn"> }, input: Readonly<Record<string, unknown>> = inputs(),
-): ActRoute => orkeonActRoute(ctx, Tools, undefined, spawnedAgentInput(input));
+): ActRoute => actRouteBetween(ctx, Tools, undefined, spawnedActProfilesOf(input));
 
 /** `llm` with the pruning of its acts' tool loops (`compaction.prune`, shared/application/compaction/pruned-llm.ts):
  *  the acts of the dev crews' sub-agents and roles. `log`, `tools` and `root` are the body's, as for orkeonActRoute.

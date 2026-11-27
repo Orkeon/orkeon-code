@@ -53,7 +53,7 @@ import {
   unreadableVoiceDeps,
   voiceDeps,
   routedCrewDeps,
-  CHAT_LAUNCH_CASES, PICK_WITH_LEVEL, SAME_RUNG_WITH_LEVEL, THINKING_LAUNCH,
+  CHAT_LAUNCH_CASES, PICK_WITH_LEVEL, SAME_RUNG_OTHER_CASE, SAME_RUNG_WITH_LEVEL, THINKING_LAUNCH, routedLaunchDeps,
 } from "./dispatch.fixtures.ts";
 import { assertMemoryGuarded } from "./dispatch.assertions.ts";
 import { WORKSPACE } from "../../../src/shared/domain/vfs.ts";
@@ -70,6 +70,17 @@ describe("launchCrew", () => {
     deepStrictEqual(result, { ticket: "ticket-1" });
     deepStrictEqual(crews.launches, [{ name: "project-init", input: { cwd: WORKSPACE } }]);
     deepStrictEqual(logged, [{ message: "project-init launched", data: { ticket: "ticket-1" } }]);
+  });
+
+  it("replaces the level /effort stored in the crew input by the one the routing picked", () => {
+    // Arrange
+    const { crews, deps } = routedLaunchDeps();
+
+    // Act
+    launchCrew(deps, "dev-plan", { code: "invoice-export", effort: "high" });
+
+    // Assert
+    deepStrictEqual(crews.launches[0].input, { code: "invoice-export", effort: "low", llmProfile: "small", llmProfileFallback: "large" });
   });
 
   it("hands the crew the profile the deps carry, as llmProfile in its input, and logs it", () => {
@@ -206,6 +217,18 @@ describe("withRoutedProfile", () => {
     deepStrictEqual(deps.crews.launches[0].input, { code: "invoice-export", llmProfile: "small", llmProfileFallback: "large" });
   });
 
+  it("leaves the launch on the session's profile when the pick answers it in the ladder's case", async () => {
+    // Arrange
+    const { deps, config, routing } = routedCrewDeps({ "llm.profile": "large", "route.agents": "on", "route.ladder": "Small,Large" });
+    routing.picker.answer = SAME_RUNG_OTHER_CASE;
+
+    // Act
+    const profiled = await withRoutedProfile(deps, config, routing, { crew: "dev-plan", brief: "/dev-plan invoice-export" });
+
+    // Assert
+    deepStrictEqual([profiled.llmProfile, "llmProfileFallback" in profiled], ["large", false]);
+  });
+
   it("hands the launch the session's profile when the routing is off", async () => {
     // Arrange
     const { deps, config, routing } = routedCrewDeps({ "llm.profile": "large" });
@@ -241,19 +264,6 @@ describe("withRoutedProfile, the thinking level", () => {
 
     // Assert
     deepStrictEqual([profiled.llmProfile, profiled.effort], ["large", "low"]);
-  });
-
-  it("replaces the level /effort stored in the crew input by the one picked", async () => {
-    // Arrange
-    const { deps, config, routing } = routedCrewDeps({ "llm.profile": "large", "route.agents": "on", "route.effort": "on" });
-    routing.picker.answer = PICK_WITH_LEVEL;
-    const profiled = await withRoutedProfile(deps, config, routing, THINKING_LAUNCH);
-
-    // Act
-    launchCrew(profiled, "dev-plan", { code: "invoice-export", effort: "high" });
-
-    // Assert
-    deepStrictEqual(deps.crews.launches[0].input, { code: "invoice-export", effort: "low", llmProfile: "small", llmProfileFallback: "large" });
   });
 
   it("leaves the level of the crew input when the routing picked none", async () => {

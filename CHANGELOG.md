@@ -19,6 +19,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   single rung, and with no `/effort` stored the pick may choose any of the host's levels.
 - The docs no longer say that `/effort` cannot reach the `agent-cli` provider, nor that `llm.profile` is the profile
   of every agent; the measure of the level reads 7 of the 9 requests that take one.
+- A pick whose thinking level the runtime refuses (a level `/effort` stored that is not one of the decision model's
+  levels) no longer loses the routing: one warning, then the profile is asked again alone, and the level stays in
+  place ([ADR 0042](docs/adr/0042-route-review.md)). A refusal of anything else (a rung, a floor, a fallback) is one
+  warning and no second call, as before.
+- A stored `route.ladder` that is no ladder (one name, a name twice, a malformed name) is no longer replaced by
+  `small,large` in silence: each routed launch warns, and a bare `/route` shows a warning line, the routing on or off.
+- A bare `/route` with the routing on makes one test pick on the ladder, the path the routing takes, in place of a
+  yes/no test question, and says what came of it after `decision model:`: present, absent, no answer, refused by
+  the runtime (with its message), nothing back (a host without the pick, a cancelled call, a reply that does not
+  read), or nothing asked (the runtime's decision circuit off). With `route.effort` on it asks the level a launch
+  would ask; when the runtime refuses that level, it picks the profile alone and adds a warning line.
+- `config/appsettings.agent-cli.example.json` declares the key profiles `haiku` and `sonnet`, and
+  `subscription-haiku` and `subscription-sonnet` fall back on them: a launch routed to a cheap rung is billed on the
+  key at that rung's model, not at the dearest, when the subscription cannot answer.
 
 ### Changed — the pin moves to Orkeon `main` `9ca8530`, the thinking level reaches the subscription
 

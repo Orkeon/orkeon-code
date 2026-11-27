@@ -59,3 +59,4 @@ changes for Orkeon Code: what is adopted, what is set aside, what is removed.
 | [0039](0039-route-effort-and-explorer.md) | The routing picks the thinking level too (`route.effort`), and reaches the explorer |
 | [0040](0040-route-reach.md) | A ladder of three rungs (measured), a `/route` that says when the decision model gives no answer, the subscription ladder |
 | [0041](0041-orkeon-after-488.md) | Orkeon main after #488: the thinking level reaches the subscription |
+| [0042](0042-route-review.md) | The routing after an adversarial review: a level refused, a ladder misread, a test pick, fallbacks by rung |

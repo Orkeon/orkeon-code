@@ -78,6 +78,13 @@ export const SUBSCRIPTION_PROFILE = {
   Fallback: ["default"],
 };
 
+/** The cheaper subscription profiles of the agent-cli example, each with the key profile of its own model it falls
+ *  back on: a launch routed to a cheap rung is never billed at the dearest model when the subscription is at its limit. */
+export const SUBSCRIPTION_RUNG_FALLBACKS: readonly { readonly profile: string; readonly fallback: string }[] = [
+  { profile: "subscription-haiku", fallback: "haiku" },
+  { profile: "subscription-sonnet", fallback: "sonnet" },
+];
+
 /** The settings but for their comment and their Llm section. */
 export const withoutCommentAndLlm = ({ _comment, Llm, ...rest }: Record<string, unknown>) => rest;
 

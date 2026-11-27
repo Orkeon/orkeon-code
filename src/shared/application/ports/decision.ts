@@ -34,7 +34,13 @@ export interface ProfilePick {
 export interface ProfilePickRefusal {
   /** The runtime's own message: it names the option and what is wrong with it. */
   refused: string;
+  /** The part of the options the message names as refused: the profile's bounds, or the thinking level's; left out
+   *  when it names neither (a failure of the call, a lookup that threw). */
+  part?: PickPart;
 }
+
+/** The parts of a pick's options: the profile's bounds and the thinking level's. */
+export type PickPart = "profile" | "effort";
 
 /** The runtime's System One pick of a profile (Orkeon #460, experimental ORKEXP008): the decision model reads the
  *  request and picks a rung; under its bar (0.6) or without an answer the fallback stands. Given `effort`, the same

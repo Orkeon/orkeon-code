@@ -383,7 +383,9 @@ décision sur le runtime, ce profil est choisi à chaque lancement de `/dev-spec
 - **L'échelle** : `route.ladder` ordonne les profils LLM du runtime, du moins cher au plus cher (`small,large` si
   omis) : des noms de `Llm:Profiles`.
   - `/config set` refuse moins de deux noms, un nom qui n'est pas un nom de profil, et un barreau nommé deux fois,
-    quelle que soit sa casse (`Small,small`). Une valeur enregistrée qui n'est pas une échelle se lit `small,large`.
+    quelle que soit sa casse (`Small,small`). Une valeur enregistrée qui n'est pas une échelle (un fichier modifié à
+    la main) se lit `small,large`, et le dit : un avertissement à chaque lancement routé, une ligne sous un `/route`
+    seul.
   - Le `llm.profile` de la session et le profil d'une règle trouvent leur barreau quelle que soit leur casse :
     `llm.profile Large` est le barreau `large` de `small,large`.
   - Le choix du runtime refuse une échelle qui nomme un profil que le runtime ne déclare pas : rien n'est routé
@@ -419,9 +421,13 @@ décision sur le runtime, ce profil est choisi à chaque lancement de `/dev-spec
   celui par défaut du runtime. Une session sur un profil hors de l'échelle (un profil de décision qui
   garde ses requêtes) n'est pas routée : elle garde ce profil, et une ligne de journal le dit, comme un `/route`
   seul, qui nomme le réglage qui porte le profil.
-- **Un modèle de décision qui ne répond pas** : routage sur `on`, un `/route` seul pose au modèle de décision du
-  runtime une question de test (`commands/_lib/settings/prompts.ts`) ; un modèle configuré qui ne répond pas est
-  signalé comme tel, puisque rien n'est routé tant qu'il ne répond pas.
+- **Un modèle de décision qui ne répond pas** : routage sur `on`, un `/route` seul fait un choix de test sur
+  l'échelle de la session, par le même choix (sa demande dans `commands/_lib/settings/prompts.ts` ;
+  [ADR 0042](../adr/0042-route-review.md)). Avec `route.effort` sur `on`, il demande le niveau qu'un lancement
+  demanderait, et une part du niveau refusée lui fait choisir le profil seul et ajouter une ligne d'avertissement. Il
+  signale un modèle qui a répondu, un qui n'a pas répondu, un choix que le runtime a refusé (avec son message), un
+  choix qui n'a rien rendu (un runtime sans le choix, un appel annulé, une réponse illisible) et un choix qui n'a rien
+  demandé au modèle (son circuit éteint), puisque rien n'est routé dans les quatre derniers cas.
 - **Ce qui n'est pas routé** : la boucle principale (`/assistant` : son cache de prompt suit un modèle),
   `/compact`, `/memory admit`, les crews de parole, `/advisor` (il a son propre modèle), `/dev-batches` et
   `/tasks` ; et, dans un crew, les rôles de `/dev-implement`, les agents qu'un crew démarre en arrière-plan,
@@ -436,6 +442,10 @@ décision sur le runtime, ce profil est choisi à chaque lancement de `/dev-spec
     lancement le porte alors à la place du niveau enregistré, un act tourne à ce niveau pour cet appel.
   - Sans décision, le niveau en place tient, celui enregistré pour un lancement et celui du crew pour un act, et la
     ligne dit `effort left as it was`.
+  - Un choix dont le runtime refuse la part du niveau (un niveau enregistré par `/effort` qu'aucun des niveaux du
+    runtime n'atteint) donne un avertissement, et le profil est demandé une fois de plus, seul : le niveau reste en
+    place. Un second refus est le refus habituel. Le refus d'une autre part (un barreau que le runtime ne déclare pas,
+    un plancher, un repli) donne l'avertissement habituel, sans second appel.
   - Rien n'est demandé là où aucun profil ne l'est : une session sur un profil hors de l'échelle, ou dont le
     barreau est le seul qui reste, garde son niveau.
   - La ligne et `/route why` montrent le niveau après le profil : `route: dev-plan on 'small' (the decision model's

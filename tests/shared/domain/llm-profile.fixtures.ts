@@ -68,3 +68,22 @@ export const SPAWNED_INPUTS: readonly { readonly name: string; readonly input: R
     spawned: { llmProfile: "subscription", agentsLlmProfile: "subscription" },
   },
 ];
+
+/** The profiles an act is routed between, by the crew input: a launch's own, and those of an agent the turn spawns. */
+export const ACT_PROFILE_INPUTS: readonly { readonly name: string; readonly input: Record<string, unknown>; readonly profiles: { session: string | null; crew: string | null } }[] = [
+  { name: "routes the acts of a crew under the session's profile, a routed crew's fallback", input: { llmProfile: "small", llmProfileFallback: "large" }, profiles: { session: "large", crew: "small" } },
+  { name: "routes the acts of a crew on the host's default model with no ceiling", input: { prompt: "hi" }, profiles: { session: null, crew: null } },
+];
+
+/** The profiles the act of a spawned agent is routed between, by the turn's input. */
+export const SPAWNED_ACT_PROFILE_INPUTS: readonly { readonly name: string; readonly input: Record<string, unknown>; readonly profiles: { session: string | null; crew: string | null } }[] = [
+  {
+    name: "routes a spawned agent's act under the agents' profile, never the turn's own",
+    input: { llmProfile: "large", agentsLlmProfile: "small" }, profiles: { session: "small", crew: "small" },
+  },
+  {
+    name: "routes a spawned agent's act under the agents' profile, the turn's routing fallback dropped",
+    input: { llmProfile: "medium", llmProfileFallback: "large", agentsLlmProfile: "small" }, profiles: { session: "small", crew: "small" },
+  },
+  { name: "routes a spawned agent's act under the turn's profile when the input names no agents' profile", input: { llmProfile: "large" }, profiles: { session: "large", crew: "large" } },
+];

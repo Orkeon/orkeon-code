@@ -7,7 +7,7 @@ import { createLlmProfilePicker, createServicesProfilePicker } from "../../../..
 import { FakePickService } from "../../../support/doubles/fake-pick-service.ts";
 import { FakeServiceLocator } from "../../../support/doubles/fake-script-host.ts";
 import {
-  ALL_BOUNDS, CANCELLATIONS, LEVEL_REPLY, MODEL_PICK_WITH_LEVEL, READ_LEVELS, UNREAD_LEVELS, DEFAULT_SPELLINGS, LOCATOR_GONE, MISTYPED_PICK, MODEL_PICK, NO_PICK_WIRED, OPTIONS, REFUSED_FLOOR, REFUSED_LADDER, REQUEST, UNREAD,
+  ALL_BOUNDS, CANCELLATIONS, LEVEL_REPLY, MODEL_PICK_WITH_LEVEL, READ_LEVELS, UNREAD_LEVELS, DEFAULT_SPELLINGS, LOCATOR_GONE, MISTYPED_PICK, MODEL_PICK, NO_PICK_WIRED, OPTIONS, REFUSED_FLOOR, REFUSED_LADDER, REFUSED_PARTS, REQUEST, UNREAD,
   llmWhosePickThrows, pickerOverLlm, pickerOverServices,
 } from "./profile-picker.fixtures.ts";
 
@@ -127,7 +127,7 @@ describe("createServicesProfilePicker", () => {
     const answer = await picker.pick(REQUEST, OPTIONS);
 
     // Assert
-    deepStrictEqual(answer, { refused: REFUSED_LADDER });
+    deepStrictEqual(answer, { refused: REFUSED_LADDER, part: "profile" });
   });
 
   it("answers a refusal, and throws nothing, when the lookup of the service throws", async () => {
@@ -228,7 +228,7 @@ describe("createLlmProfilePicker", () => {
     const answer = await picker.pick(REQUEST, OPTIONS);
 
     // Assert
-    deepStrictEqual(answer, { refused: REFUSED_FLOOR });
+    deepStrictEqual(answer, { refused: REFUSED_FLOOR, part: "profile" });
   });
 
   it("answers a refusal, and throws nothing, when ctx.llm.pick cannot be read", async () => {
@@ -344,4 +344,20 @@ describe("createLlmProfilePicker, the thinking level", () => {
     // Assert
     deepStrictEqual(service.calls[0].options, { profile: { ladder: ["small", "large"] }, effort: { max: "medium" } });
   });
+});
+
+describe("a refusal's part", () => {
+  for (const c of REFUSED_PARTS) {
+    it(c.name, async () => {
+      // Arrange
+      const { service, picker } = pickerOverServices();
+      service.failure = new Error(c.message);
+
+      // Act
+      const answer = await picker.pick(REQUEST, OPTIONS, { max: "low" });
+
+      // Assert
+      deepStrictEqual(answer, c.part === undefined ? { refused: c.message } : { refused: c.message, part: c.part });
+    });
+  }
 });

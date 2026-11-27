@@ -1,7 +1,7 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import {
-  AGENT_CLI_SECTION, commentKeysBelowRoot, DECISION_EXAMPLES, FRAGMENTS, listExamples, load, NAMED_DECISION_EXAMPLES, PROMISED_EXAMPLES, RESULT_LIMITS, SUBSCRIPTION_PROFILE, withoutCommentAndLlm,
+  AGENT_CLI_SECTION, commentKeysBelowRoot, DECISION_EXAMPLES, FRAGMENTS, listExamples, load, NAMED_DECISION_EXAMPLES, PROMISED_EXAMPLES, RESULT_LIMITS, SUBSCRIPTION_PROFILE, SUBSCRIPTION_RUNG_FALLBACKS, withoutCommentAndLlm,
   withoutCommentOrkeonAndMcp, withoutCommentProfilesAndAgentCli, withoutCommentProfilesAndDecision,
 } from "./example-settings.fixtures.ts";
 import {
@@ -115,6 +115,30 @@ test("the agent-cli example's subscription profile holds its provider, model, ti
   // Assert
   assert.deepEqual(profile, SUBSCRIPTION_PROFILE, "Llm:Profiles:subscription holds another key or value than the documented ones");
 });
+
+for (const c of SUBSCRIPTION_RUNG_FALLBACKS) {
+  test(`the agent-cli example's ${c.profile} profile falls back on the key profile ${c.fallback}`, () => {
+    // Arrange
+    const file = "appsettings.agent-cli.example.json";
+
+    // Act
+    const profile = load(file).Llm.Profiles[c.profile];
+
+    // Assert
+    assert.deepEqual(profile.Fallback, [c.fallback], `Llm:Profiles:${c.profile} does not fall back on ${c.fallback}`);
+  });
+
+  test(`the agent-cli example declares the key profile ${c.fallback} as the Anthropic example does`, () => {
+    // Arrange
+    const anthropic = load("appsettings.anthropic.example.json");
+
+    // Act
+    const agentCli = load("appsettings.agent-cli.example.json");
+
+    // Assert
+    assert.deepEqual(agentCli.Llm.Profiles[c.fallback], anthropic.Llm.Profiles[c.fallback], `Llm:Profiles:${c.fallback} differs from the Anthropic example's`);
+  });
+}
 
 // The Ollama example is the default one on a model of this machine: the same file but for its
 // comment and its Llm section, which names no key variable since Orkeon asks Ollama for none.
