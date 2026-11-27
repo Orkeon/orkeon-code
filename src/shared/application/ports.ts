@@ -26,4 +26,4 @@ export type {
   MapLevel, CodeMap, CodeSearchHit, SymbolLocation, CodeIndex, AnchorClosure, AnchorIndex, CostIndex, AffectedTests,
 } from "./ports/code-index.ts";
 export type { SharedHit, SharedIngest, SharedMemory } from "./ports/shared-memory.ts";
-export type { DecisionModel, EffortPick, ProfilePick, ProfilePickRefusal, ProfilePicker } from "./ports/decision.ts";
+export type { DecisionModel, EffortPick, PickPart, ProfilePick, ProfilePickRefusal, ProfilePicker } from "./ports/decision.ts";

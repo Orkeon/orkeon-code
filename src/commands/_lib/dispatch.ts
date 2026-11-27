@@ -22,6 +22,7 @@ import type { EffortLevel } from "../../shared/domain/agent-policy/behavior-flag
 import { formatRule } from "../../shared/domain/agent-policy/permission.ts";
 import { chainDepthLine, chainDepthRefusal } from "../../shared/domain/agents/chain.ts";
 import { exclusiveLine, exclusiveRefusal } from "../../shared/domain/agents/exclusive.ts";
+import { sameProfile } from "../../shared/domain/agents/model-route.ts";
 import { AGENTS_PROFILE_INPUT_KEY, LLM_PROFILE_FALLBACK_INPUT_KEY, LLM_PROFILE_INPUT_KEY } from "../../shared/domain/llm-profile.ts";
 import { errorText } from "../../shared/domain/prelude.ts";
 import type { EpilogueCall, PreludeCall } from "../../shared/domain/prelude.ts";
@@ -85,7 +86,7 @@ export async function withRoutedProfile<D extends LaunchDeps & { log: Pick<Comma
 ): Promise<D & { llmProfile: string | null; effort?: EffortLevel }> {
   const profiled = await withLlmProfile(deps, config);
   const routed = await routeAgent({ ...routing, config, log: deps.log }, task, profiled.llmProfile);
-  const moved = routed.profile === profiled.llmProfile
+  const moved = sameProfile(routed.profile, profiled.llmProfile)
     ? profiled
     : { ...profiled, llmProfile: routed.profile, llmProfileFallback: profiled.llmProfile ?? "" };
   return routed.effort === null ? moved : { ...moved, effort: routed.effort };

@@ -67,6 +67,23 @@ export function spawnedAgentInput(input: Readonly<Record<string, unknown>>): Rea
   return { ...rest, [LLM_PROFILE_INPUT_KEY]: profile };
 }
 
+/** The profiles a crew's sub-agent acts are routed between: the session's (the ceiling) and the one the crew runs on. */
+export interface ActProfiles {
+  session: string | null;
+  crew: string | null;
+}
+
+/** The profiles of the acts of a crew whose input is `input`: the session's own profile and the crew's. */
+export function actProfilesOf(input: Readonly<Record<string, unknown>>): ActProfiles {
+  return { session: llmSessionProfileOf(input), crew: llmProfileOf(input) };
+}
+
+/** The profiles of the act of an agent the main turn spawns (its explorer): those of the input it is built from
+ *  (spawnedAgentInput), so the ceiling is `agents.profile` when the session names one, never the turn's own. */
+export function spawnedActProfilesOf(input: Readonly<Record<string, unknown>>): ActProfiles {
+  return actProfilesOf(spawnedAgentInput(input));
+}
+
 /** The host providers that take no prompt-cache request: the runtime says at each call that it ignores one (the
  *  `agent-cli` provider, Orkeon #470, which drives a CLI that caches by its own rules). */
 export const PROVIDERS_WITHOUT_PROMPT_CACHE: readonly string[] = ["agent-cli"];

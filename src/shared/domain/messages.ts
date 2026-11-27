@@ -60,7 +60,8 @@ export const ADVISOR_MODEL_DOC: ConfigKeyDoc = {
 
 export const LLM_PROFILE_DOC: ConfigKeyDoc = {
   description:
-    "The host profile the agents of every crew run on: an LLM profile (Llm:Profiles:<name>) or a decision " +
+    "The host profile the main turn runs on, and the agents of every other crew while agents.profile is unset: an " +
+    "LLM profile (Llm:Profiles:<name>) or a decision " +
     "profile (Orkeon:Decision:Profiles:<name>, a decision model such as Jev in front of one), e.g. 'guarded'. " +
     "A name the host does not declare fails the crew's load, listing the profiles it knows. Omitted = the host's " +
     "default model. agents.profile moves every agent but the main turn's onto another profile.",
@@ -140,17 +141,19 @@ export const SKILLS_SUGGEST_DOC: ConfigKeyDoc = {
 export const ROUTE_AGENTS_DOC: ConfigKeyDoc = {
   description:
     "'on' lets the host's decision model pick, at each launch of a crew, the cheapest profile of route.ladder that " +
-    "fits the command; never one above the session's llm.profile (without one, any rung), and the floors of " +
-    ".orkeon/route-rules.json apply. A rung the host does not declare leaves the session's profile. " +
-    "Needs a decision provider on the host; without one the session's profile stands. Omitted = 'off'.",
+    "fits the command; never one above the session's agents.profile, or its llm.profile when agents.profile is " +
+    "unset (without either, any rung), and the floors of .orkeon/route-rules.json apply. A rung the host does not " +
+    "declare leaves that same profile. Needs a decision provider on the host; without one that profile stands. " +
+    "Omitted = 'off'.",
   consumedBy: "/route, the commands that launch a crew routed by it (/dev-spec, /dev-change, /dev-plan, /dev-learn, /review, /analyze, /commit, /init, /init-verifiers) and the explorer a turn spawns",
 };
 
 export const ROUTE_EFFORT_DOC: ConfigKeyDoc = {
   description:
     "'on' lets the pick of route.agents choose the thinking level too, in the same call: one of the host's levels " +
-    "(Orkeon:Decision:Effort:Levels), never above the one /effort stored. A level it is not sure of leaves the one " +
-    "in place. Asks nothing unless route.agents is on. Omitted = 'off'.",
+    "(Orkeon:Decision:Effort:Levels), never above the one /effort stored, any of them when /effort stored none. A " +
+    "level it is not sure of leaves the one in place. Asks nothing while route.agents is off, nor for a launch or an " +
+    "act left with a single rung to choose from, which makes no pick. Omitted = 'off'.",
   consumedBy: "/route, the launches that forward /effort (/dev-spec, /dev-change, /dev-plan) and the acts route.agents routes",
 };
 

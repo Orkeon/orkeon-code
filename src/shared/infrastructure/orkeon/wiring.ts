@@ -30,13 +30,13 @@ import { createSessionIo } from "../../application/session-io.ts";
 import type { SessionIo } from "../../application/session-io.ts";
 import type { ServiceLocator } from "../../../commands/.orkeon/orkeon-cli.d.ts";
 import { AgentBuilder, InvalidScript, Llm as HostLlm, Rag, Tools, inputs } from "../globals.ts";
-import { declaredRoute, profiledAgent } from "./llm-profile.ts";
+import { agentFactories, declaredRoute, profiledAgent } from "./llm-profile.ts";
 import { createReasoningReader } from "./reasoning.ts";
-import { actRoute } from "../../application/agents/route-agent.ts";
+import { actRoute, routeRun } from "../../application/agents/route-agent.ts";
 import { contextPruning } from "../../application/compaction/prune-context.ts";
 import { prunedLlm } from "../../application/compaction/pruned-llm.ts";
-import type { ActRoute } from "../../application/agents/route-agent.ts";
-import { llmProfileOf, llmSessionProfileOf, spawnedAgentInput } from "../../domain/llm-profile.ts";
+import type { ActProfiles, ActRoute, RouteRun } from "../../application/agents/route-agent.ts";
+import { actProfilesOf, spawnedActProfilesOf, spawnedAgentInput } from "../../domain/llm-profile.ts";
 import type { AgentFactories } from "./llm-profile.ts";
 import { createAnchorIndex, createCodeIndex, createCostIndex } from "./code-index.ts";
 import { createFiles } from "./files.ts";
@@ -142,46 +142,47 @@ export const orkeonReasoning = (): ReasoningReader => createReasoningReader(Host
 
 /** The runtime's agent factories: `agentBuilder`, `llm.profile`, absent where the host declares no `llm`, and its
  *  refusals, instances of `InvalidScriptError` (Orkeon #366). */
-export const orkeonAgentFactories = (): AgentFactories => {
-  const host = HostLlm;
-  return {
-    agent: AgentBuilder,
-    profile: host === undefined ? undefined : (name) => host.profile(name),
-    refusal: (error) => InvalidScript !== undefined && error instanceof InvalidScript,
-  };
-};
+export const orkeonAgentFactories = (): AgentFactories => agentFactories(AgentBuilder, HostLlm, InvalidScript);
 
 /** An agent builder on the profile the crew input names (`llmProfile`, the session's `llm.profile`), else the plain
  *  one: where every composition root starts an agent (orkeon/llm-profile.ts). */
-export const orkeonAgent = (input: Readonly<Record<string, unknown>> = inputs()): any => profiledAgent(input, orkeonAgentFactories());
+export const orkeonAgent = (): any => profiledAgent(inputs(), orkeonAgentFactories());
 
 /** An agent builder for an agent the main turn spawns (its explorer): on the profile `agents.profile` names
  *  (`agentsLlmProfile` of the input), else on the turn's own, as orkeonAgent. */
-export const orkeonSpawnedAgent = (input: Readonly<Record<string, unknown>> = inputs()): any =>
-  profiledAgent(spawnedAgentInput(input), orkeonAgentFactories());
+export const orkeonSpawnedAgent = (): any => profiledAgent(spawnedAgentInput(inputs()), orkeonAgentFactories());
 
 /** The route of a crew's sub-agent acts (a reviewer's, the auditor's): the runtime's pick (`ctx.llm.pick`) under the
  *  session's profile, an act moved only off the crew's own profile and only to a profile the host declares. `ctx` is
- *  the body's (its `llm` and `log`); `tools` and `root` the body's too when it runs under a working root of its own. */
+ *  the body's (its `llm` and `log`); `tools` and `root` the body's too when it runs under a working root of its own;
+ *  `run` the crew run's, when it builds more than one route (route-agent.ts actRoute). */
 export const orkeonActRoute = (
   ctx: { llm: Partial<Pick<LlmFacade, "pick">>; log: Pick<Logger, "info" | "warn"> }, tools: OrkeonTools = Tools, root?: string,
-  input: Readonly<Record<string, unknown>> = inputs(),
+  run: RouteRun = routeRun(),
+): ActRoute => actRouteBetween(ctx, tools, root, actProfilesOf(inputs()), run);
+
+/** orkeonActRoute between the profiles given. */
+const actRouteBetween = (
+  ctx: { llm: Partial<Pick<LlmFacade, "pick">>; log: Pick<Logger, "info" | "warn"> }, tools: OrkeonTools, root: string | undefined,
+  profiles: ActProfiles, run: RouteRun,
 ): ActRoute => declaredRoute(
   actRoute(
     {
       decision: orkeonDecisionModel(tools), picker: createLlmProfilePicker(ctx.llm), files: orkeonFiles(tools, root),
       session: orkeonSessionStore(tools), config: orkeonConfigStore(tools, root), log: ctx.log,
     },
-    { session: llmSessionProfileOf(input), crew: llmProfileOf(input) },
+    profiles,
+    run,
   ),
   orkeonAgentFactories(),
 );
 
 /** The route of the act of an agent the main turn spawns (its explorer): orkeonActRoute between the profiles such an
- *  agent is built on (`agents.profile`, else the turn's own), so the pick never answers a rung above it. */
+ *  agent is built on (`agents.profile`, else the turn's own), so the pick never answers a rung above it; `run` the
+ *  one the explorers of one crew run share. */
 export const orkeonSpawnedActRoute = (
-  ctx: { llm: Partial<Pick<LlmFacade, "pick">>; log: Pick<Logger, "info" | "warn"> }, input: Readonly<Record<string, unknown>> = inputs(),
-): ActRoute => orkeonActRoute(ctx, Tools, undefined, spawnedAgentInput(input));
+  ctx: { llm: Partial<Pick<LlmFacade, "pick">>; log: Pick<Logger, "info" | "warn"> }, run: RouteRun,
+): ActRoute => actRouteBetween(ctx, Tools, undefined, spawnedActProfilesOf(inputs()), run);
 
 /** `llm` with the pruning of its acts' tool loops (`compaction.prune`, shared/application/compaction/pruned-llm.ts):
  *  the acts of the dev crews' sub-agents and roles. `log`, `tools` and `root` are the body's, as for orkeonActRoute.

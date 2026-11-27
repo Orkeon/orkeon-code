@@ -72,9 +72,25 @@ export const NO_CACHE_CASES: { name: string; input: Record<string, unknown>; pro
 export const TASK = { crew: "dev-reviewer", brief: "Review the plan" };
 
 /** What a route answers once checked against the host, which declares no profile `small`. */
+/** The routes whose thinking level stands, whatever becomes of the profile. */
+export const LEVEL_KEPT_ROUTES: { name: string; withProfile: boolean; answer: string | null }[] = [
+  { name: "keeps the thinking level of a route that moves no profile", withProfile: true, answer: null },
+  { name: "keeps the thinking level of a route on a host without llm", withProfile: false, answer: "large" },
+];
+
 export const DECLARED_ROUTES: { name: string; withProfile: boolean; answer: string | null; profile: string | null }[] = [
   { name: "keeps a route to a profile the host declares", withProfile: true, answer: "large", profile: "large" },
   { name: "drops a route to a profile the host does not declare", withProfile: true, answer: "small", profile: null },
   { name: "keeps a route that moves nothing as it is", withProfile: true, answer: null, profile: null },
   { name: "drops every route on a host without llm", withProfile: false, answer: "large", profile: null },
+];
+
+/** The `llm` namespace of a host whose every profile is read as profileConfig answers it. */
+export const HOST_LLM = { profile: (name: string): LlmConfig => profileConfig(name) };
+
+/** Whether agentFactories takes an error for the runtime's refusal, by what the runtime plants. */
+export const REFUSAL_CLASS_CASES: { name: string; invalidScript: typeof ScriptRefusal | undefined; error: unknown; refused: boolean }[] = [
+  { name: "takes an instance of the runtime's refusal class for a refusal", invalidScript: ScriptRefusal, error: new ScriptRefusal("unknown LLM profile 'small'"), refused: true },
+  { name: "takes another error for no refusal", invalidScript: ScriptRefusal, error: new Error("the profile cannot be read"), refused: false },
+  { name: "takes no error for a refusal on a host that plants no refusal class", invalidScript: undefined, error: new ScriptRefusal("unknown LLM profile 'small'"), refused: false },
 ];

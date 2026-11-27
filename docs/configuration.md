@@ -133,8 +133,9 @@ on the Ollama service, or the model silently loses its instructions and its tool
   `Orkeon:TypeSafe` section (the key in `TYPESAFE_API_KEY`, never in the file), two LLM profiles, `small` and
   `large`, and the decision profile `guarded` over them.
 - The session key `llm.profile` names the profile the agents of the commands run on, `/config set llm.profile
-  guarded`: every crew a command launches builds its agents on it, the child agents of the dev steps included, and
-  the launch log and `/config list` show it.
+  guarded`: every crew a command launches builds its agents on it, the child agents of the dev steps included, unless
+  `agents.profile` (below) names another profile, which leaves `llm.profile` to the main turn alone; the launch log
+  and `/config list` show it.
 - Without the key nothing changes: the agents run on the host's default model, as before.
 - The session key `agents.profile` names the profile of every agent but the main turn's, `/config set agents.profile
   subscription`: the crews the commands launch (the dev steps and their child agents, `/review`, `/commit`,
@@ -180,13 +181,13 @@ the file sets. A key linked to an identity refuses every call that does not name
 - A CLI that still runs on a key rather than its login is refused before it answers, and the call does not fall back
   (`Llm:AgentCli:RequireLogin`, `true`).
 - Before the first run: `claude` on the `PATH`, signed in once (`claude /login`).
-- Any mode but docker: Orkeon `1.4.0` carries the provider, and so does the pin, six commits past it, so the tool
+- Any mode but docker: Orkeon `1.4.0` carries the provider, and so does the pin, seven commits past it, so the tool
   and source modes run it. The image
   has neither `claude` nor its login.
 - Every verb of `orkeon` takes these settings, `orkeon runs list` among them (Orkeon #472).
 - [`config/appsettings.agent-cli.example.json`](../config/appsettings.agent-cli.example.json) is the example: the
-  Anthropic one, its default profile on `ANTHROPIC_API_KEY`, plus a profile `subscription` on `agent-cli` whose
-  `Fallback` is `default`. Copy it, then `/config set llm.profile subscription`: every crew a command launches builds
+  Anthropic one, its default profile on `ANTHROPIC_API_KEY` and the key profiles `haiku` and `sonnet`, plus a profile
+  `subscription` on `agent-cli` whose `Fallback` is `default`. Copy it, then `/config set llm.profile subscription`: every crew a command launches builds
   its agents on it.
 - To keep the conversation on the key and send the agents alone to the subscription, set `/config set agents.profile
   subscription` instead and leave `llm.profile` unset: the turns of `/assistant` run on the default profile, the
@@ -194,9 +195,14 @@ the file sets. A key linked to an identity refuses every call that does not name
 - To route on the subscription, the example declares `subscription-haiku` and `subscription-sonnet`, the same
   profile on the two cheaper models: `/config set route.ladder subscription-haiku,subscription-sonnet,subscription`,
   then `/route on`. The session's profile is the ceiling: under `agents.profile subscription` the agents are picked
-  among the three. Leave `route.effort` off there: no thinking level reaches the CLI.
-- The example needs `ANTHROPIC_API_KEY` as well: a session starts on the default profile, the fallback lands on it,
-  and the host's own services (planner, Guardian, judges) stay on it.
+  among the three. Each rung falls back on the key profile of its own model: `subscription-haiku` on `haiku`,
+  `subscription-sonnet` on `sonnet`, `subscription` on `default`. A launch routed to a cheaper rung is then billed on
+  the key at that rung's model, not at the dearest, when the subscription cannot answer. With `route.effort` on, the level picked
+  reaches the CLI as `--effort` (Orkeon #488) at the pin, in source mode; the release `1.4.0`, which the tool mode
+  runs, still drops it with a warning. The level holds for a CLI process: a launch at another level starts a
+  process of its own, within `Llm:AgentCli:MaxProcesses`.
+- The example needs `ANTHROPIC_API_KEY` as well: a session starts on the default profile, the fallbacks land on the
+  key, and the host's own services (planner, Guardian, judges) stay on it.
 - With no key at all, write `"Provider": "agent-cli"` in the `Llm` section itself, with no `Fallback`.
 - `Fallback` moves a call to the profile on the key when the subscription is at its limit, which reaches Orkeon as
   a rate limit, and also when the call timed out (`TimeoutSeconds`) or the CLI's stream broke.
@@ -212,8 +218,10 @@ the file sets. A key linked to an identity refuses every call that does not name
   does not show it.
 - A call that fell back is answered on the key: it is billed there and priced as any call of that profile.
 - Options the CLI cannot receive are not sent, each warned about once per run: `Temperature`, `MaxTokens`, top-p and
-  the penalties, a seed, stop sequences, a response format, a grammar, thinking and so `/effort`, cache breakpoints,
-  `Llm:WorkspaceId`, a required tool mode. An agent on this provider asks for no cache breakpoint, so that warning
+  the penalties, a seed, stop sequences, a response format, a grammar, thinking switched off, switched on with no level or bounded by
+  a budget, a level other than `low`, `medium`, `high`, `xhigh` and `max` (one of those, `/effort`'s, reaches
+  the CLI as `--effort` at the pin, not on the release `1.4.0`), cache breakpoints, `Llm:WorkspaceId`, a tool call
+  made required (`ToolMode` `Required`). An agent on this provider asks for no cache breakpoint, so that warning
   never comes from Orkeon Code: the CLI caches by its own rules.
 - `compaction.prune` and the routing of `route.agents` are judged by the host's decision model, never by this
   provider: they need a [decision provider](decision-models-local.md) as on any other LLM.
@@ -359,8 +367,8 @@ Inside the REPL, `/config` lists, reads and writes the session keys, stored in t
 | `answer.language` | | the language the assistant answers in, unless a request is written in another one |
 | `compaction.trigger` | the window minus the room one turn needs | the token count at which the automatic compaction runs |
 | `compaction.prune` | `off` | the host's decision model prunes the stale tool results of a turn in progress and of the acts of the dev crews |
-| `route.agents` | `off` | at each launch of a crew, the host's decision model picks the cheapest profile of `route.ladder` that fits the command; inside a crew, the same for the act of a reviewer or of the auditor |
-| `route.effort` | `off` | the pick of `route.agents` chooses the thinking level too, in the same call: one of the host's levels, never above the one `/effort` stored |
+| `route.agents` | `off` | at each launch of a crew, the host's decision model picks the cheapest profile of `route.ladder` that fits the command; inside a crew, the same for the act of a reviewer or of the auditor, and for the explorer a turn spawns |
+| `route.effort` | `off` | the pick of `route.agents` chooses the thinking level too, in the same call: one of the host's levels, never above the one `/effort` stored, any of them when `/effort` stored none; nothing is asked for a launch or an act left with a single rung |
 | `route.ladder` | `small,large` | the host's LLM profiles the routing picks among, cheapest first |
 | `skills.suggest` | `off` | the host's decision model adds to a turn the project's skills that fit its request |
 | `dev.workDir` | the repository pack's `layout.work`, else `workbench` | the work folder the dev steps read and write, relative to the checkout |
@@ -370,7 +378,7 @@ Inside the REPL, `/config` lists, reads and writes the session keys, stored in t
 | `memory.autoAdmitAudited` | `false` | `/memory admit` admits a candidate an audit backs without asking |
 | `paths.deny`, `paths.allow` | | the paths no tool of the model reads or writes, and the only paths it may reach ([permissions](permissions.md#the-path-lists)) |
 | `review.lenses` | all three | the lenses of `/review`, comma-separated among `correctness`, `security` and `style` |
-| `llm.profile` | the host's default model | the host profile every crew's agents run on ([the LLM](#the-llm)) |
+| `llm.profile` | the host's default model | the host profile the main turn runs on, and every crew's agents unless `agents.profile` is set ([the LLM](#the-llm)) |
 | `agents.profile` | `llm.profile` | the host profile of every agent but the main turn's: the crews the commands launch and the explorer a turn spawns ([the LLM](#the-llm)) |
 | `advisor.model` | the session's own, which makes it a self-review | the model of `/advisor`'s second opinion |
 | `commit.requireConfirm` | `true` | `false` lets `/commit` run without its confirmation, as `--yes` does |
@@ -397,18 +405,60 @@ What the table leaves out:
 - **`compaction.prune`** needs a [decision provider](decision-models-local.md) on the host; the mechanism is in
   [How a turn runs](turn.md#compaction-and-memory).
 - **`route.agents`** is also set by `/route on`; see [Routing a crew to a profile](turn.md#routing-a-crew-to-a-profile).
-- **`route.effort`** asks nothing unless `route.agents` is on. The levels it picks among are the host's
-  (`Orkeon:Decision:Effort:Levels`; `low`, `medium`, `high` when the host lists none).
+  The ceiling of the pick is `agents.profile` when set, else `llm.profile`. A launch with a single rung to choose
+  from (a session on the lowest rung, or a rule's floor at the session's rung or above it) asks nothing.
+- **`route.effort`** asks nothing unless `route.agents` is on, nor for a launch or an act left with a single rung. The
+  levels it picks among are the host's (`Orkeon:Decision:Effort:Levels`; `low`, `medium`, `high` when the host lists
+  none): with no `/effort` stored, any of them.
+  - The runtime refuses the level part of a pick when the host lists no level at or below the one `/effort` stored
+    (`/effort low` on `medium,high`; `/effort xhigh` on `low,medium,high` is not refused). The routing is not lost:
+    one warning, `route.agents is on and the runtime refused the pick of the profile with a thinking level: the
+    profile is asked again without one, and the level /effort stored stays in place (<message>)`, then the profile
+    is asked again alone.
+  - The acts of one crew run warn once, at the first act, and the acts after it ask the profile alone. A crew run
+    is one crew body, one `/dev-batches` run (its reviewer and every batch audit) or one main turn (the explorers it
+    spawns). Acts started together ask the level once: the first act that asks one is the only one to ask it until
+    its answer is in, and the others wait for it, then ask the profile alone if it was refused; each act still makes
+    its own pick. The launch of a crew by a command has its own: a routed crew warns at its launch, then once more in
+    its run if its acts are routed.
+  - Any other refusal (a rung the host does not declare, a floor, a fallback) is one warning, `route.agents is on and
+    the runtime refused the pick: nothing is routed, the session's profile stands (<message>)`, and no second call.
+- **A stored `route.ladder` that is no ladder** (a hand-edited file: one name, a name twice, a malformed name) is
+  routed on `small,large`, and said. With the routing on and a decision model on the host, each launch warns, routed
+  or not (the warning comes before the checks of a profile off the ladder and of one rung left), as does the first
+  act of each crew run: `route.agents is on and route.ladder is '<value>', which is no ladder: the ladder
+  small,large is used instead`. A bare `/route`, with the routing on or off, adds the line `⚠ route.ladder is '<value>', which is no ladder: the ladder small,large is used instead.
+  Set it to two rungs or more, each once, or unset it.` A value that is not a string (an array, a number written by
+  hand) reads as unset, as for every key, with no warning.
 - **A ladder of three rungs**: [`config/appsettings.anthropic.example.json`](../config/appsettings.anthropic.example.json)
   declares the profiles `haiku`, `sonnet`, `opus` and `fable`; `/config set route.ladder haiku,sonnet,opus` orders
   three of them for the routing. A fourth rung is taken, and
   [measured](decision-models.md#measured-ladders-of-two-three-and-four-rungs) to decide fewer requests while sending
   the hard ones to the dearest model.
-- **A bare `/route`** with the routing on asks the decision model one test question: a model the settings name and
-  that gives no answer (a server that is down, a key refused) is said so, where `present` used to stand.
-- **Both need the runtime of the pin**, hence the source mode: in the tool and docker modes they are read and do
-  nothing, without a warning of their own, a host with no decision model still getting the usual one
-  ([the modes](getting-started.md#source-mode-an-orkeon-checkout)).
+- **A bare `/route`** with the routing on makes one test pick, with the bounds a launch of the session sends: the
+  ladder, and the launch profile (`agents.profile`, else `llm.profile`) as the ceiling and the fallback; no rule's
+  floor ([ADR 0042](adr/0042-route-review.md)). It asks nothing with the routing off, without a decision model, and
+  when a launch would ask nothing: a launch profile off the ladder or on its lowest rung.
+  - With `route.effort` on, the test pick asks the level a launch would ask. When the runtime refuses that level
+    part, the pick is made again for the profile alone (two calls, in that case only), the state shown is the
+    profile's, and the line `⚠ route.effort is on and the runtime refuses the level /effort stored: route.effort picks
+    no level, a launch asks for its profile alone (<message>).` comes under the status. It comes before the
+    warnings of a ladder that is no ladder and of a launch profile outside the ladder.
+  - What follows `decision model:` is one of eight states:
+
+    | When | `decision model:` |
+    |---|---|
+    | the pick answered, sure or not (an unsure pick moves nothing), or the routing is off and a model is configured | `present` |
+    | no decision model configured | `absent, nothing is routed` |
+    | the decision model gave no answer, or the call threw | `configured, but it gave no answer to a test pick just now (a server that is down, a key refused): nothing is routed until it answers` |
+    | the runtime refused the pick (a rung the host does not declare among the causes) | `configured, but the runtime refused a test pick on the ladder just now: nothing is routed until it accepts one (<message>)` |
+    | the pick gave nothing back | `configured, but the test pick gave nothing back just now (a host without the pick, a cancelled call, a reply that does not read): nothing is routed until it does` |
+    | the runtime's circuit was off, or it had no ladder | `configured, but the runtime asked it nothing for a test pick just now (its decision circuit is off for this run): nothing is routed` |
+    | the launch profile is off the ladder; no call | `configured, not tried: a launch of this session asks it nothing, its profile being off the ladder` |
+    | the launch profile is the lowest rung; no call | `configured, not tried: a launch of this session asks it nothing, <key> being '<profile>', the lowest rung, which no pick lowers` |
+- **`compaction.prune`, `route.agents` and `route.effort` run on the release as at the pin**: Orkeon `1.4.0`, which
+  the tool and docker modes run, has the pruning and the pick, its thinking level included. What needs the pin is
+  the level reaching the `agent-cli` provider ([above](#claude-on-a-subscription-the-agent-cli-provider)).
 - **`skills.suggest`** is also set by `/skills suggest on`; see
   [Suggesting skills for a turn](turn.md#suggesting-skills-for-a-turn).
 - **`dev.workDir`** serves `/dev-status` and `/dev-learn` too. `/commit` reads it as well, and leaves the work folder

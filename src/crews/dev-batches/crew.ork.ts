@@ -37,6 +37,8 @@ import { agentLlm } from "../../shared/infrastructure/orkeon/llm.ts";
 import { memoryDirOf } from "../../shared/application/shared-memory/memory-settings.ts";
 import { harvestAfterGaps } from "../../shared/application/shared-memory/harvest-after-gaps.ts";
 import { devToolCallbacks } from "../../shared/application/dev/tool-callbacks.ts";
+import { routeRun } from "../../shared/application/agents/route-agent.ts";
+import type { RouteRun } from "../../shared/application/agents/route-agent.ts";
 import { batchAgentParts, gitTopUnder, implementDeps, verifyDeps } from "../../shared/infrastructure/orkeon/dev-deps.ts";
 import { charterCatalogue } from "../../shared/domain/agents/charter.ts";
 import { providerEffort } from "../../shared/domain/agent-policy/behavior-flags.ts";
@@ -58,7 +60,7 @@ const effort = providerEffort(inputs().effort);
 const BATCH_TOOLS = [...new Set([...CREW_TOOLS, ...charterCatalogue(AUDITOR_CHARTER)])];
 
 /** One batch's agent, under its worktree: its own script-tool slots, spend and tools bound by its body. */
-function batchAgent(run: BatchRun, context: BatchesContext) {
+function batchAgent(run: BatchRun, context: BatchesContext, routes: RouteRun) {
   const limits = batchLimits(run.steps);
   const memoryOn = context.memoryRecall !== false;
   const { spend, toolSlot, validationSlot, bodyTools, tools } = batchAgentParts(ToolBuilder, { root: run.root, toolCalls: limits.toolCalls, memoryOn });
@@ -84,7 +86,7 @@ function batchAgent(run: BatchRun, context: BatchesContext) {
       // GAPS is the driver's, on the main checkout.
       const outcome = await runBatchChain(run, launch, {
         implement: (input) => runDevImplement(implementInputs(input), implementDeps(ctx, { ...options, toolSlot })),
-        verify: (input) => runDevVerify(input, { ...verifyDeps(ctx, { ...options, validationSlot }), route: orkeonActRoute(ctx, ctx.tools, run.root) }),
+        verify: (input) => runDevVerify(input, { ...verifyDeps(ctx, { ...options, validationSlot }), route: orkeonActRoute(ctx, ctx.tools, run.root, routes) }),
         spend,
       });
       return JSON.stringify(outcome);
@@ -104,8 +106,11 @@ const builder = orkeonAgent()
     // global `tools` refuses a call.
     const ports = { shell: orkeonShell(ctx.tools), files: orkeonFiles(ctx.tools), config: orkeonConfigStore(ctx.tools) };
     const clock = orkeonClock();
+    // One RouteRun for the run's routes, the reviewer's and each batch audit's: their acts are routed between the same
+    // profiles (the input's), each route over the tools, root and log of its own body.
+    const routes = routeRun();
     return await runDevBatches(inputs(), {
-      ...ports, log: ctx.log, clock, route: orkeonActRoute(ctx, ctx.tools),
+      ...ports, log: ctx.log, clock, route: orkeonActRoute(ctx, ctx.tools, undefined, routes),
       // These callbacks, then the host's gate on the input they return: the dev rule sets again and the run's /hooks (a chained run
       // reads them from its record, as it does the /effort). The reviewer only reads: the plan step's guard fits it.
       reviewerFor: (c) => orkeonPrunedLlm(agentLlm(ctx, devToolCallbacks({ step: "dev-plan", hooks: c.hooks }, { shell: ports.shell, log: ctx.log, memoryDir: memoryDirOf(ports.config) }),
@@ -113,7 +118,7 @@ const builder = orkeonAgent()
       openerFor: (c) => orkeonPullRequestOpener({ mode: c.permissionMode, rules: parseSessionRules(c.permissionRules), asked: false }, ctx.tools),
       // A parallel wave: each batch in its own agent under its worktree and its own budget (batches-budget.ts).
       runBatch: async (run, context) => {
-        const agent = batchAgent(run, context);
+        const agent = batchAgent(run, context, routes);
         const answered = await crew.runAgent(ctx.spawn(agent.builder), {},
           { signal: ctx.signal, timeout: agent.limits.wallTime * 1000, budget: agent.limits });
         return outcomeOf(run.batch, answered);

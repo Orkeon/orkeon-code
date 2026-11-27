@@ -4,12 +4,12 @@ import { describe, it } from "node:test";
 import { deepStrictEqual, strictEqual } from "node:assert";
 
 import {
-  asOnLadder, effortBounds, effortDecided, effortMoved, ladderOf, ladderProblem, parseRecords, parseRouteRules, routable, routeBounds, routeDecided, routeFloor, routeHeld, routeNotAsked,
-  routeOn, routeState, withRecord,
+  asOnLadder, effortBounds, effortDecided, effortMoved, ladderMisread, ladderOf, ladderProblem, parseRecords, parseRouteRules, routable, routeBounds, routeDecided, routeFloor, routeHeld, routeNotAsked,
+  routeOn, routeState, sameProfile, withRecord,
 } from "../../../../src/shared/domain/agents/model-route.ts";
 import {
-  BOUNDS_CASES, DECIDED_REASONS, EFFORT_BOUNDS_CASES, EFFORT_DECIDED_REASONS, EFFORT_MOVED_CASES, FLOOR_CASES, LEVEL_RECORD, UNREAD_LEVEL_RECORDS, FULL_RECORD, MALFORMED_RECORDS, OLD_FLOOR_RECORDS, HELD_CASES, LADDER, LADDER_CASES, LADDER_PROBLEM_CASES, LONG_BRIEF, NOT_ASKED_REASONS, OLD_RECORD, ROOT_RULES,
-  ROUTABLE_CASES, RULES, RULES_TEXT_CASES, SPELLING_CASES, record,
+  BOUNDS_CASES, DECIDED_REASONS, EFFORT_BOUNDS_CASES, EFFORT_DECIDED_REASONS, EFFORT_MOVED_CASES, FLOOR_CASES, LEVEL_RECORD, UNREAD_LEVEL_RECORDS, FULL_RECORD, MALFORMED_RECORDS, OLD_FLOOR_RECORDS, HELD_CASES, LADDER, LADDER_CASES, LADDER_MISREAD_CASES, LADDER_PROBLEM_CASES, LONG_BRIEF, NOT_ASKED_REASONS, OLD_RECORD, ROOT_RULES,
+  ROUTABLE_CASES, RULES, RULES_TEXT_CASES, SAME_PROFILE_CASES, SPELLING_CASES, record,
 } from "./model-route.fixtures.ts";
 
 describe("routeOn", () => {
@@ -53,6 +53,36 @@ describe("ladderProblem", () => {
 
       // Assert
       strictEqual(problem !== undefined, c.problem);
+    });
+  }
+});
+
+describe("ladderMisread", () => {
+  for (const c of LADDER_MISREAD_CASES) {
+    it(c.name, () => {
+      // Arrange
+      const value = c.value;
+
+      // Act
+      const misread = ladderMisread(value);
+
+      // Assert
+      strictEqual(misread, c.misread);
+    });
+  }
+});
+
+describe("sameProfile", () => {
+  for (const c of SAME_PROFILE_CASES) {
+    it(c.name, () => {
+      // Arrange
+      const { a, b } = c;
+
+      // Act
+      const same = sameProfile(a, b);
+
+      // Assert
+      strictEqual(same, c.same);
     });
   }
 });

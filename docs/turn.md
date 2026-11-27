@@ -293,13 +293,15 @@ it made stay in its own context.
 - **Its charter**: `plan` mode and the read and search tools of the code (files, their nodes, folders, `glob`,
   `grep`, the code index and its graph queries). No shell, no write, no index build, no web. It has 30 tool-call
   iterations. It runs under the stricter of `plan` and the turn's mode, on the session's `agents.profile`, else its
-  `llm.profile`, else the host's default model: neither `/model` nor `/effort` reaches it. Under an `agents.profile`
+  `llm.profile`, else the host's default model: `/model` does not reach it, nor `/effort` save as the ceiling of the level
+  `route.effort` picks for it (below). Under an `agents.profile`
   the turn and its explorer run on two profiles: the turn stays on `llm.profile`.
 - **Its route**: with `route.agents` on, its act is routed as a reviewer's is
   ([Routing a crew to a profile](#routing-a-crew-to-a-profile)). The pick reads the brief, under the name
   `explorer`, and answers a rung of the ladder, never above the profile the explorer is built on. With `route.effort`
-  on it answers the thinking level of that act too. Without a decision the act stays on the explorer's own profile
-  and level.
+  on it answers the thinking level of that act too, never above the one `/effort` stored. Without a decision the act
+  stays on the explorer's own profile and level, save for a session on the host's default model under a rule's floor
+  (`.orkeon/route-rules.json`), which takes the floor's rung as a launch does.
 - **How many**: a turn spawns 8 agents at most (`spawnedAgents` of `crews/main-loop/domain/turn-budget.ts`; the
   runtime allows 3 when a budget names none). The ninth `spawn_agent` is refused with a tool error the model reads,
   and the turn carries on with the reports it holds (Orkeon #423: reaching the count used to end the turn at the
@@ -346,7 +348,8 @@ is picked at each launch of `/dev-spec` (and its alias `/dev-change`), `/dev-pla
 - **The ladder**: `route.ladder` orders the host's LLM profiles, cheapest first (`small,large` when omitted): names of
   `Llm:Profiles`.
   - `/config set` refuses fewer than two names, a name that is no profile name, and a rung named twice, whatever its
-    case (`Small,small`). A stored value that is no ladder reads as `small,large`.
+    case (`Small,small`). A stored value that is no ladder (a hand-edited file) reads as `small,large`, and is said:
+    a warning at each launch the routing looks at, routed or not, a line under a bare `/route`.
   - The session's `llm.profile` and a rule's profile find their rung whatever their case: `llm.profile Large` is
     the rung `large` of `small,large`.
   - The runtime's pick refuses a ladder that names a profile the host does not declare: nothing is routed then, the
@@ -373,14 +376,19 @@ is picked at each launch of `/dev-spec` (and its alias `/dev-change`), `/dev-pla
   the pick to at least that rung. A session on the host's default model takes the floor's rung even when the
   model was not followed, since that rung is its fallback. A file absent, unreadable or malformed, a rule naming a
   profile outside the ladder and a rule on the workspace itself (`/`, `./`) raise nothing.
-- **The ceiling**: never above the session's own rung; it wins over a floor (a floor above it is given as the
-  session's rung, since the pick refuses a floor above its ceiling). A session without `llm.profile` has the
+- **The ceiling**: never above the session's own rung, `agents.profile` when set, else `llm.profile`; it wins over a floor (a floor above it is given as the
+  session's rung, since the pick refuses a floor above its ceiling). A session with neither key has the
   whole ladder: routed, a launch may then run on a dearer model than the host's default. A session on a profile
   outside the ladder (a decision profile that guards its requests) is not routed: it keeps that profile, and one log
   line says so, as does a bare `/route`, which names the setting that holds the profile.
-- **A decision model that does not answer**: with the routing on, a bare `/route` asks the host's decision model one
-  test question (`commands/_lib/settings/prompts.ts`); a model that is configured and gives no answer is reported as
-  such, since nothing is routed until it answers.
+- **A decision model that does not answer**: with the routing on, a bare `/route` makes one test pick with the
+  bounds a launch of the session sends, the rules' floors aside (its request in `commands/_lib/settings/prompts.ts`;
+  [ADR 0042](adr/0042-route-review.md)). With `route.effort` on it asks the level a launch would ask, and a refused
+  level part makes it pick the profile alone and add a warning line. It reports a model that answered, one that gave
+  no answer, a pick the runtime refused (with its message), a pick that gave nothing back (a host without the pick, a
+  cancelled call, a reply that does not read) and a pick that asked the model nothing (its circuit off), since
+  nothing is routed in the last four cases. A launch profile off the ladder or on its lowest rung is tried not at
+  all, and the state says why ([the eight states](configuration.md#session-settings)).
 - **What is not routed**: the main loop (`/assistant`: its prompt cache follows one model), `/compact`, `/memory
   admit`, the speech crews, `/advisor` (it has its own model), `/dev-batches` and `/tasks`; and, inside a crew, the
   roles of `/dev-implement`, the agents a crew starts in the background and the extraction of a sub-agent's answer.
@@ -393,6 +401,16 @@ is picked at each launch of `/dev-spec` (and its alias `/dev-change`), `/dev-pla
     carries it in place of the stored one, an act runs at it for that call.
   - Without a decision the level in place stands, the stored one for a launch and the crew's own for an act, and the
     line says `effort left as it was`.
+  - A pick whose level part the runtime refuses (a level `/effort` stored that none of the host's levels reaches) is
+    one warning, and the profile is asked once more, alone: the level stays in place. A second refusal is the usual
+    one. A refusal of another part (a rung the host does not declare, a floor, a fallback) is the usual warning, with
+    no second call.
+  - The acts of one crew run give that warning and the one of a ladder that is no ladder once, at the first act;
+    after a refused level the acts after it ask the profile alone. A crew run is one crew body, one `/dev-batches`
+    run (its reviewer and every batch audit) or one main turn (the explorers it spawns). Acts started together ask
+    the level once: the first act that asks one is the only one to ask it until its answer is in, and the others wait
+    for it, then ask the profile alone if it was refused; each act still makes its own pick. The launch has its own,
+    so a routed crew warns at its launch, then once more in its run if its acts are routed.
   - Nothing is asked where no profile is: a session on a profile outside the ladder, or whose own rung is the one
     rung left, keeps its level.
   - The line and `/route why` show the level after the profile: `route: dev-plan on 'small' (the decision model's
@@ -413,8 +431,8 @@ is picked at each launch of `/dev-spec` (and its alias `/dev-change`), `/dev-pla
 - **It fails open**: each case below routes nothing and keeps nothing for `/route why`. A launch runs on the
   session's profile, an act where its crew runs.
   - The setting off or unreadable, a host without the pick (in a crew, a `ctx.llm.pick` that says the host wires
-    none) and a cancelled pick: nothing is logged. The tool and docker modes run a release without the pick, so
-    nothing is routed there ([ADR 0034](adr/0034-orkeon-after-470.md)).
+    none) and a cancelled pick: nothing is logged. The release `1.4.0` of the tool and docker modes has the pick
+    ([ADR 0042](adr/0042-route-review.md)).
   - No decision model for a script, whether no provider is named, the provider lacks its key or the host's
     decision circuit is off (`--no-decision`, `Orkeon:Decision:Enabled=false`): the host then withholds
     `system_one_decide`, and a warning says so at each launch and each act. The runtime does not tell a script

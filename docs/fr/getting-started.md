@@ -79,20 +79,21 @@ avec le lanceur bash ([tutoriel WSL](wsl-tutorial.md)). Sur les deux, un chemin 
 dans les appels du modèle et dans ce qu'une commande imprime ([architecture](architecture.md#le-vfs-et-la-plateforme-hôte)) ;
 sous WSL un programme Windows n'est joignable que sans confinement, et reçoit encore des chemins `/mnt/c/…`.
 
-- Orkeon Code est vérifié contre les sources d'Orkeon au commit de `.orkeon-version` (`948d1b6`, `main` après
-  Orkeon/orkeon#486, six commits après Orkeon `1.4.0`, 2026-11-26) : le [mode source](#mode-source--un-checkout-dorkeon) exécute ce commit, le runtime de référence.
+- Orkeon Code est vérifié contre les sources d'Orkeon au commit de `.orkeon-version` (`9ca8530`, `main` après
+  Orkeon/orkeon#488, sept commits après Orkeon `1.4.0`, 2026-11-27) : le [mode source](#mode-source--un-checkout-dorkeon) exécute ce commit, le runtime de référence.
 - Le [mode tool](#mode-tool--orkeon-repl-installé) (le paquet Debian sur le canal apt `stable`, les archives de
   release) exécute la dernière release d'Orkeon, `1.4.0`, et le
   [mode docker](#mode-docker--rien-à-installer-sauf-docker) son image, `ghcr.io/orkeon/orkeon:latest` : les deux sont
-  à ce jour six commits derrière l'épingle, et n'ont pas ce qu'elle ajoute, l'outil `browser` (ils l'ont sous son
-  ancien nom `firefox`, qu'Orkeon Code n'offre plus) : `/status` dit quel runtime tourne ([ADR 0013](../adr/0013-pin-on-orkeon-commit.md)).
+  à ce jour sept commits derrière l'épingle, et n'ont pas ce qu'elle ajoute : l'outil `browser` (ils l'ont sous son
+  ancien nom `firefox`, qu'Orkeon Code n'offre plus), les outils de chat, et `--effort` sur le fournisseur
+  `agent-cli` : `/status` dit quel runtime tourne ([ADR 0013](../adr/0013-pin-on-orkeon-commit.md)).
 - Les typings sont ceux de l'épingle ([Développement](development.md#typings)).
 
 Le lanceur prend le premier mode disponible, dans cet ordre, sauf si `--mode` en décide autrement.
 
 ### Mode tool : `orkeon-repl` installé
 
-Le REPL est `orkeon-repl` (`Orkeon.ConsoleApp`) de la dernière release, `1.4.0`, à ce jour six commits derrière l'épingle (voir plus haut). Le paquet Debian et les
+Le REPL est `orkeon-repl` (`Orkeon.ConsoleApp`) de la dernière release, `1.4.0`, à ce jour sept commits derrière l'épingle (voir plus haut). Le paquet Debian et les
 archives de release le livrent autonome, avec son propre esbuild : aucun .NET à installer.
 
 **Debian et Ubuntu** (amd64, arm64) : le paquet `orkeon` installe `/usr/bin/orkeon-repl`. Ajoutez la source apt
@@ -127,7 +128,7 @@ celui que npm a installé (`ORKEON_ESBUILD_PATH` le remplace).
 ### Mode docker : rien à installer sauf Docker
 
 Le lanceur exécute `ghcr.io/orkeon/orkeon:latest`, l'image de la dernière release (`1.4.0` à ce jour,
-six commits derrière l'épingle ; `ORKEON_CODE_IMAGE` nomme une autre image), qui porte le
+sept commits derrière l'épingle ; `ORKEON_CODE_IMAGE` nomme une autre image), qui porte le
 REPL et esbuild ; l'image est construite pour `linux/amd64` et `linux/arm64`, et Docker tire celle de votre machine. Le projet est monté dans le
 conteneur ; sous Linux, le conteneur tourne avec votre uid, si bien que les fichiers que l'agent écrit vous
 appartiennent. L'outil shell tourne dans le conteneur.
@@ -157,9 +158,9 @@ ce checkout, ou `ORKEON_ESBUILD_PATH`.
 Le checkout devrait être au commit de `.orkeon-version`, celui contre lequel les commandes ont été vérifiées. Le
 lanceur l'y amène lui-même quand rien de vous n'est en jeu : aucun fichier suivi modifié, sur `main` ou détaché, et en
 retard sur l'épingle (récupéré depuis `origin main` s'il manque). Il dit alors `orkeon-code: ORKEON_SOURCE moved from
-<sha7> to the pin 948d1b6.` et le build restaure la solution. Sinon (une branche à vous, du travail non commité, des
+<sha7> to the pin 9ca8530.` et le build restaure la solution. Sinon (une branche à vous, du travail non commité, des
 commits en avance sur l'épingle, ou `ORKEON_SOURCE_FOLLOW_PIN=0`), il laisse le checkout tel quel, avertit
-(`orkeon-code: warning: ORKEON_SOURCE is at <sha7>, the pin of .orkeon-version is 948d1b6: the commands were checked
+(`orkeon-code: warning: ORKEON_SOURCE is at <sha7>, the pin of .orkeon-version is 9ca8530: the commands were checked
 against the pin.`) et lance quand même.
 
 ### Aucun runtime sur la machine : celui qu'Orkeon Code télécharge

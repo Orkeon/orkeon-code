@@ -6,11 +6,12 @@
 // System One pick serves no `pick` service, a crew's always has `ctx.llm.pick`, which then rejects with its own
 // sentence (JsLlmFacade.Pick.cs), read as no pick. A cancelled call is null too, without a word: the run stops anyway,
 // as a cancelled decision call reads as no answer. A refusal, and anything else thrown on the way (the lookup
-// included), is `{ refused }` with its message: the port never throws. The runtime spells the host's default model
+// included), is `{ refused }` with its message, and the part of the options the message names (`profile`, `effort`),
+// when it names one: the port never throws. The runtime spells the host's default model
 // `default` (the value of a pick whose fallback was left out); the port says null. Asked for a thinking level too
 // (`effort`, in the same call), the reply's `effort` is read the same way; one that does not read is left out.
 /// <reference path="../../../crews/.orkeon/orkeon.d.ts" />
-import type { EffortPick, ProfilePick, ProfilePickRefusal, ProfilePicker } from "../../application/ports.ts";
+import type { EffortPick, PickPart, ProfilePick, ProfilePickRefusal, ProfilePicker } from "../../application/ports.ts";
 import { NO_PICK_WIRED } from "./markers.ts";
 import { isEffortLevel } from "../../domain/agent-policy/behavior-flags.ts";
 import { EFFORT_PICK_REASONS, ROUTE_REASONS } from "../../domain/agents/model-route.ts";
@@ -26,6 +27,17 @@ const HOST_DEFAULT_PROFILE = "default";
  *  wrapped), or the DOM's abort. Not TaskCanceled: .NET raises it for an HTTP timeout too, which is a failure. */
 const CANCEL_NAME = /^OperationCanceled(?:Exception)?$|^AbortError$/;
 const CANCEL_MESSAGE = /\bOperationCanceledException\b|\bthe operation was cancell?ed\b/i;
+
+/** The option a refusal names, as the runtime writes it after what was called (ScriptPick.cs: `<prefix> { <option> }
+ *  <message>`, the prefix `ctx.llm.pick` or `services.get("pick").pick`): its part, `profile` or `effort`, first. */
+const REFUSED_OPTION = /\bpick \{ (profile|effort)(?:\.[a-z]+)? \}/;
+
+/** A refusal with its message, and the part of the options it names when it names one. */
+function refusalOf(error: unknown): ProfilePickRefusal {
+  const refused = errorText(error);
+  const part = REFUSED_OPTION.exec(refused)?.[1] as PickPart | undefined;
+  return part === undefined ? { refused } : { refused, part };
+}
 
 type PickCall = (request: string, options: { profile: Record<string, unknown>; effort?: EffortBounds }) => unknown;
 
@@ -90,7 +102,7 @@ async function asked(
     if (call === null) return null;
     return answerOf(await call(request, { profile: profileOptions(options), ...(effort === undefined ? {} : { effort: { ...effort } }) }));
   } catch (error) {
-    return cancelled(error) || noPick(error) ? null : { refused: errorText(error) };
+    return cancelled(error) || noPick(error) ? null : refusalOf(error);
   }
 }
 

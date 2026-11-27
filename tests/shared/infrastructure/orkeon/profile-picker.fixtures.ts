@@ -26,9 +26,29 @@ export function pickerOverLlm() {
 export const ALL_BOUNDS: RouteBounds = { ladder: ["small", "medium", "large"], floor: "medium", ceiling: "large", fallback: "large" };
 
 /** What the runtime throws on a ladder that names a profile the host does not declare. */
-export const REFUSED_LADDER = "services.get(\"pick\").pick { profile.ladder } 'tiny' is not a profile of this host (known: small, large)";
+export const REFUSED_LADDER = "services.get(\"pick\").pick { profile.ladder } profile.ladder names the LLM profile 'tiny', which this host does not offer. Known profiles: default, small, large. A profile is defined by the host under Llm:Profiles:<name>.";
 /** What the runtime throws on a floor above the ceiling. */
 export const REFUSED_FLOOR = "ctx.llm.pick { profile.floor } 'large' is above the ceiling 'small' on the ladder (small, large)";
+/** The part of the options a refusal names, by the option the runtime writes after what was called. */
+export const REFUSED_PARTS: readonly { readonly name: string; readonly message: string; readonly part: "profile" | "effort" | undefined }[] = [
+  {
+    name: "tells a refusal of the level part",
+    message: "services.get(\"pick\").pick { effort } leaves no level of Orkeon:Decision:Effort:Levels (medium, high) between min '(none)' and max 'low'.",
+    part: "effort",
+  },
+  { name: "tells a refusal of a bound of the level", message: "ctx.llm.pick { effort.max } 'huge' is not a thinking level: write one of low, medium, high.", part: "effort" },
+  { name: "tells a refusal of a bound of the profile", message: REFUSED_LADDER, part: "profile" },
+  { name: "names no part for a refusal of the options as a whole", message: "ctx.llm.pick { options } takes { profile?, effort? }: give one of them, or both.", part: undefined },
+  { name: "names no part for a failure that names no option", message: "the services of this run are gone", part: undefined },
+  { name: "tells a refusal of the fallback of the profile from a command", message: "services.get(\"pick\").pick { profile.fallback } profile.fallback names the LLM profile 'ghost', which this host does not offer. Known profiles: default, small, large. A profile is defined by the host under Llm:Profiles:<name>.", part: "profile" },
+  { name: "tells a refusal of the floor of the level from a crew", message: "ctx.llm.pick { effort.min } 'huge' is not a thinking level.", part: "effort" },
+  { name: "tells a refusal of the ceiling of the profile from a crew", message: "ctx.llm.pick { profile.ceiling } 'xl' is not a rung of the ladder (small, large).", part: "profile" },
+  { name: "names no part for an option named with no pick before it", message: "{ effort } leaves no level between min '(none)' and max 'low'.", part: undefined },
+  { name: "names no part for an option named after a word that ends in pick", message: "repick { effort } leaves no level.", part: undefined },
+  { name: "names no part for an option whose name only starts with a part's", message: "ctx.llm.pick { effortless } is not an option.", part: undefined },
+  { name: "names no part for an option with a name under a part's that is no word", message: "ctx.llm.pick { profile.ladder2 } is not an option.", part: undefined },
+  { name: "names no part for a bound named two levels down", message: "ctx.llm.pick { effort.max.value } is not an option.", part: undefined },
+];
 /** What a locator throws when it is used outside the run that got it. */
 export const LOCATOR_GONE = "the services of this run are gone";
 
@@ -78,6 +98,20 @@ export const LEVEL_REPLY = {
   effort: { value: "low", reason: "model", picked: "low", probability: 0.8 },
 };
 export const MODEL_PICK_WITH_LEVEL = { ...MODEL_PICK, effort: { value: "low", reason: "model", picked: "low", probability: 0.8 } };
+
+/** The effort parts of a reply that read, and the answer the pick makes of them. */
+export const READ_LEVELS: readonly { readonly name: string; readonly effort: unknown; readonly answer: unknown }[] = [
+  {
+    name: "reads a level the pick was not sure of, with its reason, pick and probability",
+    effort: { value: null, reason: "low-confidence", picked: "low", probability: 0.4 },
+    answer: { ...MODEL_PICK, effort: { value: null, reason: "low-confidence", picked: "low", probability: 0.4 } },
+  },
+  {
+    name: "reads a level whose probability is no number without a probability",
+    effort: { value: "low", reason: "model", picked: "low", probability: "0.8" },
+    answer: { ...MODEL_PICK, effort: { value: "low", reason: "model", picked: "low", probability: null } },
+  },
+];
 
 /** The effort parts of a reply that do not read: the profile is answered without a level. */
 export const UNREAD_LEVELS: readonly { readonly name: string; readonly effort: unknown }[] = [

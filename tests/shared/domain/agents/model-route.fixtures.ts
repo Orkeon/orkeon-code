@@ -20,6 +20,25 @@ export const LADDER_PROBLEM_CASES: readonly { readonly name: string; readonly va
   { name: "refuses the name the runtime reserves for its own pick as a rung", value: "small,auto", problem: true },
 ];
 
+/** Whether a stored `route.ladder` is misread as no ladder: a value that names one, or nothing, is not. */
+export const LADDER_MISREAD_CASES: readonly { readonly name: string; readonly value: unknown; readonly misread: boolean }[] = [
+  { name: "reads a ladder of two profiles as one", value: "small,large", misread: false },
+  { name: "tells one profile alone", value: "small", misread: true },
+  { name: "tells a profile named twice", value: "small,Small", misread: true },
+  { name: "tells a name that is no profile's", value: "small,very large", misread: true },
+  { name: "says nothing of a value unset", value: undefined, misread: false },
+  { name: "says nothing of a blank value", value: "  ", misread: false },
+];
+
+/** Whether two profile names are one profile for the host. */
+export const SAME_PROFILE_CASES: readonly { readonly name: string; readonly a: string | null; readonly b: string | null; readonly same: boolean }[] = [
+  { name: "takes two spellings of one name in two cases as one profile", a: "Small", b: "small", same: true },
+  { name: "tells two names apart", a: "small", b: "large", same: false },
+  { name: "takes the host's default model as itself", a: null, b: null, same: true },
+  { name: "tells the host's default model from a profile", a: null, b: "small", same: false },
+  { name: "tells the host's default model from an empty name", a: null, b: "", same: false },
+];
+
 export const RULES: RouteRules = {
   paths: { "src/billing": "large", "src/billing/fixtures": "small", "docs/": "small", "src/auth": "opus" },
   crews: { "code-review": "medium", "security-audit": "Large" },
@@ -49,6 +68,10 @@ export const FLOOR_CASES: readonly { readonly name: string; readonly crew: strin
   { name: "raises the floor for a folder named bare", crew: "dev-plan", brief: "/dev-plan rework src/billing", floor: 2 },
   { name: "reads a path written with backslashes", crew: "dev-plan", brief: "/analyze src\\billing\\tax.ts", floor: 2 },
   { name: "reads a path in quotes, a comma after it", crew: "dev-plan", brief: '/analyze "src/billing/tax.ts", then stop', floor: 2 },
+  { name: "reads a path that ends a sentence", crew: "dev-plan", brief: "/dev-plan fix src/billing.", floor: 2 },
+  { name: "reads a path that ends a question", crew: "dev-plan", brief: "/dev-plan why does it fail in src/billing/tax.ts?", floor: 2 },
+  { name: "reads a path inside parentheses", crew: "dev-plan", brief: "/dev-plan fix the tax (src/billing/tax.ts) first", floor: 2 },
+  { name: "reads a path that ends an exclamation", crew: "dev-plan", brief: "/dev-plan fix src/billing!", floor: 2 },
   { name: "ignores a rule that names a profile outside the ladder", crew: "dev-plan", brief: "/analyze src/auth/token.ts", floor: 0 },
   { name: "reads a rule's profile whatever its case", crew: "security-audit", brief: "/audit", floor: 2 },
 ];
@@ -169,5 +192,6 @@ export const UNREAD_LEVEL_RECORDS: readonly { readonly name: string; readonly ef
   { name: "its level is no level", effort: { level: "extreme", reason: "model" } },
   { name: "its reason is none of a choice", effort: { level: "low", reason: "circuit-off" } },
   { name: "its probability is no number", effort: { level: "low", reason: "model", picked: "low", probability: "0.8" } },
+  { name: "its pick is no name", effort: { level: "low", reason: "model", picked: 7, probability: 0.8 } },
   { name: "it is no object", effort: "low" },
 ];

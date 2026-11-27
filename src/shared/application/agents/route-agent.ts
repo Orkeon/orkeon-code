@@ -4,8 +4,16 @@
 // It fails open at every step, and says why whenever something is wrong: the setting off or unreadable and a host
 // without the pick are silent; no decision model, a circuit that is off, no usable ladder and a pick the runtime
 // refuses (its message kept) are each one warning; a session on a profile outside the ladder is one line. None of
-// them is a choice: the session's profile stands and nothing is kept. A session whose own rung is the one rung left
-// (the lowest, or a rule's floor at it or above) asks nothing and says nothing. An answer under the bar or missing
+// them is a choice: the session's profile stands and nothing is kept. A stored `route.ladder` that is no ladder (one
+// name, a name twice, a name that is no profile's) is one warning too, naming it and the default ladder routed on in
+// its place. A pick whose level part the runtime refuses (a level /effort stored that the decision model's levels
+// leave none under) is one warning, and the pick is asked once more for the profile alone: the level stays in place.
+// A refusal of the profile's bounds is asked once, a level asked or not. One route of acts (actRoute) says a misread
+// ladder once and a refused level once, and once the level was refused its acts ask the profile alone; a route of
+// acts lives as long as the caller keeps it (wiring.ts: one per crew body, one per batch audit and one for the
+// reviewer of dev-batches, one per explorer the main loop spawns), and each launch (routeAgent) has a route of its
+// own. A session whose own rung is the one rung left (the lowest, or a rule's floor at it or above) asks nothing, and
+// says nothing but the warning of a misread ladder, given before that check. An answer under the bar or missing
 // is a choice that decides nothing: the fallback stands, which is the session's profile, or, for a session on the
 // host's default model, the floor of a rule when one applies. A routed launch also carries the session's profile,
 // which the crew falls back on when the host declares no profile of the rung's name (orkeon/llm-profile.ts). Each
@@ -15,23 +23,25 @@
 // model, which it takes as a launch does. With `route.effort` on, a launch or an act that takes a thinking level asks
 // for it in the same call (ADR 0039): among the host's levels, never above the one `/effort` stored. A level the pick
 // decided moves the launch or the act; an unsure or missing one leaves the level in place, and the line says so.
-import type { DecisionModel, EffortPick, Files, Logger, ProfilePick, ProfilePicker, SessionStore } from "../ports.ts";
+import type { DecisionModel, EffortPick, Files, Logger, ProfilePick, ProfilePickRefusal, ProfilePicker, SessionStore } from "../ports.ts";
 import type { ConfigStore } from "../config-store.ts";
+import type { ActProfiles } from "../../domain/llm-profile.ts";
 import { WORKSPACE } from "../../domain/vfs.ts";
 import { EFFORT_STATE_KEY, ROUTE_RECENT_STATE_KEY } from "../../domain/session-keys.ts";
 import { providerEffort } from "../../domain/agent-policy/behavior-flags.ts";
 import type { EffortLevel } from "../../domain/agent-policy/behavior-flags.ts";
 import type {
-  EffortBounds, EffortChoice, RouteChoice, RouteChoiceReason, RouteRules, RouteStands,
+  EffortBounds, EffortChoice, RouteBounds, RouteChoice, RouteChoiceReason, RouteRules, RouteStands,
 } from "../../domain/agents/model-route.ts";
 import {
   NO_ROUTE_RULES, ROUTE_AGENTS_CONFIG_KEY, ROUTE_EFFORT_CONFIG_KEY, ROUTE_LADDER_CONFIG_KEY, ROUTE_RULES_FILE, asOnLadder,
-  effortBounds, effortDecided, effortMoved, ladderOf, parseRecords, parseRouteRules, routable, routeBounds, routeDecided,
-  routeFloor, routeHeld, routeNotAsked, routeOn, routeState, withRecord,
+  effortBounds, effortDecided, effortMoved, ladderMisread, ladderOf, parseRecords, parseRouteRules, routable, routeBounds,
+  routeDecided, routeFloor, routeHeld, routeNotAsked, routeOn, routeState, sameProfile, withRecord,
 } from "../../domain/agents/model-route.ts";
 import {
   EFFORT_WHY, HOST_DEFAULT_MODEL, ROUTE_CIRCUIT_OFF, ROUTE_NO_LADDER, ROUTE_STANDS, ROUTE_WHY, ROUTE_WHY_RULE_ALONE,
-  ROUTE_WITHOUT_DECISION_MODEL, effortChosen, effortLeft, pickedWith, routeKeepsProfile, routeRefused, routedLine,
+  ROUTE_WITHOUT_DECISION_MODEL, effortChosen, effortLeft, pickedWith, routeKeepsProfile, routeLadderMisread, routeLevelRefused,
+  routeRefused, routedLine,
 } from "./messages.ts";
 
 export interface RouteDeps {
@@ -104,12 +114,12 @@ interface Asked {
   said: boolean;
 }
 
-/** The choice an answer of the pick makes. */
-function choiceOf(answer: ProfilePick, reason: RouteChoiceReason, ladder: readonly string[]): RouteChoice {
+/** The choice an answer of the pick makes; its level only when one was asked (`levelAsked`). */
+function choiceOf(answer: ProfilePick, reason: RouteChoiceReason, ladder: readonly string[], levelAsked: boolean): RouteChoice {
   const choice: RouteChoice = { profile: answer.value === null ? null : asOnLadder(ladder, answer.value), reason };
   if (answer.picked !== null) choice.picked = asOnLadder(ladder, answer.picked);
   if (answer.picked !== null && answer.probability !== null) choice.probability = answer.probability;
-  const effort = effortChoiceOf(answer.effort);
+  const effort = levelAsked ? effortChoiceOf(answer.effort) : undefined;
   if (effort !== undefined) choice.effort = effort;
   return choice;
 }
@@ -123,10 +133,13 @@ function effortChoiceOf(pick: EffortPick | undefined): EffortChoice | undefined 
   return choice;
 }
 
-/** The bounds of the level asked with the profile: none unless `route.effort` is on and the task takes a level; then
- *  the level `/effort` stored as the highest, any of the host's when the session stored none or cannot say. */
-async function effortAsked(deps: RouteDeps, task: RouteTask): Promise<EffortBounds | undefined> {
-  if (task.thinks !== true || !routeOn(await setting(deps.config, ROUTE_EFFORT_CONFIG_KEY))) return undefined;
+/** The bounds of the level a pick asks with the profile: none unless `route.effort` is on; then the level `/effort`
+ *  stored as the highest, any of the host's when the session stored none or cannot say. A launch asks them, and the
+ *  test pick of a bare /route. */
+export async function routeEffortBounds(deps: {
+  config: Pick<ConfigStore, "readValue">; session: Pick<SessionStore, "readState">;
+}): Promise<EffortBounds | undefined> {
+  if (!routeOn(await setting(deps.config, ROUTE_EFFORT_CONFIG_KEY))) return undefined;
   try {
     return effortBounds(providerEffort(await deps.session.readState(EFFORT_STATE_KEY)));
   } catch {
@@ -134,24 +147,95 @@ async function effortAsked(deps: RouteDeps, task: RouteTask): Promise<EffortBoun
   }
 }
 
+/** The bounds of the level asked for `task`: none for a task that takes no level. */
+async function effortAsked(deps: RouteDeps, task: RouteTask): Promise<EffortBounds | undefined> {
+  return task.thinks === true ? routeEffortBounds(deps) : undefined;
+}
+
+/** What a pick answered, and, when the runtime refused its level part, that refusal's message. */
+export interface Picked {
+  answer: ProfilePick | ProfilePickRefusal | null;
+  /** The runtime's message, when it refused the level asked: `answer` is then that of the profile asked alone. */
+  levelRefused?: string;
+}
+
+/** One pick of a profile for `request`, with the level `level` bounds when given. A level asked can make the runtime
+ *  refuse the whole pick (bounds that leave the decision model no level): the profile is then asked once more, alone.
+ *  Any other refusal is the answer, asked once. */
+export async function pickProfile(
+  picker: ProfilePicker, request: string, bounds: RouteBounds, level: EffortBounds | undefined,
+): Promise<Picked> {
+  const answer = await picker.pick(request, bounds, level);
+  if (level === undefined || answer === null || !("refused" in answer) || answer.part !== "effort") return { answer };
+  return { answer: await picker.pick(request, bounds), levelRefused: answer.refused };
+}
+
+/** What one route has met already, so that it says each once: a launch (routeAgent) has one of its own, and the acts
+ *  of one crew run share one (actRoute), however many routes are built over it. `ladderWarned`: the misread ladder
+ *  was warned of; `levelRefused`: the runtime refused the level part, and the following picks ask the profile alone;
+ *  `levelAsked`: the first pick asked a level, settled once it came back, which the acts that would ask one after it
+ *  wait for, so that the run asks a level the runtime refuses once, however many acts start together. */
+export interface RouteRun {
+  ladderWarned: boolean;
+  levelRefused: boolean;
+  levelAsked?: Promise<void>;
+}
+
+/** A route that has met nothing yet: one per launch, one per crew run of acts. */
+export const routeRun = (): RouteRun => ({ ladderWarned: false, levelRefused: false });
+
+/** The level asked for `task` in `run`, and, for the first pick of the run that asks one, `settle`, to call once its
+ *  answer is in. An act that would ask a level while that first pick is in flight waits for it, then asks none if
+ *  the runtime refused it. The run's `levelAsked` is set with no await between its check and its set. */
+async function levelOf(deps: RouteDeps, task: RouteTask, run: RouteRun): Promise<{ level: EffortBounds | undefined; settle?: () => void }> {
+  if (run.levelRefused) return { level: undefined };
+  const level = await effortAsked(deps, task);
+  if (level === undefined) return { level };
+  if (run.levelAsked !== undefined) {
+    await run.levelAsked;
+    return { level: run.levelRefused ? undefined : level };
+  }
+  let settle: () => void = () => undefined;
+  run.levelAsked = new Promise<void>((resolve) => { settle = resolve; });
+  return { level, settle };
+}
+
 /** What the pick answers for `task`; null when there is no choice (the setting off, no decision model, a session's
  *  profile outside the ladder, a host without the pick, a refusal, a circuit off, no ladder), the cause said. */
-async function ask(deps: RouteDeps, task: RouteTask, sessionProfile: string | null): Promise<Asked | null> {
+async function ask(deps: RouteDeps, task: RouteTask, sessionProfile: string | null, run: RouteRun = routeRun()): Promise<Asked | null> {
   if (!routeOn(await setting(deps.config, ROUTE_AGENTS_CONFIG_KEY))) return null;
   if (!deps.decision.available()) {
     deps.log.warn(ROUTE_WITHOUT_DECISION_MODEL);
     return null;
   }
-  const ladder = ladderOf(await setting(deps.config, ROUTE_LADDER_CONFIG_KEY));
+  const stored = await setting(deps.config, ROUTE_LADDER_CONFIG_KEY);
+  const ladder = ladderOf(stored);
+  if (ladderMisread(stored) && !run.ladderWarned) {
+    run.ladderWarned = true;
+    deps.log.warn(routeLadderMisread(stored, ladder.join(",")));
+  }
   if (sessionProfile !== null && !routable(sessionProfile, ladder)) {
     deps.log.info(routeKeepsProfile(sessionProfile, ladder.join(",")));
     return null;
   }
   const floor = routeFloor(await rulesOf(deps.files), task.crew, task.brief, ladder);
-  // The session's rung is the one rung left: the answer without a call, and nothing to say.
+  // The session's rung is the one rung left: the answer without a call, and nothing more to say.
   if (routeHeld(ladder, sessionProfile, floor)) return { choice: { profile: sessionProfile, reason: "ceiling" }, floored: false, said: false };
   const bounds = routeBounds(ladder, sessionProfile, floor);
-  const answer = await deps.picker.pick(routeState(task.crew, task.brief), bounds, await effortAsked(deps, task));
+  const request = routeState(task.crew, task.brief);
+  const { level, settle } = await levelOf(deps, task, run);
+  let picked: Picked;
+  try {
+    picked = await pickProfile(deps.picker, request, bounds, level);
+    // The level refused, the profile was asked alone: the level stays where it is, and the run asks no level again.
+    if (picked.levelRefused !== undefined) {
+      run.levelRefused = true;
+      deps.log.warn(routeLevelRefused(picked.levelRefused));
+    }
+  } finally {
+    settle?.();
+  }
+  const { answer, levelRefused } = picked;
   if (answer === null) return null;
   if ("refused" in answer) {
     deps.log.warn(routeRefused(answer.refused));
@@ -159,10 +243,13 @@ async function ask(deps: RouteDeps, task: RouteTask, sessionProfile: string | nu
   }
   const { reason } = answer;
   if (routeNotAsked(reason)) {
+    // The runtime answers `no-ladder` only for an empty ladder, and the bounds sent here always hold two rungs or
+    // more: never given today, the answer is one of its typed reasons all the same, and it is said, not dropped.
     deps.log.warn(reason === "circuit-off" ? ROUTE_CIRCUIT_OFF : ROUTE_NO_LADDER);
     return null;
   }
-  return { choice: choiceOf(answer, reason, ladder), floored: sessionProfile === null && bounds.floor !== undefined, said: true };
+  const levelAsked = level !== undefined && levelRefused === undefined;
+  return { choice: choiceOf(answer, reason, ladder, levelAsked), floored: sessionProfile === null && bounds.floor !== undefined, said: true };
 }
 
 async function remember(session: RouteDeps["session"], crew: string, choice: RouteChoice): Promise<void> {
@@ -207,24 +294,26 @@ export async function actRouted(route: ActRoute | undefined, task: RouteTask): P
   }
 }
 
-/** The profiles a crew's acts are routed between: the session's (the ceiling) and the one the crew runs on. */
-export interface ActProfiles {
-  session: string | null;
-  crew: string | null;
-}
+/** The profiles a crew's acts are routed between (shared/domain/llm-profile.ts). */
+export type { ActProfiles };
 
 /** The route of a crew's sub-agent acts: the launch's pick, with the session's profile as the ceiling. A decision
  *  (routeDecided) moves the act, as does, without one, the floor of a rule for a session on the host's default model
  *  (the fallback the pick answers then); nothing asked, and no answer or an unsure pick otherwise, leave the act where
- *  the crew runs, as does an answer that is the crew's own profile. An act takes a thinking level: with `route.effort`
- *  on the pick is asked one, and a level it decided moves the act whatever became of its profile. */
-export function actRoute(deps: RouteDeps, profiles: ActProfiles): ActRoute {
+ *  the crew runs, as does an answer that is the crew's own profile, whatever its case. An act takes a thinking level:
+ *  with `route.effort` on the pick is asked one, and a level it decided moves the act whatever became of its profile.
+ *  The acts share `run`
+ *  (routeRun), one per crew run, which its caller hands every route it builds for that run (wiring.ts: a crew body's
+ *  route, the batch audits and the reviewer of one /dev-batches run, the explorers one main turn spawns): a misread
+ *  ladder and a refused level are said once, the first act that asks a level is the only one to ask it until its
+ *  answer is in, and after a refused level the acts ask no level. */
+export function actRoute(deps: RouteDeps, profiles: ActProfiles, run: RouteRun = routeRun()): ActRoute {
   return async (task) => {
-    const asked = await ask(deps, { ...task, thinks: true }, profiles.session);
+    const asked = await ask(deps, { ...task, thinks: true }, profiles.session, run);
     if (asked === null) return NOT_MOVED;
     const moves = routeDecided(asked.choice.reason) || asked.floored;
     const profile = moves ? asked.choice.profile : profiles.crew;
     await settle(deps, task.crew, asked, profile, asked.floored ? "floor" : "crew");
-    return { profile: profile === profiles.crew ? null : profile, effort: effortMoved(asked.choice.effort) };
+    return { profile: sameProfile(profile, profiles.crew) ? null : profile, effort: effortMoved(asked.choice.effort) };
   };
 }

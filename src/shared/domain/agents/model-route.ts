@@ -122,6 +122,12 @@ export function ladderOf(value: unknown): readonly string[] {
   return typeof value === "string" && ladderProblem(value) === undefined ? names(value) : DEFAULT_LADDER;
 }
 
+/** Whether a stored `route.ladder` names something that is no ladder (one name, a name twice, a name that is no
+ *  profile's): ladderOf then answers the default ladder in its place. A value unset or blank names nothing. */
+export function ladderMisread(value: unknown): value is string {
+  return typeof value === "string" && value.trim() !== "" && ladderProblem(value) !== undefined;
+}
+
 /** The floors a rules file holds: `{ "paths": { "<prefix>": "<profile>" }, "crews": { "<crew>": "<profile>" } }`. An
  *  entry that is not a string is dropped; a text that is not such an object holds none. */
 export function parseRouteRules(text: string): RouteRules {
@@ -148,15 +154,20 @@ function bare(path: string): string {
   return path.replace(/\\/g, "/").replace(/^\/workspace\//, "").replace(/^\.\//, "").replace(/\/+$/, "");
 }
 
-/** The words of a command, as paths: quotes and the punctuation around a word dropped. */
+/** The words of a command, as paths: quotes and the punctuation around a word dropped, the end of a sentence too. */
 function wordsOf(brief: string): string[] {
-  return brief.split(/\s+/).map((word) => bare(word.replace(/^["'`(]+|["'`),;:]+$/g, ""))).filter((word) => word.length > 0);
+  return brief.split(/\s+/).map((word) => bare(word.replace(/^["'`(]+|["'`),;:.?!]+$/g, ""))).filter((word) => word.length > 0);
+}
+
+/** Whether two profile names are one profile, as the host reads them: whatever their case (`Small` is `small`); null,
+ *  the host's default model, is only itself. */
+export function sameProfile(a: string | null, b: string | null): boolean {
+  return a === null || b === null ? a === b : a.toLowerCase() === b.toLowerCase();
 }
 
 /** The rung of `profile` on the ladder, whatever its case (the host reads a profile's name so); -1 when it is none. */
 function rungOf(ladder: readonly string[], profile: string): number {
-  const wanted = profile.toLowerCase();
-  return ladder.findIndex((rung) => rung.toLowerCase() === wanted);
+  return ladder.findIndex((rung) => sameProfile(rung, profile));
 }
 
 /** The rung the rules ask for at least: the crew's own, and for each word of the command that is a rule's path or lies
@@ -221,7 +232,7 @@ export function routeHeld(ladder: readonly string[], sessionProfile: string | nu
 
 /** A profile as the ladder spells it: the runtime answers a rung as the host declares it (`Small` for `small`). */
 export function asOnLadder(ladder: readonly string[], profile: string): string {
-  return ladder.find((rung) => rung.toLowerCase() === profile.toLowerCase()) ?? profile;
+  return ladder.find((rung) => sameProfile(rung, profile)) ?? profile;
 }
 
 /** The bounds of a pick: the ladder; the floor's rung when a rule raises one, held at the session's rung (the pick
