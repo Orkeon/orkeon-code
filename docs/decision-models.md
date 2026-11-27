@@ -121,8 +121,9 @@ acts, on its brief.
 With `route.effort` on, the same call picks the thinking level too: one of the host's levels, never above the one
 `/effort` stored, for the launches that forward `/effort` and for every routed act
 ([ADR 0039](adr/0039-route-effort-and-explorer.md)). A ladder may hold more than two rungs: the Anthropic example
-declares `haiku`, `sonnet`, `opus` and `fable`, and `/config set route.ladder haiku,sonnet,opus,fable` orders them.
-Neither was measured. Two runs of the routing of acts are
+declares `haiku`, `sonnet`, `opus` and `fable`. Both are
+[measured below](#measured-ladders-of-two-three-and-four-rungs): keep a ladder to three rungs. Two runs of the
+routing of acts are
 [measured below](#measured-dev-spec-then-dev-plan-routed-and-not).
 
 ### Measured: twelve commands
@@ -147,6 +148,50 @@ judgement of each command.
 
 Eleven of twelve as expected. The twelfth is the bar at work: a pick at 0.54 is not followed, and the launch runs
 as it would without routing.
+
+### Measured: ladders of two, three and four rungs
+
+Measured on 2026-11-27 with Jev, the session on the host's default model: the twelve commands above and six briefs
+of the explorer, each sent to the pick as the routing sends it, on `haiku,opus`, `haiku,sonnet,opus` and
+`haiku,sonnet,opus,fable`. Two passes: the same pick each time, its probability within 0.09. The thinking level was
+asked where the routing asks it, with no level stored; its column is the pass on three rungs. In italics, a pick
+under the bar: nothing moves.
+
+| Request | Two rungs | Three rungs | Four rungs | Level |
+|---|---|---|---|---|
+| `/commit` | haiku 0.85 | haiku 0.67 | haiku 0.65 |  |
+| `/commit fix a typo in the README` | haiku 0.98 | haiku 0.86 | haiku 0.89 |  |
+| `/analyze what does README.md say` | haiku 1.00 | haiku 0.99 | haiku 0.97 |  |
+| `/analyze list the public functions of src/text.ts` | haiku 0.99 | haiku 0.88 | haiku 0.89 |  |
+| `/init` | haiku 0.86 | haiku 0.76 | haiku 0.79 |  |
+| `/dev-learn` | haiku 0.82 | haiku 0.73 | haiku 0.76 |  |
+| `/dev-plan rewrite-the-billing-engine-across-all-modules` | opus 0.99 | opus 0.98 | fable 0.96 | high 0.90 |
+| `/dev-spec design a multi-tenant permission model with row-level security` | opus 0.99 | opus 0.94 | fable 0.87 | high 0.99 |
+| `/dev-change replace the session store by an event-sourced one, keep every caller working` | opus 0.99 | opus 0.99 | fable 0.98 | high 0.97 |
+| `/review --lens security` | opus 0.94 | opus 0.66 | *fable 0.50* |  |
+| `/review --lens style` | opus 0.69 | sonnet 0.63 | *sonnet 0.47* |  |
+| `/analyze find the race condition between the worker pool and the cache invalidation` | opus 0.97 | opus 0.61 | *fable 0.54* |  |
+| explorer: list the files of the docs/ folder | haiku 1.00 | haiku 0.98 | haiku 0.99 | low 0.99 |
+| explorer: where is the version string defined | haiku 0.96 | haiku 0.79 | haiku 0.84 | low 0.83 |
+| explorer: find every place where a setting is read | haiku 0.98 | haiku 0.93 | haiku 0.92 | low 0.94 |
+| explorer: survey the test doubles, say which ports have none | haiku 0.94 | haiku 0.72 | haiku 0.72 | low 0.65 |
+| explorer: explain how a class picks a profile and a level, with files and lines | haiku 0.71 | *sonnet 0.54* | *opus 0.35* | *medium 0.50* |
+| explorer: trace how a tool call's permission is decided across every crew | opus 0.79 | *opus 0.47* | *opus 0.35* | *high 0.48* |
+
+- **Decided**: 18 of 18 on two rungs, 16 on three, 13 on four.
+- **The middle rungs take almost no decision.** On three rungs `sonnet` is decided once, at 0.63. On four, no
+  request is decided on `sonnet` nor on `opus`: every hard command goes to `fable`, the top rung, and the requests
+  between the two ends fall under the bar.
+- **A fourth rung moves the hard work to the dearest model** and decides fewer requests: four rungs behave as two
+  rungs priced higher. Keep `fable` off the ladder, for `/model` or for a floor of `.orkeon/route-rules.json`.
+- **The level** is decided for 14 of the 18 requests that take one, on every ladder: `low` and `high` are, `medium`
+  never is (0.50 to 0.57), so a request of the middle keeps the level in place.
+- **On the subscription**, the ladder `subscription-haiku,subscription-sonnet,subscription` of the `agent-cli`
+  example decides 15 of the same 18 requests, with the same split: the pick reads the order of the rungs, not their
+  names.
+
+These are picks, not runs: no crew was launched, so the table says where each request would run, not what the
+cheaper model made of it.
 
 ### Measured: `/dev-spec` then `/dev-plan`, routed and not
 

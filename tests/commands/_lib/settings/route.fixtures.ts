@@ -7,10 +7,14 @@ import {
   GLM_TAKES, HIGH_AS_ASKED, HIGH_UNCHECKED, MEDIUM_DROPPED, MEDIUM_LOWERED, TAKES_NO_EFFORT, UNKNOWN_TAKES,
 } from "../../../support/fixtures/reasoning.ts";
 
+/** A decision model that answers the test question of a bare /route. */
+const PROBE_ANSWERED = { reachable: { type: "noul" as const, probability: 0.9 } };
+
 export function routeCommandSetup() {
   const config = new FakeConfigStore();
   const session = new FakeSessionStore();
   const decision = new FakeDecisionModel();
+  decision.answers = PROBE_ANSWERED;
   return { config, session, decision, deps: { config, session, decision } };
 }
 
@@ -89,3 +93,8 @@ export const OUTSIDE_LADDER_CASES: readonly { readonly name: string; readonly va
     values: { "agents.profile": "subscription" }, text: "route.agents: off; route.effort: off; ladder: small,large (cheapest first); decision model: present.",
   },
 ];
+
+export const STATUS_SILENT =
+  "route.agents: on; route.effort: off; ladder: small,large (cheapest first); decision model: configured, but it gave no answer " +
+  "to a test question just now (a server that is down, a key refused): nothing is routed until it answers.";
+export const PROBE_ASKED = [{ state: "ready", questions: { reachable: { type: "noul", criteria: { true: "The text is the single word 'ready'" } } } }];

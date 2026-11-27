@@ -204,6 +204,10 @@ celui de la section).
 - Pour garder la conversation sur la clé et n'envoyer que les agents sur l'abonnement, faites plutôt `/config set
   agents.profile subscription` et laissez `llm.profile` absent : les tours de `/assistant` tournent sur le profil par
   défaut, l'explorateur qu'ils lancent et chaque crew qu'une commande lance sur la CLI.
+- Pour router sur l'abonnement, l'exemple déclare `subscription-haiku` et `subscription-sonnet`, le même profil sur
+  les deux modèles moins chers : `/config set route.ladder subscription-haiku,subscription-sonnet,subscription`, puis
+  `/route on`. Le profil de la session est le plafond : sous `agents.profile subscription`, les agents sont choisis
+  parmi les trois. Laissez `route.effort` sur `off` dans ce cas : aucun niveau de réflexion n'atteint la CLI.
 - L'exemple demande aussi `ANTHROPIC_API_KEY` : une session démarre sur le profil par défaut, le repli y arrive, et
   les services propres au runtime (planificateur, Guardian, juges) y restent.
 - Sans aucune clé, écrivez `"Provider": "agent-cli"` dans la section `Llm` elle-même, sans `Fallback`.
@@ -422,9 +426,14 @@ Ce que le tableau laisse de côté :
 - **`route.effort`** ne demande rien tant que `route.agents` n'est pas sur `on`. Les niveaux parmi lesquels il
   choisit sont ceux du runtime (`Orkeon:Decision:Effort:Levels` ; `low`, `medium`, `high` quand le runtime n'en
   liste aucun).
-- **Une échelle à quatre barreaux** : [`config/appsettings.anthropic.example.json`](../../config/appsettings.anthropic.example.json)
-  déclare les profils `haiku`, `sonnet`, `opus` et `fable` ; `/config set route.ladder haiku,sonnet,opus,fable`
-  les ordonne pour le routage.
+- **Une échelle à trois barreaux** : [`config/appsettings.anthropic.example.json`](../../config/appsettings.anthropic.example.json)
+  déclare les profils `haiku`, `sonnet`, `opus` et `fable` ; `/config set route.ladder haiku,sonnet,opus` en ordonne
+  trois pour le routage. Un quatrième barreau est accepté, et
+  [mesuré](decision-models.md#mesuré--des-échelles-de-deux-trois-et-quatre-barreaux) : il décide moins de demandes et
+  envoie les plus difficiles au modèle le plus cher.
+- **Un `/route` seul**, routage sur `on`, pose une question de test au modèle de décision : un modèle que les
+  réglages nomment et qui ne répond pas (un serveur arrêté, une clé refusée) est signalé, là où `present`
+  s'affichait.
 - **Les deux demandent le runtime de l'épingle**, donc le mode source : dans les modes tool et docker ils sont lus
   et ne font rien, sans avertissement qui leur soit propre, un runtime sans modèle de décision donnant toujours
   l'avertissement habituel

@@ -5,7 +5,7 @@ import { deepStrictEqual, strictEqual } from "node:assert";
 
 import { runRoute } from "../../../../src/commands/_lib/settings/route.ts";
 import {
-  CUSTOM_LADDER, OUTSIDE_LADDER_CASES, RECENT, RECENT_WITH_CIRCUIT_OFF, RECENT_WITH_LEVEL, STATUS_EFFORT_ON, WHY_LEVEL_LINES, SET_OFF, STATUS_CUSTOM_WITH_HIGH, SET_ON, SET_ON_NO_MODEL, STATUS_OFF, STATUS_ON_NO_MODEL, STATUS_WITH_MEDIUM, STATUS_WITH_RUNGS,
+  CUSTOM_LADDER, OUTSIDE_LADDER_CASES, PROBE_ASKED, RECENT, STATUS_SILENT, RECENT_WITH_CIRCUIT_OFF, RECENT_WITH_LEVEL, STATUS_EFFORT_ON, WHY_LEVEL_LINES, SET_OFF, STATUS_CUSTOM_WITH_HIGH, SET_ON, SET_ON_NO_MODEL, STATUS_OFF, STATUS_ON_NO_MODEL, STATUS_WITH_MEDIUM, STATUS_WITH_RUNGS,
   WHY_LINES, WHY_STANDS_LINES, routeCommandSetup, routeOnGlmSetup,
 } from "./route.fixtures.ts";
 import { EFFORT_STATE_KEY } from "../../../../src/shared/domain/session-keys.ts";
@@ -132,6 +132,55 @@ describe("runRoute", () => {
       strictEqual(view.text, c.text);
     });
   }
+
+  it("asks the decision model one test question when the routing is on", async () => {
+    // Arrange
+    const { deps, config, decision } = routeCommandSetup();
+    config.values = { "route.agents": "on" };
+
+    // Act
+    await runRoute([], deps);
+
+    // Assert
+    deepStrictEqual(decision.asked, PROBE_ASKED);
+  });
+
+  it("asks the decision model nothing while the routing is off", async () => {
+    // Arrange
+    const { deps, decision } = routeCommandSetup();
+
+    // Act
+    await runRoute([], deps);
+
+    // Assert
+    strictEqual(decision.asked.length, 0);
+  });
+
+  it("says that a configured decision model gave no answer", async () => {
+    // Arrange
+    const { deps, config, decision } = routeCommandSetup();
+    config.values = { "route.agents": "on" };
+    decision.replies = [null];
+
+    // Act
+    const view = await runRoute([], deps);
+
+    // Assert
+    strictEqual(view.text, STATUS_SILENT);
+  });
+
+  it("says that a configured decision model gave no answer when the question throws", async () => {
+    // Arrange
+    const { deps, config, decision } = routeCommandSetup();
+    config.values = { "route.agents": "on" };
+    decision.failure = new Error("connection refused");
+
+    // Act
+    const view = await runRoute([], deps);
+
+    // Assert
+    strictEqual(view.text, STATUS_SILENT);
+  });
 
   it("says nothing was routed yet", async () => {
     // Arrange

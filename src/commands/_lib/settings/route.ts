@@ -4,11 +4,14 @@
 // what that rung's model takes and what the stored effort becomes on it, as the runtime judges them (Orkeon #359,
 // #360), and whether the pick chooses the thinking level too (`route.effort`, set with /config). With the routing on
 // and the crews launched on a profile outside the ladder, it says that nothing is routed, and which setting names it.
+// With the routing on it also asks the decision model one test question: a model the settings configure and that does
+// not answer (a server that is down, a key refused) routes nothing, and the status says so.
 import type { DecisionModel, ReasoningReader, SessionStore } from "../../../shared/application/ports.ts";
 import type { ConfigStore } from "../../../shared/application/config-store.ts";
 import {
   ROUTE_AGENTS_CONFIG_KEY, ROUTE_EFFORT_CONFIG_KEY, ROUTE_LADDER_CONFIG_KEY, ladderOf, parseRecords, routable, routeOn,
 } from "../../../shared/domain/agents/model-route.ts";
+import { yesNo } from "../../../shared/domain/decision/questions.ts";
 import { AGENTS_PROFILE_CONFIG_KEY, LLM_PROFILE_CONFIG_KEY, llmProfileProblem } from "../../../shared/domain/llm-profile.ts";
 import { providerEffort } from "../../../shared/domain/agent-policy/behavior-flags.ts";
 import type { EffortLevel } from "../../../shared/domain/agent-policy/behavior-flags.ts";
@@ -20,11 +23,17 @@ import { effortWarningNote } from "./effort.ts";
 import {
   NOTHING_ROUTED_YET, ROUTE_USAGE, modelTakes, routeOutsideLadder, routeSet, routeStatus, routedRecord, rungLine,
 } from "./messages.ts";
+import type { DecisionModelState } from "./messages.ts";
+import { DECISION_PROBE_STATE, DECISION_PROBE_YES } from "./prompts.ts";
+
+/** The name of the test question a bare /route asks. */
+const PROBE_QUESTION = "reachable";
 
 export interface RouteCommandDeps {
   config: Pick<ConfigStore, "readValue" | "readSession" | "writeSession">;
   session: Pick<SessionStore, "readState">;
-  decision: Pick<DecisionModel, "available">;
+  /** `ask` serves the test question of a bare /route. */
+  decision: Pick<DecisionModel, "available" | "ask">;
   /** What each rung's model takes for reasoning; absent, or answering nothing for a rung: no line for it. */
   reasoning?: ReasoningReader;
 }
@@ -51,11 +60,24 @@ async function outsideLadder(config: RouteCommandDeps["config"], ladder: readonl
   return null;
 }
 
+/** Where the host's decision model stands: absent, or present; with the routing on it is asked one test question,
+ *  and one that gives no answer, or throws, is silent. */
+async function decisionState(decision: RouteCommandDeps["decision"], on: boolean): Promise<DecisionModelState> {
+  if (!decision.available()) return "absent";
+  if (!on) return "present";
+  try {
+    const answers = await decision.ask(DECISION_PROBE_STATE, { [PROBE_QUESTION]: yesNo(DECISION_PROBE_YES) });
+    return answers === null ? "silent" : "present";
+  } catch {
+    return "silent";
+  }
+}
+
 async function status(deps: RouteCommandDeps): Promise<CommandView> {
   const on = routeOn((await deps.config.readValue(ROUTE_AGENTS_CONFIG_KEY)).value);
   const ladder = ladderOf((await deps.config.readValue(ROUTE_LADDER_CONFIG_KEY)).value);
   const effortPicked = routeOn((await deps.config.readValue(ROUTE_EFFORT_CONFIG_KEY)).value);
-  const head = routeStatus(on, effortPicked, ladder.join(","), deps.decision.available());
+  const head = routeStatus(on, effortPicked, ladder.join(","), await decisionState(deps.decision, on));
   const outside = on ? await outsideLadder(deps.config, ladder) : null;
   const top = outside === null ? [head] : [head, outside];
   const { reasoning } = deps;
