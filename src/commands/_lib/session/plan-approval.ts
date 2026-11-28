@@ -1,21 +1,13 @@
 // The approval of a plan: a turn of /assistant that ran in plan mode ends on a question, and the plan the user
-// approves is carried out by a following turn in the mode picked. The dispatch notes that the turn is a plan turn,
-// the completion reads the note, asks, and says in which mode to launch the turn that carries the plan out.
-//
-// One note for the session (PLAN_TURN_STATE_KEY), not one per ticket: the completion is not told its ticket
-// (CommandResponse has none), and two turns of /assistant are never in flight. The command declares
-// `maxConcurrent: 1`, and the runtime holds that admission slot until every instance of the invocation is terminal
-// and drained, the ones its `completed` chains included (Orkeon ScriptCommand, `admission?.Join`): a line typed
-// while a turn runs, or while the plan is carried out, is refused by the quota before it writes the note. A value
-// per launch, handed to its own completion, would need the runtime (Orkeon issue #493). The other commands that
-// launch main-loop (/summary, /verify, /voice, /transcribe --then) neither read nor write the note.
-//
-// The note is best-effort: a state bag that cannot be written means no question after the turn, never a turn not
-// launched nor a completion that fails.
+// approves is carried out by a following turn in the mode picked. The launch of a plan turn attaches a state
+// (`CrewLaunchOptions.state`) that the runtime hands back to that launch's own `completed` as `result.state`; the
+// completion asks only when that state says plan turn. The turn that carries the plan out attaches none, so its
+// own completion asks nothing; the other commands that launch main-loop (/summary, /verify, /voice,
+// /transcribe --then) attach none either.
 
 import type { Chooser } from "../../../shared/application/ports.ts";
 import type { SessionIo } from "../../../shared/application/session-io.ts";
-import { DEFAULT_MODE_STATE_KEY, PLAN_TURN_STATE_KEY } from "../../../shared/domain/session-keys.ts";
+import { DEFAULT_MODE_STATE_KEY } from "../../../shared/domain/session-keys.ts";
 import type { CrewCompletion, LaunchResult, MainLoopLaunchDeps } from "../dispatch.ts";
 import { launchMainLoop } from "../dispatch.ts";
 import type { StartOutput } from "../../../shared/domain/session-start.ts";
@@ -27,8 +19,17 @@ import { CARRY_OUT_PLAN } from "./prompts.ts";
 
 export const PLAN_MODE = "plan";
 
-/** What the state bag holds while the last turn launched is a plan turn. */
-export const PLAN_TURN_NOTED = "true";
+/** The state a plan turn's launch attaches, handed back to its own completion. */
+export interface PlanTurnState {
+  planTurn: true;
+}
+
+export const PLAN_TURN_STATE: PlanTurnState = { planTurn: true };
+
+/** Whether the state a completion received is a plan turn's: any other value, of any shape, is not. */
+export function isPlanTurnState(state: unknown): state is PlanTurnState {
+  return typeof state === "object" && state !== null && (state as { planTurn?: unknown }).planTurn === true;
+}
 
 /** The answer that leaves the session in plan mode. */
 export const KEEP_PLANNING = PLAN_MODE;
@@ -40,15 +41,15 @@ export const APPROVAL_OPTIONS: readonly { value: string; label: string; descript
   { value: KEEP_PLANNING, ...KEEP_PLANNING_ANSWER },
 ];
 
-type PlanSession = Pick<SessionIo, "resolveEffectiveSessionMode" | "readState" | "writeState">;
+type PlanSession = Pick<SessionIo, "resolveEffectiveSessionMode" | "writeState">;
 
 export interface PlanApprovalDeps {
   session: PlanSession;
   chooser: Chooser;
 }
 
-/** What launching a turn of /assistant reads and drives: the main loop's deps, over a session that keeps the note. */
-export type AssistantLaunchDeps = MainLoopLaunchDeps & { session: PlanSession };
+/** What launching a turn of /assistant reads and drives: the main loop's deps. */
+export type AssistantLaunchDeps = MainLoopLaunchDeps;
 
 export interface PlanDecision {
   /** What the user reads after the plan. */
@@ -57,47 +58,33 @@ export interface PlanDecision {
   carryOut?: string;
 }
 
-/** Before a launch: notes whether the turn about to run is a plan turn, from its prefix, else the session's mode,
- *  and says whether it is one. A note that cannot be written notes nothing: the turn is no plan turn for its
- *  completion. */
-export async function notePlanTurn(session: PlanSession, permissionMode: string | null): Promise<boolean> {
-  try {
-    const mode = permissionMode ?? (await session.resolveEffectiveSessionMode()).mode;
-    const planTurn = mode === PLAN_MODE;
-    await session.writeState(PLAN_TURN_STATE_KEY, planTurn ? PLAN_TURN_NOTED : null);
-    return planTurn;
-  } catch {
-    return false;
-  }
-}
-
-/** A turn of /assistant: noted, then launched; told of the approval when the console can ask it. */
+/** A turn of /assistant: a plan turn, from its prefix, else the session's mode, attaches the plan turn's state
+ *  and is told of the approval when the console can ask it. A mode that cannot be resolved makes no plan turn. */
 export async function launchAssistantTurn(
   deps: AssistantLaunchDeps,
   input: { prompt: string; permissionMode: string | null; sessionStart?: StartOutput | null },
   interactive: boolean,
 ): Promise<LaunchResult> {
-  const planTurn = await notePlanTurn(deps.session, input.permissionMode);
-  return launchMainLoop(deps, { ...input, planApproval: planTurn && interactive });
+  const mode = input.permissionMode ?? (await deps.session.resolveEffectiveSessionMode().catch(() => null))?.mode;
+  const planTurn = mode === PLAN_MODE;
+  return launchMainLoop(deps, {
+    ...input, planApproval: planTurn && interactive, ...(planTurn ? { state: PLAN_TURN_STATE } : {}),
+  });
 }
 
-/** The turn that carries an approved plan out, in the mode picked. */
+/** The turn that carries an approved plan out, in the mode picked, with no state: its completion asks nothing. */
 export function carryOutPlan(deps: AssistantLaunchDeps, mode: string): Promise<LaunchResult> {
   return launchMainLoop(deps, { prompt: CARRY_OUT_PLAN, permissionMode: mode });
 }
 
-/** After a turn: nothing unless it was a plan turn that succeeded with an answer; then the question, on a console
- *  that has panels, the line saying how to carry the plan out elsewhere. An approval moves a session whose mode is
- *  plan to the mode picked. A note that cannot be read or cleared asks nothing: the turn that would carry the plan
- *  out would read it again. */
+/** After a turn: nothing unless its launch's state says plan turn and the turn succeeded with an answer; then the
+ *  question, on a console that has panels, the line saying how to carry the plan out elsewhere. An approval moves a
+ *  session whose mode is plan to the mode picked. */
 export async function approvePlan(
-  result: Pick<CrewCompletion, "success" | "payload">,
+  result: Pick<CrewCompletion, "success" | "payload" | "state">,
   deps: PlanApprovalDeps,
 ): Promise<PlanDecision> {
-  const noted = await deps.session.readState(PLAN_TURN_STATE_KEY).catch(() => null);
-  if (noted !== PLAN_TURN_NOTED) return { lines: [] };
-  const cleared = await deps.session.writeState(PLAN_TURN_STATE_KEY, null).then(() => true, () => false);
-  if (!cleared || !result.success || (result.payload ?? "").trim() === "") return { lines: [] };
+  if (!isPlanTurnState(result.state) || !result.success || (result.payload ?? "").trim() === "") return { lines: [] };
   if (!deps.chooser.interactive) return { lines: [PLAN_NOT_OFFERED] };
 
   const answer = await deps.chooser.choose({ message: PLAN_APPROVAL, options: APPROVAL_OPTIONS });

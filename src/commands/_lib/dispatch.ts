@@ -100,6 +100,8 @@ export interface CrewCompletion {
   payload?: string;
   error?: string;
   streamed?: boolean;
+  /** The value the launch attached (`CrewLaunchOptions.state`), handed back to its own completion; absent when none. */
+  state?: unknown;
 }
 
 /** What a launch hands back to the runtime: the ticket, or the refusal of a hop past MaxChainDepth or of a crew
@@ -184,13 +186,14 @@ export interface MainLoopLaunchDeps extends LaunchDeps {
  * /voice --go) rides along as it is. With voice.reply on, an epilogue has the crew read the
  * answer aloud with the speech server's speak, when the host registers it. The start
  * script's output (`sessionStart`, the first turn of a session) rides along too.
- * `planApproval` (/assistant, on a console with panels) tells a plan turn that its plan is approved after it.
+ * `planApproval` (/assistant, on a console with panels) tells a plan turn that its plan is approved after it;
+ * `state`, when given, is attached to the launch and handed back to its own completion.
  */
 export async function launchMainLoop(
   deps: MainLoopLaunchDeps,
   input: {
     prompt: string; permissionMode: string | null; prelude?: PreludeCall; sessionStart?: StartOutput | null;
-    planApproval?: boolean;
+    planApproval?: boolean; state?: unknown;
   },
 ): Promise<LaunchResult> {
   const { session, log } = deps;
@@ -242,7 +245,7 @@ export async function launchMainLoop(
       ...(epilogue ? { epilogue: epilogue.tool } : {}),
       ...(input.sessionStart ? { sessionStartLines: input.sessionStart.lines.length } : {}),
     },
-    { onMain: true },
+    { onMain: true, ...(input.state !== undefined ? { state: input.state } : {}) },
   );
 }
 

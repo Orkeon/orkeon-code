@@ -13,8 +13,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   one launches a second turn that carries the plan out in that mode, and moves a session in `plan` to it; keeping
   the plan changes nothing ([permissions](docs/permissions.md#choosing-the-mode)). A turn that failed or gave no
   answer asks nothing, and a line of `/assistant` typed while the plan is carried out is refused by the command's
-  concurrency limit, as while any turn runs. A session state that cannot be written means no question, never a
-  turn not launched.
+  concurrency limit, as while any turn runs. The question belongs to the launch of the plan turn, which attaches
+  its own state (Orkeon #493): the turn that carries the plan out, or any other launch, asks nothing.
 - In a `plan` turn of `/assistant` on a console with panels, the model is told that a request for a change or a file
   ends on its plan, which the user approves, and no longer answers that the session is read-only; no other launch in
   `plan` is promised an approval.

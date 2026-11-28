@@ -9,14 +9,13 @@ import { FakeLogger } from "../../../support/doubles/fake-logger.ts";
 import { FakePermissionRules } from "../../../support/doubles/fake-permission-rules.ts";
 import { FakeSessionStore } from "../../../support/doubles/fake-session-store.ts";
 import { FakeToolCatalogue } from "../../../support/doubles/fake-tool-catalogue.ts";
-import { DEFAULT_MODE_STATE_KEY, PLAN_TURN_STATE_KEY } from "../../../../src/shared/domain/session-keys.ts";
+import { PLAN_TURN_STATE } from "../../../../src/commands/_lib/session/plan-approval.ts";
+import { DEFAULT_MODE_STATE_KEY } from "../../../../src/shared/domain/session-keys.ts";
 
-/** A session in `mode` (none stored when absent), whose last turn was a plan turn when `planTurn`; a chooser
- *  answering `answer`. */
-export function approvalSetup(options: { mode?: string; planTurn?: boolean; answer?: string | null } = {}) {
+/** A session in `mode` (none stored when absent); a chooser answering `answer`. */
+export function approvalSetup(options: { mode?: string; answer?: string | null } = {}) {
   const store = new FakeSessionStore();
   if (options.mode !== undefined) store.state.set(DEFAULT_MODE_STATE_KEY, options.mode);
-  if (options.planTurn ?? true) store.state.set(PLAN_TURN_STATE_KEY, "true");
   const config = createConfigStore({ files: new FakeFiles(), session: store });
   const session = createSessionIo({ store, config });
   const chooser = new FakeChooser();
@@ -37,8 +36,23 @@ export function assistantLaunchSetup(mode?: string) {
   return { store, crews, deps };
 }
 
-export const SUCCESS = { success: true, payload: "1. Rename parseArgs in src/args.ts.\n2. Run the tests." };
-export const FAILURE = { success: false, payload: "" };
+const PLAN = "1. Rename parseArgs in src/args.ts.\n2. Run the tests.";
+
+/** The completion of a plan turn that succeeded with a plan. */
+export const SUCCESS = { success: true, payload: PLAN, state: PLAN_TURN_STATE };
+/** The completion of a plan turn that failed. */
+export const FAILURE = { success: false, payload: "", state: PLAN_TURN_STATE };
+/** The completion of a turn whose launch attached no state. */
+export const NO_STATE = { success: true, payload: PLAN };
+
+/** States a completion may receive that are not a plan turn's. */
+export const FOREIGN_STATES: readonly { readonly name: string; readonly state: unknown }[] = [
+  { name: "a string", state: "plan" },
+  { name: "null", state: null },
+  { name: "an object without the field", state: { mode: "plan" } },
+  { name: "an object whose field is not true", state: { planTurn: "true" } },
+  { name: "an array", state: [true] },
+];
 
 /** Successful turns that left no plan to approve. */
 export const NO_ANSWER: readonly { readonly name: string; readonly payload: string | undefined }[] = [
@@ -56,12 +70,12 @@ export const REFUSALS: readonly { readonly name: string; readonly answer: string
   { name: "the panel left", answer: null },
 ];
 
-/** The modes a turn is noted from, and what the state bag then holds. */
-export const NOTED: readonly { readonly name: string; readonly prefix: string | null; readonly session?: string; readonly held: string | undefined }[] = [
-  { name: "notes a turn prefixed plan", prefix: "plan", held: "true" },
-  { name: "notes a turn without a prefix in a session in plan mode", prefix: null, session: "plan", held: "true" },
-  { name: "notes nothing for a turn prefixed with a writing mode in a session in plan mode", prefix: "default", session: "plan", held: undefined },
-  { name: "notes nothing for a turn without a prefix in a session that writes", prefix: null, session: "acceptEdits", held: undefined },
+/** The turns of /assistant and whether their launch attaches the plan turn's state. */
+export const ATTACHED: readonly { readonly name: string; readonly prefix: string | null; readonly session?: string; readonly planTurn: boolean }[] = [
+  { name: "attaches the plan turn's state to a turn prefixed plan", prefix: "plan", planTurn: true },
+  { name: "attaches the plan turn's state to a turn without a prefix in a session in plan mode", prefix: null, session: "plan", planTurn: true },
+  { name: "attaches no state to a turn prefixed with a writing mode in a session in plan mode", prefix: "default", session: "plan", planTurn: false },
+  { name: "attaches no state to a turn without a prefix in a session that writes", prefix: null, session: "acceptEdits", planTurn: false },
 ];
 
 /** The turns of /assistant and whether the crew is told its plan is approved after it. */

@@ -5,54 +5,29 @@ import { describe, it } from "node:test";
 import { deepStrictEqual, strictEqual } from "node:assert";
 
 import {
-  approvePlan, carryOutPlan, launchAssistantTurn, notePlanTurn,
+  PLAN_TURN_STATE, approvePlan, carryOutPlan, launchAssistantTurn,
 } from "../../../../src/commands/_lib/session/plan-approval.ts";
 import { CARRY_OUT_PLAN } from "../../../../src/commands/_lib/session/prompts.ts";
-import { DEFAULT_MODE_STATE_KEY, PLAN_TURN_STATE_KEY } from "../../../../src/shared/domain/session-keys.ts";
+import { DEFAULT_MODE_STATE_KEY } from "../../../../src/shared/domain/session-keys.ts";
 import {
-  APPROVALS, APPROVAL_TOLD, FAILURE, KEPT, NOTED, NOT_OFFERED, NO_ANSWER, REFUSALS, SUCCESS,
-  approvalSetup, assistantLaunchSetup,
+  APPROVALS, APPROVAL_TOLD, ATTACHED, FAILURE, FOREIGN_STATES, KEPT, NOT_OFFERED, NO_ANSWER, NO_STATE, REFUSALS,
+  SUCCESS, approvalSetup, assistantLaunchSetup,
 } from "./plan-approval.fixtures.ts";
 
-describe("notePlanTurn", () => {
-  for (const c of NOTED) {
+describe("launchAssistantTurn", () => {
+  for (const c of ATTACHED) {
     it(c.name, async () => {
       // Arrange
-      const { store, session } = approvalSetup({ mode: c.session, planTurn: false });
+      const { crews, deps } = assistantLaunchSetup(c.session);
 
       // Act
-      await notePlanTurn(session, c.prefix);
+      await launchAssistantTurn(deps, { prompt: "rename parseArgs", permissionMode: c.prefix }, true);
 
       // Assert
-      strictEqual(store.state.get(PLAN_TURN_STATE_KEY) ?? undefined, c.held);
+      deepStrictEqual(crews.launches[0].options?.state, c.planTurn ? PLAN_TURN_STATE : undefined);
     });
   }
 
-  it("drops the note of an earlier plan turn when the turn writes", async () => {
-    // Arrange
-    const { store, session } = approvalSetup({ mode: "default", planTurn: true });
-
-    // Act
-    await notePlanTurn(session, null);
-
-    // Assert
-    strictEqual(store.state.get(PLAN_TURN_STATE_KEY) ?? undefined, undefined);
-  });
-
-  it("notes no plan turn, without throwing, when the state bag cannot be written", async () => {
-    // Arrange
-    const { store, session } = approvalSetup({ planTurn: false });
-    store.writeStateFailure = new Error("state bag read-only");
-
-    // Act
-    const planTurn = await notePlanTurn(session, "plan");
-
-    // Assert
-    strictEqual(planTurn, false);
-  });
-});
-
-describe("launchAssistantTurn", () => {
   for (const c of APPROVAL_TOLD) {
     it(c.name, async () => {
       // Arrange
@@ -76,22 +51,10 @@ describe("launchAssistantTurn", () => {
     // Assert
     deepStrictEqual(crews.launches[0].options, { onMain: true });
   });
-
-  it("still launches a plan turn, promised no approval, when the state bag cannot be written", async () => {
-    // Arrange
-    const { store, crews, deps } = assistantLaunchSetup();
-    store.writeStateFailure = new Error("state bag read-only");
-
-    // Act
-    await launchAssistantTurn(deps, { prompt: "rename parseArgs", permissionMode: "plan" }, true);
-
-    // Assert
-    deepStrictEqual(crews.launches.map((l) => l.input.planApproval === true), [false]);
-  });
 });
 
 describe("carryOutPlan", () => {
-  it("launches the request that carries the plan out, in the mode picked, on the main screen", async () => {
+  it("launches the request that carries the plan out, in the mode picked, on the main screen, with no state", async () => {
     // Arrange
     const { crews, deps } = assistantLaunchSetup("plan");
 
@@ -105,16 +68,40 @@ describe("carryOutPlan", () => {
 });
 
 describe("approvePlan", () => {
-  it("asks nothing after a turn that was no plan turn", async () => {
+  it("asks after a plan turn whose launch attached the plan turn's state", async () => {
     // Arrange
-    const { chooser, deps } = approvalSetup({ planTurn: false });
+    const { chooser, deps } = approvalSetup();
 
     // Act
     await approvePlan(SUCCESS, deps);
 
     // Assert
+    strictEqual(chooser.asked.length, 1);
+  });
+
+  it("asks nothing after a turn whose launch attached no state", async () => {
+    // Arrange
+    const { chooser, deps } = approvalSetup();
+
+    // Act
+    await approvePlan(NO_STATE, deps);
+
+    // Assert
     strictEqual(chooser.asked.length, 0);
   });
+
+  for (const c of FOREIGN_STATES) {
+    it(`asks nothing, without throwing, after a completion whose state is ${c.name}`, async () => {
+      // Arrange
+      const { chooser, deps } = approvalSetup();
+
+      // Act
+      const decision = await approvePlan({ ...SUCCESS, state: c.state }, deps);
+
+      // Assert
+      deepStrictEqual([decision, chooser.asked.length], [{ lines: [] }, 0]);
+    });
+  }
 
   it("asks nothing after a plan turn that failed", async () => {
     // Arrange
@@ -133,7 +120,7 @@ describe("approvePlan", () => {
       const { chooser, deps } = approvalSetup();
 
       // Act
-      await approvePlan({ success: true, payload: c.payload }, deps);
+      await approvePlan({ ...SUCCESS, payload: c.payload }, deps);
 
       // Assert
       strictEqual(chooser.asked.length, 0);
@@ -145,36 +132,12 @@ describe("approvePlan", () => {
       chooser.interactive = false;
 
       // Act
-      const decision = await approvePlan({ success: true, payload: c.payload }, deps);
+      const decision = await approvePlan({ ...SUCCESS, payload: c.payload }, deps);
 
       // Assert
       deepStrictEqual(decision, { lines: [] });
     });
   }
-
-  it("asks nothing when the note cannot be read", async () => {
-    // Arrange
-    const { store, chooser, deps } = approvalSetup();
-    store.readStateFailure = new Error("state bag unreadable");
-
-    // Act
-    await approvePlan(SUCCESS, deps);
-
-    // Assert
-    strictEqual(chooser.asked.length, 0);
-  });
-
-  it("asks nothing, without throwing, when the note cannot be cleared", async () => {
-    // Arrange
-    const { store, chooser, deps } = approvalSetup();
-    store.writeStateFailure = new Error("state bag read-only");
-
-    // Act
-    await approvePlan(SUCCESS, deps);
-
-    // Assert
-    strictEqual(chooser.asked.length, 0);
-  });
 
   it("offers to accept edits, to ask before each edit, or to keep planning", async () => {
     // Arrange
@@ -185,17 +148,6 @@ describe("approvePlan", () => {
 
     // Assert
     deepStrictEqual(chooser.asked[0].options.map((o) => o.value), ["acceptEdits", "default", "plan"]);
-  });
-
-  it("forgets the plan turn once asked, so the turn that carries it out asks nothing", async () => {
-    // Arrange
-    const { store, deps } = approvalSetup({ answer: "acceptEdits" });
-
-    // Act
-    await approvePlan(SUCCESS, deps);
-
-    // Assert
-    strictEqual(store.state.get(PLAN_TURN_STATE_KEY) ?? undefined, undefined);
   });
 
   for (const mode of APPROVALS) {
