@@ -10,7 +10,7 @@ import { DEFAULT_MODE_STATE_KEY } from "../../../shared/domain/session-keys.ts";
 import { policyFor } from "../../../shared/domain/agent-policy/mode-policy.ts";
 import type { CommandView } from "../view.ts";
 import {
-  LEAVING_PLAN, MODE_CHOICE, MODE_DESCRIPTIONS, MODE_SET_TO, PLAN_OFF, PLAN_ON, enteringReadOnly, modeApplied,
+  LEAVING_PLAN, MODE_CHOICE, MODE_DESCRIPTIONS, MODE_SET_TO, PLAN_OFF, PLAN_ON, enteringReadOnly, enteringShellReads, modeApplied,
   modeCycled, modeShown, modeUnchanged, unknownMode,
 } from "./messages.ts";
 
@@ -25,9 +25,14 @@ export interface ModeDeps {
 async function applyMode(deps: ModeDeps, next: string, how: string): Promise<CommandView> {
   await deps.session.writeState(DEFAULT_MODE_STATE_KEY, next);
   if (policyFor(next).readOnly) {
-    deps.log.info(enteringReadOnly(next));
+    deps.log.info(strippedLine(next));
   }
   return { text: modeApplied(how, next) };
+}
+
+/** What entering a read-only mode strips from the catalogue: `plan` keeps the shell for its reads. */
+function strippedLine(mode: string): string {
+  return policyFor(mode).toolClasses.includes("shellReads") ? enteringShellReads(mode) : enteringReadOnly(mode);
 }
 
 /** `/mode [<mode>|show]`, from the command's raw tokens. No argument opens a panel, or without one CYCLES to the
@@ -75,7 +80,7 @@ async function runPlanToggle(deps: ModeDeps): Promise<CommandView> {
   const { mode, entering } = togglePlanMode(current);
   await deps.session.writeState(DEFAULT_MODE_STATE_KEY, mode);
   if (entering) {
-    deps.log.info(enteringReadOnly("plan"));
+    deps.log.info(strippedLine("plan"));
     return { text: PLAN_ON };
   }
   deps.log.info(LEAVING_PLAN);

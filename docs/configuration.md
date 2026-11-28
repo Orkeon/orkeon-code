@@ -92,8 +92,8 @@ An option a provider cannot honour produces a warning, never a silent drop.
 - Anthropic caches only what a request marks: every agent of Orkeon Code marks its system prompt and its tool
   definitions (`.cache({ systemPrompt: true, tools: true })`), a prefix its prompts keep identical turn after turn,
   so from a session's second call `cacheRead` counts what Anthropic served from its cache. With either marked, the
-  runtime marks the conversation too: in a tool loop each call reads what the previous one wrote and pays the full
-  rate for the new turns only, and a single call, which nothing would read back, writes no conversation. An agent whose profile,
+  runtime marks the conversation too: in a tool loop each call reads what the previous one wrote and writes the
+  new turns alone, and a single call, which nothing would read back, writes no conversation. An agent whose profile,
   or the host's default model, runs on `agent-cli` marks nothing (the CLI caches by its own rules).
 - The agent's request wins over a host default `Llm:Cache`.
 
@@ -307,7 +307,11 @@ What the table leaves out:
     warning.
 - **`Orkeon:Tools:ResultLimits:Limits:<tool>`**:
   - A cut result ends with `[... truncated, N chars omitted. …]`.
-  - The audit of `/dev-batches` reads that notice.
+  - `shell_command` bounds its own output: it keeps the head and the tail of each stream around that marker, says
+    `stdout_truncated` or `stderr_truncated`, gives the whole length in `stdout_total_chars` and
+    `stderr_total_chars`, and writes the output to `output_path`.
+  - The audit of `/dev-batches` reads those fields, never the marker: a cut file list fails its gate, a cut diff is
+    marked doubtful in its capture with the file that holds it.
 - **`Orkeon:Rag:Retrieval:MinScore`**:
   - None by default, so a question with no answer still gets passages.
   - The examples set 0.6, measured on the shared memory's reference set with the local embedder: 0.5 still answered

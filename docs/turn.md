@@ -169,6 +169,12 @@ prompt as the model reads it, to review a change as a diff.
   - `shell_command` runs an allow-list, and git may be read-only.
   - A shell call is one command: no pipe, redirection nor chaining, which the runtime refuses. A file is read with
     `file_read` (a range for its end), never with `cat`, `tail` or `wc` through the shell.
+  - In `plan`, which offers the shell for its reads alone, the line names what runs: a `run` of `ls`, `cat`, `pwd`,
+    `which`, `grep`, `wc`, `echo`, `dir`, `type` or `where`, one command, no `|`, `>`, `;`. `git status`, `log`,
+    `diff`, `show` run only where the host keeps git read-only (git 2.44 or later, and interpreters not allowed); the
+    line promises no git. Any other command and `start_job` are refused, and a refusal is not retried. The file
+    tools read, list and search better, so the line says the shell adds little there beyond `which`. The
+    allow-list line of the writing modes is left out. `dontAsk` offers no shell.
   - Where a web tool is offered (`web_search`, `http_api`, `web_scrape`, `scrape_element`, `browser`), the project
     comes before the web: a port, a command or an image its documentation and example settings give wins over one
     found on the web, and a value read nowhere is not given as a fact.
@@ -217,7 +223,8 @@ crew. Where the family is offered, the tools section carries its rules, those of
   - A read-only mode is told that an empty answer there is no proof of absence.
   - Trust the freshness of the code index (edited files are reindexed before a search answers).
   - The shell, where it is offered, is for builds, tests, git and the project's scripts, never for reading, listing,
-    finding or searching files, which the tools do.
+    finding or searching files, which the tools do. In `plan` the playbook says plainly that the shell adds little
+    and is never used for reading, listing or searching files.
   - Where it is not, a file no index covers is found with `glob` and read.
 - **Question to tool** (`shared/domain/code-intel-routing.ts`):
   - Each kind of question goes to the tool that answers it, with the parameter that makes it answer (table below).
@@ -279,8 +286,9 @@ crew. Where the family is offered, the tools section carries its rules, those of
 - **Gauge** (a `<system-reminder>`): the tokens used against the window and the session cost. At the warning tier,
   finish the current step and stop reading whole large files; at the error tier, wrap up and suggest `/compact`.
 - **Request** (the last message, apart from the blocks above): the request under its own heading, then the
-  permission note of the mode (read-only: deliver an assessment or a plan; otherwise the host may ask before a
-  call), then the proactive clause when `/proactive` is on. A `plan` turn whose launcher asks for the plan's approval
+  permission note of the mode (read-only: read and search, in `plan` the shell's read-only commands included, run no
+  other command, deliver an assessment or a plan; otherwise the host may ask before a call), then the proactive clause when `/proactive` is
+  on. A `plan` turn whose launcher asks for the plan's approval
   once it ends (`/assistant` on a console with panels, the only one) adds to the note: a request for a change or a
   file ends on the plan of it (the files, the steps, how it will be checked), which the user is asked to approve and
   a following turn carries out with write access, and is never reported as impossible. Any other `plan` turn

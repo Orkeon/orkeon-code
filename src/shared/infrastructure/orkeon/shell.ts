@@ -1,19 +1,21 @@
 // Shell adapter: shell_command pinned to the /workspace cwd the VFS mounts
 // (SPEC §9.4), its result read once, whatever its casing. A timeout goes to the
 // runtime's own `timeout_seconds`; a result with `completed: false` is read as a
-// command stopped at that timeout (the typings give the field, not its meaning).
+// command stopped at that timeout (the typings give the field, not its meaning). A stream the
+// runtime cut is said by the result's own fields (stdout_truncated, its total, output_path),
+// never read from the marker in the text: a diff may hold the marker's words.
 // Given a batch's working root, the command runs there: its `/workspace` paths go
 // onto the root, and the root's paths of its output come back as `/workspace`, so the
 // callers keep naming the checkout `/workspace` (shared/domain/dev/path-rebase.ts). Given the host's context, a
 // path the command spells as the disk does comes back to the VFS before the run, and the disk spellings the process
 // printed come back the same way (shared/domain/host-paths.ts), the host's layer outside the root's.
 
-import type { Shell } from "../../application/ports.ts";
+import type { Shell, ShellResult } from "../../application/ports.ts";
 import type { HostSource } from "../../application/host-context.ts";
 import { textFromRoot, textToRoot } from "../../domain/dev/path-rebase.ts";
 import { commandToVirtual, textToVirtual } from "../../domain/host-paths.ts";
 import { layoutOf } from "./host-context.ts";
-import { pick, shCode, shErr, shOut } from "./tool-results.ts";
+import { pick, shCode, shCut, shErr, shOut } from "./tool-results.ts";
 import { WORKSPACE } from "../../domain/vfs.ts";
 import { timeoutNotWholeSeconds } from "./messages.ts";
 
@@ -32,7 +34,11 @@ export function createShell(tools: Pick<OrkeonTools, "shellCommand">, root?: str
         : { command, working_directory: cwd, timeout_seconds: timeout };
       const r = await tools.shellCommand(input);
       const back = (text: string) => textFromRoot(textToVirtual(text, layout), root);
-      const result = { stdout: back(shOut(r)), stderr: back(shErr(r)), exitCode: shCode(r) };
+      const stdoutCut = shCut(r, "stdout");
+      const stderrCut = shCut(r, "stderr");
+      const result: ShellResult = { stdout: back(shOut(r)), stderr: back(shErr(r)), exitCode: shCode(r) };
+      if (stdoutCut !== null) result.stdoutCut = stdoutCut;
+      if (stderrCut !== null) result.stderrCut = stderrCut;
       return pick(r, "completed", "Completed") === false ? { ...result, timedOut: true } : result;
     },
   };

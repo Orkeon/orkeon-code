@@ -100,7 +100,7 @@ Une option qu'un fournisseur ne peut pas honorer produit un avertissement, jamai
   ses définitions d'outils (`.cache({ systemPrompt: true, tools: true })`), un préfixe que ses prompts gardent
   identique d'un tour à l'autre, donc dès le deuxième appel d'une session `cacheRead` compte ce qu'Anthropic a servi
   depuis son cache. Dès que l'un des deux est marqué, le runtime marque aussi la conversation : dans une boucle
-  d'outils chaque appel lit ce que le précédent a écrit et ne paie au plein tarif que les nouveaux tours, et un
+  d'outils chaque appel lit ce que le précédent a écrit et n'écrit que les nouveaux tours, et un
   appel unique, que rien ne relirait, n'écrit pas de conversation. Un agent dont le profil, ou le modèle par défaut de l'hôte, tourne sur `agent-cli` ne marque
   rien (la CLI gère son cache selon ses propres règles).
 - La demande de l'agent l'emporte sur un réglage par défaut `Llm:Cache` du runtime.
@@ -332,7 +332,11 @@ Ce que le tableau laisse de côté :
     avec un avertissement.
 - **`Orkeon:Tools:ResultLimits:Limits:<tool>`** :
   - Un résultat coupé finit par `[... truncated, N chars omitted. …]`.
-  - L'audit de `/dev-batches` lit cette mention.
+  - `shell_command` borne lui-même sa sortie : il garde le début et la fin de chaque flux autour de cette mention,
+    dit `stdout_truncated` ou `stderr_truncated`, donne la longueur entière dans `stdout_total_chars` et
+    `stderr_total_chars`, et écrit la sortie dans `output_path`.
+  - L'audit de `/dev-batches` lit ces champs, jamais la mention : une liste de fichiers coupée fait échouer sa
+    porte, un diff coupé est marqué douteux dans sa capture avec le fichier qui le contient.
 - **`Orkeon:Rag:Retrieval:MinScore`** :
   - Aucun par défaut, donc une question sans réponse reçoit quand même des passages.
   - Les exemples mettent 0,6, mesuré sur le jeu de référence de la mémoire partagée avec l'embedder local : 0,5

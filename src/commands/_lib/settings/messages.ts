@@ -283,11 +283,13 @@ export const MODE_DESCRIPTIONS: Record<PermissionMode, string> = {
   default: "reads run, the rest asks",
   acceptEdits: "reads and file edits run, the rest asks",
   bypassPermissions: "every call runs but what a deny rule refuses",
-  plan: "read-only, no edit, network or shell tool",
+  plan: "read-only, no edit or network tool, the shell for its reads",
   dontAsk: "local reads only, nothing asks",
 };
 export const enteringReadOnly = (mode: string): string =>
   `entering '${mode}': the edit, network and shell tools stripped from the catalogue`;
+export const enteringShellReads = (mode: string): string =>
+  `entering '${mode}': the edit and network tools stripped from the catalogue, the shell kept for its reads`;
 export const modeApplied = (how: string, mode: string): string =>
   `session default permission mode ${how} '${mode}' ` +
   `(prompts without a "mode:" prefix now run in it; /clear keeps it).`;

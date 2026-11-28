@@ -37,15 +37,55 @@ flowchart TD
 
 | Mode | Offered to the model | Local reads | Network reads (`http_api`, web) | File edits (`file_write`, `edit_file`, `node_*`, `edit_batch`, `structural_rewrite`), `rag_ingest` | Shell |
 |---|---|---|---|---|---|
-| `plan` | local reads, `read` [extra tools](#extra-tools) | ✅ | ❌ | ❌ | ❌ |
+| `plan` | local reads, the shell for its reads, `read` [extra tools](#extra-tools) | ✅ | ❌ | ❌ | its [reads](#the-shells-reads) ✅, the rest ❌ |
 | `dontAsk` | local reads, `read` [extra tools](#extra-tools) | ✅ | ❌ | ❌ | ❌ |
-| `default` | every tool | ✅ | plain `http_api` GET ✅, its other methods ask you, web ✅ | asks you | asks you |
-| `acceptEdits` | every tool | ✅ | plain `http_api` GET ✅, its other methods ask you, web ✅ | ✅ | asks you |
+| `default` | every tool | ✅ | plain `http_api` GET ✅, its other methods ask you, web ✅ | asks you | its reads ✅, the rest asks you |
+| `acceptEdits` | every tool | ✅ | plain `http_api` GET ✅, its other methods ask you, web ✅ | ✅ | its reads ✅, the rest asks you |
 | `bypassPermissions` | every tool | ✅ | ✅ | ✅ | ✅ |
 
 `plan` and `dontAsk` promise that the turn changes nothing observable: no write, and no outbound request, since a
-request can carry the repository's content elsewhere. Their catalogue holds the local read tools only, and the gate
-refuses anything else without asking.
+request can carry the repository's content elsewhere. Their catalogue holds the local read tools, and the gate
+refuses anything else without asking. `plan` also offers the shell: a shell call runs there only when the shell
+declares it a read, and the model is told which commands those are. `dontAsk` offers no shell, since its gate
+honours the session's allow rules and an allow rule on `shell_command` would run a writing command there. The chat
+writes and Orkeon Code's own tools that execute (`run_tests`, `run_build`) stay out of both modes.
+
+A shell read is not held to the workspace: see [Reach outside the workspace](#reach-outside-the-workspace).
+
+### The shell's reads
+
+`shell_command` declares a read for a `run` (its default action) of one of its default read-only commands that its
+own checks accept: `ls`, `cat`, `pwd`, `which`, `grep`, `wc`, `echo`, `dir`, `type`, `where`, and `git` with
+`status`, `log`, `diff` or `show` and no option that writes or runs a program. A `git` call reads only where the host
+keeps git read-only, which takes both conditions:
+
+- the git installed is 2.44 or later, recent enough for the tool to neutralise every program a repository
+  configures;
+- `Orkeon:Tools:Shell:AllowInterpreters` is `false`. Every example settings file that configures the shell sets it
+  to `true`, so with them every `git` call executes, and `plan` refuses it.
+
+The model is not promised git in `plan`: it is told that these four run only where the host keeps git read-only,
+and that a refused call is not tried again. Every other call executes:
+
+- a command added to the allow-list (`Orkeon:Tools:Shell` extends it) or a custom allow-list's;
+- an interpreter, and `git` itself once `Orkeon:Tools:Shell:AllowInterpreters` lifts its restriction;
+- a command with a shell operator (`|`, `>`, `;`), or one the tool would refuse;
+- `start_job`, `job_status` and `job_tail`.
+
+In `plan`, the refusal of a shell call names what plan allows, so the model does not try the same call again. The
+file tools read, list and search better than these commands, so the shell adds little in `plan` beyond `which` and,
+where the host allows it, git.
+
+### Reach outside the workspace
+
+The shell checks only the arguments that name a mount of the workspace, which it rewrites to the host path. Any
+other path goes to the command as written. With `Orkeon:Tools:Shell:Confinement:Mode` at `None`, the value of the
+example settings, a read-only command reads any path the user's account can read (`cat /etc/hosts`, `ls ~`), while
+the file tools are held to the mounts. Such a read is declared a read, so it runs without a question in `plan`,
+`default` and `acceptEdits`. Confinement changes that: under `Auto` (the runtime's default, which turns into no
+confinement inside a container), `Bubblewrap` or `Seatbelt`, the command sees the workspace's mounts, with their rights, and the
+system directories read-only, nothing else of the host. Nothing in Orkeon Code's modes or rules holds a shell read to
+the workspace.
 
 ### Questions
 
@@ -85,6 +125,7 @@ write. Where the access depends on the arguments, the gate reads it per call.
 | `github` | `list_issues`, `get_pr`, `search_repos`, `get_repo` | | `create_issue`, `create_pr`, an action it does not know |
 | `web_scrape`, `scrape_element`, `rag_search` | every call | | |
 | `rag_ingest`, `rag_eval` | | every call | |
+| `shell_command` | a `run` of a read-only command ([The shell's reads](#the-shells-reads)) | | every other call |
 | `browser` | `navigate`, `back`, `snapshot`, `read`, `find`, `search`, `tabs`, `new_tab`, `switch_tab` | `screenshot` | `click`, `type`, `press`, `evaluate`, `close_tab`, `close` |
 | `chat_accounts`, `chat_list`, `chat_read`, `chat_search`, `chat_members`, `chat_meetings` | every call | | |
 | `chat_send`, `chat_edit`, `chat_delete`, `chat_react` | | | every call |

@@ -8,8 +8,11 @@ import { batchValidOpening } from "../../../shared/domain/dev/markers.ts";
 export const gateCouldNotRun = (command: string, why: string): string => `the gate could not run '${command}': ${why}`;
 export const gateExit = (command: string, exit: number, why: string): string =>
   `the gate could not run '${command}': exit ${exit}${why === "" ? "" : ` (${why})`}`;
-export const outputCutByRuntime = (command: string, omitted: number): string =>
-  `the output of '${command}' was cut by the runtime (${omitted} characters omitted): the list is incomplete, run the gate again on a smaller change`;
+/** Where the runtime wrote a cut output, when it wrote one. */
+const writtenTo = (outputPath: string | undefined): string =>
+  outputPath === undefined ? "" : `, the output written to ${outputPath}`;
+export const outputCutByRuntime = (command: string, totalChars: number, outputPath?: string): string =>
+  `the output of '${command}' was cut by the runtime (its head and its tail kept of ${totalChars} characters${writtenTo(outputPath)}): the list is incomplete, run the gate again on a smaller change`;
 export const planFileNotRead = (name: string, max: number): string =>
   `plan folder: ${name} not read (beyond the first ${max} .md files, *-PLAN*.md first)`;
 export const sheetUnreadable = (sheet: string, why: string): string => `the sheet ${sheet} cannot be read (${why})`;
@@ -47,7 +50,8 @@ export const diffBeyondFirst = (path: string, max: number): string => `${path} �
 export const diffQuoteInPath = (path: string): string => `${path} → no diff captured (a quote in the path)`;
 export const noDiffCaptured = (path: string, command: string, why: string): string =>
   `${path} → no diff captured ('${command}' failed (${why}))`;
-export const cutByRuntime = (omitted: number): string => ` (cut by the runtime, ${omitted} characters omitted)`;
+export const cutByRuntime = (totalChars: number, outputPath?: string): string =>
+  ` (cut by the runtime: its head and its tail kept of ${totalChars} characters${writtenTo(outputPath)})`;
 export const logMissing = (log: string): string => `log missing or empty: ${log}`;
 export const LOG_HOLDS_ERROR = "the log holds an error";
 export const CANNOT_COMPARE_DATES = "the shell cannot compare dates: more than 200 files, or a path the shell cannot quote";

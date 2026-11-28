@@ -2,7 +2,7 @@
 // rendered by the pure ../domain/prompt-assembly. The permission/toolset logic is
 // pure in shared/domain/agent-policy/permission.
 
-import { buildActPrompt, toolsetFor } from "../../../shared/domain/agent-policy/permission.ts";
+import { buildActPrompt, shellReadsOnly, toolsetFor } from "../../../shared/domain/agent-policy/permission.ts";
 import type { PermissionRule } from "../../../shared/domain/agent-policy/permission.ts";
 import { explorerReachable } from "../domain/explorer-charter.ts";
 import { proactiveSuffix } from "../../../shared/domain/agent-policy/behavior-flags.ts";
@@ -99,6 +99,7 @@ export async function buildTurnPrompt(
   return {
     system: buildStaticHeader({
       toolNames: toolsetFor(mode, extras, families), scriptTools, instructions, explorer: explorerReachable(mode, rules),
+      shellReadsOnly: shellReadsOnly(mode),
     }),
     context: assembleContext({
       // All volatile, all in the context. An unconfigured session renders none

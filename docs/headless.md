@@ -11,7 +11,7 @@ without a question:
 
 | Mode | What the agent may do |
 |---|---|
-| `acceptEdits` | Read, fetch over the network, edit files. No shell |
+| `acceptEdits` | Read, fetch over the network, edit files. The shell for its reads only |
 | `bypassPermissions` | Everything in the tool catalogue, shell included |
 
 - Choose it per request (`bypassPermissions: migrate the tests to node:test`), for the session (`/mode
@@ -29,8 +29,8 @@ Under `orkeon run` (`orkeon-code run`) the gate has no one to ask, and decides e
 
 | Mode | Under `orkeon run` |
 |---|---|
-| `default` | Reads only, a `github` read action and a plain `http_api` GET included: every other call is refused (the edits, `rag_eval`, `spawn_agent`, the shell, a `github` or `http_api` write) |
-| `acceptEdits` | Reads and edits (`file_write`, `edit_file`, `node_*`, `edit_batch`, `structural_rewrite`, `rag_ingest`, `rag_eval`, `spawn_agent`), a `github` read action and a plain `http_api` GET; the shell and the `github` and `http_api` writes are refused |
+| `default` | Reads only, a `github` read action and a plain `http_api` GET included: every other call is refused (the edits, `rag_eval`, `spawn_agent`, the shell but its reads, a `github` or `http_api` write) |
+| `acceptEdits` | Reads and edits (`file_write`, `edit_file`, `node_*`, `edit_batch`, `structural_rewrite`, `rag_ingest`, `rag_eval`, `spawn_agent`), a `github` read action and a plain `http_api` GET; the shell but its reads and the `github` and `http_api` writes are refused |
 | `plan`, `dontAsk` | Reads only |
 | `bypassPermissions` | Everything |
 

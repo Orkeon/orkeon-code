@@ -3,7 +3,8 @@
 // `errors[<command line>]`, as a command the runtime refuses does; every command
 // run lands in `commands`, in order, and in `calls` with the options it carried.
 // A timeout is scripted as `results[cmd] = { timedOut: true, exitCode: -1 }`, and
-// the timeout asked for is read from `calls[i].options`. `answer`, when set, is
+// the timeout asked for is read from `calls[i].options`, and a stream the runtime cut as
+// `results[cmd] = { stdout, stdoutCut: { totalChars, outputPath } }`. `answer`, when set, is
 // asked of every command and what it gives is laid over that answer, as a world
 // whose state a command reads (a tree, a test run) answers.
 import type { Shell, ShellOptions, ShellResult } from "../../../src/shared/application/ports.ts";

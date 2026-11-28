@@ -7,6 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed — the shell reads in `plan`
+
+- `plan` offers `shell_command` for the calls the runtime declares a read (Orkeon #494): a `run` of `ls`, `cat`,
+  `pwd`, `which`, `grep`, `wc`, `echo`, `dir`, `type` or `where`, and of `git status`, `log`, `diff`, `show` where
+  the host keeps git read-only (git 2.44 or later, `AllowInterpreters` off). The gate refuses every other shell call
+  there without asking. The header, the permission note and `/mode` say so; the chat writes and the script tools
+  that execute stay out ([Permissions](docs/permissions.md#the-shells-reads)). `dontAsk` keeps its catalogue.
+- The permissions guide says that a shell read is held to the workspace only by the runtime's confinement
+  ([Reach outside the workspace](docs/permissions.md#reach-outside-the-workspace)).
+
 ### Added — a plan is approved, then carried out
 
 - A turn of `/assistant` that ran in `plan` mode ends on a question after every answer, `Carry out this plan?`:
@@ -93,6 +103,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `config/appsettings.chat.example.json` declares one account of each kind: a user, an application that only reads,
   a webhook. [Permissions](docs/permissions.md) lists what the ten tools declare.
 - Never run against a real Microsoft 365 tenant: no live check was made.
+
+### Changed — the pin moves to Orkeon `main` `f1fe709`, a tool loop caches its conversation
+
+- The pin moves to Orkeon `main` `f1fe709` (Orkeon #489 and #496, which answers #490 to #495, opened from this
+  project), nine commits past the release `1.4.0` ([ADR 0043](docs/adr/0043-orkeon-after-496.md)).
+- On Anthropic a turn of several tool calls reads its conversation from the prompt cache from its second call, where
+  each call paid it whole at the full rate: every agent marks its system prompt and its tools, and the runtime marks
+  the conversation with them.
+- The context budget of a turn (700k tokens for the main loop) charges the context once on a partly cached prompt
+  too. A long turn on Anthropic ended on its budget after about twenty calls.
+- A `shell_command` output the runtime cut keeps its head and its tail around a marker. The audit of `/dev-batches`
+  knows a cut `git diff` or file list from the result's `stdout_truncated` field, and names the file that holds the
+  whole output.
+- In `default` and `acceptEdits` a read-only shell command (`ls`, `cat`, `grep`, `wc`...) runs without a question, as
+  a file read does. Without shell confinement it reads any file your account can read
+  ([Permissions](docs/permissions.md)).
 
 ### Changed — the pin moves to Orkeon `main` `9ca8530`, the thinking level reaches the subscription
 

@@ -12,7 +12,7 @@ jusqu'au bout sans poser de question :
 
 | Mode | Ce que l'agent peut faire |
 |---|---|
-| `acceptEdits` | Lire, appeler le réseau, modifier des fichiers. Pas de shell |
+| `acceptEdits` | Lire, appeler le réseau, modifier des fichiers. Le shell pour ses lectures seulement |
 | `bypassPermissions` | Tout le catalogue d'outils, shell compris |
 
 - Choisissez-le par requête (`bypassPermissions: migre les tests vers node:test`), pour la session (`/mode
@@ -31,8 +31,8 @@ mode :
 
 | Mode | Sous `orkeon run` |
 |---|---|
-| `default` | Lectures seulement, une action de lecture de `github` et un GET simple d'`http_api` compris : tout autre appel est refusé (les modifications, `rag_eval`, `spawn_agent`, le shell, une écriture de `github` ou d'`http_api`) |
-| `acceptEdits` | Lectures et modifications (`file_write`, `edit_file`, `node_*`, `edit_batch`, `structural_rewrite`, `rag_ingest`, `rag_eval`, `spawn_agent`), une action de lecture de `github` et un GET simple d'`http_api` ; le shell et les écritures de `github` et d'`http_api` sont refusés |
+| `default` | Lectures seulement, une action de lecture de `github` et un GET simple d'`http_api` compris : tout autre appel est refusé (les modifications, `rag_eval`, `spawn_agent`, le shell hors ses lectures, une écriture de `github` ou d'`http_api`) |
+| `acceptEdits` | Lectures et modifications (`file_write`, `edit_file`, `node_*`, `edit_batch`, `structural_rewrite`, `rag_ingest`, `rag_eval`, `spawn_agent`), une action de lecture de `github` et un GET simple d'`http_api` ; le shell hors ses lectures et les écritures de `github` et d'`http_api` sont refusés |
 | `plan`, `dontAsk` | Lectures seulement |
 | `bypassPermissions` | Tout |
 
