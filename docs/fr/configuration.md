@@ -311,6 +311,9 @@ Ce que le tableau laisse de côté :
   - Confinée, chaque commande shell s'exécute sous `bwrap` (Linux, modes tool et source), réseau coupé sauf
     `Confinement:AllowNetwork`, les programmes hors des répertoires système à lister dans
     `Confinement:ReadOnlyPaths`.
+  - Une entrée de `Confinement:ReadOnlyPaths` ouvre un dossier de l'hôte à la commande : les commandes en lecture
+    seule du shell sont alors jugées chemin par chemin et tout appel `git` exécute, comme sans confinement
+    ([Permissions](permissions.md#les-lectures-du-shell)).
   - Une commande échoue quand elle ne peut pas être confinée.
   - Les exemples mettent `None`.
   - Un fichier de settings sans la clé confine, hors d'un conteneur.
@@ -498,7 +501,8 @@ Ce que le tableau laisse de côté :
     | le profil de lancement est le barreau le plus bas ; aucun appel | `configured, not tried: a launch of this session asks it nothing, <key> being '<profile>', the lowest rung, which no pick lowers` |
 - **`compaction.prune`, `route.agents` et `route.effort` tournent sur la release comme à l'épingle** : Orkeon
   `1.4.0`, qu'exécutent les modes tool et docker, a l'élagage et le choix, son niveau de réflexion compris. Ce qui
-  demande l'épingle, c'est le niveau qui atteint le fournisseur `agent-cli`
+  demande l'épingle, c'est un tour élagué qui n'échoue pas sur Anthropic (Orkeon #498), et
+  le niveau qui atteint le fournisseur `agent-cli`
   ([plus haut](#claude-sur-un-abonnement--le-fournisseur-agent-cli)).
 - **`skills.suggest`** se règle aussi par `/skills suggest on` ; voir
   [Suggérer des skills pour un tour](turn.md#suggérer-des-skills-pour-un-tour).

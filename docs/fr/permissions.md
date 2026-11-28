@@ -63,20 +63,30 @@ défaut que ses propres contrôles acceptent, quand l'outil peut dire où la com
 `grep`, `wc`, `echo`, `dir`, `type`, `where`, et `git` avec `status`, `log`, `diff` ou `show` et aucune option qui
 écrit ou lance un programme. Où elle lit se règle de l'une de deux façons :
 
-- **Le shell est confiné** (`Orkeon:Tools:Shell:Confinement:Mode` à `Bubblewrap` ou `Seatbelt`, ou `Auto` hors d'un
-  conteneur) et sa vue accorde ce que les montages accordent : la commande ne voit rien d'autre de l'hôte, c'est
-  donc une lecture.
+- **Le shell est confiné aux montages** : `Orkeon:Tools:Shell:Confinement:Mode` à `Bubblewrap` ou `Seatbelt`, ou
+  `Auto` sous Linux ou macOS hors d'un conteneur, et tout ceci tient :
+  - `Confinement:ReadOnlyPaths` est vide (un chemin qui y figure est un dossier de l'hôte hors des montages) ;
+  - chaque montage, et chaque sous-chemin qu'une règle met à part, accorde la lecture (un `.env` refusé rompt
+    cela) ;
+  - l'agent ne tourne sous aucune racine ni portée du système de fichiers plus étroite que son montage.
+
+  La commande voit alors les montages et les répertoires système, rien d'autre de l'hôte : tout appel de ces
+  commandes, `git` excepté, est une lecture, quel que soit le chemin nommé (`cat /etc/hosts` lit un fichier
+  système). Quand une condition manque, et sous `AppContainer` (Windows), l'appel est jugé comme dans un shell sans
+  confinement.
 - **Le shell n'est pas confiné** (`None`, la valeur des réglages d'exemple) : l'appel n'est une lecture que si chaque
   mot de la commande se résout dans un montage qui accorde la lecture. Voir
   [Portée hors de l'espace de travail](#portée-hors-de-lespace-de-travail) pour ce qui en fait une exécution.
 
-Un appel `git` n'est une lecture que dans un shell confiné, avec git 2.44 ou plus récent, assez récent pour que
-l'outil neutralise tout programme qu'un dépôt configure. Sans confinement, tout appel `git` exécute, quoi que dise
+Un appel `git` n'est une lecture que dans un shell confiné aux montages comme ci-dessus, avec git 2.44 ou plus
+récent, assez récent pour que l'outil neutralise tout programme qu'un dépôt configure, et avec chaque chemin qu'il
+nomme dans les montages. Sans confinement, tout appel `git` exécute, quoi que dise
 `Orkeon:Tools:Shell:AllowInterpreters` : la configuration d'un dépôt peut faire lire git hors des montages. Avec les
 réglages d'exemple, `plan` refuse donc `git log` et `git diff`.
 
-Le modèle ne se voit pas promettre git en `plan` : il apprend que ces quatre ne passent que là où l'hôte tient git
-en lecture seule, et qu'un appel refusé n'est pas retenté. Tout autre appel exécute :
+Le modèle ne se voit pas promettre git en `plan` : il apprend que ces quatre ne passent que dans un shell confiné,
+qu'un premier refus signifie que git n'est pas offert, que chaque chemin d'un appel reste dans le projet, et qu'un
+appel refusé n'est pas retenté. Tout autre appel exécute :
 
 - une commande ajoutée à la liste autorisée (`Orkeon:Tools:Shell` l'étend) ou celle d'une liste personnalisée ;
 - un interpréteur ;
@@ -104,8 +114,10 @@ Le contrôle lit chaque mot, un motif de `grep` compris : `grep -r /api/ src` de
 chemin hors des montages. Répondez à la question, ou passez par les outils de fichiers, qui cherchent sans elle.
 
 Sous confinement, la commande voit les montages de l'espace de travail, avec leurs droits, et les répertoires
-système en lecture seule, rien d'autre de l'hôte. `Auto`, le défaut du runtime, revient à aucun confinement dans un
-conteneur.
+système en lecture seule, rien d'autre de l'hôte : `grep -R` ou `cat /etc/hosts` y est une lecture. `Auto`, le
+défaut du runtime, revient à aucun confinement dans un conteneur. Un confinement qui ne tient pas la commande aux
+montages (une entrée de `Confinement:ReadOnlyPaths`, un montage ou un sous-chemin sans lecture, `AppContainer`)
+laisse les appels jugés mot par mot, comme ci-dessus.
 
 ### Questions
 

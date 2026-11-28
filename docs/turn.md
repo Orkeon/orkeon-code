@@ -170,9 +170,11 @@ prompt as the model reads it, to review a change as a diff.
   - A shell call is one command: no pipe, redirection nor chaining, which the runtime refuses. A file is read with
     `file_read` (a range for its end), never with `cat`, `tail` or `wc` through the shell.
   - In `plan`, which offers the shell for its reads alone, the line names what runs: a `run` of `ls`, `cat`, `pwd`,
-    `which`, `grep`, `wc`, `echo`, `dir`, `type` or `where`, one command, no `|`, `>`, `;`. `git status`, `log`,
-    `diff`, `show` run only where the host keeps git read-only (a confined shell and git 2.44 or later); the
-    line promises no git. Any other command and `start_job` are refused, and a refusal is not retried. The file
+    `which`, `grep`, `wc`, `echo`, `dir`, `type` or `where`, one command, no `|`, `>`, `;`. Every word that reads
+    as a path, a `grep` pattern that starts with `/` included, must lie inside the project: no `~`, no `..` out
+    of it, no option that follows links, which is what a shell without confinement refuses. `git status`, `log`,
+    `diff`, `show` run only in a confined shell (and git 2.44 or later): the line promises no git, and says that
+    a first refusal means git is not offered. Any other command and `start_job` are refused, and a refusal is not retried. The file
     tools read, list and search better, so the line says the shell adds little there beyond `which`. The
     allow-list line of the writing modes is left out. `dontAsk` offers no shell.
   - Where a web tool is offered (`web_search`, `http_api`, `web_scrape`, `scrape_element`, `browser`), the project
@@ -557,8 +559,8 @@ Code: `shared/domain/context-prune.ts`, `shared/application/compaction/prune-con
   as the routing's does.
 - A binding that fails costs the act its pruning, never the turn nor the crew: the act runs unpruned, without a
   log line.
-- The tool and docker modes run a release whose `act` knows no `prune`: nothing is pruned there, and nothing says
-  so ([ADR 0034](adr/0034-orkeon-after-470.md)).
+- The tool and docker modes run the release `1.4.0`, which prunes too but lacks the answer to Orkeon #498: there
+  a turn on Anthropic can end on the thinking error once a result is pruned.
 - A log line says what an act judged, removed and cut, read from its result; an act that judged nothing writes
   none.
 
