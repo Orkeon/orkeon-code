@@ -102,15 +102,16 @@ export const settingUnread = (setting: string): string =>
 /** The question a plan turn ends on. */
 export const PLAN_APPROVAL = "Carry out this plan?";
 
-/** The answer that leaves the session in plan mode. */
-export const KEEP_PLANNING = "plan";
-
-/** The answers, each a permission mode: the one the plan is carried out in, or plan to stay in it. */
-export const APPROVAL_OPTIONS: readonly { value: string; label: string; description: string }[] = [
-  { value: "acceptEdits", label: "Yes, and accept edits", description: "file edits run without a question, the rest asks" },
-  { value: "default", label: "Yes, and ask before each edit", description: "every edit and every command asks" },
-  { value: KEEP_PLANNING, label: "No, keep planning", description: "nothing changes; say what the plan should change" },
-];
+/** The answers, as the user reads them; plan-approval.ts gives each its value. */
+export const APPROVE_ACCEPTING_EDITS = {
+  label: "Yes, and accept edits", description: "file edits run without a question, the rest asks",
+};
+export const APPROVE_ASKING_EACH_EDIT = {
+  label: "Yes, and ask before each edit", description: "every edit and every command asks",
+};
+export const KEEP_PLANNING_ANSWER = {
+  label: "No, keep planning", description: "nothing changes; say what the plan should change",
+};
 
 export const PLAN_KEPT = "plan kept as it is: nothing changed. Say what it should change, or /plan to leave plan mode.";
 

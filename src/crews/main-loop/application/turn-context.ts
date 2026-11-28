@@ -74,6 +74,7 @@ export async function buildTurnPrompt(
   scriptTools: readonly string[] = [],
   rules: readonly PermissionRule[] = [],
   families?: ToolFamilies,
+  planApproval = false,
 ): Promise<TurnPrompt> {
   // /fast: skip the two advisory reads entirely, not just their rendering.
   // Rendering-only would keep paying for the memory listing and every skill file
@@ -112,6 +113,7 @@ export async function buildTurnPrompt(
       gauge: buildGaugeBlock(gauge),
     }),
     // /proactive: the clause rides with the request, the last thing the model reads.
-    request: "## Request\n" + buildActPrompt(prompt, mode) + proactiveSuffix(flags.proactive),
+    // `planApproval`: the launching command asks for the plan's approval after the turn (MainLoopInputs).
+    request: "## Request\n" + buildActPrompt(prompt, mode, planApproval) + proactiveSuffix(flags.proactive),
   };
 }

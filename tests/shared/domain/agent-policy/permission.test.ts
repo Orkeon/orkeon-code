@@ -25,6 +25,7 @@ import {
 } from "./permission.fixtures.ts";
 import { assertAcceptedWithWarning, assertArgumentsDeclared, assertInertReasons, assertOffered, assertReadOnlyToolset, assertWellFormedArguments } from "./permission.assertions.ts";
 import { assertMentions } from "../../../support/assertions/text.ts";
+import { READ_ONLY_CLAUSE } from "../../../../src/shared/domain/agent-policy/prompts.ts";
 
 describe("resolvePermissionMode", () => {
   for (const c of RESOLVE_MODE_CASES) {
@@ -398,7 +399,18 @@ describe("permissionNote / buildActPrompt", () => {
     assertMentions(note, ["MUST NOT modify", "an assessment or a plan"]);
   });
 
-  it("plan note says the plan is approved, then carried out by a following turn", () => {
+  it("plan note of a turn whose launcher asks for approval says the plan is approved, then carried out", () => {
+    // Arrange
+    const mode = "plan";
+
+    // Act
+    const note = permissionNote(mode, true);
+
+    // Assert
+    assertMentions(note, ["end with the plan", "asked to approve the plan", "Do not report the change as impossible"]);
+  });
+
+  it("plan note of a turn whose launcher asks nothing promises no approval", () => {
     // Arrange
     const mode = "plan";
 
@@ -406,7 +418,7 @@ describe("permissionNote / buildActPrompt", () => {
     const note = permissionNote(mode);
 
     // Assert
-    assertMentions(note, ["end with the plan", "asked to approve the plan", "Do not report the change as impossible"]);
+    strictEqual(note, `(Permission mode: plan. ${READ_ONLY_CLAUSE})`);
   });
 
   it("dontAsk note promises no approval", () => {

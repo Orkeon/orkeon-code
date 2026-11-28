@@ -1,12 +1,17 @@
-// The approval of a plan (commands/_lib/session/plan-approval.ts) over FakeSessionStore and FakeChooser. Run:
+// The approval of a plan (commands/_lib/session/plan-approval.ts) over FakeSessionStore, FakeChooser and
+// FakeCrewHost. Run:
 //   node --test tests/commands/_lib/session/plan-approval.test.ts
 import { describe, it } from "node:test";
 import { deepStrictEqual, strictEqual } from "node:assert";
 
-import { approvePlan, notePlanTurn } from "../../../../src/commands/_lib/session/plan-approval.ts";
+import {
+  approvePlan, carryOutPlan, launchAssistantTurn, notePlanTurn,
+} from "../../../../src/commands/_lib/session/plan-approval.ts";
+import { CARRY_OUT_PLAN } from "../../../../src/commands/_lib/session/prompts.ts";
 import { DEFAULT_MODE_STATE_KEY, PLAN_TURN_STATE_KEY } from "../../../../src/shared/domain/session-keys.ts";
 import {
-  APPROVALS, FAILURE, KEPT, NOTED, NOT_OFFERED, REFUSALS, SUCCESS, approvalSetup,
+  APPROVALS, APPROVAL_TOLD, FAILURE, KEPT, MAIN_LOOP_RUNNING, NOTED, NOT_OFFERED, NO_ANSWER, REFUSALS, SUCCESS,
+  approvalSetup, assistantLaunchSetup,
 } from "./plan-approval.fixtures.ts";
 
 describe("notePlanTurn", () => {
@@ -33,6 +38,82 @@ describe("notePlanTurn", () => {
     // Assert
     strictEqual(store.state.get(PLAN_TURN_STATE_KEY) ?? undefined, undefined);
   });
+
+  it("notes no plan turn, without throwing, when the state bag cannot be written", async () => {
+    // Arrange
+    const { store, session } = approvalSetup({ planTurn: false });
+    store.writeStateFailure = new Error("state bag read-only");
+
+    // Act
+    const note = await notePlanTurn(session, "plan");
+
+    // Assert
+    strictEqual(note.planTurn, false);
+  });
+});
+
+describe("launchAssistantTurn", () => {
+  for (const c of APPROVAL_TOLD) {
+    it(c.name, async () => {
+      // Arrange
+      const { crews, deps } = assistantLaunchSetup();
+
+      // Act
+      await launchAssistantTurn(deps, { prompt: "rename parseArgs", permissionMode: c.prefix }, c.interactive);
+
+      // Assert
+      strictEqual(crews.launches[0].input.planApproval === true, c.told);
+    });
+  }
+
+  it("launches the turn exclusive, on the main screen", async () => {
+    // Arrange
+    const { crews, deps } = assistantLaunchSetup();
+
+    // Act
+    await launchAssistantTurn(deps, { prompt: "rename parseArgs", permissionMode: null }, true);
+
+    // Assert
+    deepStrictEqual(crews.launches[0].options, { onMain: true, exclusive: true });
+  });
+
+  it("still launches a plan turn, promised no approval, when the state bag cannot be written", async () => {
+    // Arrange
+    const { store, crews, deps } = assistantLaunchSetup();
+    store.writeStateFailure = new Error("state bag read-only");
+
+    // Act
+    await launchAssistantTurn(deps, { prompt: "rename parseArgs", permissionMode: "plan" }, true);
+
+    // Assert
+    deepStrictEqual(crews.launches.map((l) => l.input.planApproval === true), [false]);
+  });
+
+  it("puts the note back as it was when the launch is refused because another turn runs", async () => {
+    // Arrange
+    const { store, crews, deps } = assistantLaunchSetup();
+    crews.launchFailure = new Error(MAIN_LOOP_RUNNING);
+
+    // Act
+    await launchAssistantTurn(deps, { prompt: "rename parseArgs", permissionMode: "plan" }, true);
+
+    // Assert
+    strictEqual(store.state.get(PLAN_TURN_STATE_KEY) ?? undefined, undefined);
+  });
+});
+
+describe("carryOutPlan", () => {
+  it("launches the request that carries the plan out, in the mode picked, exclusive", async () => {
+    // Arrange
+    const { crews, deps } = assistantLaunchSetup("plan");
+
+    // Act
+    await carryOutPlan(deps, "acceptEdits");
+
+    // Assert
+    const { input, options } = crews.launches[0];
+    deepStrictEqual([input.prompt, input.permissionMode, options], [CARRY_OUT_PLAN, "acceptEdits", { onMain: true, exclusive: true }]);
+  });
 });
 
 describe("approvePlan", () => {
@@ -53,6 +134,55 @@ describe("approvePlan", () => {
 
     // Act
     await approvePlan(FAILURE, deps);
+
+    // Assert
+    strictEqual(chooser.asked.length, 0);
+  });
+
+  for (const c of NO_ANSWER) {
+    it(`asks nothing after a plan turn that succeeded with ${c.name}`, async () => {
+      // Arrange
+      const { chooser, deps } = approvalSetup();
+
+      // Act
+      await approvePlan({ success: true, payload: c.payload }, deps);
+
+      // Assert
+      strictEqual(chooser.asked.length, 0);
+    });
+
+    it(`prints no hint on a console without panels after ${c.name}`, async () => {
+      // Arrange
+      const { chooser, deps } = approvalSetup();
+      chooser.interactive = false;
+
+      // Act
+      const decision = await approvePlan({ success: true, payload: c.payload }, deps);
+
+      // Assert
+      deepStrictEqual(decision, { lines: [] });
+    });
+  }
+
+  it("asks nothing when the note cannot be read", async () => {
+    // Arrange
+    const { store, chooser, deps } = approvalSetup();
+    store.readStateFailure = new Error("state bag unreadable");
+
+    // Act
+    await approvePlan(SUCCESS, deps);
+
+    // Assert
+    strictEqual(chooser.asked.length, 0);
+  });
+
+  it("asks nothing, without throwing, when the note cannot be cleared", async () => {
+    // Arrange
+    const { store, chooser, deps } = approvalSetup();
+    store.writeStateFailure = new Error("state bag read-only");
+
+    // Act
+    await approvePlan(SUCCESS, deps);
 
     // Assert
     strictEqual(chooser.asked.length, 0);
@@ -103,6 +233,18 @@ describe("approvePlan", () => {
       strictEqual(store.state.get(DEFAULT_MODE_STATE_KEY), mode);
     });
   }
+
+  it("stores the mode picked when the session is in plan through the permissions.fallback setting", async () => {
+    // Arrange
+    const { store, config, deps } = approvalSetup({ answer: "acceptEdits" });
+    await config.writeSession({ "permissions.fallback": "plan" });
+
+    // Act
+    await approvePlan(SUCCESS, deps);
+
+    // Assert
+    strictEqual(store.state.get(DEFAULT_MODE_STATE_KEY), "acceptEdits");
+  });
 
   it("leaves the mode of a session that was not in plan mode, the plan turn being a prefixed one", async () => {
     // Arrange

@@ -310,10 +310,17 @@ est offerte :
   d'avertissement, finir l'étape en cours et cesser de lire de gros fichiers en entier ; au palier d'erreur, conclure
   et suggérer `/compact`.
 - **Requête** (le dernier message, à part des blocs ci-dessus) : la requête sous son propre titre, puis la note de
-  permission du mode (en `plan`, une demande de changement ou de fichier se termine par son plan, que l'utilisateur
-  est invité à approuver et qu'un tour suivant exécute, et n'est jamais déclarée impossible ; lecture seule : livrer une
-  évaluation ou un plan ; sinon le runtime peut demander avant un appel), puis la clause proactive quand `/proactive` est
-  activé.
+  permission du mode (lecture seule : livrer une évaluation ou un plan ; sinon le runtime peut demander avant un
+  appel), puis la clause proactive quand `/proactive` est activé. Un tour en `plan` dont le lanceur demande
+  l'approbation du plan à la fin (`/assistant` sur une console à panneaux, le seul) ajoute à la note : une demande de
+  changement ou de fichier se termine par son plan (les fichiers, les étapes, la façon de le vérifier), que
+  l'utilisateur est invité à approuver et qu'un tour suivant exécute avec l'accès en écriture, et n'est jamais déclarée
+  impossible. Aucun autre tour en `plan` (`/summary`, `/voice`, `/transcribe --then`, une console sans panneaux) ne se
+  voit promettre d'approbation.
+- **La requête d'exécution** : le plan approuvé, le tour qui suit demande, pour requête, que le plan de la dernière
+  réponse, approuvé, soit exécuté maintenant et en entier ; dit que la session n'est plus en lecture seule, donc que
+  les fichiers que le plan nomme sont écrits et ses commandes lancées ; et demande le compte rendu de ce qui a été fait
+  et de ce qui a été vérifié. Le plan lui-même n'est pas répété : c'est la dernière réponse de l'historique.
 
 ### L'explorateur
 

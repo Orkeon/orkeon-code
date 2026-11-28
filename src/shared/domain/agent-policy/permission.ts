@@ -163,16 +163,18 @@ export function toolsetFor(
   ]);
 }
 
-/** The permission clause appended to the act() prompt. */
-export function permissionNote(mode: string): string {
-  const readOnly = mode === "plan" ? `${READ_ONLY_CLAUSE} ${PLAN_APPROVAL_CLAUSE}` : READ_ONLY_CLAUSE;
+/** The permission clause appended to the act() prompt. `planApproval`: the launching command asks the user to
+ *  approve the plan once the turn ends (/assistant on a console with panels), so a plan turn is told so; no other
+ *  launch promises it. */
+export function permissionNote(mode: string, planApproval = false): string {
+  const readOnly = mode === "plan" && planApproval ? `${READ_ONLY_CLAUSE} ${PLAN_APPROVAL_CLAUSE}` : READ_ONLY_CLAUSE;
   const clause = isReadOnly(mode) ? readOnly : MAY_ACT_CLAUSE;
   return `(Permission mode: ${mode}. ${clause})`;
 }
 
 /** The full prompt handed to ctx.llm.act: the user request + permission note. */
-export function buildActPrompt(prompt: string, mode: string): string {
-  return `${prompt}\n\n${permissionNote(mode)}`;
+export function buildActPrompt(prompt: string, mode: string, planApproval = false): string {
+  return `${prompt}\n\n${permissionNote(mode, planApproval)}`;
 }
 
 // ── The session's rules: enforced by the host gate, read by the catalogue ──
