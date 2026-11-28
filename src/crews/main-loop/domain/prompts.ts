@@ -180,8 +180,10 @@ export function toolRealities(f: ToolRealityFlags): string {
   if (f.shell && f.shellReadsOnly) {
     lines.push(
       "`shell_command` runs reads only here: a `run` of `ls`, `cat`, `pwd`, `which`, `grep`, `wc`, `echo`, `dir`, " +
-        "`type` or `where`; one command, no `|`, `>`, `;`. `git status`, `log`, `diff`, `show` run only where the " +
-        "host keeps git read-only. Any other command and `start_job` are refused: never retry a refusal. The file " +
+        "`type` or `where`; one command, no `|`, `>`, `;`. Every word that reads as a path, a `grep` pattern " +
+        "that starts with `/` included, must lie inside the project: no `~`, no `..` out of it, no option that " +
+        "follows links. `git status`, `log`, `diff`, `show` run only in a confined shell: refused once, git is " +
+        "not offered. Any other command and `start_job` are refused: never retry a refusal. The file " +
         "tools read, list and search better: the shell adds little here beyond `which`.",
     );
   } else if (f.shell) {

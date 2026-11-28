@@ -183,7 +183,7 @@ the file sets. A key linked to an identity refuses every call that does not name
 - A CLI that still runs on a key rather than its login is refused before it answers, and the call does not fall back
   (`Llm:AgentCli:RequireLogin`, `true`).
 - Before the first run: `claude` on the `PATH`, signed in once (`claude /login`).
-- Any mode but docker: Orkeon `1.4.0` carries the provider, and so does the pin, nine commits past it, so the tool
+- Any mode but docker: Orkeon `1.4.0` carries the provider, and so does the pin, ten commits past it, so the tool
   and source modes run it. The image
   has neither `claude` nor its login.
 - Every verb of `orkeon` takes these settings, `orkeon runs list` among them (Orkeon #472).
@@ -287,6 +287,9 @@ What the table leaves out:
 - **`Orkeon:Tools:Shell:Confinement:Mode`**:
   - Confined, each shell command runs under `bwrap` (Linux, tool and source modes), network off unless
     `Confinement:AllowNetwork`, programs outside the system directories listed in `Confinement:ReadOnlyPaths`.
+  - A `Confinement:ReadOnlyPaths` entry opens a host folder to the command, so the shell's read-only commands are
+    then judged path by path and every `git` call executes, as without confinement
+    ([Permissions](permissions.md#the-shells-reads)).
   - A command fails when it cannot be confined.
   - The examples set `None`.
   - A settings file without the key confines, outside a container.
@@ -465,6 +468,7 @@ What the table leaves out:
     | the launch profile is the lowest rung; no call | `configured, not tried: a launch of this session asks it nothing, <key> being '<profile>', the lowest rung, which no pick lowers` |
 - **`compaction.prune`, `route.agents` and `route.effort` run on the release as at the pin**: Orkeon `1.4.0`, which
   the tool and docker modes run, has the pruning and the pick, its thinking level included. What needs the pin is
+  a pruned turn that does not fail on Anthropic (Orkeon #498), and
   the level reaching the `agent-cli` provider ([above](#claude-on-a-subscription-the-agent-cli-provider)).
 - **`skills.suggest`** is also set by `/skills suggest on`; see
   [Suggesting skills for a turn](turn.md#suggesting-skills-for-a-turn).

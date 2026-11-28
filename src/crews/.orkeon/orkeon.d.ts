@@ -733,7 +733,9 @@ declare global {
          * the call). A pruned result always leaves a line that says what was removed and that the
          * call can be run again. A call left out keeps its result. A callback that throws, or a
          * return that is not an object, prunes nothing and the loop goes on. Runs on the script's
-         * thread.
+         * thread. On Anthropic, a pruned result drops the signed thinking of every later message
+         * (Claude reasons again without it) and the next call pays a cache write from that result on
+         * (#498).
          */
         onContextPressure?: (pressure: ContextPressure) =>
             Record<string, ContextPressureVerdict> | void | Promise<Record<string, ContextPressureVerdict> | void>;
@@ -755,7 +757,9 @@ declare global {
          * a line that says how to get it back. `true` takes the host's `Orkeon:Compaction:Prune`
          * numbers; an object overrides them. Without `prune` no decision call is made, whatever
          * `Orkeon:Compaction:Prune:Enabled` says. With the decision circuit off, nothing is asked
-         * and the run warns once. Refused next to `onContextPressure` or `contextPressure`.
+         * and the run warns once. Refused next to `onContextPressure` or `contextPressure`. On
+         * Anthropic, a pruned result drops the signed thinking of every later message (Claude reasons
+         * again without it) and the next call pays a cache write from that result on (#498).
          */
         prune?: boolean | {
             /** The share of the usable window from which results are judged, above 0 and at most 1. The host's setting, 0.4 unless set. */

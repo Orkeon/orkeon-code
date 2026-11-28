@@ -98,7 +98,7 @@ Ce que cela donne, cas par cas :
 | `git remote -v`, `git stash list` | s'exécutent |
 | `git remote add`, `git stash pop`, `git stash` seul ou avec des options | refusés |
 | `git replace` seul | liste, et s'exécute |
-| `git status`, `git log`, `git diff`, `git show` | s'exécutent : la lecture de l'historique reste ouverte |
+| `git status`, `git log`, `git diff`, `git show` | non refusés par ces règles : le mode décide ([les lectures du shell](permissions.md#les-lectures-du-shell)) |
 
 Les règles reconnaissent le mot `git` n'importe où sur la ligne. Un chemin (`/usr/bin/git push`), un `env`, une
 variable (`GIT_DIR=.git git push`) ou un enchaînement (`cd x && git push`) placé devant n'y change rien.

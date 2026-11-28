@@ -192,9 +192,11 @@ un changement comme un diff.
   - Un appel au shell est une seule commande : ni tube, ni redirection, ni enchaînement, que le runtime refuse. Un
     fichier se lit avec `file_read` (une plage pour sa fin), jamais avec `cat`, `tail` ou `wc` par le shell.
   - En `plan`, qui n'offre le shell que pour ses lectures, la ligne nomme ce qui passe : un `run` de `ls`, `cat`,
-    `pwd`, `which`, `grep`, `wc`, `echo`, `dir`, `type` ou `where`, une commande, sans `|`, `>`, `;`. `git status`,
-    `log`, `diff`, `show` ne passent que là où l'hôte tient git en lecture seule (git 2.44 ou plus récent, et les
-    interpréteurs non autorisés) ; la ligne ne promet pas git. Toute autre commande et `start_job` sont refusés, et un
+    `pwd`, `which`, `grep`, `wc`, `echo`, `dir`, `type` ou `where`, une commande, sans `|`, `>`, `;`. Chaque mot
+    qui se lit comme un chemin, un motif de `grep` qui commence par `/` compris, doit rester dans le projet : pas
+    de `~`, pas de `..` qui en sort, pas d'option qui suit les liens, ce qu'un shell sans confinement refuse.
+    `git status`, `log`, `diff`, `show` ne passent que dans un shell confiné (et git 2.44 ou plus récent) : la
+    ligne ne promet pas git, et dit qu'un premier refus signifie que git n'est pas offert. Toute autre commande et `start_job` sont refusés, et un
     refus n'est pas retenté. Les outils de fichiers lisent, listent et cherchent mieux : la ligne dit que le shell
     n'y ajoute guère que `which`. La ligne de la liste blanche des modes qui écrivent n'y figure pas. `dontAsk`
     n'offre pas le shell.
@@ -601,6 +603,10 @@ Code : `shared/domain/context-prune.ts`, `shared/application/compaction/prune-co
 - Le modèle de décision lit le prompt de l'act et chaque appel (outil, entrée, taille, âge), jamais le contenu d'un
   résultat. Chaque résultat est gardé, coupé à ses 300 premiers caractères (`HeadChars`) ou retiré.
 - Un résultat élagué laisse une ligne qui dit comment le retrouver.
+- Sur Anthropic, un résultat élagué change la conversation derrière la réflexion signée du modèle : le runtime retire
+  la réflexion de chaque message suivant, le modèle raisonne donc à nouveau sans elle, et l'appel suivant réécrit le
+  cache à partir de ce résultat (Orkeon #498). Un élagage y échange des lectures en cache contre un contexte plus
+  petit.
 - Chaque act demande son propre élagage, celui que demande un contrôle de fin compris.
 - Les acts des crews dev le portent aussi : le relecteur de `/dev-spec`, `/dev-change`, `/dev-plan` et du prochain
   lot de `/dev-batches`, l'auteur de tests et l'implémenteur de `/dev-implement`, l'auditeur de `/dev-verify`.
@@ -612,8 +618,8 @@ Code : `shared/domain/context-prune.ts`, `shared/application/compaction/prune-co
   pas de modèle de décision pour un script. L'avertissement nomme ce qu'il faut vérifier, comme celui du routage.
 - Une liaison qui échoue coûte à l'act son élagage, jamais le tour ni le crew : l'act tourne sans élagage, sans
   ligne de journal.
-- Les modes tool et docker lancent une release dont `act` ne connaît pas `prune` : rien n'y est élagué, et
-  rien ne le dit ([ADR 0034](../adr/0034-orkeon-after-470.md)).
+- Les modes tool et docker lancent la release `1.4.0`, qui élague aussi mais n'a pas la réponse à Orkeon #498 :
+  un tour sur Anthropic peut s'y terminer sur l'erreur de réflexion dès qu'un résultat est élagué.
 - Une ligne du journal dit ce qu'un act a jugé, retiré et coupé, lu dans son résultat ; un act qui n'a rien jugé
   n'en écrit pas.
 
