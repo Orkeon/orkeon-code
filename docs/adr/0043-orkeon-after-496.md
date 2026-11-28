@@ -59,8 +59,9 @@ The last release is still `1.4.0`, nine commits behind the pin.
   true length, read from `stdout_truncated` and `stdout_total_chars`. The gate and the capture of `/dev-verify`,
   which the audit of `/dev-batches` runs, read that: the marker sits in the middle of the text, where a diff that
   quotes it cannot be told from a cut one.
-- **The launch state and the `!` line are not used by a source of `main`.** They serve work that is not merged: the
-  approval of a plan reads the launch state; `/sh` overlaps the `!` line.
+- **The launch state is not read by a source of `main`, and the `!` line asks nothing of this project.** The
+  approval of a plan, a change of its own, reads the launch state. The `!` line is the REPL's: no command of
+  Orkeon Code runs a shell line for the user.
 
 ## Consequences
 
