@@ -10,8 +10,8 @@ import {
 import { CARRY_OUT_PLAN } from "../../../../src/commands/_lib/session/prompts.ts";
 import { DEFAULT_MODE_STATE_KEY } from "../../../../src/shared/domain/session-keys.ts";
 import {
-  APPROVALS, APPROVAL_TOLD, ATTACHED, FAILURE, FOREIGN_STATES, KEPT, NOT_OFFERED, NO_ANSWER, NO_STATE, REFUSALS,
-  SUCCESS, approvalSetup, assistantLaunchSetup,
+  APPROVALS, APPROVAL_TOLD, ATTACHED, CHAIN_LIMIT_ERROR, FAILURE, FOREIGN_STATES, KEPT, MODE_NOT_KEPT,
+  NOT_CARRIED_OUT, NOT_OFFERED, NO_ANSWER, NO_STATE, REFUSALS, SUCCESS, approvalSetup, assistantLaunchSetup,
 } from "./plan-approval.fixtures.ts";
 
 describe("launchAssistantTurn", () => {
@@ -40,6 +40,17 @@ describe("launchAssistantTurn", () => {
       strictEqual(crews.launches[0].input.planApproval === true, c.told);
     });
   }
+
+  it("reads the session's mode once for a turn without a prefix", async () => {
+    // Arrange
+    const { store, deps } = assistantLaunchSetup("plan");
+
+    // Act
+    await launchAssistantTurn(deps, { prompt: "rename parseArgs", permissionMode: null }, true);
+
+    // Assert
+    strictEqual(store.readStateCalls.filter((key) => key === DEFAULT_MODE_STATE_KEY).length, 1);
+  });
 
   it("launches the turn on the main screen, not exclusive", async () => {
     // Arrange
@@ -96,10 +107,10 @@ describe("approvePlan", () => {
       const { chooser, deps } = approvalSetup();
 
       // Act
-      const decision = await approvePlan({ ...SUCCESS, state: c.state }, deps);
+      const lines = await approvePlan({ ...SUCCESS, state: c.state }, deps);
 
       // Assert
-      deepStrictEqual([decision, chooser.asked.length], [{ lines: [] }, 0]);
+      deepStrictEqual([lines, chooser.asked.length], [[], 0]);
     });
   }
 
@@ -132,10 +143,10 @@ describe("approvePlan", () => {
       chooser.interactive = false;
 
       // Act
-      const decision = await approvePlan({ ...SUCCESS, payload: c.payload }, deps);
+      const lines = await approvePlan({ ...SUCCESS, payload: c.payload }, deps);
 
       // Assert
-      deepStrictEqual(decision, { lines: [] });
+      deepStrictEqual(lines, []);
     });
   }
 
@@ -156,10 +167,21 @@ describe("approvePlan", () => {
       const { deps } = approvalSetup({ mode: "plan", answer: mode });
 
       // Act
-      const decision = await approvePlan(SUCCESS, deps);
+      const lines = await approvePlan(SUCCESS, deps);
 
       // Assert
-      deepStrictEqual(decision, { lines: [`plan approved: carrying it out in '${mode}'.`], carryOut: mode });
+      deepStrictEqual(lines, [`plan approved: carrying it out in '${mode}'.`]);
+    });
+
+    it(`launches the turn that carries the plan out in ${mode} when that answer is picked`, async () => {
+      // Arrange
+      const { crews, deps } = approvalSetup({ mode: "plan", answer: mode });
+
+      // Act
+      await approvePlan(SUCCESS, deps);
+
+      // Assert
+      deepStrictEqual(crews.launches.map((l) => [l.input.prompt, l.input.permissionMode]), [[CARRY_OUT_PLAN, mode]]);
     });
 
     it(`moves a session in plan mode to ${mode} on that answer`, async () => {
@@ -200,13 +222,13 @@ describe("approvePlan", () => {
   for (const c of REFUSALS) {
     it(`carries nothing out on ${c.name}`, async () => {
       // Arrange
-      const { deps } = approvalSetup({ mode: "plan", answer: c.answer });
+      const { crews, deps } = approvalSetup({ mode: "plan", answer: c.answer });
 
       // Act
-      const decision = await approvePlan(SUCCESS, deps);
+      const lines = await approvePlan(SUCCESS, deps);
 
       // Assert
-      deepStrictEqual(decision, { lines: [KEPT] });
+      deepStrictEqual([lines, crews.launches.length], [[KEPT], 0]);
     });
 
     it(`keeps the session in plan mode on ${c.name}`, async () => {
@@ -227,9 +249,48 @@ describe("approvePlan", () => {
     chooser.interactive = false;
 
     // Act
-    const decision = await approvePlan(SUCCESS, deps);
+    const lines = await approvePlan(SUCCESS, deps);
 
     // Assert
-    deepStrictEqual(decision, { lines: [NOT_OFFERED] });
+    deepStrictEqual(lines, [NOT_OFFERED]);
+  });
+
+  it("keeps the session in plan mode when the carry-out launch is refused", async () => {
+    // Arrange
+    const { store, crews, deps } = approvalSetup({ mode: "plan", answer: "acceptEdits" });
+    crews.launchFailure = new Error(CHAIN_LIMIT_ERROR);
+
+    // Act
+    await approvePlan(SUCCESS, deps);
+
+    // Assert
+    strictEqual(store.state.get(DEFAULT_MODE_STATE_KEY), "plan");
+  });
+
+  it("says the plan was not carried out, after the refusal, when the carry-out launch is refused", async () => {
+    // Arrange
+    const { crews, deps } = approvalSetup({ mode: "plan", answer: "acceptEdits" });
+    crews.launchFailure = new Error(CHAIN_LIMIT_ERROR);
+
+    // Act
+    const lines = await approvePlan(SUCCESS, deps);
+
+    // Assert
+    deepStrictEqual([lines.length, lines[1]], [2, NOT_CARRIED_OUT]);
+  });
+
+  it("says the mode was not kept, and still carries the plan out in it, when the mode cannot be written", async () => {
+    // Arrange
+    const { store, crews, deps } = approvalSetup({ mode: "plan", answer: "acceptEdits" });
+    store.writeStateFailure = new Error("state bag read-only");
+
+    // Act
+    const lines = await approvePlan(SUCCESS, deps);
+
+    // Assert
+    deepStrictEqual(
+      [lines, crews.launches.map((l) => l.input.permissionMode)],
+      [["plan approved: carrying it out in 'acceptEdits'.", MODE_NOT_KEPT], ["acceptEdits"]],
+    );
   });
 });

@@ -9,9 +9,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added — a plan is approved, then carried out
 
-- A turn that ran in `plan` mode ends on a question, `Carry out this plan?`: accepting edits or asking before each
-  one launches a second turn that carries the plan out in that mode, and moves a session in `plan` to it; keeping
-  the plan changes nothing ([permissions](docs/permissions.md#choosing-the-mode)). A turn that failed or gave no
+- A turn of `/assistant` that ran in `plan` mode ends on a question after every answer, `Carry out this plan?`:
+  accepting edits or asking before each one launches a second turn that carries the plan out in that mode, and once
+  it is launched moves a session in `plan` to it; a launch refused leaves the mode as it was and says so, a mode that
+  cannot be written is said; keeping the plan changes nothing ([permissions](docs/permissions.md#choosing-the-mode)). A turn that failed or gave no
   answer asks nothing, and a line of `/assistant` typed while the plan is carried out is refused by the command's
   concurrency limit, as while any turn runs. The question belongs to the launch of the plan turn, which attaches
   its own state (Orkeon #493): the turn that carries the plan out, or any other launch, asks nothing.

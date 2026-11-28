@@ -19,7 +19,7 @@ import type { CommandRuntimeContext } from "../.orkeon/orkeon-cli.d.ts";
 import { parseAssistantInput, rawText } from "../_lib/args.ts";
 import { splitStartOutput } from "../../shared/domain/session-start.ts";
 import { writeCompleted } from "../_lib/dispatch.ts";
-import { approvePlan, carryOutPlan, launchAssistantTurn } from "../_lib/session/plan-approval.ts";
+import { approvePlan, launchAssistantTurn } from "../_lib/session/plan-approval.ts";
 import { createChooser } from "../../shared/infrastructure/orkeon/chooser.ts";
 import { createCrewHost } from "../../shared/infrastructure/orkeon/crew-host.ts";
 import { createPermissionRules } from "../../shared/infrastructure/orkeon/permission-rules.ts";
@@ -50,10 +50,7 @@ defineAsyncCommand({
   // A plan turn ends on the question of its approval; the plan approved is carried out by a turn launched here.
   completed: async (result, ctx) => {
     writeCompleted(ctx, result, "assistant");
-    const decision = await approvePlan(result, { session: deps.session, chooser: createChooser(ctx) });
-    for (const line of decision.lines) ctx.writeLine(line);
-    if (decision.carryOut === undefined) return;
-    const launched = await carryOutPlan(launchDeps(ctx), decision.carryOut);
-    if ("refused" in launched) ctx.writeLine(launched.message);
+    const lines = await approvePlan(result, { ...launchDeps(ctx), chooser: createChooser(ctx) });
+    for (const line of lines) ctx.writeLine(line);
   },
 });

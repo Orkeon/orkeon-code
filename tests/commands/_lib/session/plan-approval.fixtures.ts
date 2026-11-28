@@ -1,5 +1,5 @@
-// The session service the plan approval runs over, a chooser answering it, and the deps a turn of /assistant is
-// launched over.
+// The deps a turn of /assistant is launched over, and those the plan approval runs over: the same, with a chooser
+// answering it.
 import { createConfigStore } from "../../../../src/shared/application/config-store.ts";
 import { createSessionIo } from "../../../../src/shared/application/session-io.ts";
 import { FakeChooser } from "../../../support/doubles/fake-chooser.ts";
@@ -12,17 +12,6 @@ import { FakeToolCatalogue } from "../../../support/doubles/fake-tool-catalogue.
 import { PLAN_TURN_STATE } from "../../../../src/commands/_lib/session/plan-approval.ts";
 import { DEFAULT_MODE_STATE_KEY } from "../../../../src/shared/domain/session-keys.ts";
 
-/** A session in `mode` (none stored when absent); a chooser answering `answer`. */
-export function approvalSetup(options: { mode?: string; answer?: string | null } = {}) {
-  const store = new FakeSessionStore();
-  if (options.mode !== undefined) store.state.set(DEFAULT_MODE_STATE_KEY, options.mode);
-  const config = createConfigStore({ files: new FakeFiles(), session: store });
-  const session = createSessionIo({ store, config });
-  const chooser = new FakeChooser();
-  chooser.answers = [options.answer ?? null];
-  return { store, config, session, chooser, deps: { session, chooser } };
-}
-
 /** The deps a turn of /assistant is launched over, in a session in `mode` (none stored when absent). */
 export function assistantLaunchSetup(mode?: string) {
   const store = new FakeSessionStore();
@@ -33,8 +22,19 @@ export function assistantLaunchSetup(mode?: string) {
     session: createSessionIo({ store, config }), config, catalogue: new FakeToolCatalogue(), crews,
     gate: new FakePermissionRules(), log: new FakeLogger(),
   };
-  return { store, crews, deps };
+  return { store, config, crews, deps };
 }
+
+/** The launch deps of a session in `mode` (none stored when absent), with a chooser answering `answer`. */
+export function approvalSetup(options: { mode?: string; answer?: string | null } = {}) {
+  const { store, config, crews, deps: launch } = assistantLaunchSetup(options.mode);
+  const chooser = new FakeChooser();
+  chooser.answers = [options.answer ?? null];
+  return { store, config, crews, chooser, deps: { ...launch, chooser } };
+}
+
+/** The refusal the runtime throws for a launch past the chain depth limit. */
+export const CHAIN_LIMIT_ERROR = "chain depth 8 reached (MaxChainDepth 8, /assistant)";
 
 const PLAN = "1. Rename parseArgs in src/args.ts.\n2. Run the tests.";
 
@@ -85,6 +85,10 @@ export const APPROVAL_TOLD: readonly { readonly name: string; readonly prefix: s
   { name: "promises no approval to a turn that writes", prefix: "acceptEdits", interactive: true, told: false },
 ];
 
-export const KEPT = "plan kept as it is: nothing changed. Say what it should change, or /plan to leave plan mode.";
+export const NOT_CARRIED_OUT = "plan not carried out: the session stays in 'plan'.";
+export const MODE_NOT_KEPT =
+  "⚠ the session's mode could not be set to 'acceptEdits': it stays in 'plan'; this turn runs in 'acceptEdits' all the same.";
+
+export const KEPT ="plan kept as it is: nothing changed. Say what it should change, or /plan to leave plan mode.";
 export const NOT_OFFERED =
   "plan mode: nothing changed. To carry the plan out, leave plan mode (/plan, or /mode acceptEdits) and ask for it.";

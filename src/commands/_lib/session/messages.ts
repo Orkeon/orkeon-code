@@ -119,3 +119,8 @@ export const PLAN_NOT_OFFERED =
   "plan mode: nothing changed. To carry the plan out, leave plan mode (/plan, or /mode acceptEdits) and ask for it.";
 
 export const planApproved = (mode: string): string => `plan approved: carrying it out in '${mode}'.`;
+
+export const planNotCarriedOut = (mode: string): string => `plan not carried out: the session stays in '${mode}'.`;
+
+export const planModeNotKept = (mode: string): string =>
+  `⚠ the session's mode could not be set to '${mode}': it stays in 'plan'; this turn runs in '${mode}' all the same.`;

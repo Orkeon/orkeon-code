@@ -315,7 +315,7 @@ est offerte :
   l'approbation du plan à la fin (`/assistant` sur une console à panneaux, le seul) ajoute à la note : une demande de
   changement ou de fichier se termine par son plan (les fichiers, les étapes, la façon de le vérifier), que
   l'utilisateur est invité à approuver et qu'un tour suivant exécute avec l'accès en écriture, et n'est jamais déclarée
-  impossible. Aucun autre tour en `plan` (`/summary`, `/voice`, `/transcribe --then`, une console sans panneaux) ne se
+  impossible. Aucun autre tour en `plan` (`/summary`, `/verify`, `/voice`, `/transcribe --then`, une console sans panneaux) ne se
   voit promettre d'approbation.
 - **La requête d'exécution** : le plan approuvé, le tour qui suit demande, pour requête, que le plan de la dernière
   réponse, approuvé, soit exécuté maintenant et en entier ; dit que la session n'est plus en lecture seule, donc que

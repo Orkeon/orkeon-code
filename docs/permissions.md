@@ -160,10 +160,13 @@ of the catalogue.
   `/effort`, `/fast`, `/passes`, `/proactive`, `/output-style`, the rules, the hooks and the settings set with
   `--session` (`permissions.fallback` included). An `/effort` chosen for the kept model has to be set again after it.
 - **Approving a plan**: a turn of `/assistant` (free text) that ran in `plan` ends on a question, `Carry out this
-  plan?`. `Yes, and accept edits` and `Yes, and ask before each edit` launch a second turn that carries the plan
-  out, in `acceptEdits` or `default`. When the session's mode is `plan` (from `/mode` or from `permissions.fallback`),
-  it moves to the mode picked, whether the turn was prefixed `plan:` or not; a session in another mode keeps it (a
-  turn prefixed `plan:` in a session that writes). `No, keep planning`, or Esc, changes nothing: the next message
+  plan?`, after every answer it gives, an answer to a plain question included. `Yes, and accept edits` and `Yes, and
+  ask before each edit` launch a second turn that carries the plan out, in `acceptEdits` or `default`. Once that turn
+  is launched, a session whose mode is `plan` (from `/mode` or from `permissions.fallback`) moves to the mode picked,
+  whether the turn was prefixed `plan:` or not; a session in another mode keeps it (a turn prefixed `plan:` in a
+  session that writes). A launch the runtime refuses (the chain depth limit) carries nothing out and leaves the mode
+  as it was, and a line says so; a mode that cannot be written is said too, and the turn still runs in the mode
+  picked. `No, keep planning`, or Esc, changes nothing: the next message
   says what the plan should change. A turn that failed or gave no answer asks nothing. A console without panels does
   not ask either, and prints a line saying how to leave plan mode. While the plan is carried out, a new line of
   `/assistant` is refused by the command's concurrency limit, as while any turn runs. The plan is the turn's

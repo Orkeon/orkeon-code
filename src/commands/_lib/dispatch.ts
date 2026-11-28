@@ -187,17 +187,20 @@ export interface MainLoopLaunchDeps extends LaunchDeps {
  * answer aloud with the speech server's speak, when the host registers it. The start
  * script's output (`sessionStart`, the first turn of a session) rides along too.
  * `planApproval` (/assistant, on a console with panels) tells a plan turn that its plan is approved after it;
- * `state`, when given, is attached to the launch and handed back to its own completion.
+ * `state`, when given, is attached to the launch and handed back to its own completion. `sessionMode`, the session's
+ * mode a caller already resolved, is used for a prompt without a prefix instead of resolving it again.
  */
 export async function launchMainLoop(
   deps: MainLoopLaunchDeps,
   input: {
     prompt: string; permissionMode: string | null; prelude?: PreludeCall; sessionStart?: StartOutput | null;
-    planApproval?: boolean; state?: unknown;
+    planApproval?: boolean; state?: unknown; sessionMode?: { mode: string; via: string };
   },
 ): Promise<LaunchResult> {
   const { session, log } = deps;
-  const resolved = input.permissionMode === null ? await session.resolveEffectiveSessionMode() : null;
+  const resolved = input.permissionMode === null
+    ? input.sessionMode ?? await session.resolveEffectiveSessionMode()
+    : null;
   const permissionMode = resolved ? resolved.mode : input.permissionMode;
 
   const extras = await resolveExtraTools(deps);
