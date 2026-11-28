@@ -6,7 +6,7 @@ import { strictEqual, deepStrictEqual, ok } from "node:assert";
 
 import {
   MAX_ENTRY_PACKAGES, MAX_EXPORTS_PER_PACKAGE, MAX_LISTED_PACKAGES, displayFqn, edgeEndpointToPath, entryPackages,
-  isTestPackage, packageCycles, rankExports, rankPackages, renderHarvest, selectPackages,
+  isTestPackage, packageCycles, rankExports, rankPackages, renderHarvest, selectPackages, startsProcess,
   buildSynthesisUser, MAX_SYNTHESIS_CONCEPTS,
 } from "../../../../src/crews/analyze/domain/harvest.ts";
 import { SYNTHESIS_SYSTEM } from "../../../../src/crews/analyze/domain/prompts.ts";
@@ -14,8 +14,9 @@ import {
   CYCLIC, CYCLIC_CYCLES, DISPLAY_CASES, ENDPOINTS, EXPORTS_IN_INDEX_ORDER, EXPORTS_RANKED, HOSTED, HOSTED_ENTRIES,
   L1_ENTRIES, L1_RANKED, MODULE_GRAPH, NAMED_CYCLES_GRAPH, PACKAGE, SAMPLED_GRAPH, TEST_PACKAGE_CASES, mapPackages, packageExporting,
   rankedWithSmallHost, readPackage,
+  HOSTS, HOSTS_ENTRIES, PROCESS_CASES, harvestAcrossRepositories, rankedAcrossRepositories,
 } from "./harvest.fixtures.ts";
-import { assertMentions, assertOmits } from "../../../support/assertions/text.ts";
+import { assertBefore, assertMentions, assertOmits } from "../../../support/assertions/text.ts";
 import { WORKSPACE } from "../../../../src/shared/domain/vfs.ts";
 
 describe("edgeEndpointToPath", () => {
@@ -87,6 +88,32 @@ describe("entryPackages", () => {
     // Assert
     deepStrictEqual(entries.map((p) => p.fqn), HOSTED_ENTRIES);
   });
+
+  it("keeps a package that starts a process when only packages that start one depend on it, and drops one a library depends on", () => {
+    // Arrange
+    const scanned = HOSTS;
+
+    // Act
+    const entries = entryPackages(scanned);
+
+    // Assert
+    deepStrictEqual(entries.map((p) => p.fqn), HOSTS_ENTRIES);
+  });
+});
+
+describe("startsProcess", () => {
+  for (const c of PROCESS_CASES) {
+    it(c.name, () => {
+      // Arrange
+      const pkg = readPackage("P", [], c.module);
+
+      // Act
+      const starts = startsProcess(pkg);
+
+      // Assert
+      strictEqual(starts, c.starts);
+    });
+  }
 });
 
 describe("selectPackages", () => {
@@ -111,6 +138,30 @@ describe("selectPackages", () => {
 
     // Assert
     deepStrictEqual(selected, [0, 1, 2, 3, 4, 5, 6, 7].map((i) => ranked[i].fqn));
+  });
+});
+
+describe("selectPackages over several repositories", () => {
+  it("gives each repository its turn, its entry package first, so that the largest does not fill the summaries alone", () => {
+    // Arrange
+    const { ranked, scanned, repositories } = rankedAcrossRepositories();
+
+    // Act
+    const selected = selectPackages(ranked, scanned, 6, repositories);
+
+    // Assert
+    deepStrictEqual(selected, ["big0", "big1", "big2", "small0", "small1", "small2"].map((n) => `${WORKSPACE}::${n}`));
+  });
+
+  it("takes a package in no repository only once the repositories are through", () => {
+    // Arrange
+    const { ranked, scanned, repositories } = rankedAcrossRepositories();
+
+    // Act
+    const selected = selectPackages(ranked, scanned, 13, repositories);
+
+    // Assert
+    deepStrictEqual(selected, ranked.filter((p) => p.name !== "loose").map((p) => p.fqn));
   });
 });
 
@@ -300,7 +351,7 @@ describe("renderHarvest", () => {
     const harvest = renderHarvest(input);
 
     // Assert
-    assertMentions(harvest, ["## Entry packages (L1)", "- `Cli` — `src/Cli/Program.cs`\n- `Tool` — `src/Tool/Program.cs`"]);
+    assertMentions(harvest, ["## Entry packages (L1)", "- `Cli` — `src/Cli/index.ts`\n- `Tool` — `src/Tool/index.ts`"]);
   });
 
   it("lists the dependencies of every package read", () => {
@@ -359,7 +410,113 @@ describe("renderHarvest", () => {
   });
 });
 
+describe("renderHarvest over several repositories", () => {
+  it("names each repository with the packages read and summarized in it, and the packages in none", () => {
+    // Arrange
+    const input = harvestAcrossRepositories();
+
+    // Act
+    const harvest = renderHarvest(input);
+
+    // Assert
+    assertMentions(harvest, [
+      "## Repositories\nThe checkout is no repository itself: 2 of its top folders are",
+      "- `api` — 2 package(s) read, 1 summarized\n- `platform` — 2 package(s) read, 0 summarized\n" +
+      "- In no single repository: `convert`",
+    ]);
+  });
+
+  it("lists what crosses from a repository to another, package by package", () => {
+    // Arrange
+    const input = harvestAcrossRepositories();
+
+    // Act
+    const harvest = renderHarvest(input);
+
+    // Assert
+    assertMentions(harvest, [
+      "## Dependencies between repositories",
+      "- `api` → `platform`: `Api` → `Platform.Sdk`, `Platform.Models`; `Api.Tests` → `Platform.Sdk`",
+    ]);
+  });
+
+  it("says so when nothing crosses between the repositories", () => {
+    // Arrange
+    const input = { ...harvestAcrossRepositories(), scanned: [readPackage("Api"), readPackage("Platform.Sdk")] };
+
+    // Act
+    const harvest = renderHarvest(input);
+
+    // Assert
+    assertMentions(harvest, ["No package of a repository depends on a package of another."]);
+  });
+
+  it("names the repository of a package summarized, of an entry package and of a package only listed", () => {
+    // Arrange
+    const input = harvestAcrossRepositories();
+
+    // Act
+    const harvest = renderHarvest(input);
+
+    // Assert
+    assertMentions(harvest, [
+      "### `Api` (repository `api`) — 2 file(s), 4 symbol(s)",
+      "- `Api` (repository `api`) — `src/Api/Program.cs`",
+      "- `Platform.Sdk` (repository `platform`) — 3 module(s)",
+      "- `convert` — 3 module(s)",
+    ]);
+  });
+
+  it("puts the repositories before the packages", () => {
+    // Arrange
+    const input = harvestAcrossRepositories();
+
+    // Act
+    const harvest = renderHarvest(input);
+
+    // Assert
+    assertBefore(harvest, "## Dependencies between repositories", "## Packages (");
+  });
+
+  it("says nothing of repositories in an ordinary checkout", () => {
+    // Arrange
+    const input = { ...harvestAcrossRepositories(), repositories: new Map<string, string>() };
+
+    // Act
+    const harvest = renderHarvest(input);
+
+    // Assert
+    assertOmits(harvest, ["## Repositories", "## Dependencies between repositories", "(repository"]);
+  });
+
+  it("says a package that starts a process stays an entry package under the packages that start one too", () => {
+    // Arrange
+    const input = { packages: [], unsummarized: [], scanned: HOSTS, moduleGraph: MODULE_GRAPH, graphCap: 200, mapCap: 1000 };
+
+    // Act
+    const harvest = renderHarvest(input);
+
+    // Assert
+    assertMentions(harvest, ["one with a main or program module stays an entry package when only packages that have one too depend on it"]);
+  });
+});
+
 describe("the synthesis prompts", () => {
+  it("asks for the repository of each concept and entry package, and a line per dependency between repositories", () => {
+    // Arrange
+    const harvest = "X";
+
+    // Act
+    const user = buildSynthesisUser(harvest);
+
+    // Assert
+    assertMentions(user, [
+      "When the harvest lists repositories, name the repository of each concept and of each entry package",
+      "one line per dependency between repositories, naming the packages that carry it",
+      "say so when the harvest shows none",
+    ]);
+  });
+
   it("the system prompt forbids inventing symbols and demands citations as the harvest writes them", () => {
     // Arrange
     const required = ["ONLY from the harvest", "as the harvest writes them"];

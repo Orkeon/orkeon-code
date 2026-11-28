@@ -31,11 +31,31 @@ export const packageCyclesHeading = (count: number): string => `${count} cycle(s
 export const NO_PACKAGE_CYCLE = "No cycle between packages.";
 export const entryPackagesSection = (scope: string): string =>
   "## Entry packages (L1)\n" +
-  "Packages with a main, program or index module that no other package of code read depends on (tests aside). " + scope + "\n";
+  "Packages with a main, program or index module that no other package of code read depends on (tests aside); " +
+  "one with a main or program module stays an entry package when only packages that have one too depend on it. " +
+  scope + "\n";
 export const packageDependenciesSection = (scope: string): string =>
   "## Package dependencies (L1)\n" +
   "A package depends on the packages its modules import. " + scope + "\n";
 export const NO_PACKAGE_DEPENDENCY = "No package depends on another.\n";
+
+// ── The repositories, when the checkout is a folder of several ──────────────
+
+export const repositoriesSection = (count: number): string =>
+  "## Repositories\n" +
+  `The checkout is no repository itself: ${count} of its top folders are, and a package belongs to the one ` +
+  "its code sits in.\n";
+export const repositoryLine = (name: string, packages: number, summarized: number): string =>
+  `- ${name} — ${packages} package(s) read, ${summarized} summarized`;
+export const outsideRepositories = (names: string, more: string): string =>
+  `- In no single repository: ${names}${more}`;
+export const repositoryDependenciesSection = (scope: string): string =>
+  "## Dependencies between repositories\n" +
+  "A repository depends on another when one of its packages depends on a package of the other. " + scope + "\n";
+export const NO_REPOSITORY_DEPENDENCY = "No package of a repository depends on a package of another.";
+export const repositoryDependency = (from: string, to: string, edges: string): string =>
+  `- ${from} → ${to}: ${edges}`;
+export const inRepository = (name: string): string => ` (repository ${name})`;
 
 export const NO_MODULE_CYCLE = "Cycles in the whole module graph: none.";
 export const moduleCyclesUnnamed = (count: number): string =>
@@ -82,5 +102,8 @@ export const synthesisAsk = (maxConcepts: number): string =>
   "the harvest does).\n" +
   "3. Entry points: one line per entry package (the entry packages of the harvest), saying what it " +
   "orchestrates.\n" +
+  "When the harvest lists repositories, name the repository of each concept and of each entry package, and " +
+  "give in part 2 one line per dependency between repositories, naming the packages that carry it; say so " +
+  "when the harvest shows none.\n" +
   "When the harvest holds nothing for a part, write \"not in the harvest\" instead of filling it; when " +
   "it says it left packages or symbols out, say the analysis covers only what it shows.\n\n";

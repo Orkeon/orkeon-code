@@ -2,6 +2,7 @@
 import { renderHarvest } from "../../../../src/crews/analyze/domain/harvest.ts";
 import type { GraphSummary, IndexSummary, PackageSummary } from "../../../../src/shared/domain/code-intel-contract.ts";
 import { FakeCodeIndex } from "../../../support/doubles/fake-code-index.ts";
+import { FakeFiles } from "../../../support/doubles/fake-files.ts";
 import { FakeLlm } from "../../../support/doubles/fake-llm.ts";
 import { FakeLogger } from "../../../support/doubles/fake-logger.ts";
 import { FakeProgress } from "../../../support/doubles/fake-progress.ts";
@@ -23,11 +24,30 @@ export function analyzeSetup(packageCount = 1) {
   index.maps.L1_Package = { entries: fqns.map((fqn) => ({ fqn, name: fqn, kind: "package", children: 3 })), symbolCount: 0 };
   index.graph = GRAPH;
   for (const fqn of fqns) index.packages[fqn] = summary(fqn);
+  const files = new FakeFiles();
   const progress = new FakeProgress();
   const llm = new FakeLlm();
   llm.answers = ["the synthesis"];
   const log = new FakeLogger();
-  return { index, progress, llm, log, fqns, deps: { index, progress, llm, log } };
+  return { index, files, progress, llm, log, fqns, deps: { index, files, progress, llm, log } };
+}
+
+/** A checkout that is a folder of two repositories: `big`, `bigCount` packages, the largest, and `small`,
+ *  two packages, the second depending on the first package of `big`. Returns the fqns of `small`. */
+export function withTwoRepositories(index: FakeCodeIndex, files: FakeFiles, bigCount: number): string[] {
+  const inFolder = (folder: string, name: string, dependencies: string[] = []): PackageSummary => ({
+    fqn: `${WORKSPACE}::${name}`, name, files: 2, symbols: 5, dependencies, entryPoints: [],
+    exports: [`${WORKSPACE}/${folder}/src/${name}/A.cs::A`],
+  });
+  const big = Array.from({ length: bigCount }, (_, i) => inFolder("big", `Big.P${i}`));
+  const small = [inFolder("small", "Small.Core"), inFolder("small", "Small.Api", [big[0].fqn])];
+  const all = [...big, ...small];
+  index.maps.L1_Package = {
+    entries: all.map((p, i) => ({ fqn: p.fqn, name: p.name, kind: "package", children: all.length - i })), symbolCount: 0,
+  };
+  index.packages = Object.fromEntries(all.map((p) => [p.fqn, p]));
+  for (const folder of ["big", "small"]) files.files.set(`${WORKSPACE}/${folder}/.git/HEAD`, "ref: refs/heads/main");
+  return small.map((p) => p.fqn);
 }
 
 /** The harvest rendered from the packages `fqns` (the first `summarized` of them summarized) and GRAPH. */

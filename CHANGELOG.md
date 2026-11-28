@@ -7,6 +7,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added — `/analyze` over a folder of several repositories
+
+- When the checkout is no repository itself and two of its top folders at least are (each holds a `.git`), `/analyze`
+  gives every package the repository its code sits in. The harvest opens with the repositories (packages read and
+  summarized in each, the packages in no single one) and with the dependencies between repositories, package by
+  package: ``- `api` → `platform`: `Api` → `Platform.Sdk` ``. A summarized package, an entry package and a package
+  only listed carry their repository, and the synthesis is asked for the repository of each concept and a line per
+  dependency between repositories.
+- The summaries are shared between the repositories, each in turn, its entry packages first: the largest repository
+  no longer fills them alone. An ordinary checkout is read as before.
+
+### Changed — `/analyze` keeps a host under its hosts as an entry package
+
+- A package with a main or program module stays an entry package when only packages that have one too depend on it
+  (an API under its application host and its migration service). A package a library depends on, and a package with
+  an index module alone that any code depends on, are no entry packages, as before.
+
 ### Added — the routing picks the thinking level, and reaches the explorer
 
 - `route.effort` (`/config set route.effort on`): with `route.agents` on, the host's decision model picks the

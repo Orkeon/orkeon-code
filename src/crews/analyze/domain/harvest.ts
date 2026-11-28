@@ -13,12 +13,14 @@ import type {
 } from "../../../shared/domain/code-intel-contract.ts";
 import { WORKSPACE } from "../../../shared/domain/vfs.ts";
 import {
-  andMoreAfterComma, atLeast, cycleModules, dependsOn, ENTRY_POINTS_LABEL, entryPackagesSection, HARVEST_TITLE, languageLine,
-  largestNamed, MODULE_DEPENDENCIES_HEADING, moduleCyclesHeading, moduleCyclesUnnamed, moduleGraphSample, moduleGraphSize,
-  morePackagesOmitted, NO_ENTRY_PACKAGE, NO_MODULE_CYCLE, NO_PACKAGE_CYCLE, NO_PACKAGE_DEPENDENCY, OTHER_PACKAGES_HEADING,
-  packageCyclesHeading, packageDependenciesSection, packageHeading, packagesHeading, pathsRelativeTo, publicExports,
-  readFromAll, readFromLargest, synthesisAsk,
+  andMoreAfterComma, atLeast, cycleModules, dependsOn, ENTRY_POINTS_LABEL, entryPackagesSection, HARVEST_TITLE, inRepository,
+  languageLine, largestNamed, MODULE_DEPENDENCIES_HEADING, moduleCyclesHeading, moduleCyclesUnnamed, moduleGraphSample,
+  moduleGraphSize, morePackagesOmitted, NO_ENTRY_PACKAGE, NO_MODULE_CYCLE, NO_PACKAGE_CYCLE, NO_PACKAGE_DEPENDENCY,
+  NO_REPOSITORY_DEPENDENCY, OTHER_PACKAGES_HEADING, outsideRepositories, packageCyclesHeading, packageDependenciesSection,
+  packageHeading, packagesHeading, pathsRelativeTo, publicExports, readFromAll, readFromLargest, repositoriesSection,
+  repositoryDependenciesSection, repositoryDependency, repositoryLine, synthesisAsk,
 } from "./prompts.ts";
+import { repositoryDependencies } from "./repositories.ts";
 
 /** Public exports listed per summarized package — 20 names say what a package offers, 50 drown the rest. */
 export const MAX_EXPORTS_PER_PACKAGE = 20;
@@ -26,6 +28,8 @@ export const MAX_EXPORTS_PER_PACKAGE = 20;
 export const MAX_LISTED_PACKAGES = 100;
 /** Summarized packages kept for the entry packages, however small: the hosts are what the analysis must name. */
 export const MAX_ENTRY_PACKAGES = 5;
+/** Packages in no single repository that the repositories section names. */
+export const MAX_OUTSIDE_PACKAGES = 20;
 
 export interface HarvestInput {
   /** The packages summarized (readPackageSummary), in rankPackages order. */
@@ -40,6 +44,9 @@ export interface HarvestInput {
   graphCap: number;
   /** The max_entries the package map was asked with: a map that reaches it stops there, the index holds more. */
   mapCap: number;
+  /** The repository of each package read, by fqn (packageRepositories): absent or empty in an ordinary
+   *  checkout, where the harvest says nothing of repositories. */
+  repositories?: ReadonlyMap<string, string>;
 }
 
 /** Edge endpoints are node IDs ("/path#module@0"), not FQNs — display the path half. */
@@ -71,18 +78,53 @@ export function rankPackages(entries: MapEntry[]): MapEntry[] {
     .map((r) => r.entry);
 }
 
+/** Whether a package starts a process: one of its entry modules is named main or program ("Program.cs",
+ *  "main.py", "__main__.py"), where an index module only gathers what a library offers. */
+export function startsProcess(p: PackageSummary): boolean {
+  return p.entryPoints.some((fqn) => {
+    const symbol = fqn.indexOf("::");
+    const file = (symbol < 0 ? fqn : fqn.slice(0, symbol)).split("/").pop() ?? "";
+    return /^(_*main_*|program)(\.|$)/i.test(file);
+  });
+}
+
 /** The entry packages, in the order given: code (not tests) with a main, program or index module that no
  *  package of code read depends on — the hosts, tools and examples that start the rest. Its tests depending
- *  on a host do not make it a library. */
+ *  on a host do not make it a library, nor does another host: a package that starts a process stays an
+ *  entry package when only packages that start one too depend on it (an API under its migration service). */
 export function entryPackages(scanned: PackageSummary[]): PackageSummary[] {
-  const dependedOn = new Set(scanned.filter((p) => !isTestPackage(p.name)).flatMap((p) => p.dependencies));
-  return scanned.filter((p) => p.entryPoints.length > 0 && !isTestPackage(p.name) && !dependedOn.has(p.fqn));
+  const code = scanned.filter((p) => !isTestPackage(p.name));
+  const dependedOn = new Set(code.flatMap((p) => p.dependencies));
+  const dependedOnByLibrary = new Set(code.filter((p) => !startsProcess(p)).flatMap((p) => p.dependencies));
+  return code.filter((p) =>
+    p.entryPoints.length > 0 && !(startsProcess(p) ? dependedOnByLibrary : dependedOn).has(p.fqn));
 }
 
 /** The fqns to summarize, in `ranked` order: the first MAX_ENTRY_PACKAGES entry packages, then the
- *  largest packages up to `max`. Ranking by size alone leaves out the hosts, which are small. */
-export function selectPackages(ranked: MapEntry[], scanned: PackageSummary[], max: number): string[] {
-  const chosen = new Set(entryPackages(scanned).slice(0, Math.min(MAX_ENTRY_PACKAGES, max)).map((p) => p.fqn));
+ *  largest packages up to `max`. Ranking by size alone leaves out the hosts, which are small. Over
+ *  several repositories (`repositories`, the repository of each package), each takes its turn — its entry
+ *  packages first, its share of MAX_ENTRY_PACKAGES, then its largest — so that the largest repository does
+ *  not fill the harvest alone; the packages in no repository come once the repositories are through. */
+export function selectPackages(
+  ranked: MapEntry[], scanned: PackageSummary[], max: number, repositories: ReadonlyMap<string, string> = new Map(),
+): string[] {
+  const names = [...new Set(repositories.values())];
+  const groups = names.length === 0
+    ? [ranked]
+    : names.map((name) => ranked.filter((p) => repositories.get(p.fqn) === name));
+  const entryShare = Math.ceil(Math.min(MAX_ENTRY_PACKAGES, max) / groups.length);
+  const entries = entryPackages(scanned).map((p) => p.fqn);
+  const queues = groups.map((group) => {
+    const own = new Set(group.map((p) => p.fqn));
+    return [...new Set([...entries.filter((fqn) => own.has(fqn)).slice(0, entryShare), ...own])];
+  });
+
+  const chosen = new Set<string>();
+  for (let turn = 0; chosen.size < max && queues.some((q) => turn < q.length); turn++) {
+    for (const queue of queues) {
+      if (chosen.size < max && turn < queue.length) chosen.add(queue[turn]);
+    }
+  }
   for (const p of ranked) {
     if (chosen.size >= max) break;
     chosen.add(p.fqn);
@@ -150,9 +192,15 @@ export function rankExports(fqns: string[]): string[] {
 
 const code = (fqn: string): string => `\`${displayFqn(fqn)}\``;
 
-function renderPackage(p: PackageSummary): string {
+/** A package as the harvest names it: with its repository, over several repositories. */
+function named(fqn: string, h: HarvestInput): string {
+  const repository = h.repositories?.get(fqn);
+  return code(fqn) + (repository === undefined ? "" : inRepository(`\`${repository}\``));
+}
+
+function renderPackage(p: PackageSummary, h: HarvestInput): string {
   const lines = [
-    packageHeading(code(p.fqn), p.files, p.symbols) +
+    packageHeading(named(p.fqn, h), p.files, p.symbols) +
     (p.dependencies.length > 0 ? dependsOn(p.dependencies.map(displayFqn).join(", ")) : ""),
   ];
   if (p.entryPoints.length > 0) {
@@ -166,15 +214,50 @@ function renderPackage(p: PackageSummary): string {
   return lines.join("\n");
 }
 
+/** How many of the packages of the index were read for what the sections below say. */
+function readScope(h: HarvestInput, total: number): string {
+  const unread = total - h.scanned.length;
+  return unread > 0 ? readFromLargest(h.scanned.length, unread) : readFromAll(h.scanned.length);
+}
+
+/** Over several repositories: each with its packages, then what crosses from one to another. Nothing in an
+ *  ordinary checkout. */
+function renderRepositories(h: HarvestInput, total: number): string[] {
+  const of = h.repositories ?? new Map<string, string>();
+  const names = [...new Set(of.values())];
+  if (names.length === 0) return [];
+
+  const summarized = new Set(h.packages.map((p) => p.fqn));
+  const lines = names.map((name) => {
+    const own = h.scanned.filter((p) => of.get(p.fqn) === name);
+    return repositoryLine(`\`${name}\``, own.length, own.filter((p) => summarized.has(p.fqn)).length);
+  });
+  const outside = h.scanned.filter((p) => !of.has(p.fqn));
+  if (outside.length > 0) {
+    const shown = outside.slice(0, MAX_OUTSIDE_PACKAGES);
+    const more = outside.length > shown.length ? andMoreAfterComma(outside.length - shown.length) : "";
+    lines.push(outsideRepositories(shown.map((p) => code(p.fqn)).join(", "), more));
+  }
+
+  const crossing = repositoryDependencies(h.scanned, of).map((d) =>
+    repositoryDependency(`\`${d.from}\``, `\`${d.to}\``,
+      d.edges.map((e) => `${code(e.from)} → ${e.to.map(code).join(", ")}`).join("; ")));
+
+  return [
+    repositoriesSection(names.length) + lines.join("\n"),
+    repositoryDependenciesSection(readScope(h, total)) +
+    (crossing.length > 0 ? crossing.join("\n") : NO_REPOSITORY_DEPENDENCY),
+  ];
+}
+
 /** What the packages read say of the packages: the entry packages, the dependencies, their cycles. */
 function renderPackageGraph(h: HarvestInput, total: number): string[] {
   if (h.scanned.length === 0) return [];
-  const unread = total - h.scanned.length;
-  const scope = unread > 0 ? readFromLargest(h.scanned.length, unread) : readFromAll(h.scanned.length);
+  const scope = readScope(h, total);
 
   const entries = entryPackages(h.scanned);
   const entryLines = entries.length > 0
-    ? entries.map((p) => `- ${code(p.fqn)} — ${p.entryPoints.map(code).join(", ")}`)
+    ? entries.map((p) => `- ${named(p.fqn, h)} — ${p.entryPoints.map(code).join(", ")}`)
     : [NO_ENTRY_PACKAGE];
 
   const depLines = h.scanned.filter((p) => p.dependencies.length > 0)
@@ -232,12 +315,13 @@ export function renderHarvest(h: HarvestInput): string {
   const parts: string[] = [HARVEST_TITLE + pathsRelativeTo(WORKSPACE)];
 
   const total = h.packages.length + h.unsummarized.length;
+  parts.push(...renderRepositories(h, total));
   if (h.packages.length > 0) {
     const symbols = h.packages.reduce((sum, p) => sum + p.symbols, 0);
     const inIndex = total >= h.mapCap ? atLeast(total) : `${total}`;
     parts.push(
       packagesHeading(inIndex, h.packages.length, symbols) +
-      h.packages.map(renderPackage).join("\n\n"),
+      h.packages.map((p) => renderPackage(p, h)).join("\n\n"),
     );
   }
 
@@ -246,7 +330,7 @@ export function renderHarvest(h: HarvestInput): string {
     const omitted = h.unsummarized.length - listed.length;
     parts.push(
       OTHER_PACKAGES_HEADING +
-      listed.map((p) => `- ${code(p.fqn)}` + (p.children === undefined ? "" : ` — ${p.children} module(s)`)).join("\n") +
+      listed.map((p) => `- ${named(p.fqn, h)}` + (p.children === undefined ? "" : ` — ${p.children} module(s)`)).join("\n") +
       (omitted > 0 ? morePackagesOmitted(omitted, MAX_LISTED_PACKAGES) : ""),
     );
   }

@@ -9,7 +9,7 @@ import { buildSynthesisUser } from "../../../../src/crews/analyze/domain/harvest
 import { SYNTHESIS_SYSTEM } from "../../../../src/crews/analyze/domain/prompts.ts";
 import {
   CACHE_LINES, NOTHING_INDEXED, PARALLEL_ABSENT, PARALLEL_ASKED, PARALLEL_REFUSED, RANKED_SUMMARIES, RAW_RUN_CALLS,
-  REBUILD_ASKED, REBUILD_NOT_ASKED, UNRANKED_L1, analyzeSetup, harvestOf, withSmallHost,
+  REBUILD_ASKED, REBUILD_NOT_ASKED, UNRANKED_L1, analyzeSetup, harvestOf, withSmallHost, withTwoRepositories,
 } from "./run-analyze.fixtures.ts";
 import { assertDefaultIndexing } from "./run-analyze.assertions.ts";
 import { assertMentions } from "../../../support/assertions/text.ts";
@@ -29,6 +29,45 @@ describe("runAnalyze", () => {
     deepStrictEqual(llm.acts, []);
     deepStrictEqual(progress.reports.map((r) => r.step), [1, 2, 3, 4]);
     deepStrictEqual(progress.released, [PROGRESS_LABEL]);
+  });
+
+  it("reads no file when the packages name no top folder to compare", async () => {
+    // Arrange
+    const { files, deps } = analyzeSetup(3);
+
+    // Act
+    await runAnalyze({ raw: true }, deps);
+
+    // Assert
+    deepStrictEqual(files.reads, []);
+  });
+
+  it("says what crosses between the repositories when the checkout is a folder of several", async () => {
+    // Arrange
+    const { index, files, deps } = analyzeSetup();
+    withTwoRepositories(index, files, 2);
+
+    // Act
+    const out = await runAnalyze({ raw: true }, deps);
+
+    // Assert
+    assertMentions(out, [
+      "## Repositories",
+      "- `big` — 2 package(s) read, 2 summarized\n- `small` — 2 package(s) read, 2 summarized",
+      "- `small` → `big`: `Small.Api` → `Big.P0`",
+    ]);
+  });
+
+  it("summarizes the packages of a small repository beside those of a large one", async () => {
+    // Arrange
+    const { index, files, deps } = analyzeSetup();
+    withTwoRepositories(index, files, MAX_PACKAGES + 5);
+
+    // Act
+    const out = await runAnalyze({ raw: true }, deps);
+
+    // Assert
+    assertMentions(out, ["### `Small.Core` (repository `small`)", "### `Small.Api` (repository `small`)"]);
   });
 
   it("indexes the workspace first when the index is empty, and stops when it found nothing", async () => {
