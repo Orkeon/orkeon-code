@@ -296,7 +296,9 @@ crew. Where the family is offered, the tools section carries its rules, those of
 - **The carry-out request**: the plan approved, the turn that follows asks, as its request, for the plan of the last
   answer, approved, to be carried out now and whole; says the session is no longer read-only, so the files the plan
   names are written and its commands run; and asks for a report of what was done and what was checked. The plan
-  itself is not repeated: it is the last answer of the history.
+  itself is not repeated: it is the last answer of the history. The request is written by the program, in English:
+  it says it is not the user's words and asks for the language of the plan, in the report and in what is written,
+  so a session held in another language does not turn to English at its approval.
 
 ### The explorer
 

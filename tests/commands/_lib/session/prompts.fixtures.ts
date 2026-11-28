@@ -5,4 +5,5 @@ export const CARRY_OUT_RULES: readonly { readonly name: string; readonly markers
   { name: "says the session is no longer read-only", markers: ["no longer read-only"] },
   { name: "asks to write the files and run the commands the plan names", markers: ["write the files and run the commands"] },
   { name: "asks for a report of what was done and what was checked", markers: ["what was done and what was checked"] },
+  { name: "says the request is not the user's words and keeps the language of the plan", markers: ["not the user's words", "keep the language of the plan"] },
 ];
