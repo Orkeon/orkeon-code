@@ -17,6 +17,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - The permissions guide says that a shell read is held to the workspace only by the runtime's confinement
   ([Reach outside the workspace](docs/permissions.md#reach-outside-the-workspace)).
 
+### Added — a plan is approved, then carried out
+
+- A turn of `/assistant` that ran in `plan` mode ends on a question after every answer, `Carry out this plan?`:
+  accepting edits or asking before each one launches a second turn that carries the plan out in that mode, and once
+  it is launched moves a session in `plan` to it; a launch refused leaves the mode as it was and says so, a mode that
+  cannot be written is said; keeping the plan changes nothing ([permissions](docs/permissions.md#choosing-the-mode)). A turn that failed or gave no
+  answer asks nothing, and a line of `/assistant` typed while the plan is carried out is refused by the command's
+  concurrency limit, as while any turn runs. The question belongs to the launch of the plan turn, which attaches
+  its own state (Orkeon #493): the turn that carries the plan out, or any other launch, asks nothing.
+- In a `plan` turn of `/assistant` on a console with panels, the model is told that a request for a change or a file
+  ends on its plan, which the user approves, and no longer answers that the session is read-only; no other launch in
+  `plan` is promised an approval.
+
 ### Added — the routing picks the thinking level, and reaches the explorer
 
 - `route.effort` (`/config set route.effort on`): with `route.agents` on, the host's decision model picks the

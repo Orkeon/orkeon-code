@@ -212,6 +212,19 @@ du catalogue.
   et revient à sa valeur par défaut : `/effort`, `/fast`, `/passes`, `/proactive`, `/output-style`, les règles, les
   hooks et les réglages posés avec `--session` (`permissions.fallback` compris). Un `/effort` choisi pour le modèle
   gardé est à poser de nouveau après lui.
+- **Approuver un plan** : un tour de `/assistant` (texte libre) passé en `plan` se termine par une question,
+  `Carry out this plan?`, après chacune de ses réponses, celle à une simple question comprise. `Yes, and accept
+  edits` et `Yes, and ask before each edit` lancent un second tour qui exécute le plan, en `acceptEdits` ou en
+  `default`. Ce tour lancé, une session dont le mode est `plan` (par `/mode` ou par `permissions.fallback`) passe au
+  mode choisi, que le tour ait été préfixé `plan:` ou non ; une session dans un autre mode le garde (un tour préfixé
+  `plan:` dans une session qui écrit). Un lancement que le runtime refuse (la limite de profondeur de chaîne)
+  n'exécute rien et laisse le mode tel qu'il était, et une ligne le dit ; un mode qui ne peut être écrit est signalé
+  aussi, et le tour s'exécute quand même dans le mode choisi. `No, keep planning`, ou Échap, ne change
+  rien : le message suivant dit ce que le plan doit changer. Un tour échoué ou sans réponse ne pose pas la question.
+  Une console sans panneaux ne la pose pas non plus et affiche comment quitter le mode plan. Pendant que le plan est
+  exécuté, une nouvelle ligne de `/assistant` est refusée par la limite de concurrence de la commande, comme pendant
+  tout tour. Le plan est la réponse du
+  tour, gardée dans la conversation, pas un fichier.
 - **Repli** : sans l'un ni l'autre, le mode est `default`, ou celui que fixe
   `/config set permissions.fallback <mode>` (`--session` le garde pour la seule session). Chaque tour qui utilise le
   repli dit quel mode s'est appliqué et d'où il vient.

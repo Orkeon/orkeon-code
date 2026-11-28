@@ -84,6 +84,9 @@ export interface MainLoopInputs {
   sessionStart?: unknown;
   /** The text a line of the answer must start with: an answer without it goes back once. */
   closingLine?: unknown;
+  /** `true` when the launching command asks the user to approve the plan once a plan turn ends (/assistant on a
+   *  console with panels): the permission note says so. Anything else, the note promises no approval. */
+  planApproval?: unknown;
 }
 
 /** The tool catalogue the agent is built with, the mode it was built for, and the
@@ -362,7 +365,8 @@ export async function runMainLoop(input: MainLoopInputs, loaded: LoadedCatalogue
   await appendTurn(session, "user", prompt);
   // Head-of-turn auto-compaction (F3): act() starts from a healthy buffer.
   await autoCompactGuarded(deps);
-  const assembled = await buildTurnPrompt(prompt, mode, flags, deps, loaded.extras, loaded.scriptTools, loaded.rules, loaded.families);
+  const assembled = await buildTurnPrompt(prompt, mode, flags, deps, loaded.extras, loaded.scriptTools, loaded.rules, loaded.families,
+    input.planApproval === true);
   // A turn the provider failed throws (LlmFailure), as any failure of act does:
   // no answer is stored, the tail compaction does not run (the breaker counts
   // compactions, not turns), and the run fails with the provider's error, which
