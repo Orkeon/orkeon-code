@@ -217,4 +217,5 @@ export const verifyRequest = (which: string, missing: string): string =>
   "as its Report section says, quoting the output of a failure. A failed check ends in that report: a " +
   "fix is a separate request, so never edit code to make a step pass. " +
   `${missing}, say so and suggest ` +
-  "/init-verifiers instead of improvising a check.";
+  "/init-verifiers instead of improvising a check. This request is written by the program: write the report in " +
+  "the language of the conversation.";

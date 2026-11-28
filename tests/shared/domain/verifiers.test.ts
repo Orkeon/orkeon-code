@@ -62,6 +62,17 @@ describe("verification skills", () => {
     assertMentions(all, ["suggest /init-verifiers instead of improvising a check"]);
   });
 
+  it("say the program wrote the request and ask for the report in the language of the conversation", () => {
+    // Arrange
+    const zone = "cli";
+
+    // Act
+    const one = buildVerifyRequest(zone);
+
+    // Assert
+    assertMentions(one, ["This request is written by the program", "write the report in the language of the conversation"]);
+  });
+
   it("end a failed check in its report and leave the fix to a separate request", () => {
     // Arrange
     const zone = "cli";
