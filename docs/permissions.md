@@ -159,6 +159,12 @@ of the catalogue.
   may do and what it runs on; the rest tunes the conversation that `/clear` ends, and goes back to its default:
   `/effort`, `/fast`, `/passes`, `/proactive`, `/output-style`, the rules, the hooks and the settings set with
   `--session` (`permissions.fallback` included). An `/effort` chosen for the kept model has to be set again after it.
+- **Approving a plan**: a turn of `/assistant` (free text) that ran in `plan` ends on a question, `Carry out this
+  plan?`. `Yes, and accept edits` and `Yes, and ask before each edit` launch a second turn that carries the plan
+  out, in `acceptEdits` or `default`, and move a session that was in `plan` to that mode; a turn prefixed `plan:`
+  leaves the session's mode as it was. `No, keep planning`, or Esc, changes nothing: the next message says what the
+  plan should change. A console without panels gets no question, and a line saying how to leave plan mode. The
+  plan is the turn's answer, kept in the conversation, not a file.
 - **Fallback**: with neither, the mode is `default`, or the one set by `/config set permissions.fallback <mode>`
   (`--session` keeps it for the session only). Every turn that uses the fallback says which mode applied and where
   it came from.

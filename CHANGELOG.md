@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added — a plan is approved, then carried out
+
+- A turn that ran in `plan` mode ends on a question, `Carry out this plan?`: accepting edits or asking before each
+  one launches a second turn that carries the plan out in that mode, and moves a session in `plan` to it; keeping
+  the plan changes nothing ([permissions](docs/permissions.md#choosing-the-mode)).
+- In `plan` mode the model is told that a request for a change or a file ends on its plan, which the user approves,
+  and no longer answers that the session is read-only.
+
 ### Added — the routing picks the thinking level, and reaches the explorer
 
 - `route.effort` (`/config set route.effort on`): with `route.agents` on, the host's decision model picks the

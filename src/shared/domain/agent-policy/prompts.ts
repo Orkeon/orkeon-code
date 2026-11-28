@@ -4,6 +4,11 @@
 export const READ_ONLY_CLAUSE =
   "Read-only: read and search the project, but MUST NOT modify files, run commands or fetch anything over the " +
   "network; answer with an assessment or a plan.";
+/** What plan mode adds: the plan is approved by the user, then carried out by a following turn. */
+export const PLAN_APPROVAL_CLAUSE =
+  "When the request asks for a change or for a file to write, do the reading it needs, then end with the plan of " +
+  "it (the files, the steps, how it will be checked): the user is asked to approve the plan, and a following turn " +
+  "carries it out with write access. Do not report the change as impossible.";
 export const MAY_ACT_CLAUSE =
   "You may edit files, run shell commands and fetch over the network; the host may ask the user before a call.";
 

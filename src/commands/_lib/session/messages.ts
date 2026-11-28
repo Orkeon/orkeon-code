@@ -96,3 +96,25 @@ export const settingNotKept = (setting: string, value: string): string =>
   `⚠ ${setting} ${value} could not be written back: the session is on its default.`;
 export const settingUnread = (setting: string): string =>
   `⚠ ${setting} could not be read before the reset: the session is on its default.`;
+
+// The approval of a plan
+
+/** The question a plan turn ends on. */
+export const PLAN_APPROVAL = "Carry out this plan?";
+
+/** The answer that leaves the session in plan mode. */
+export const KEEP_PLANNING = "plan";
+
+/** The answers, each a permission mode: the one the plan is carried out in, or plan to stay in it. */
+export const APPROVAL_OPTIONS: readonly { value: string; label: string; description: string }[] = [
+  { value: "acceptEdits", label: "Yes, and accept edits", description: "file edits run without a question, the rest asks" },
+  { value: "default", label: "Yes, and ask before each edit", description: "every edit and every command asks" },
+  { value: KEEP_PLANNING, label: "No, keep planning", description: "nothing changes; say what the plan should change" },
+];
+
+export const PLAN_KEPT = "plan kept as it is: nothing changed. Say what it should change, or /plan to leave plan mode.";
+
+export const PLAN_NOT_OFFERED =
+  "plan mode: nothing changed. To carry the plan out, leave plan mode (/plan, or /mode acceptEdits) and ask for it.";
+
+export const planApproved = (mode: string): string => `plan approved: carrying it out in '${mode}'.`;

@@ -169,6 +169,12 @@ du catalogue.
   et revient à sa valeur par défaut : `/effort`, `/fast`, `/passes`, `/proactive`, `/output-style`, les règles, les
   hooks et les réglages posés avec `--session` (`permissions.fallback` compris). Un `/effort` choisi pour le modèle
   gardé est à poser de nouveau après lui.
+- **Approuver un plan** : un tour de `/assistant` (texte libre) passé en `plan` se termine par une question,
+  `Carry out this plan?`. `Yes, and accept edits` et `Yes, and ask before each edit` lancent un second tour qui
+  exécute le plan, en `acceptEdits` ou en `default`, et font passer dans ce mode une session qui était en `plan` ; un
+  tour préfixé `plan:` laisse le mode de la session tel quel. `No, keep planning`, ou Échap, ne change rien : le
+  message suivant dit ce que le plan doit changer. Une console sans panneaux ne pose pas la question et affiche
+  comment quitter le mode plan. Le plan est la réponse du tour, gardée dans la conversation, pas un fichier.
 - **Repli** : sans l'un ni l'autre, le mode est `default`, ou celui que fixe
   `/config set permissions.fallback <mode>` (`--session` le garde pour la seule session). Chaque tour qui utilise le
   repli dit quel mode s'est appliqué et d'où il vient.

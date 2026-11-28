@@ -310,7 +310,8 @@ est offerte :
   d'avertissement, finir l'étape en cours et cesser de lire de gros fichiers en entier ; au palier d'erreur, conclure
   et suggérer `/compact`.
 - **Requête** (le dernier message, à part des blocs ci-dessus) : la requête sous son propre titre, puis la note de
-  permission du mode (lecture seule : livrer une
+  permission du mode (en `plan`, une demande de changement ou de fichier se termine par son plan, que l'utilisateur
+  est invité à approuver et qu'un tour suivant exécute, et n'est jamais déclarée impossible ; lecture seule : livrer une
   évaluation ou un plan ; sinon le runtime peut demander avant un appel), puis la clause proactive quand `/proactive` est
   activé.
 

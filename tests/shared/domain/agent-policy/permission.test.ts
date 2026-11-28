@@ -398,6 +398,28 @@ describe("permissionNote / buildActPrompt", () => {
     assertMentions(note, ["MUST NOT modify", "an assessment or a plan"]);
   });
 
+  it("plan note says the plan is approved, then carried out by a following turn", () => {
+    // Arrange
+    const mode = "plan";
+
+    // Act
+    const note = permissionNote(mode);
+
+    // Assert
+    assertMentions(note, ["end with the plan", "asked to approve the plan", "Do not report the change as impossible"]);
+  });
+
+  it("dontAsk note promises no approval", () => {
+    // Arrange
+    const mode = "dontAsk";
+
+    // Act
+    const note = permissionNote(mode);
+
+    // Assert
+    strictEqual(note.includes("approve the plan"), false);
+  });
+
   it("dontAsk note forbids mutation", () => {
     // Arrange
     const mode = "dontAsk";

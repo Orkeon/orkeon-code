@@ -8,12 +8,19 @@
 // in `inputs`: the crew builds its catalogue at MODULE scope, which is synchronous
 // and cannot await the state bag.
 //
+// A turn that ran in plan mode ends on the approval of its plan (_lib/session/plan-approval): approved, the
+// plan is carried out by a second turn, launched from `completed` in the mode picked.
+//
 // The first free-text turn of a session carries what the session's start script
 // printed (Orkeon:Cli:Session:StartScript), at the head of the raw input alone: it is
 // taken off there and passed as `sessionStart`, the request parsed from the tokens.
+import type { CommandRuntimeContext } from "../.orkeon/orkeon-cli.d.ts";
 import { parseAssistantInput, rawText } from "../_lib/args.ts";
 import { splitStartOutput } from "../../shared/domain/session-start.ts";
 import { launchMainLoop, writeCompleted } from "../_lib/dispatch.ts";
+import { approvePlan, notePlanTurn } from "../_lib/session/plan-approval.ts";
+import { CARRY_OUT_PLAN } from "../_lib/session/prompts.ts";
+import { createChooser } from "../../shared/infrastructure/orkeon/chooser.ts";
 import { createCrewHost } from "../../shared/infrastructure/orkeon/crew-host.ts";
 import { createPermissionRules } from "../../shared/infrastructure/orkeon/permission-rules.ts";
 import {
@@ -21,6 +28,11 @@ import {
 } from "../../shared/infrastructure/orkeon/wiring.ts";
 
 const deps = { session: orkeonSessionIo(), config: orkeonConfigStore() };
+
+const launchDeps = (ctx: CommandRuntimeContext) => ({
+  ...deps, catalogue: orkeonToolCatalogue(ctx.services), crews: createCrewHost(ctx.services),
+  gate: createPermissionRules(ctx.services), host: orkeonHostContext, log: ctx.log,
+});
 
 defineAsyncCommand({
   name: "assistant",
@@ -31,10 +43,16 @@ defineAsyncCommand({
     // then resolves the session's mode (/mode, else the fallback).
     const { prompt, permissionMode } = parseAssistantInput(rawText(args));
     const { start } = splitStartOutput(String(ctx.command?.rawInput ?? ""));
-    return await launchMainLoop({
-      ...deps, catalogue: orkeonToolCatalogue(ctx.services), crews: createCrewHost(ctx.services),
-      gate: createPermissionRules(ctx.services), host: orkeonHostContext, log: ctx.log,
-    }, { prompt, permissionMode, ...(start ? { sessionStart: start } : {}) });
+    await notePlanTurn(deps.session, permissionMode);
+    return await launchMainLoop(launchDeps(ctx), { prompt, permissionMode, ...(start ? { sessionStart: start } : {}) });
   },
-  completed: (result, ctx) => writeCompleted(ctx, result, "assistant"),
+  // A plan turn ends on the question of its approval; the plan approved is carried out by a turn launched here.
+  completed: async (result, ctx) => {
+    writeCompleted(ctx, result, "assistant");
+    const decision = await approvePlan(result, { session: deps.session, chooser: createChooser(ctx) });
+    for (const line of decision.lines) ctx.writeLine(line);
+    if (decision.carryOut === undefined) return;
+    const launched = await launchMainLoop(launchDeps(ctx), { prompt: CARRY_OUT_PLAN, permissionMode: decision.carryOut });
+    if ("refused" in launched) ctx.writeLine(launched.message);
+  },
 });

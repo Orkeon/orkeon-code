@@ -12,7 +12,7 @@ import {
   argumentsNotKnown, hasNoArgument, modeDoesNotOffer, noToolARuleMayName, offeredToEveryAct, PLAN_IGNORES_ALLOW_RULES,
   takesNoArgument,
 } from "./messages.ts";
-import { MAY_ACT_CLAUSE, READ_ONLY_CLAUSE } from "./prompts.ts";
+import { MAY_ACT_CLAUSE, PLAN_APPROVAL_CLAUSE, READ_ONLY_CLAUSE } from "./prompts.ts";
 
 /** Read-side tools (inspection + the read-only RaggableTree index queries). */
 export const READ_TOOLS = [
@@ -165,7 +165,8 @@ export function toolsetFor(
 
 /** The permission clause appended to the act() prompt. */
 export function permissionNote(mode: string): string {
-  const clause = isReadOnly(mode) ? READ_ONLY_CLAUSE : MAY_ACT_CLAUSE;
+  const readOnly = mode === "plan" ? `${READ_ONLY_CLAUSE} ${PLAN_APPROVAL_CLAUSE}` : READ_ONLY_CLAUSE;
+  const clause = isReadOnly(mode) ? readOnly : MAY_ACT_CLAUSE;
   return `(Permission mode: ${mode}. ${clause})`;
 }
 
