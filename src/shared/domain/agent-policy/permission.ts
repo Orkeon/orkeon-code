@@ -12,7 +12,7 @@ import {
   argumentsNotKnown, hasNoArgument, modeDoesNotOffer, noToolARuleMayName, offeredToEveryAct, PLAN_IGNORES_ALLOW_RULES,
   takesNoArgument,
 } from "./messages.ts";
-import { MAY_ACT_CLAUSE, READ_ONLY_CLAUSE } from "./prompts.ts";
+import { MAY_ACT_CLAUSE, PLAN_APPROVAL_CLAUSE, READ_ONLY_CLAUSE } from "./prompts.ts";
 
 /** Read-side tools (inspection + the read-only RaggableTree index queries). */
 export const READ_TOOLS = [
@@ -163,15 +163,18 @@ export function toolsetFor(
   ]);
 }
 
-/** The permission clause appended to the act() prompt. */
-export function permissionNote(mode: string): string {
-  const clause = isReadOnly(mode) ? READ_ONLY_CLAUSE : MAY_ACT_CLAUSE;
+/** The permission clause appended to the act() prompt. `planApproval`: the launching command asks the user to
+ *  approve the plan once the turn ends (/assistant on a console with panels), so a plan turn is told so; no other
+ *  launch promises it. */
+export function permissionNote(mode: string, planApproval = false): string {
+  const readOnly = mode === "plan" && planApproval ? `${READ_ONLY_CLAUSE} ${PLAN_APPROVAL_CLAUSE}` : READ_ONLY_CLAUSE;
+  const clause = isReadOnly(mode) ? readOnly : MAY_ACT_CLAUSE;
   return `(Permission mode: ${mode}. ${clause})`;
 }
 
 /** The full prompt handed to ctx.llm.act: the user request + permission note. */
-export function buildActPrompt(prompt: string, mode: string): string {
-  return `${prompt}\n\n${permissionNote(mode)}`;
+export function buildActPrompt(prompt: string, mode: string, planApproval = false): string {
+  return `${prompt}\n\n${permissionNote(mode, planApproval)}`;
 }
 
 // ── The session's rules: enforced by the host gate, read by the catalogue ──

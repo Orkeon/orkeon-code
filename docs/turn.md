@@ -279,9 +279,16 @@ crew. Where the family is offered, the tools section carries its rules, those of
 - **Gauge** (a `<system-reminder>`): the tokens used against the window and the session cost. At the warning tier,
   finish the current step and stop reading whole large files; at the error tier, wrap up and suggest `/compact`.
 - **Request** (the last message, apart from the blocks above): the request under its own heading, then the
-  permission note of the mode (read-only: deliver an
-  assessment or a plan; otherwise the host may ask before a call), then the proactive clause when `/proactive` is
-  on.
+  permission note of the mode (read-only: deliver an assessment or a plan; otherwise the host may ask before a
+  call), then the proactive clause when `/proactive` is on. A `plan` turn whose launcher asks for the plan's approval
+  once it ends (`/assistant` on a console with panels, the only one) adds to the note: a request for a change or a
+  file ends on the plan of it (the files, the steps, how it will be checked), which the user is asked to approve and
+  a following turn carries out with write access, and is never reported as impossible. Any other `plan` turn
+  (`/summary`, `/voice`, `/transcribe --then`, a plain console) is promised no approval.
+- **The carry-out request**: the plan approved, the turn that follows asks, as its request, for the plan of the last
+  answer, approved, to be carried out now and whole; says the session is no longer read-only, so the files the plan
+  names are written and its commands run; and asks for a report of what was done and what was checked. The plan
+  itself is not repeated: it is the last answer of the history.
 
 ### The explorer
 

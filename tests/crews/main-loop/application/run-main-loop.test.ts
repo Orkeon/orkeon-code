@@ -320,6 +320,17 @@ describe("runMainLoop — the turn", () => {
     assertPromptEndsWith(llm.acts[0].prompt, buildActPrompt("fix the parser", "plan"));
   });
 
+  it("tells a plan turn its plan is approved after it when the launching command asks for the approval", async () => {
+    // Arrange
+    const { llm, deps } = turnSetup();
+
+    // Act
+    await runMainLoop({ prompt: "fix the parser", permissionMode: "plan", planApproval: true }, EXPLICIT_PLAN, deps);
+
+    // Assert
+    assertPromptEndsWith(llm.acts[0].prompt, buildActPrompt("fix the parser", "plan", true));
+  });
+
   it("stores the act's tool calls as a [tools] message between the request and the answer", async () => {
     // Arrange
     const { store, llm, deps } = turnSetup();

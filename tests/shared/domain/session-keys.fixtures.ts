@@ -21,4 +21,5 @@ export const KEY_VALUES = {
   DEV_BATCHES_CHAIN_STATE_KEY: "dev_batches_chain",
   AGENT_INSTANCES_STATE_PREFIX: "agent_instances:",
   AGENT_REQUEST_STATE_PREFIX: "agent_request:",
+  PLAN_TURN_STATE_KEY: "plan_turn",
 };

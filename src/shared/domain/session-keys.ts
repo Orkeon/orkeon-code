@@ -90,3 +90,6 @@ export const AGENT_INSTANCES_STATE_PREFIX = "agent_instances:";
 /** A request of /tasks to one instance, `agent_request:<crew>:<id>` (A-3): written by /tasks, read and cleared by the
  *  crew that holds the instance. */
 export const AGENT_REQUEST_STATE_PREFIX = "agent_request:";
+
+/** `/assistant` — true while the turn launched last ran in plan mode: its completion offers to carry the plan out. */
+export const PLAN_TURN_STATE_KEY = "plan_turn";
