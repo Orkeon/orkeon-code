@@ -36,6 +36,11 @@ export function approvalSetup(options: { mode?: string; answer?: string | null }
 /** The refusal the runtime throws for a launch past the chain depth limit. */
 export const CHAIN_LIMIT_ERROR = "chain depth 8 reached (MaxChainDepth 8, /assistant)";
 
+/** The host's refusal of a second exclusive turn, and the line /assistant shows for it. */
+export const TURN_RUNNING_ERROR = "crew 'main-loop' already running (ticket t1)";
+export const TURN_RUNNING =
+  "a turn is running (t1): this line was not sent. Wait for its answer, or stop it with Esc Esc, then type the line again.";
+
 const PLAN = "1. Rename parseArgs in src/args.ts.\n2. Run the tests.";
 
 /** The completion of a plan turn that succeeded with a plan. */

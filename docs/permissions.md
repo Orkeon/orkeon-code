@@ -233,7 +233,8 @@ of the catalogue.
   picked. `No, keep planning`, or Esc, changes nothing: the next message
   says what the plan should change. A turn that failed or gave no answer asks nothing. A console without panels does
   not ask either, and prints a line saying how to leave plan mode. While the plan is carried out, a new line of
-  `/assistant` is refused by the command's concurrency limit, as while any turn runs. The plan is the turn's
+  `/assistant` is refused, as while any turn runs: a turn is launched exclusively, and the refusal says that a turn
+  is running, that the line was not sent, and that `Esc Esc` stops the turn. The plan is the turn's
   answer, kept in the conversation, not a file.
 - **Fallback**: with neither, the mode is `default`, or the one set by `/config set permissions.fallback <mode>`
   (`--session` keeps it for the session only). Every turn that uses the fallback says which mode applied and where

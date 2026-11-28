@@ -11,7 +11,8 @@ import { CARRY_OUT_PLAN } from "../../../../src/commands/_lib/session/prompts.ts
 import { DEFAULT_MODE_STATE_KEY } from "../../../../src/shared/domain/session-keys.ts";
 import {
   APPROVALS, APPROVAL_TOLD, ATTACHED, CHAIN_LIMIT_ERROR, FAILURE, FOREIGN_STATES, KEPT, MODE_NOT_KEPT,
-  NOT_CARRIED_OUT, NOT_OFFERED, NO_ANSWER, NO_STATE, REFUSALS, SUCCESS, approvalSetup, assistantLaunchSetup,
+  NOT_CARRIED_OUT, NOT_OFFERED, NO_ANSWER, NO_STATE, REFUSALS, SUCCESS, TURN_RUNNING, TURN_RUNNING_ERROR, approvalSetup,
+  assistantLaunchSetup,
 } from "./plan-approval.fixtures.ts";
 
 describe("launchAssistantTurn", () => {
@@ -52,7 +53,7 @@ describe("launchAssistantTurn", () => {
     strictEqual(store.readStateCalls.filter((key) => key === DEFAULT_MODE_STATE_KEY).length, 1);
   });
 
-  it("launches the turn on the main screen, not exclusive", async () => {
+  it("launches the turn on the main screen, exclusively", async () => {
     // Arrange
     const { crews, deps } = assistantLaunchSetup();
 
@@ -60,12 +61,24 @@ describe("launchAssistantTurn", () => {
     await launchAssistantTurn(deps, { prompt: "rename parseArgs", permissionMode: null }, true);
 
     // Assert
-    deepStrictEqual(crews.launches[0].options, { onMain: true });
+    deepStrictEqual(crews.launches[0].options, { onMain: true, exclusive: true });
+  });
+
+  it("says a turn is running and the line was not sent when the host refuses a second turn", async () => {
+    // Arrange
+    const { crews, deps } = assistantLaunchSetup();
+    crews.launchFailure = new Error(TURN_RUNNING_ERROR);
+
+    // Act
+    const result = await launchAssistantTurn(deps, { prompt: "parle en français", permissionMode: null }, true);
+
+    // Assert
+    deepStrictEqual(result, { refused: TURN_RUNNING, message: TURN_RUNNING });
   });
 });
 
 describe("carryOutPlan", () => {
-  it("launches the request that carries the plan out, in the mode picked, on the main screen, with no state", async () => {
+  it("launches the request that carries the plan out, in the mode picked, on the main screen, exclusively, with no state", async () => {
     // Arrange
     const { crews, deps } = assistantLaunchSetup("plan");
 
@@ -74,7 +87,7 @@ describe("carryOutPlan", () => {
 
     // Assert
     const { input, options } = crews.launches[0];
-    deepStrictEqual([input.prompt, input.permissionMode, options], [CARRY_OUT_PLAN, "acceptEdits", { onMain: true }]);
+    deepStrictEqual([input.prompt, input.permissionMode, options], [CARRY_OUT_PLAN, "acceptEdits", { onMain: true, exclusive: true }]);
   });
 });
 

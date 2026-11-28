@@ -37,7 +37,8 @@ const launchDeps = (ctx: CommandRuntimeContext) => ({
 defineAsyncCommand({
   name: "assistant",
   description: "Ask the interactive coding agent to work on a request.",
-  maxConcurrent: 1,
+  // No instance quota: the turn is launched exclusively (Orkeon #239), so a line typed while one runs reaches the
+  // dispatch and is refused in this command's own words; a quota would refuse it before, in the runtime's.
   dispatch: async (args, ctx) => {
     // permissionMode is null when the prompt has no "mode:" prefix: launchMainLoop
     // then resolves the session's mode (/mode, else the fallback).

@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed — a line typed while a turn runs is refused in the assistant's own words
+
+- A line of `/assistant` typed while a turn runs was refused by the runtime's instance quota: `Rejected: quota of 1
+  instance(s) of 'assistant' reached.` The turn is now launched exclusively (Orkeon #239) and the command has no
+  quota: the refusal reads `a turn is running (t1): this line was not sent. Wait for its answer, or stop it with Esc
+  Esc, then type the line again.` The line is still not kept: a queue is asked of the runtime (Orkeon #502).
+  `/verify`, `/summary` and the speech commands still run beside a turn, as before.
+
 ### Fixed — the turn that carries a plan out keeps the session's language
 
 - The request of the turn launched by an approved plan is the program's, written in English: the model read it as
