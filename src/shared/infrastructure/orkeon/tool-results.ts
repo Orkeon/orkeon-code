@@ -70,6 +70,12 @@ export function entryNames(listing: any): string[] {
     String(pick(e, "name", "Name", "path", "Path") ?? e));
 }
 
+/** The sub-folders of a `directory_read` listing, by name: its `directories` (either case) alone. */
+export function folderNames(listing: any): string[] {
+  return asArray(pick(listing, "directories", "Directories")).map((e: any) =>
+    String(pick(e, "name", "Name", "path", "Path") ?? e));
+}
+
 /** A tool result as text: a string as it is; else the first string field among
  *  text, content and result (either case); else its JSON; nothing for no result. */
 export function resultText(raw: unknown): string {

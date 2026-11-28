@@ -7,7 +7,9 @@
 // `onWrite`, when set, is told of each write first, where a test traces it beside
 // other calls. `listings` holds what list() answers per directory, every folder
 // listed landing in `listed` and the most entries it asked for in `listLimits` (a
-// `listFailure` makes every list() throw it, `listErrors` the list() of one path); `mountTable`
+// `listFailure` makes every list() throw it, `listErrors` the list() of one path);
+// `folderListings` holds what folders() answers per directory, which lands in
+// `listed` and `listLimits` too and fails as list() does; `mountTable`
 // is what mounts() answers (a `mountsFailure` makes it throw, as a host without
 // list_mounts does).
 import type { Files, Mount } from "../../../src/shared/application/ports.ts";
@@ -18,6 +20,7 @@ export class FakeFiles implements Files {
   reads: string[] = [];
   writeErrors: Array<{ prefix: string; error: (path: string) => Error }> = [];
   listings = new Map<string, string[]>();
+  folderListings = new Map<string, string[]>();
   listed: string[] = [];
   listFailure: Error | null = null;
   listErrors = new Map<string, Error>();
@@ -51,6 +54,15 @@ export class FakeFiles implements Files {
     const error = this.listErrors.get(path);
     if (error) throw error;
     return (this.listings.get(path) ?? []).slice(0, maxEntries);
+  }
+
+  async folders(path: string, maxEntries: number): Promise<string[]> {
+    this.listed.push(path);
+    this.listLimits.push(maxEntries);
+    if (this.listFailure) throw this.listFailure;
+    const error = this.listErrors.get(path);
+    if (error) throw error;
+    return (this.folderListings.get(path) ?? []).slice(0, maxEntries);
   }
 
   async mounts(): Promise<Mount[]> {

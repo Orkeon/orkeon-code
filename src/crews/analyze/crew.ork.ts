@@ -13,12 +13,12 @@
 // (`language`: the session's `answer.language`, absent when unset; the synthesis is written in it.)
 
 import { CrewBuilder, publishCrew, inputs } from "../../shared/infrastructure/globals.ts";
-import { orkeonAgent, orkeonCodeIndex, orkeonProgress } from "../../shared/infrastructure/orkeon/wiring.ts";
+import { orkeonAgent, orkeonCodeIndex, orkeonFiles, orkeonProgress } from "../../shared/infrastructure/orkeon/wiring.ts";
 import { agentLlm } from "../../shared/infrastructure/orkeon/llm.ts";
 import { runAnalyze } from "./application/run-analyze.ts";
 import { ANALYST_GOAL, ANALYST_ROLE } from "./application/prompts.ts";
 
-const ports = { index: orkeonCodeIndex(), progress: orkeonProgress() };
+const ports = { index: orkeonCodeIndex(), files: orkeonFiles(), progress: orkeonProgress() };
 
 const analyst = orkeonAgent()
   .name("analyst")

@@ -106,6 +106,7 @@ function recordingWriter(files: Files): Files {
   return {
     read: (path, max) => files.read(path, max),
     list: (path, max) => files.list(path, max),
+    folders: (path, max) => files.folders(path, max),
     mounts: () => files.mounts(),
     write: async (path, content) => {
       try {

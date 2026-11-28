@@ -394,6 +394,9 @@ leurs droits, l'endroit où se résolvent les chemins relatifs.
   de concepts au plus, les plus gros d'abord.
 - Une ligne par groupe de dépendances et une par cycle.
 - Une ligne par paquet d'entrée.
+- Quand la récolte liste des dépôts (un checkout qui est un dossier de plusieurs), nomme le dépôt de chaque concept
+  et de chaque paquet d'entrée, et donne une ligne par dépendance entre dépôts avec les paquets qui la portent, ou
+  dit que la récolte n'en montre aucune.
 - Rédigée dans la langue `answer.language` de la session quand elle est réglée, y compris la mention qu'une partie
   n'est pas dans la récolte.
 

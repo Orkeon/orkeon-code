@@ -5,12 +5,14 @@
 // the harvest, and the synthesis agent has NO tools, so the model can only read
 // the harvest, never wander off into grep.
 
-import type { CodeIndex, Llm, Logger, Progress } from "../../../shared/application/ports.ts";
+import type { CodeIndex, Files, Llm, Logger, Progress } from "../../../shared/application/ports.ts";
 import { indexCacheNote, type PackageSummary } from "../../../shared/domain/code-intel-contract.ts";
 import {
   rankPackages, renderHarvest, selectPackages, buildSynthesisUser,
 } from "../domain/harvest.ts";
 import { SYNTHESIS_SYSTEM } from "../domain/prompts.ts";
+import { packageRepositories } from "../domain/repositories.ts";
+import { findRepositories } from "./find-repositories.ts";
 import {
   indexed, nothingIndexed, packagesNotRead, packagesNotSummarized, parallelIgnored, PHASE_INDEXING, PHASE_MAPPING,
   PHASE_SUMMARIZING, PHASE_SYNTHESIZING, PHASE_WALKING, PROGRESS_LABEL,
@@ -53,13 +55,15 @@ function readParallel(value: unknown): number | undefined {
 
 export interface AnalyzeDeps {
   index: CodeIndex;
+  /** Lists which top folders of the checkout are repositories, when the checkout is a folder of several. */
+  files: Pick<Files, "list" | "folders">;
   progress: Progress;
   llm: Pick<Llm, "act">;
   log: Logger;
 }
 
 export async function runAnalyze(input: AnalyzeInputs, deps: AnalyzeDeps): Promise<string> {
-  const { index, progress, llm, log } = deps;
+  const { index, files, progress, llm, log } = deps;
   const raw = input.raw === true || String(input.raw ?? "") === "true";
   const parallel = readParallel(input.parallel);
   const rebuild = input.rebuild === true || String(input.rebuild ?? "") === "true";
@@ -99,12 +103,19 @@ export async function runAnalyze(input: AnalyzeInputs, deps: AnalyzeDeps): Promi
     if (ranked.length > MAX_PACKAGES) {
       log.warn(packagesNotSummarized(ranked.length - MAX_PACKAGES, MAX_PACKAGES));
     }
-    const selected = new Set(selectPackages(ranked, scanned, MAX_PACKAGES));
+    // A folder of several repositories, found from its top folders apart from the packages read: each
+    // package goes to the one its code sits in, and each repository gets its share of the summaries. An
+    // ordinary checkout names no repository.
+    const repositoryFolders = await findRepositories(files, log);
+    const repositories = packageRepositories(scanned, repositoryFolders);
+    const selected = new Set(selectPackages(ranked, scanned, MAX_PACKAGES, repositories));
 
     const harvest = renderHarvest({
       packages: scanned.filter((p) => selected.has(p.fqn)),
       unsummarized: ranked.filter((p) => !selected.has(p.fqn)),
       scanned,
+      repositories,
+      repositoryFolders,
       moduleGraph,
       graphCap: GRAPH_NODES,
       mapCap: MAX_MAP_ENTRIES,

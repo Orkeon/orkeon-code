@@ -11,7 +11,7 @@ import { toRoot } from "../../domain/dev/path-rebase.ts";
 import { textToVirtual, toVirtual } from "../../domain/host-paths.ts";
 import type { HostLayout } from "../../domain/host-layout.ts";
 import { layoutOf } from "./host-context.ts";
-import { entryNames, fileContent, pick, withToolMessage } from "./tool-results.ts";
+import { entryNames, fileContent, folderNames, pick, withToolMessage } from "./tool-results.ts";
 
 /** The tool's own message (withToolMessage), its disk spellings brought back to the VFS. */
 async function withHostMessage<T>(layout: HostLayout, call: () => Promise<T>): Promise<T> {
@@ -43,6 +43,10 @@ export function createFiles(
       // DirectoryReadRequest.MaxResults, bound through the tools' snake_case naming
       // (as file_read's MaxLength is `max_length`); an unknown field is ignored.
       return entryNames(await tools.directoryRead({ path, max_results: maxEntries }));
+    },
+    async folders(logical, maxEntries) {
+      const path = await pathOf(logical);
+      return folderNames(await tools.directoryRead({ path, max_results: maxEntries }));
     },
     async mounts() {
       const list: any[] = pick(await tools.listMounts(), "mounts") ?? [];

@@ -104,6 +104,22 @@ describe("createFiles — write and list", () => {
     // Assert
     deepStrictEqual(names, ["a.ts", "b.ts"]);
   });
+
+  it("lists the sub-folders of a listing alone, capped by the tool's max_results", async () => {
+    // Arrange
+    const tools = new FakeTools();
+    tools.replies.directoryRead = {
+      files: [{ name: "README.md" }], directories: [{ name: "api" }, { name: "web" }],
+    };
+
+    // Act
+    const names = await createFiles(tools).folders(WORKSPACE, 40);
+
+    // Assert
+    deepStrictEqual({ names, input: tools.inputsOf("directoryRead") }, {
+      names: ["api", "web"], input: [{ path: WORKSPACE, max_results: 40 }],
+    });
+  });
 });
 
 describe("createFiles — mounts", () => {

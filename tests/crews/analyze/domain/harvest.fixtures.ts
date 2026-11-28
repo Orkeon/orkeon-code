@@ -99,26 +99,103 @@ export const DISPLAY_CASES: readonly { readonly name: string; readonly fqn: stri
   { name: "leaves a path that only starts like the checkout as it is", fqn: `${WORKSPACE}2/a.ts`, shown: `${WORKSPACE}2/a.ts` },
 ];
 
-/** A package read by package_summary: its dependencies by name, and whether it has an entry module. */
-export function readPackage(name: string, dependencies: string[] = [], entry = false): PackageSummary {
+/** A package read by package_summary: its dependencies by name, and its entry module — `true` a
+ *  `Program.cs`, which starts a process, a text the module's file name, none otherwise. */
+export function readPackage(name: string, dependencies: string[] = [], entry: boolean | string = false): PackageSummary {
+  const module = entry === true ? "Program.cs" : entry;
   return {
     fqn: `${WORKSPACE}::${name}`, name, files: 2, symbols: 4,
     dependencies: dependencies.map((d) => `${WORKSPACE}::${d}`),
-    entryPoints: entry ? [`${WORKSPACE}/src/${name}/Program.cs`] : [],
+    entryPoints: module === false ? [] : [`${WORKSPACE}/src/${name}/${module}`],
     exports: [],
   };
 }
 
 /** Core, the API over it, the CLI over both, a tool alone and the tests of Core and of the CLI, each but Core
- *  with an entry module: the entry packages are the CLI, whose tests depend on it, and the tool. */
+ *  with an index module: the entry packages are the CLI, whose tests depend on it, and the tool. */
 export const HOSTED: PackageSummary[] = [
   readPackage("Core"),
-  readPackage("Api", ["Core"], true),
-  readPackage("Cli", ["Core", "Api"], true),
-  readPackage("Tool", [], true),
-  readPackage("Core.Tests", ["Core"], true),
-  readPackage("Cli.Tests", ["Cli"], true),
+  readPackage("Api", ["Core"], "index.ts"),
+  readPackage("Cli", ["Core", "Api"], "index.ts"),
+  readPackage("Tool", [], "index.ts"),
+  readPackage("Core.Tests", ["Core"], "index.ts"),
+  readPackage("Cli.Tests", ["Cli"], "index.ts"),
 ];
+
+/** A domain, the API over it, the host and the migration service that start the API, and a gateway an SDK (a
+ *  library) is built on: the API stays an entry package under its two hosts, the gateway is a library's part. */
+export const HOSTS: PackageSummary[] = [
+  readPackage("Domain"),
+  readPackage("WebApi", ["Domain"], true),
+  readPackage("AppHost", ["WebApi"], true),
+  readPackage("Migrations", ["WebApi"], true),
+  readPackage("Gateway", [], true),
+  readPackage("Sdk", ["Gateway"]),
+  readPackage("WebApi.Tests", ["WebApi"], true),
+];
+
+/** The fqns of the entry packages of HOSTS. */
+export const HOSTS_ENTRIES = [`${WORKSPACE}::WebApi`, `${WORKSPACE}::AppHost`, `${WORKSPACE}::Migrations`];
+
+/** Entry modules, and whether a package holding each starts a process. */
+export const PROCESS_CASES: readonly { readonly name: string; readonly module: string; readonly starts: boolean }[] = [
+  { name: "a Program.cs starts a process", module: "Program.cs", starts: true },
+  { name: "a main.py starts a process", module: "main.py", starts: true },
+  { name: "a __main__.py starts a process", module: "__main__.py", starts: true },
+  { name: "a Main.java starts a process", module: "Main.java", starts: true },
+  { name: "an index.ts starts none", module: "index.ts", starts: false },
+  { name: "a maintenance.py starts none", module: "maintenance.py", starts: false },
+  { name: "a programs.ts starts none", module: "programs.ts", starts: false },
+];
+
+/** A large repository of ten packages, a loose package in no repository, then a small repository of three whose
+ *  last package is a host: the L1 ranking, the packages read and the repository of each. */
+export function rankedAcrossRepositories(): {
+  ranked: MapEntry[]; scanned: PackageSummary[]; repositories: Map<string, string>;
+} {
+  const big = Array.from({ length: 10 }, (_, i) => readPackage(`big${i}`));
+  const small = [readPackage("small0"), readPackage("small1"), readPackage("small2", [], true)];
+  const scanned = [...big, readPackage("loose"), ...small];
+  const ranked = scanned.map((p, i) => ({ fqn: p.fqn, name: p.name, kind: "package", children: scanned.length - i }));
+  const repositories = new Map([
+    ...big.map((p) => [p.fqn, "big"] as const), ...small.map((p) => [p.fqn, "small"] as const),
+  ]);
+  return { ranked, scanned, repositories };
+}
+
+/** Three repositories `a`, `b`, `c`, each with five libraries, the largest, and two hosts. Returns the hosts'
+ *  fqns too. */
+export function rankedAcrossThreeRepositories(): {
+  ranked: MapEntry[]; scanned: PackageSummary[]; repositories: Map<string, string>; hosts: string[];
+} {
+  const names = ["a", "b", "c"];
+  const libraries = names.flatMap((r) => Array.from({ length: 5 }, (_, i) => readPackage(`${r}.lib${i}`)));
+  const hosts = names.flatMap((r) => [readPackage(`${r}.host0`, [], true), readPackage(`${r}.host1`, [], true)]);
+  const scanned = [...libraries, ...hosts];
+  const ranked = scanned.map((p, i) => ({ fqn: p.fqn, name: p.name, kind: "package", children: scanned.length - i }));
+  const repositories = new Map(scanned.map((p) => [p.fqn, p.name.split(".")[0]] as const));
+  return { ranked, scanned, repositories, hosts: hosts.map((p) => p.fqn) };
+}
+
+/** The API and its tests in the repository `api`, the SDK and the models they take in `platform`, a script in no
+ *  repository: the API is summarized, the rest named. */
+export function harvestAcrossRepositories() {
+  const api = readPackage("Api", ["Platform.Sdk", "Platform.Models"], true);
+  const sdk = readPackage("Platform.Sdk", ["Platform.Models"]);
+  const models = readPackage("Platform.Models");
+  const script = { ...readPackage("convert"), exports: [`${WORKSPACE}/tools/convert.py::main`] };
+  const tests = readPackage("Api.Tests", ["Api", "Platform.Sdk"]);
+  const scanned = [api, sdk, models, script, tests];
+  return {
+    packages: [api],
+    unsummarized: [sdk, models, script, tests].map((p) => ({ fqn: p.fqn, name: p.name, kind: "package", children: 3 })),
+    scanned,
+    moduleGraph: MODULE_GRAPH, graphCap: 200, mapCap: 1000,
+    repositories: new Map([
+      [api.fqn, "api"], [tests.fqn, "api"], [sdk.fqn, "platform"], [models.fqn, "platform"],
+    ]),
+  };
+}
 
 /** The fqns of the entry packages of HOSTED. */
 export const HOSTED_ENTRIES = [`${WORKSPACE}::Cli`, `${WORKSPACE}::Tool`];

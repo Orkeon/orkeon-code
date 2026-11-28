@@ -359,6 +359,9 @@ Every system prompt below ends with the runtime's `## File system` section when 
   largest first.
 - A line per dependency group and one per cycle.
 - A line per entry package.
+- When the harvest lists repositories (a checkout that is a folder of several), names the repository of each concept
+  and of each entry package, and gives a line per dependency between repositories with the packages that carry it,
+  or says the harvest shows none.
 - Written in the session's `answer.language` when one is set, the note that a part is not in the harvest included.
 
 ## Advisor (`advisor`)

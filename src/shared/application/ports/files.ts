@@ -16,6 +16,9 @@ export interface Files {
   write(path: string, content: string): Promise<void>;
   /** The names of a directory's entries, files and directories, at most `maxEntries`. */
   list(path: string, maxEntries: number): Promise<string[]>;
+  /** The names of a directory's sub-folders alone, among the first `maxEntries` entries the runtime lists
+   *  (it counts the files first): a listing that tells a folder from a file. */
+  folders(path: string, maxEntries: number): Promise<string[]>;
   /** The VFS mounts. Throws when the host cannot list them. */
   mounts(): Promise<Mount[]>;
 }
