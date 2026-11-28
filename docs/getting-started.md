@@ -79,12 +79,12 @@ with the bash launcher ([WSL tutorial](wsl-tutorial.md)). On both, a path spelle
 model's calls and in what a command prints ([architecture](architecture.md#the-vfs-and-the-host-platform));
 under WSL a Windows program is reachable without confinement only, and still receives `/mnt/c/…` paths.
 
-- Orkeon Code is checked against Orkeon's sources at the commit in `.orkeon-version` (`9ca8530`, `main` after
-  Orkeon/orkeon#488, seven commits after Orkeon `1.4.0`, 2026-11-27): the [source mode](#source-mode-an-orkeon-checkout) runs that commit, the reference runtime.
+- Orkeon Code is checked against Orkeon's sources at the commit in `.orkeon-version` (`f1fe709`, `main` after
+  Orkeon/orkeon#496, nine commits after Orkeon `1.4.0`, 2026-11-28): the [source mode](#source-mode-an-orkeon-checkout) runs that commit, the reference runtime.
 - The [tool mode](#tool-mode-orkeon-repl-installed) (the Debian package on the apt `stable` channel, the release
   archives) runs Orkeon's last release, `1.4.0`, and the
   [docker mode](#docker-mode-nothing-to-install-but-docker) its image, `ghcr.io/orkeon/orkeon:latest`: both are
-  seven commits behind the pin at this writing, and lack what it adds: the `browser` tool (they have it under its
+  nine commits behind the pin at this writing, and lack what it adds: the `browser` tool (they have it under its
   former name `firefox`, which Orkeon Code no longer offers), the chat tools, and `--effort` on the `agent-cli`
   provider: `/status` says which runtime runs ([ADR 0013](adr/0013-pin-on-orkeon-commit.md)).
 - The typings are those of the pin ([Development](development.md#typings)).
@@ -93,7 +93,7 @@ The launcher picks the first available mode, in this order, unless `--mode` says
 
 ### Tool mode: `orkeon-repl` installed
 
-The REPL is `orkeon-repl` (`Orkeon.ConsoleApp`) of the last release, `1.4.0`, seven commits behind the pin at this writing (see above). The
+The REPL is `orkeon-repl` (`Orkeon.ConsoleApp`) of the last release, `1.4.0`, nine commits behind the pin at this writing (see above). The
 Debian package and the
 release archives carry it self-contained, with its own esbuild: no .NET to install.
 
@@ -158,9 +158,9 @@ whose `global.json` pins another SDK still works. It needs the .NET 10 SDK, the 
 The checkout should sit at the commit of `.orkeon-version`, the one the commands were checked against. The launcher
 moves it there itself when nothing of yours is in the way: no tracked file changed, on `main` or detached, and behind
 the pin (fetched from `origin main` when missing). It then says `orkeon-code: ORKEON_SOURCE moved from <sha7> to the pin
-9ca8530.` and the build restores the solution. Otherwise (a branch of your own, uncommitted work, commits ahead of the
+f1fe709.` and the build restores the solution. Otherwise (a branch of your own, uncommitted work, commits ahead of the
 pin, or `ORKEON_SOURCE_FOLLOW_PIN=0`) it leaves the checkout alone, warns (`orkeon-code: warning: ORKEON_SOURCE is at
-<sha7>, the pin of .orkeon-version is 9ca8530: the commands were checked against the pin.`) and runs anyway.
+<sha7>, the pin of .orkeon-version is f1fe709: the commands were checked against the pin.`) and runs anyway.
 
 ### No runtime on the machine: the one Orkeon Code downloads
 

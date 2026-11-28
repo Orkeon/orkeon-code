@@ -91,7 +91,9 @@ An option a provider cannot honour produces a warning, never a silent drop.
   rate).
 - Anthropic caches only what a request marks: every agent of Orkeon Code marks its system prompt and its tool
   definitions (`.cache({ systemPrompt: true, tools: true })`), a prefix its prompts keep identical turn after turn,
-  so from a session's second call `cacheRead` counts what Anthropic served from its cache. An agent whose profile,
+  so from a session's second call `cacheRead` counts what Anthropic served from its cache. With either marked, the
+  runtime marks the conversation too: in a tool loop each call reads what the previous one wrote and pays the full
+  rate for the new turns only, and a single call, which nothing would read back, writes no conversation. An agent whose profile,
   or the host's default model, runs on `agent-cli` marks nothing (the CLI caches by its own rules).
 - The agent's request wins over a host default `Llm:Cache`.
 
@@ -181,7 +183,7 @@ the file sets. A key linked to an identity refuses every call that does not name
 - A CLI that still runs on a key rather than its login is refused before it answers, and the call does not fall back
   (`Llm:AgentCli:RequireLogin`, `true`).
 - Before the first run: `claude` on the `PATH`, signed in once (`claude /login`).
-- Any mode but docker: Orkeon `1.4.0` carries the provider, and so does the pin, seven commits past it, so the tool
+- Any mode but docker: Orkeon `1.4.0` carries the provider, and so does the pin, nine commits past it, so the tool
   and source modes run it. The image
   has neither `claude` nor its login.
 - Every verb of `orkeon` takes these settings, `orkeon runs list` among them (Orkeon #472).
@@ -341,9 +343,10 @@ What the table leaves out:
 - The main-loop crew's own budget, written in its code (`src/crews/main-loop/domain/turn-budget.ts`): 200 tool
   calls, 700k context tokens, 8 spawned explorers and 30 minutes of wall time, which stops while a tool call waits
   for your answer.
-  - The context is counted once: each call charges its completion plus what its prompt grew by, or the
-    part of it the provider's cache did not serve, so a turn of n calls on a context of c tokens spends about c plus
-    its completions, never its whole context again at each call.
+  - The context is counted once: each call charges its completion plus the lesser of what its prompt grew by and
+    the part of it the provider's cache did not serve, so a turn of n calls on a context of c tokens spends about c
+    plus its completions, never its whole context again at each call, whether the cache served all of it, a part
+    or none.
   - That clock is Orkeon's and, like the engine's, it stops while the gate waits for your answer: only the model's
     own work counts, and a question left unanswered does not end the turn.
   - When the context tokens reach the limit the turn runs no further tool: the model makes one last call without

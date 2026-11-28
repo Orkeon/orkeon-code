@@ -220,8 +220,8 @@ declare global {
          */
         effort(level: AgentEffort): this;
         /**
-         * YAML parity `cache:` — asks the provider's prompt cache to keep the system prompt and/or the
-         * tool definitions. Only a provider whose cache is explicit (Anthropic) needs it; the others cache
+         * YAML parity `cache:` — asks the provider's prompt cache to keep the system prompt, the
+         * tool definitions and the conversation. Only a provider whose cache is explicit (Anthropic) needs it; the others cache
          * by their own rules and say so in their log when a `ttl` cannot be sent. Wins over the `cache` of
          * the `LlmConfig` given to `.llm(...)` and over the host default `Llm:Cache`; an object that marks
          * nothing cacheable (`cache({})`) turns caching off, the host default included. Applies to the
@@ -1189,11 +1189,11 @@ declare global {
         readonly tokens?: number;
         /**
          * The most tokens the run may spend with its context counted once (#224): each call's
-         * completion, plus the part of its prompt the provider's cache did not serve when the
-         * provider reports cache hits, else what the prompt grew by since the same conversation's previous call (each
-         * `ctx.llm.act` is its own conversation, its first call counting its whole prompt). A
-         * turn of n calls on a context of c tokens spends about c plus its completions, not n times
-         * c. A call whose provider reports no prompt and completion counts whole, as for `tokens`.
+         * completion, plus the lesser of the part of its prompt the provider's cache did not serve
+         * and what the prompt grew by since the same conversation's previous call (each
+         * `ctx.llm.act` is its own conversation, its first call counting its prompt less its cache
+         * hit). A turn of n calls on a context of c tokens spends about c plus its completions, not
+         * n times c. A call whose provider reports no prompt and completion counts whole, as for `tokens`.
          * Set alone, it leaves `tokens` uncapped; set both, the first spent ends the run. Its end is
          * that of `tokens`: `ctx.llm.act` wraps up with `budgetExhausted: true`, the error's
          * `dimension` is `"tokens"`, and its message starts the same, `Token budget exhausted: <n>
@@ -1637,8 +1637,15 @@ declare global {
         /** Marks the tool definitions cacheable — worth it for a large, stable catalogue. */
         tools?: boolean;
         /**
-         * Cache lifetime: `"5m"` (the vendor default) or `"1h"` (billed higher on write). Needs `systemPrompt`
-         * or `tools`; on its own it throws.
+         * Marks the conversation cacheable: in a tool loop each call reads what the previous one wrote and
+         * pays full price for the new turns only. Left out, it follows `systemPrompt` and `tools`: on when
+         * either is, placed once the messages hold an assistant turn, so a single call pays no write; `true`
+         * marks every call, `false` caches the stable prefix alone.
+         */
+        conversation?: boolean;
+        /**
+         * Cache lifetime: `"5m"` (the vendor default) or `"1h"` (billed higher on write). Needs `systemPrompt`,
+         * `tools` or `conversation`; on its own it throws.
          */
         ttl?: "5m" | "1h";
     }
@@ -4591,7 +4598,7 @@ declare global {
             readonly values?: Record<string, string>;
         }>;
 
-        /** `shell_command` - Runs a shell command in the working directory and returns its exit code, stdout and stderr, cut at 10 000 characters; a command the allowlist or blocklist refuses is not run. action run (default) waits up to timeout seconds; start_job starts it detached and returns a job_id, which job_status and job_tail read later in the same run. To read or search files, file_read, grep and glob cost less than cat and find. */
+        /** `shell_command` - Runs a shell command in the working directory and returns its exit code, stdout and stderr, each cut at 10 000 characters keeping its head and its tail around a marker that counts what was left out; a cut run says stdout_truncated or stderr_truncated, gives the lengths in stdout_total_chars and stderr_total_chars (characters; a middle the session dropped and output_path does not hold is counted in bytes), and writes the output to output_path (at most 8 MiB of each stream, the marker saying when it is not whole), which file_read reads; a command the allowlist or blocklist refuses is not run. git runs status, log, diff and show only, with the options the tool adds so that the repository's configuration runs no program (pager, hooks, fsmonitor, signature verification, filter and diff drivers, lazy fetch, submodules); a %G format placeholder is refused on the command line and neutralised from the configuration (pretty.<name>, format.pretty), and an option that would undo the tool's own, written in full or abbreviated (status -v included), is refused. action run (default) waits up to timeout seconds; start_job starts it detached and returns a job_id, which job_status and job_tail read later in the same run. To read or search files, file_read, grep and glob cost less than cat and find. */
         shellCommand(input: {
             /** run (default): run the command and wait; start_job: start it detached, output to a log file; job_status: running or exit code of a job; job_tail: last lines of a job's log */
             action?: "run" | "start_job" | "job_status" | "job_tail";
@@ -4612,7 +4619,11 @@ declare global {
             readonly output_path: string;
             readonly status: string;
             readonly stderr: string;
+            readonly stderr_total_chars: number;
+            readonly stderr_truncated: boolean;
             readonly stdout: string;
+            readonly stdout_total_chars: number;
+            readonly stdout_truncated: boolean;
             readonly tail: string;
         }>;
 
