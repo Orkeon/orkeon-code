@@ -9,8 +9,8 @@
 // and cannot await the state bag.
 //
 // A turn that ran in plan mode ends on the approval of its plan (_lib/session/plan-approval): approved, the
-// plan is carried out by a second turn, launched from `completed` in the mode picked. Every turn of the command is
-// an exclusive launch of main-loop, so the one note of the plan turn belongs to the turn that runs.
+// plan is carried out by a second turn, launched from `completed` in the mode picked. The command's quota
+// (`maxConcurrent: 1`) spans that second turn too, so the one note of the plan turn belongs to the turn that runs.
 //
 // The first free-text turn of a session carries what the session's start script
 // printed (Orkeon:Cli:Session:StartScript), at the head of the raw input alone: it is

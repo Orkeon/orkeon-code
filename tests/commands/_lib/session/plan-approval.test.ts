@@ -10,7 +10,7 @@ import {
 import { CARRY_OUT_PLAN } from "../../../../src/commands/_lib/session/prompts.ts";
 import { DEFAULT_MODE_STATE_KEY, PLAN_TURN_STATE_KEY } from "../../../../src/shared/domain/session-keys.ts";
 import {
-  APPROVALS, APPROVAL_TOLD, FAILURE, KEPT, MAIN_LOOP_RUNNING, NOTED, NOT_OFFERED, NO_ANSWER, REFUSALS, SUCCESS,
+  APPROVALS, APPROVAL_TOLD, FAILURE, KEPT, NOTED, NOT_OFFERED, NO_ANSWER, REFUSALS, SUCCESS,
   approvalSetup, assistantLaunchSetup,
 } from "./plan-approval.fixtures.ts";
 
@@ -45,10 +45,10 @@ describe("notePlanTurn", () => {
     store.writeStateFailure = new Error("state bag read-only");
 
     // Act
-    const note = await notePlanTurn(session, "plan");
+    const planTurn = await notePlanTurn(session, "plan");
 
     // Assert
-    strictEqual(note.planTurn, false);
+    strictEqual(planTurn, false);
   });
 });
 
@@ -66,7 +66,7 @@ describe("launchAssistantTurn", () => {
     });
   }
 
-  it("launches the turn exclusive, on the main screen", async () => {
+  it("launches the turn on the main screen, not exclusive", async () => {
     // Arrange
     const { crews, deps } = assistantLaunchSetup();
 
@@ -74,7 +74,7 @@ describe("launchAssistantTurn", () => {
     await launchAssistantTurn(deps, { prompt: "rename parseArgs", permissionMode: null }, true);
 
     // Assert
-    deepStrictEqual(crews.launches[0].options, { onMain: true, exclusive: true });
+    deepStrictEqual(crews.launches[0].options, { onMain: true });
   });
 
   it("still launches a plan turn, promised no approval, when the state bag cannot be written", async () => {
@@ -88,22 +88,10 @@ describe("launchAssistantTurn", () => {
     // Assert
     deepStrictEqual(crews.launches.map((l) => l.input.planApproval === true), [false]);
   });
-
-  it("puts the note back as it was when the launch is refused because another turn runs", async () => {
-    // Arrange
-    const { store, crews, deps } = assistantLaunchSetup();
-    crews.launchFailure = new Error(MAIN_LOOP_RUNNING);
-
-    // Act
-    await launchAssistantTurn(deps, { prompt: "rename parseArgs", permissionMode: "plan" }, true);
-
-    // Assert
-    strictEqual(store.state.get(PLAN_TURN_STATE_KEY) ?? undefined, undefined);
-  });
 });
 
 describe("carryOutPlan", () => {
-  it("launches the request that carries the plan out, in the mode picked, exclusive", async () => {
+  it("launches the request that carries the plan out, in the mode picked, on the main screen", async () => {
     // Arrange
     const { crews, deps } = assistantLaunchSetup("plan");
 
@@ -112,7 +100,7 @@ describe("carryOutPlan", () => {
 
     // Assert
     const { input, options } = crews.launches[0];
-    deepStrictEqual([input.prompt, input.permissionMode, options], [CARRY_OUT_PLAN, "acceptEdits", { onMain: true, exclusive: true }]);
+    deepStrictEqual([input.prompt, input.permissionMode, options], [CARRY_OUT_PLAN, "acceptEdits", { onMain: true }]);
   });
 });
 

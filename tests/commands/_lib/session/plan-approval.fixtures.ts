@@ -37,9 +37,6 @@ export function assistantLaunchSetup(mode?: string) {
   return { store, crews, deps };
 }
 
-/** What the host throws when main-loop's exclusive launch finds another one running. */
-export const MAIN_LOOP_RUNNING = "crew 'main-loop' already running (ticket t2)";
-
 export const SUCCESS = { success: true, payload: "1. Rename parseArgs in src/args.ts.\n2. Run the tests." };
 export const FAILURE = { success: false, payload: "" };
 

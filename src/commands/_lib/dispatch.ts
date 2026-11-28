@@ -184,15 +184,13 @@ export interface MainLoopLaunchDeps extends LaunchDeps {
  * /voice --go) rides along as it is. With voice.reply on, an epilogue has the crew read the
  * answer aloud with the speech server's speak, when the host registers it. The start
  * script's output (`sessionStart`, the first turn of a session) rides along too.
- * `planApproval` (/assistant, on a console with panels) tells a plan turn that its plan is approved after it, and
- * `exclusive` launches the turn with `{ exclusive: true }`: two such turns never run at once (/assistant's, whose
- * completion reads the one note of the plan turn), a second refused with the running ticket.
+ * `planApproval` (/assistant, on a console with panels) tells a plan turn that its plan is approved after it.
  */
 export async function launchMainLoop(
   deps: MainLoopLaunchDeps,
   input: {
     prompt: string; permissionMode: string | null; prelude?: PreludeCall; sessionStart?: StartOutput | null;
-    planApproval?: boolean; exclusive?: boolean;
+    planApproval?: boolean;
   },
 ): Promise<LaunchResult> {
   const { session, log } = deps;
@@ -244,7 +242,7 @@ export async function launchMainLoop(
       ...(epilogue ? { epilogue: epilogue.tool } : {}),
       ...(input.sessionStart ? { sessionStartLines: input.sessionStart.lines.length } : {}),
     },
-    input.exclusive === true ? { onMain: true, exclusive: true } : { onMain: true },
+    { onMain: true },
   );
 }
 
