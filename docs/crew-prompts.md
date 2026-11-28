@@ -349,6 +349,8 @@ Every system prompt below ends with the runtime's `## File system` section when 
 
 - The skill's `## Report` and the `/verify` request say that a failed check ends in a report with the quoted output.
 - A fix is a separate request, so the loop never edits code to make a step pass.
+- The `/verify` request is written by the program, in English: it says so and asks for the report in the language
+  of the conversation.
 
 ## Analysis (`analyze`)
 

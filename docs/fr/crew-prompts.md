@@ -384,6 +384,8 @@ leurs droits, l'endroit où se résolvent les chemins relatifs.
   rapport avec la sortie citée.
 - Une correction est une requête à part, si bien que la boucle ne modifie jamais le code pour faire passer une
   étape.
+- La requête de `/verify` est écrite par le programme, en anglais : elle le dit et demande le compte rendu dans la
+  langue de la conversation.
 
 ## Analyse (`analyze`)
 

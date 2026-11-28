@@ -10,9 +10,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Fixed — the turn that carries a plan out keeps the session's language
 
 - The request of the turn launched by an approved plan is the program's, written in English: the model read it as
-  the user's and answered in English a session held in another language. The request now says it is not the user's
-  words and asks for the language of the plan, in the report and in what is written
-  ([turn](docs/turn.md)).
+  the user's and answered in English a session held in another language. The request now says the program wrote
+  it and asks for the report in the language of the conversation, the files staying in the project's own writing
+  ([turn](docs/turn.md#the-main-loops-context-and-request)).
+- The request of `/verify`, the program's too, asks for its report in the language of the conversation.
 
 ### Changed — the pin moves to Orkeon `f4778e0` (#499)
 

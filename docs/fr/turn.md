@@ -332,9 +332,10 @@ est offerte :
   réponse, approuvé, soit exécuté maintenant et en entier ; dit que la session n'est plus en lecture seule, donc que
   les fichiers que le plan nomme sont écrits et ses commandes lancées ; et demande le compte rendu de ce qui a été fait
   et de ce qui a été vérifié. Le plan lui-même n'est pas répété : c'est la dernière réponse de l'historique. La
-  requête est écrite par le programme, en anglais : elle dit qu'elle n'est pas de la main de l'utilisateur et demande
-  la langue du plan, dans le compte rendu et dans ce qui est écrit, pour qu'une session tenue dans une autre langue
-  ne passe pas à l'anglais à son approbation.
+  requête est écrite par le programme, en anglais, et figure dans l'historique comme un message de l'utilisateur :
+  elle dit que l'utilisateur a approuvé le plan et que le programme a écrit la requête, demande le compte rendu dans
+  la langue de la conversation, pour qu'une session tenue dans une autre langue ne passe pas à l'anglais à son
+  approbation, et laisse les fichiers à l'écriture propre au projet.
 
 ### L'explorateur
 
