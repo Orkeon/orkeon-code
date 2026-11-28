@@ -197,7 +197,7 @@ celui de la section).
 - Une CLI qui tourne malgré tout sur une clé plutôt que sur sa connexion est refusée avant de répondre, et l'appel
   ne bascule pas (`Llm:AgentCli:RequireLogin`, `true`).
 - Avant le premier lancement : `claude` sur le `PATH`, connecté une fois (`claude /login`).
-- Tout mode sauf docker : Orkeon `1.4.0` porte le fournisseur, et l'épingle aussi, neuf commits plus loin, si bien
+- Tout mode sauf docker : Orkeon `1.4.0` porte le fournisseur, et l'épingle aussi, dix commits plus loin, si bien
   que les modes tool et source l'exécutent. L'image n'a ni `claude` ni sa connexion.
 - Chaque verbe d'`orkeon` accepte ces settings, `orkeon runs list` compris (Orkeon #472).
 - [`config/appsettings.agent-cli.example.json`](../../config/appsettings.agent-cli.example.json) est l'exemple :

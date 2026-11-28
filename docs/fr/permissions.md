@@ -53,26 +53,33 @@ le shell, puisque sa garde suit les règles allow de la session et qu'une règle
 une commande qui écrit. Les écritures du chat et les outils propres à Orkeon Code qui exécutent (`run_tests`,
 `run_build`) restent hors des deux modes.
 
-Une lecture du shell n'est pas tenue à l'espace de travail : voir
+Un appel du shell qui nomme un chemin hors de l'espace de travail n'est pas une lecture : voir
 [Portée hors de l'espace de travail](#portée-hors-de-lespace-de-travail).
 
 ### Les lectures du shell
 
 `shell_command` déclare une lecture pour un `run` (son action par défaut) d'une de ses commandes en lecture seule par
-défaut que ses propres contrôles acceptent : `ls`, `cat`, `pwd`, `which`, `grep`, `wc`, `echo`, `dir`, `type`,
-`where`, et `git` avec `status`, `log`, `diff` ou `show` et aucune option qui écrit ou lance un programme. Un appel
-`git` ne lit que là où l'hôte tient git en lecture seule, ce qui demande les deux conditions :
+défaut que ses propres contrôles acceptent, quand l'outil peut dire où la commande lit : `ls`, `cat`, `pwd`, `which`,
+`grep`, `wc`, `echo`, `dir`, `type`, `where`, et `git` avec `status`, `log`, `diff` ou `show` et aucune option qui
+écrit ou lance un programme. Où elle lit se règle de l'une de deux façons :
 
-- le git installé est en version 2.44 ou plus récente, assez récent pour que l'outil neutralise tout programme
-  qu'un dépôt configure ;
-- `Orkeon:Tools:Shell:AllowInterpreters` vaut `false`. Tout fichier de réglages d'exemple qui configure le shell le
-  met à `true` : avec eux, tout appel `git` exécute, et `plan` le refuse.
+- **Le shell est confiné** (`Orkeon:Tools:Shell:Confinement:Mode` à `Bubblewrap` ou `Seatbelt`, ou `Auto` hors d'un
+  conteneur) et sa vue accorde ce que les montages accordent : la commande ne voit rien d'autre de l'hôte, c'est
+  donc une lecture.
+- **Le shell n'est pas confiné** (`None`, la valeur des réglages d'exemple) : l'appel n'est une lecture que si chaque
+  mot de la commande se résout dans un montage qui accorde la lecture. Voir
+  [Portée hors de l'espace de travail](#portée-hors-de-lespace-de-travail) pour ce qui en fait une exécution.
+
+Un appel `git` n'est une lecture que dans un shell confiné, avec git 2.44 ou plus récent, assez récent pour que
+l'outil neutralise tout programme qu'un dépôt configure. Sans confinement, tout appel `git` exécute, quoi que dise
+`Orkeon:Tools:Shell:AllowInterpreters` : la configuration d'un dépôt peut faire lire git hors des montages. Avec les
+réglages d'exemple, `plan` refuse donc `git log` et `git diff`.
 
 Le modèle ne se voit pas promettre git en `plan` : il apprend que ces quatre ne passent que là où l'hôte tient git
 en lecture seule, et qu'un appel refusé n'est pas retenté. Tout autre appel exécute :
 
 - une commande ajoutée à la liste autorisée (`Orkeon:Tools:Shell` l'étend) ou celle d'une liste personnalisée ;
-- un interpréteur, et `git` lui-même dès que `Orkeon:Tools:Shell:AllowInterpreters` lève sa restriction ;
+- un interpréteur ;
 - une commande avec un opérateur du shell (`|`, `>`, `;`), ou une que l'outil refuserait ;
 - `start_job`, `job_status` et `job_tail`.
 
@@ -82,14 +89,23 @@ Les outils de fichiers lisent, listent et cherchent mieux que ces commandes : le
 
 ### Portée hors de l'espace de travail
 
-Le shell ne contrôle que les arguments qui nomment un montage de l'espace de travail, qu'il réécrit vers le chemin de
-l'hôte. Tout autre chemin va à la commande tel qu'il est écrit. Avec `Orkeon:Tools:Shell:Confinement:Mode` à `None`,
-la valeur des réglages d'exemple, une commande en lecture seule lit tout chemin que le compte de l'utilisateur peut
-lire (`cat /etc/hosts`, `ls ~`), alors que les outils de fichiers sont tenus aux montages. Une telle lecture est
-déclarée lecture : elle s'exécute sans question en `plan`, `default` et `acceptEdits`. Le confinement change cela :
-sous `Auto` (le défaut du runtime, qui revient à aucun confinement dans un conteneur), `Bubblewrap` ou `Seatbelt`, la
-commande voit les montages de l'espace de travail, avec leurs droits, et les répertoires système en lecture seule,
-rien d'autre de l'hôte. Rien dans les modes ni les règles d'Orkeon Code ne tient une lecture du shell à l'espace de travail.
+Une commande du shell en lecture seule n'est une lecture que dans les montages (Orkeon #497). Dans un shell sans
+confinement, un appel exécute, donc demande en `default` et `acceptEdits` et est refusé en `plan`, dès qu'un de ses
+mots :
+
+- nomme un chemin hors de tout montage, ou dans un montage qui n'accorde pas la lecture : `cat /etc/hosts`, `ls ~`,
+  `grep x ../../other` ;
+- sort du montage du répertoire de travail, ou passe `..` après un dossier nommé ou à travers un lien ;
+- demande à la commande de suivre les liens (`grep -R`, `ls -L`) ;
+- parcourt un dossier (`grep -r`, `ls -R`) dont un sous-chemin accorde moins que la lecture, un `.env` refusé par
+  exemple.
+
+Le contrôle lit chaque mot, un motif de `grep` compris : `grep -r /api/ src` demande, puisque `/api/` se lit comme un
+chemin hors des montages. Répondez à la question, ou passez par les outils de fichiers, qui cherchent sans elle.
+
+Sous confinement, la commande voit les montages de l'espace de travail, avec leurs droits, et les répertoires
+système en lecture seule, rien d'autre de l'hôte. `Auto`, le défaut du runtime, revient à aucun confinement dans un
+conteneur.
 
 ### Questions
 

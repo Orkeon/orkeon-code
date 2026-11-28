@@ -171,7 +171,7 @@ prompt as the model reads it, to review a change as a diff.
     `file_read` (a range for its end), never with `cat`, `tail` or `wc` through the shell.
   - In `plan`, which offers the shell for its reads alone, the line names what runs: a `run` of `ls`, `cat`, `pwd`,
     `which`, `grep`, `wc`, `echo`, `dir`, `type` or `where`, one command, no `|`, `>`, `;`. `git status`, `log`,
-    `diff`, `show` run only where the host keeps git read-only (git 2.44 or later, and interpreters not allowed); the
+    `diff`, `show` run only where the host keeps git read-only (a confined shell and git 2.44 or later); the
     line promises no git. Any other command and `start_job` are refused, and a refusal is not retried. The file
     tools read, list and search better, so the line says the shell adds little there beyond `which`. The
     allow-list line of the writing modes is left out. `dontAsk` offers no shell.
@@ -543,6 +543,9 @@ Code: `shared/domain/context-prune.ts`, `shared/application/compaction/prune-con
 - The decision model reads the act's prompt and each call (tool, input, size, age), never a result's content. Each
   result is kept, cut to its first 300 characters (`HeadChars`) or removed.
 - A pruned result leaves a line that says how to get it back.
+- On Anthropic, a pruned result changes the conversation behind the model's signed thinking: the runtime drops the
+  thinking of every later message, so the model reasons again without it, and the next call writes the cache again
+  from that result on (Orkeon #498). A pruning there trades cached reads for a smaller context.
 - Each act asks for its own pruning, the act a stop check asks for included.
 - The acts of the dev crews carry it too: the reviewer of `/dev-spec`, `/dev-change`, `/dev-plan` and of the next
   batch of `/dev-batches`, the test author and the implementer of `/dev-implement`, the auditor of `/dev-verify`.

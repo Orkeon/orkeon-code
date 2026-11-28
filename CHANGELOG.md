@@ -7,6 +7,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed — the pin moves to Orkeon `f4778e0` (#499)
+
+- The pin is Orkeon `main` after Orkeon #499, ten commits past `1.4.0`
+  ([ADR 0044](docs/adr/0044-orkeon-after-499.md)). It answers two issues opened from this project.
+- A turn on Anthropic with `compaction.prune` on no longer fails once a result is pruned (Orkeon #498): at the
+  previous pin the call after a pruning could end the turn on `Invalid signature in thinking block. The block is
+  bound to a different conversation`. The runtime now drops the thinking a rewrite invalidates. A pruning there
+  makes the next call write its cache again from the pruned result on ([turn](docs/turn.md#pruning-the-tool-loop)).
+- A read-only `shell_command` call is a read only inside the workspace's mounts (Orkeon #497). In a shell without
+  confinement, the value of the example settings, a call that names a path outside them (`cat /etc/hosts`, `ls ~`),
+  follows links or walks a folder holding a denied path asks in `default` and `acceptEdits` and is refused in
+  `plan`; it ran without a question at the previous pin. Every `git` call executes there, with interpreters allowed
+  or not; in a confined shell `git status`, `log`, `diff` and `show` are reads
+  ([Permissions](docs/permissions.md#reach-outside-the-workspace)).
+
 ### Added — `/analyze` over a folder of several repositories
 
 - When the checkout is no repository itself and two of its top folders at least are (each holds a `.git`), `/analyze`

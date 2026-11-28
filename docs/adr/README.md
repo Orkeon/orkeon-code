@@ -61,3 +61,4 @@ changes for Orkeon Code: what is adopted, what is set aside, what is removed.
 | [0041](0041-orkeon-after-488.md) | Orkeon main after #488: the thinking level reaches the subscription |
 | [0042](0042-route-review.md) | The routing after an adversarial review: a level refused, a ladder misread, a test pick, fallbacks by rung |
 | [0043](0043-orkeon-after-496.md) | Orkeon main after #496: the conversation of a tool loop cached, the context budget counted once, the shell's reads in `plan` |
+| [0044](0044-orkeon-after-499.md) | Orkeon main after #499: a shell read stays inside the mounts, a pruned conversation no longer fails Anthropic's thinking check |
