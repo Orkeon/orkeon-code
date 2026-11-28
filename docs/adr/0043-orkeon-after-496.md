@@ -1,4 +1,4 @@
-# ADR 0043: Orkeon main after #496, the conversation cached, a cut shell output read from its fields
+# ADR 0043: Orkeon main after #496, the conversation cached, the shell's reads in `plan`
 
 - **Status**: accepted
 - **Date**: 2026-11-28
@@ -43,11 +43,18 @@ The last release is still `1.4.0`, nine commits behind the pin.
 - **The budget of the main loop stays at 700k context tokens.** The figure was sized for a context counted once
   ([turn-budget.ts](../../src/crews/main-loop/domain/turn-budget.ts)); the runtime's count meets that reading on
   Anthropic as elsewhere.
-- **The read-only modes keep their catalogue.** `plan` and `dontAsk` offer no `shell_command` in this change. The
-  tool checks the paths of a command only where an argument names a mount: without confinement
-  (`Orkeon:Tools:Shell:Confinement:Mode` at `None`, the example settings' value), a read-only command reads any
-  file the user's account can read, where the file tools are held to the mounts. Offering the tool to `plan` is a
-  change of its own, with that reach stated.
+- **`plan` offers `shell_command`, for its reads; `dontAsk` does not.** In `plan` the gate reads no allow rule, so
+  the tool runs there what the runtime classes as a read and nothing else, and the promise of the mode holds: no
+  write, no request. In `dontAsk` an allow rule of the session holds, and with the tool in the catalogue a rule on
+  it would run a command that writes: the mode keeps its catalogue. The mode policy grants `plan` a class of its
+  own, apart from the `shell` class of the writing modes, which also carries the chat tools that write and the
+  script tools that execute. The text for the model promises no git, since the example settings make every git call
+  an execution, and says that the shell adds little to the file tools there.
+- **The reach of a shell read is documented, not narrowed.** The tool checks the paths of a command only where an
+  argument names a mount: without confinement (`Orkeon:Tools:Shell:Confinement:Mode` at `None`, the example
+  settings' value), a read-only command reads any file the user's account can read, where the file tools are held
+  to the mounts. [Permissions](../permissions.md) says so; no rule of this project can tell a path inside the
+  project from one outside it.
 - **A cut output is known from the result's fields.** The `Shell` port says when the runtime cut a stream and its
   true length, read from `stdout_truncated` and `stdout_total_chars`. The gate and the capture of `/dev-verify`,
   which the audit of `/dev-batches` runs, read that: the marker sits in the middle of the text, where a diff that
@@ -60,8 +67,10 @@ The last release is still `1.4.0`, nine commits behind the pin.
 - A tool loop on Anthropic pays its conversation at the cache-read rate from its second call, and its context
   budget charges about the context plus the completions. Neither was measured again on the turn that showed the
   defect.
-- In `default` and `acceptEdits` a `shell_command` run of a read-only command no longer waits for the user's answer:
-  `ls`, `cat`, `grep` and the others run as the file reads do. Without confinement that covers a path outside the
-  project. The operator's answer was the guard on these paths at the previous pin; it is raised with the runtime.
+- In `default` and `acceptEdits` a `shell_command` run of a read-only command no longer waits for the user's answer,
+  and `plan` runs it too: `ls`, `cat`, `grep` and the others run as the file reads do. Without confinement that
+  covers a path outside the project. The user's answer was the guard on these paths at the previous pin; it is
+  raised with the runtime, as is git under `AllowInterpreters`.
 - The tool and docker modes still run `1.4.0`, where every `shell_command` call is an execution and a cut output
-  ends on its notice: there the gate asks as before, and a cut output of a gate command is read as whole.
+  ends on its notice: there `plan` offers a tool whose every call the gate refuses, and a cut output of a gate
+  command is read as whole.

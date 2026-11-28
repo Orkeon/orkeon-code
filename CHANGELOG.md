@@ -100,6 +100,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   the conversation with them.
 - The context budget of a turn (700k tokens for the main loop) charges the context once on a partly cached prompt
   too. A long turn on Anthropic ended on its budget after about twenty calls.
+- A `shell_command` output the runtime cut keeps its head and its tail around a marker. The audit of `/dev-batches`
+  knows a cut `git diff` or file list from the result's `stdout_truncated` field, and names the file that holds the
+  whole output.
+- In `default` and `acceptEdits` a read-only shell command (`ls`, `cat`, `grep`, `wc`...) runs without a question, as
+  a file read does. Without shell confinement it reads any file your account can read
+  ([Permissions](docs/permissions.md)).
 
 ### Changed — the pin moves to Orkeon `main` `9ca8530`, the thinking level reaches the subscription
 
