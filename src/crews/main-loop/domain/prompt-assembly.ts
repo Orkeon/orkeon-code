@@ -68,14 +68,16 @@ const WEB_TOOLS: readonly string[] = ["web_search", ...NETWORK_READ_TOOLS];
 /**
  * What the offered tools can and cannot do. Conditional on the catalogue, like the
  * search playbook: a read-only mode is not told how to write, and the line about the
- * shell appears only where the shell is offered. Stable per mode, so the cache holds.
+ * shell appears only where the shell is offered, naming its reads where the mode offers it for them alone
+ * (`shellReadsOnly`, the caller's). Stable per mode, so the cache holds.
  */
-function describeToolRealities(tools: readonly string[], explorer: boolean): string {
+function describeToolRealities(tools: readonly string[], explorer: boolean, shellReadsOnly: boolean): string {
   return toolRealities({
     fileRead: tools.includes("file_read"),
     editFile: tools.includes("edit_file"),
     fileWrite: tools.includes("file_write"),
     shell: tools.includes("shell_command"),
+    shellReadsOnly,
     web: WEB_TOOLS.some((tool) => tools.includes(tool)),
     // spawn_agent is never in the catalogue: whether a spawn can reach the explorer is the caller's (explorerReachable).
     explorer,
@@ -96,11 +98,12 @@ function describeToolRealities(tools: readonly string[], explorer: boolean): str
  * index_codebase again "just in case". The last resort depends on the catalogue:
  * the shell where it is offered, a plain read where it is not.
  */
-function describeSearchPlaybook(tools: readonly string[]): string {
+function describeSearchPlaybook(tools: readonly string[], shellReadsOnly: boolean): string {
   return searchPlaybook({
     searchRouting: describeSearchRouting(tools),
     codeIntelRouting: describeCodeIntelRouting(tools),
     shell: tools.includes("shell_command"),
+    shellReadsOnly,
     ragIngest: tools.includes("rag_ingest"),
   });
 }
@@ -123,7 +126,11 @@ export function buildStaticHeader(opts: {
   /** The explorer can be spawned (explorerReachable of the mode and the rules): the header names it. Stable per
    *  session, as the mode and the rules are. */
   explorer?: boolean;
+  /** The mode offers `shell_command` for the calls it declares a read alone (permission.ts shellReadsOnly): the
+   *  shell's lines name those reads. Stable per mode. */
+  shellReadsOnly?: boolean;
 }): string {
+  const shellReadsOnly = opts.shellReadsOnly === true;
   // Sorted so a differently-ordered catalogue still yields the same bytes.
   const tools = [...opts.toolNames].sort();
   const parts = [
@@ -131,13 +138,13 @@ export function buildStaticHeader(opts: {
     FINISHING_BLOCK, ASKING_BLOCK, VERIFICATION_BLOCK, CARE_BLOCK, describeTrust([...tools, ...(opts.scriptTools ?? [])]),
   ];
   if (tools.length > 0) {
-    parts.push(toolsBlock(tools, describeToolRealities(tools, opts.explorer === true)));
+    parts.push(toolsBlock(tools, describeToolRealities(tools, opts.explorer === true, shellReadsOnly)));
   }
   // The playbook only makes sense when the search tools are actually granted
   // (plan/dontAsk keep them; a hypothetical catalogue without codebase_search
   // must not advertise it).
   if (tools.includes("codebase_search")) {
-    parts.push(describeSearchPlaybook(tools));
+    parts.push(describeSearchPlaybook(tools, shellReadsOnly));
   }
   const instructions = opts.instructions;
   if (instructions !== undefined && instructions.content.trim().length > 0) {

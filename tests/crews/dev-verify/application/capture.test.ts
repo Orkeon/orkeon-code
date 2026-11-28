@@ -10,7 +10,7 @@ import {
 import { MAX_SECTION_CHARS } from "../../../../src/crews/dev-verify/domain/capture-sections.ts";
 import { BUILD_TIMEOUT_SECONDS, writeCapture } from "../../../../src/crews/dev-verify/application/capture.ts";
 import {
-  BUILD, BUILD_LOG, CHANGED, CUT_NOTICE, DIFF_ADDING_LINE_4, DIFF_OF_40_000, DIR, FORTY_ONE_FILES, INDEX_HEAD,
+  BUILD, BUILD_LOG, CHANGED, CUT, CUT_DIFF, DIFF_ADDING_LINE_4, DIFF_OF_40_000, DIR, FORTY_ONE_FILES, INDEX_HEAD,
   PLAN_FOLDER_CHANGES, SECTION_FILES, SHEET, costIndexOf, fakes, gate, saveInALoop, target, written,
 } from "./capture.fixtures.ts";
 import { assertRan, assertWritesUnder, assertWritesWithin } from "./capture.assertions.ts";
@@ -172,29 +172,29 @@ describe("writeCapture", () => {
     ok(written(files, "changed-files.txt").includes("src/F40.cs → no diff captured (beyond the first 40 files)\n"));
   });
 
-  it("flags a diff the runtime cut, and keeps the diff without its notice", async () => {
+  it("flags a diff the runtime says it cut, with its true length and the file holding it", async () => {
     // Arrange
     const { files, shell } = fakes();
-    shell.results[gitDiffTracked("src/Order.cs") as string] = { stdout: `+a\n+b${CUT_NOTICE}` };
+    shell.results[gitDiffTracked("src/Order.cs") as string] = { stdout: CUT_DIFF, stdoutCut: CUT };
 
     // Act
     await writeCapture({ files, shell }, target(), gate(CHANGED), "w");
 
     // Assert
-    ok(written(files, "changed-files.txt").startsWith("src/Order.cs → diff-001.txt (2 lines) (cut by the runtime, 1234 characters omitted)\n"));
-    strictEqual(written(files, "diff-001.txt"), "# diff src/Order.cs (2 lines)\n+a\n+b");
+    ok(written(files, "changed-files.txt").startsWith("src/Order.cs → diff-001.txt (5 lines) (cut by the runtime: its head and " +
+      "its tail kept of 1240 characters, the output written to /output/jobs/d4.log)\n"));
   });
 
-  it("does not flag a long diff that carries no notice", async () => {
+  it("does not flag a diff that holds the marker's words when the runtime says it is whole", async () => {
     // Arrange
     const { files, shell } = fakes();
-    shell.results[gitDiffTracked("src/Order.cs") as string] = { stdout: "d".repeat(10_000) };
+    shell.results[gitDiffTracked("src/Order.cs") as string] = { stdout: CUT_DIFF };
 
     // Act
     await writeCapture({ files, shell }, target(), gate(CHANGED), "w");
 
     // Assert
-    ok(written(files, "changed-files.txt").startsWith("src/Order.cs → diff-001.txt (1 lines)\n"));
+    ok(written(files, "changed-files.txt").startsWith("src/Order.cs → diff-001.txt (5 lines)\n"));
   });
 
   it("writes a failed section as not captured, and the row that depends on it not checked", async () => {

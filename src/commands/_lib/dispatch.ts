@@ -100,6 +100,8 @@ export interface CrewCompletion {
   payload?: string;
   error?: string;
   streamed?: boolean;
+  /** The value the launch attached (`CrewLaunchOptions.state`), handed back to its own completion; absent when none. */
+  state?: unknown;
 }
 
 /** What a launch hands back to the runtime: the ticket, or the refusal of a hop past MaxChainDepth or of a crew
@@ -184,13 +186,21 @@ export interface MainLoopLaunchDeps extends LaunchDeps {
  * /voice --go) rides along as it is. With voice.reply on, an epilogue has the crew read the
  * answer aloud with the speech server's speak, when the host registers it. The start
  * script's output (`sessionStart`, the first turn of a session) rides along too.
+ * `planApproval` (/assistant, on a console with panels) tells a plan turn that its plan is approved after it;
+ * `state`, when given, is attached to the launch and handed back to its own completion. `sessionMode`, the session's
+ * mode a caller already resolved, is used for a prompt without a prefix instead of resolving it again.
  */
 export async function launchMainLoop(
   deps: MainLoopLaunchDeps,
-  input: { prompt: string; permissionMode: string | null; prelude?: PreludeCall; sessionStart?: StartOutput | null },
+  input: {
+    prompt: string; permissionMode: string | null; prelude?: PreludeCall; sessionStart?: StartOutput | null;
+    planApproval?: boolean; state?: unknown; sessionMode?: { mode: string; via: string };
+  },
 ): Promise<LaunchResult> {
   const { session, log } = deps;
-  const resolved = input.permissionMode === null ? await session.resolveEffectiveSessionMode() : null;
+  const resolved = input.permissionMode === null
+    ? input.sessionMode ?? await session.resolveEffectiveSessionMode()
+    : null;
   const permissionMode = resolved ? resolved.mode : input.permissionMode;
 
   const extras = await resolveExtraTools(deps);
@@ -227,16 +237,18 @@ export async function launchMainLoop(
       ...(input.prelude ? { prelude: input.prelude } : {}),
       ...(epilogue ? { epilogue } : {}),
       ...(input.sessionStart ? { sessionStart: input.sessionStart } : {}),
+      ...(input.planApproval === true ? { planApproval: true } : {}),
     },
     {
       permissionMode, permissionRules: sync.rules.length, extraTools: extras.present.length,
+      ...(input.planApproval === true ? { planApproval: true } : {}),
       ...(families.chat ? { chatTools: true } : {}),
       ...(agents.profile !== null ? { [AGENTS_PROFILE_INPUT_KEY]: agents.profile } : {}),
       ...(input.prelude ? { prelude: input.prelude.tool } : {}),
       ...(epilogue ? { epilogue: epilogue.tool } : {}),
       ...(input.sessionStart ? { sessionStartLines: input.sessionStart.lines.length } : {}),
     },
-    { onMain: true },
+    { onMain: true, ...(input.state !== undefined ? { state: input.state } : {}) },
   );
 }
 

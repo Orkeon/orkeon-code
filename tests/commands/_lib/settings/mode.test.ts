@@ -8,7 +8,7 @@ import { runMode, togglePlanMode } from "../../../../src/commands/_lib/settings/
 import { PERMISSION_MODES, resolveFallbackMode } from "../../../../src/shared/domain/permission-modes.ts";
 import { DEFAULT_MODE_STATE_KEY } from "../../../../src/shared/domain/session-keys.ts";
 import { FakeChooser } from "../../../support/doubles/fake-chooser.ts";
-import { LEAVING_PLAN, MODE_USAGE, modeDeps, NOT_PLAN, PLAN_OFF, PLAN_ON, SET_NOTE, STRIPPED } from "./mode.fixtures.ts";
+import { LEAVING_PLAN, MODE_USAGE, modeDeps, NOT_PLAN, PLAN_OFF, PLAN_ON, SET_NOTE, STRIPPED, STRIPPED_PLAN } from "./mode.fixtures.ts";
 import { assertPlanToggled } from "./mode.assertions.ts";
 
 describe("/mode (bare) with a panel", () => {
@@ -125,7 +125,7 @@ describe("/mode (bare) — cycles", () => {
 
     // Assert
     deepStrictEqual(view, { text: `session default permission mode cycled acceptEdits → 'plan' ${SET_NOTE}` });
-    deepStrictEqual(log.lines, [STRIPPED("plan")]);
+    deepStrictEqual(log.lines, [STRIPPED_PLAN]);
   });
 });
 
@@ -253,7 +253,7 @@ describe("/plan — runMode typed by its alias", () => {
     const view = await runMode([], { session, log }, "plan");
 
     // Assert
-    assertPlanToggled(view, store.state.get(DEFAULT_MODE_STATE_KEY), log.lines, { text: PLAN_ON, mode: "plan", logLines: [STRIPPED("plan")] });
+    assertPlanToggled(view, store.state.get(DEFAULT_MODE_STATE_KEY), log.lines, { text: PLAN_ON, mode: "plan", logLines: [STRIPPED_PLAN] });
   });
 
   it("leaves plan for 'default', logging the way back", async () => {

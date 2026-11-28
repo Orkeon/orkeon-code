@@ -96,3 +96,31 @@ export const settingNotKept = (setting: string, value: string): string =>
   `⚠ ${setting} ${value} could not be written back: the session is on its default.`;
 export const settingUnread = (setting: string): string =>
   `⚠ ${setting} could not be read before the reset: the session is on its default.`;
+
+// The approval of a plan
+
+/** The question a plan turn ends on. */
+export const PLAN_APPROVAL = "Carry out this plan?";
+
+/** The answers, as the user reads them; plan-approval.ts gives each its value. */
+export const APPROVE_ACCEPTING_EDITS = {
+  label: "Yes, and accept edits", description: "file edits run without a question, the rest asks",
+};
+export const APPROVE_ASKING_EACH_EDIT = {
+  label: "Yes, and ask before each edit", description: "every edit and every command asks",
+};
+export const KEEP_PLANNING_ANSWER = {
+  label: "No, keep planning", description: "nothing changes; say what the plan should change",
+};
+
+export const PLAN_KEPT = "plan kept as it is: nothing changed. Say what it should change, or /plan to leave plan mode.";
+
+export const PLAN_NOT_OFFERED =
+  "plan mode: nothing changed. To carry the plan out, leave plan mode (/plan, or /mode acceptEdits) and ask for it.";
+
+export const planApproved = (mode: string): string => `plan approved: carrying it out in '${mode}'.`;
+
+export const planNotCarriedOut = (mode: string): string => `plan not carried out: the session stays in '${mode}'.`;
+
+export const planModeNotKept = (mode: string): string =>
+  `⚠ the session's mode could not be set to '${mode}': it stays in 'plan'; this turn runs in '${mode}' all the same.`;

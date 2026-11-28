@@ -2,8 +2,8 @@
 // clock stops while a tool call waits for the operator's answer (Orkeon #127; the
 // engine's ExecutionTimeout pauses the same way). 30 minutes, the example settings'
 // ExecutionTimeout too, bound a long interactive turn. The context tokens count the
-// context once (Orkeon #224): each call charges its completion plus what its prompt grew
-// by, or the part the provider's cache did not serve, never the whole context again, so
+// context once (Orkeon #224, #495): each call charges its completion plus the lesser of what its prompt grew
+// by and the part the provider's cache did not serve, never the whole context again, so
 // a turn of n calls on a context of c tokens spends about c plus its completions. 700k is
 // 200 calls of 3 500 (TOKENS_PER_CALL, the growth a tool call adds), the dev steps' rule.
 //

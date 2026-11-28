@@ -12,6 +12,9 @@ export interface CrewLaunchOptions {
   exclusive?: boolean;
   /** The crew is the conversation: its text, calls and approvals land on the console's main screen, with no row in its list of tasks. */
   onMain?: boolean;
+  /** A JSON value (16 KiB at most) handed back to this launch's own `completed` as `result.state`; a launch chained
+   *  from a `completed` carries the state it is given, never its parent's. */
+  state?: unknown;
 }
 
 /** The crews the host can run, by name. */

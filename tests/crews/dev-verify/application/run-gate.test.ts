@@ -7,7 +7,7 @@ import { deepStrictEqual, ok, strictEqual } from "node:assert";
 import { FakeShell } from "../../../support/doubles/fake-shell.ts";
 import { gateRoots, runGate } from "../../../../src/crews/dev-verify/application/run-gate.ts";
 import {
-  CUT_LINE, CUT_NOTICE, RECORDED_TARGET, SHEET, TRAIT_GREP, UNTRACKED, fakes, fakesWithNotes, filesOf, gitOutputs,
+  CUT, CUT_LINE, CUT_STDOUT, RECORDED_TARGET, SHEET, TRAIT_GREP, UNTRACKED, fakes, fakesWithNotes, filesOf, gitOutputs,
   harnessBlocks, pack, scenarios, target,
 } from "./run-gate.fixtures.ts";
 import { WORKSPACE } from "../../../../src/shared/domain/vfs.ts";
@@ -132,10 +132,10 @@ describe("runGate", () => {
     deepStrictEqual(out, { ok: false, error: `the gate could not run '${UNTRACKED}': exit 128 (fatal: not a git repository)` });
   });
 
-  it("fails the gate when the runtime cut a git output, and does not take the notice for a path", async () => {
+  it("fails the gate when the runtime says it cut a git output", async () => {
     // Arrange
     const { files, shell } = fakes();
-    shell.results["git diff --name-only HEAD"] = { stdout: `src/a.ts\nsrc/b.ts${CUT_NOTICE}` };
+    shell.results["git diff --name-only HEAD"] = { stdout: CUT_STDOUT, stdoutCut: CUT };
 
     // Act
     const out = await runGate({ files, shell }, target());
@@ -143,17 +143,15 @@ describe("runGate", () => {
     // Assert
     strictEqual(out.ok, true);
     if (!out.ok) return;
-    strictEqual(out.run.changedFiles.some((f) => f === "" || f.includes("truncated")), false);
-    strictEqual(out.run.changedFiles.includes("src/b.ts"), true);
     strictEqual(out.run.report.green, false);
     strictEqual(out.run.report.lines.at(-2), CUT_LINE);
     strictEqual(out.run.report.lines.at(-1), "GATE — batch F2: RED — fix and run again, no audit before");
   });
 
-  it("does not fail the gate on a long git output that carries no notice", async () => {
+  it("does not fail the gate on a git output that holds the marker's words when the runtime says it is whole", async () => {
     // Arrange
     const { files, shell } = fakes();
-    shell.results["git diff --name-only HEAD"] = { stdout: "src/x.ts".repeat(1_250) };
+    shell.results["git diff --name-only HEAD"] = { stdout: CUT_STDOUT };
 
     // Act
     const out = await runGate({ files, shell }, target());
