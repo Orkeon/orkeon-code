@@ -115,13 +115,15 @@ export type LaunchResult = { ticket: string } | { refused: string; message: stri
  *  with the line saying so, as does a crew launched with `{ exclusive: true }` while its
  *  previous launch runs (Orkeon #239, shared/domain/agents/exclusive.ts, `crew '<name>'
  *  already running (ticket <t>)`); any other failure throws. A driver relaunching its own
- *  work passes `{ chain: "continue" }` as `options` (Orkeon #221) and keeps the parent's depth. */
+ *  work passes `{ chain: "continue" }` as `options` (Orkeon #221) and keeps the parent's depth.
+ *  `busyLine`, when given, words the refusal of a crew already running in the caller's own terms. */
 export function launchCrew(
   deps: LaunchDeps,
   crew: string,
   input: Record<string, unknown> = {},
   details: Record<string, unknown> = {},
   options?: CrewLaunchOptions,
+  busyLine?: (ticket: string) => string,
 ): LaunchResult {
   const profile = deps.llmProfile ?? null;
   if (profile !== null) {
@@ -139,7 +141,7 @@ export function launchCrew(
   } catch (error) {
     const busy = exclusiveRefusal(error);
     if (busy !== null) {
-      const line = exclusiveLine(busy);
+      const line = busyLine === undefined ? exclusiveLine(busy) : busyLine(busy.ticket);
       deps.log.info(line, { ...busy, ...details });
       return { refused: line, message: line };
     }
@@ -189,12 +191,15 @@ export interface MainLoopLaunchDeps extends LaunchDeps {
  * `planApproval` (/assistant, on a console with panels) tells a plan turn that its plan is approved after it;
  * `state`, when given, is attached to the launch and handed back to its own completion. `sessionMode`, the session's
  * mode a caller already resolved, is used for a prompt without a prefix instead of resolving it again.
+ * `exclusive` launches the turn exclusively (Orkeon #239): refused while another exclusive turn runs, in the words
+ * of `busyLine` when given. A launch without it is neither refused nor counted (`/verify` beside a turn).
  */
 export async function launchMainLoop(
   deps: MainLoopLaunchDeps,
   input: {
     prompt: string; permissionMode: string | null; prelude?: PreludeCall; sessionStart?: StartOutput | null;
     planApproval?: boolean; state?: unknown; sessionMode?: { mode: string; via: string };
+    exclusive?: boolean; busyLine?: (ticket: string) => string;
   },
 ): Promise<LaunchResult> {
   const { session, log } = deps;
@@ -248,7 +253,11 @@ export async function launchMainLoop(
       ...(epilogue ? { epilogue: epilogue.tool } : {}),
       ...(input.sessionStart ? { sessionStartLines: input.sessionStart.lines.length } : {}),
     },
-    { onMain: true, ...(input.state !== undefined ? { state: input.state } : {}) },
+    {
+      onMain: true, ...(input.exclusive === true ? { exclusive: true } : {}),
+      ...(input.state !== undefined ? { state: input.state } : {}),
+    },
+    input.busyLine,
   );
 }
 

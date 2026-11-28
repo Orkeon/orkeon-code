@@ -14,7 +14,7 @@ import { launchMainLoop } from "../dispatch.ts";
 import type { StartOutput } from "../../../shared/domain/session-start.ts";
 import {
   APPROVE_ACCEPTING_EDITS, APPROVE_ASKING_EACH_EDIT, KEEP_PLANNING_ANSWER, PLAN_APPROVAL, PLAN_KEPT, PLAN_NOT_OFFERED,
-  planApproved, planModeNotKept, planNotCarriedOut,
+  planApproved, planModeNotKept, planNotCarriedOut, turnRunning,
 } from "./messages.ts";
 import { CARRY_OUT_PLAN } from "./prompts.ts";
 
@@ -53,7 +53,8 @@ export type PlanApprovalDeps = AssistantLaunchDeps & {
 };
 
 /** A turn of /assistant: its mode is its prefix, else the session's, resolved here once and handed to the launch.
- *  A plan turn attaches the plan turn's state and is told of the approval when the console can ask it. */
+ *  A plan turn attaches the plan turn's state and is told of the approval when the console can ask it. The launch
+ *  is exclusive: a line typed while a turn runs is refused, with a line that says it was not sent. */
 export async function launchAssistantTurn(
   deps: AssistantLaunchDeps,
   input: { prompt: string; permissionMode: string | null; sessionStart?: StartOutput | null },
@@ -63,13 +64,14 @@ export async function launchAssistantTurn(
   const planTurn = (sessionMode?.mode ?? input.permissionMode) === PLAN_MODE;
   return launchMainLoop(deps, {
     ...input, ...(sessionMode ? { sessionMode } : {}), planApproval: planTurn && interactive,
-    ...(planTurn ? { state: PLAN_TURN_STATE } : {}),
+    ...(planTurn ? { state: PLAN_TURN_STATE } : {}), exclusive: true, busyLine: turnRunning,
   });
 }
 
-/** The turn that carries an approved plan out, in the mode picked, with no state: its completion asks nothing. */
+/** The turn that carries an approved plan out, in the mode picked, with no state: its completion asks nothing.
+ *  Exclusive as any turn of /assistant: a line typed while the plan is carried out is refused. */
 export function carryOutPlan(deps: AssistantLaunchDeps, mode: string): Promise<LaunchResult> {
-  return launchMainLoop(deps, { prompt: CARRY_OUT_PLAN, permissionMode: mode });
+  return launchMainLoop(deps, { prompt: CARRY_OUT_PLAN, permissionMode: mode, exclusive: true, busyLine: turnRunning });
 }
 
 /** After a turn, what the user reads: nothing unless its launch's state says plan turn and the turn succeeded with

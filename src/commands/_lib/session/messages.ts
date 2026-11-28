@@ -122,5 +122,9 @@ export const planApproved = (mode: string): string => `plan approved: carrying i
 
 export const planNotCarriedOut = (mode: string): string => `plan not carried out: the session stays in '${mode}'.`;
 
+/** The refusal of a line of /assistant typed while a turn runs. */
+export const turnRunning = (ticket: string): string =>
+  `a turn is running (${ticket}): this line was not sent. Wait for its answer, or stop it with Esc Esc, then type the line again.`;
+
 export const planModeNotKept = (mode: string): string =>
   `⚠ the session's mode could not be set to '${mode}': it stays in 'plan'; this turn runs in '${mode}' all the same.`;

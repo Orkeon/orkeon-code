@@ -250,8 +250,8 @@ du catalogue.
   aussi, et le tour s'exécute quand même dans le mode choisi. `No, keep planning`, ou Échap, ne change
   rien : le message suivant dit ce que le plan doit changer. Un tour échoué ou sans réponse ne pose pas la question.
   Une console sans panneaux ne la pose pas non plus et affiche comment quitter le mode plan. Pendant que le plan est
-  exécuté, une nouvelle ligne de `/assistant` est refusée par la limite de concurrence de la commande, comme pendant
-  tout tour. Le plan est la réponse du
+  exécuté, une nouvelle ligne de `/assistant` est refusée, comme pendant tout tour : un tour est lancé en exclusivité,
+  et le refus dit qu'un tour est en cours, que la ligne n'a pas été envoyée et que `Esc Esc` arrête le tour. Le plan est la réponse du
   tour, gardée dans la conversation, pas un fichier.
 - **Repli** : sans l'un ni l'autre, le mode est `default`, ou celui que fixe
   `/config set permissions.fallback <mode>` (`--session` le garde pour la seule session). Chaque tour qui utilise le

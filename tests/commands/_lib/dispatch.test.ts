@@ -157,6 +157,17 @@ describe("launchCrew", () => {
     deepStrictEqual(logged[0].data, { crew: "code-review", ticket: "t2", lens: "security" });
   });
 
+  it("words the refusal of a crew already running as the caller asks", () => {
+    // Arrange
+    const { deps } = crewDeps(EXCLUSIVE_ERROR);
+
+    // Act
+    const result = launchCrew(deps, "code-review", {}, {}, { exclusive: true }, (ticket) => `busy on ${ticket}`);
+
+    // Assert
+    deepStrictEqual(result, { refused: "busy on t2", message: "busy on t2" });
+  });
+
   it("lets any other launch failure throw", () => {
     // Arrange
     const { deps } = crewDeps("crew not found");
@@ -405,6 +416,17 @@ describe("launchMainLoop — agents.profile", () => {
 });
 
 describe("launchMainLoop", () => {
+  it("launches the turn exclusively when asked", async () => {
+    // Arrange
+    const { crews, deps } = mainLoopDeps();
+
+    // Act
+    await launchMainLoop(deps, { prompt: "fix it", permissionMode: "default", exclusive: true });
+
+    // Assert
+    deepStrictEqual(crews.launches[0].options, { onMain: true, exclusive: true });
+  });
+
   for (const c of CHAT_LAUNCH_CASES) {
     it(c.name, async () => {
       // Arrange
