@@ -3,9 +3,8 @@
 // the last test run, the test classes - then the mechanical table and the index. Each
 // file stays readable whole by the auditor. A section the shell cannot produce says so;
 // only a failed write stops the capture.
-import type { CostIndex, Files, Shell } from "../../../shared/application/ports.ts";
+import type { CostIndex, Files, Shell, ShellResult } from "../../../shared/application/ports.ts";
 import { firstLine, stdoutLines } from "../domain/text.ts";
-import { runtimeCut } from "../domain/runtime-cut.ts";
 import { addedLines, costSection } from "../../../shared/domain/dev/access-cost.ts";
 import type { AccessCost } from "../../../shared/domain/dev/access-cost.ts";
 import { measureAccessCost } from "../../../shared/application/dev/measure-access-cost.ts";
@@ -114,23 +113,23 @@ async function diffs(deps: Deps, target: DevVerifyTarget, gate: GateRun): Promis
     if (i >= MAX_DIFF_FILES) { entries.push({ path, line: diffBeyondFirst(path, MAX_DIFF_FILES), added: null }); continue; }
     const command = gate.untrackedFiles.includes(path) ? gitDiffUntracked(path) : gitDiffTracked(path);
     if (command === null) { entries.push({ path, line: diffQuoteInPath(path), added: null }); continue; }
-    let raw: string;
+    let ran: ShellResult;
     try {
-      raw = (await deps.shell.run(command)).stdout;
+      ran = await deps.shell.run(command);
     } catch (error) {
       entries.push({ path, line: noDiffCaptured(path, command, errorLine(error)), added: null });
       continue;
     }
-    const { kept: stdout, omitted } = runtimeCut(raw);
+    const { stdout, stdoutCut } = ran;
     const base = diffBase(i + 1);
     const lines = lineCount(stdout);
-    const doubt = omitted > 0 ? cutByRuntime(omitted) : "";
+    const doubt = stdoutCut === undefined ? "" : cutByRuntime(stdoutCut.totalChars, stdoutCut.outputPath);
     entries.push({
       path, base,
       line: `${path} → ${base}.txt (${lines} lines)${doubt}`,
       content: `# diff ${path} (${lines} lines)\n${stdout}`,
       // An empty diff adds nothing; a diff without a hunk (a colour or an external diff) is not known.
-      added: omitted > 0 ? null : stdout.trim() === "" ? new Set<number>() : addedLines(stdout),
+      added: stdoutCut !== undefined ? null : stdout.trim() === "" ? new Set<number>() : addedLines(stdout),
     });
   }
   return entries;

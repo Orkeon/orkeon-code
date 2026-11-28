@@ -35,6 +35,16 @@ export function shCode(r: any): number {
   return Number(pick(r, "exit_code", "exitCode", "ExitCode") ?? -1);
 }
 
+/** What a shell_command result says of a stream it cut (`stdout_truncated`, `stdout_total_chars`, `output_path`,
+ *  any casing); null when the result says the stream is whole. An empty output_path is none. */
+export function shCut(r: any, stream: "stdout" | "stderr"): { totalChars: number; outputPath?: string } | null {
+  const Stream = stream === "stdout" ? "Stdout" : "Stderr";
+  if (pick(r, `${stream}_truncated`, `${stream}Truncated`, `${Stream}Truncated`) !== true) return null;
+  const totalChars = Number(pick(r, `${stream}_total_chars`, `${stream}TotalChars`, `${Stream}TotalChars`) ?? 0);
+  const outputPath = String(pick(r, "output_path", "outputPath", "OutputPath") ?? "");
+  return outputPath === "" ? { totalChars } : { totalChars, outputPath };
+}
+
 /** `content` / `text` of a file_read result (snake or Pascal), as a string; a
  *  result that is itself a string is the content. */
 export function fileContent(r: any): string {

@@ -28,3 +28,37 @@ export const COMPLETED_REPLIES: readonly CompletedCase[] = [
   { name: "adds no timedOut key when completed is true", reply: { stdout: "", exit_code: 0, completed: true } },
   { name: "adds no timedOut key when completed is absent", reply: { stdout: "", exit_code: 0 } },
 ];
+
+/** The marker shell_command puts between the head and the tail of a stream it cut. */
+export const MARKER = "\n\n[... truncated, 1234 chars omitted; output_path holds the whole output. Use more specific parameters to narrow results.]\n\n";
+
+export interface CutCase {
+  name: string;
+  reply: unknown;
+  /** The fields of the result the caller reads beyond stdout, stderr and exitCode. */
+  expected: Record<string, unknown>;
+}
+
+/** Results whose fields say a stream was cut, in each casing, with and without a kept output. */
+export const CUT_REPLIES: readonly CutCase[] = [
+  {
+    name: "reads a cut stdout, its true length and its output file from a snake_case result",
+    reply: { stdout: `head${MARKER}tail`, exit_code: 0, stdout_truncated: true, stdout_total_chars: 1242, output_path: "/output/jobs/a1.log" },
+    expected: { stdoutCut: { totalChars: 1242, outputPath: "/output/jobs/a1.log" } },
+  },
+  {
+    name: "reads a cut stderr from a PascalCase result",
+    reply: { Stderr: `head${MARKER}tail`, ExitCode: 1, StderrTruncated: true, StderrTotalChars: 1242, OutputPath: "/output/jobs/b2.log" },
+    expected: { stderrCut: { totalChars: 1242, outputPath: "/output/jobs/b2.log" } },
+  },
+  {
+    name: "names no output file when the runtime kept none",
+    reply: { stdout: `head${MARKER}tail`, exit_code: 0, stdout_truncated: true, stdout_total_chars: 1242, output_path: "" },
+    expected: { stdoutCut: { totalChars: 1242 } },
+  },
+];
+
+/** A whole result whose stdout holds the marker's words, as a diff of the marker's own code does. */
+export const WHOLE_REPLY_WITH_MARKER_WORDS = {
+  stdout: `+const m = "${MARKER}";`, stderr: "", exit_code: 0, stdout_truncated: false, stdout_total_chars: 140, output_path: "",
+};

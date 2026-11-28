@@ -332,7 +332,11 @@ Ce que le tableau laisse de côté :
     avec un avertissement.
 - **`Orkeon:Tools:ResultLimits:Limits:<tool>`** :
   - Un résultat coupé finit par `[... truncated, N chars omitted. …]`.
-  - L'audit de `/dev-batches` lit cette mention.
+  - `shell_command` borne lui-même sa sortie : il garde le début et la fin de chaque flux autour de cette mention,
+    dit `stdout_truncated` ou `stderr_truncated`, donne la longueur entière dans `stdout_total_chars` et
+    `stderr_total_chars`, et écrit la sortie dans `output_path`.
+  - L'audit de `/dev-batches` lit ces champs, jamais la mention : une liste de fichiers coupée fait échouer sa
+    porte, un diff coupé est marqué douteux dans sa capture avec le fichier qui le contient.
 - **`Orkeon:Rag:Retrieval:MinScore`** :
   - Aucun par défaut, donc une question sans réponse reçoit quand même des passages.
   - Les exemples mettent 0,6, mesuré sur le jeu de référence de la mémoire partagée avec l'embedder local : 0,5

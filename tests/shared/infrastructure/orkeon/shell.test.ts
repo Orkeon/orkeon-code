@@ -5,7 +5,9 @@ import { deepStrictEqual, ok, rejects, strictEqual } from "node:assert";
 
 import { createShell } from "../../../../src/shared/infrastructure/orkeon/shell.ts";
 import { FakeTools } from "../../../support/doubles/fake-tools.ts";
-import { BAD_TIMEOUTS, COMPLETED_REPLIES, DISK_COMMAND, DISK_REPLY, ROOT, ROOTED_DISK_REPLY, VIRTUAL_COMMAND, VIRTUAL_RESULT } from "./shell.fixtures.ts";
+import {
+  BAD_TIMEOUTS, COMPLETED_REPLIES, CUT_REPLIES, WHOLE_REPLY_WITH_MARKER_WORDS, DISK_COMMAND, DISK_REPLY, ROOT, ROOTED_DISK_REPLY, VIRTUAL_COMMAND, VIRTUAL_RESULT,
+} from "./shell.fixtures.ts";
 import { WORKSPACE } from "../../../../src/shared/domain/vfs.ts";
 import { windowsHost } from "../../../support/fixtures/host-context.ts";
 
@@ -208,5 +210,34 @@ describe("createShell — under a host", () => {
 
     // Assert
     strictEqual(result.stdout, `${WORKSPACE}/src/a.ts: modified`);
+  });
+});
+
+describe("createShell — a stream the runtime cut", () => {
+  for (const c of CUT_REPLIES) {
+    it(c.name, async () => {
+      // Arrange
+      const tools = new FakeTools();
+      tools.replies.shellCommand = c.reply;
+
+      // Act
+      const result = await createShell(tools).run("git diff");
+
+      // Assert
+      deepStrictEqual({ ...result, stdout: undefined, stderr: undefined, exitCode: undefined },
+        { stdout: undefined, stderr: undefined, exitCode: undefined, ...c.expected });
+    });
+  }
+
+  it("reads a stdout that holds the marker's words as whole when the result says it was not cut", async () => {
+    // Arrange
+    const tools = new FakeTools();
+    tools.replies.shellCommand = WHOLE_REPLY_WITH_MARKER_WORDS;
+
+    // Act
+    const result = await createShell(tools).run("git diff");
+
+    // Assert
+    deepStrictEqual(result, { stdout: WHOLE_REPLY_WITH_MARKER_WORDS.stdout, stderr: "", exitCode: 0 });
   });
 });

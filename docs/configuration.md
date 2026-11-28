@@ -307,7 +307,11 @@ What the table leaves out:
     warning.
 - **`Orkeon:Tools:ResultLimits:Limits:<tool>`**:
   - A cut result ends with `[... truncated, N chars omitted. …]`.
-  - The audit of `/dev-batches` reads that notice.
+  - `shell_command` bounds its own output: it keeps the head and the tail of each stream around that marker, says
+    `stdout_truncated` or `stderr_truncated`, gives the whole length in `stdout_total_chars` and
+    `stderr_total_chars`, and writes the output to `output_path`.
+  - The audit of `/dev-batches` reads those fields, never the marker: a cut file list fails its gate, a cut diff is
+    marked doubtful in its capture with the file that holds it.
 - **`Orkeon:Rag:Retrieval:MinScore`**:
   - None by default, so a question with no answer still gets passages.
   - The examples set 0.6, measured on the shared memory's reference set with the local embedder: 0.5 still answered
