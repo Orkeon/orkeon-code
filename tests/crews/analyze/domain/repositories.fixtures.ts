@@ -29,6 +29,13 @@ export const FOLDER_CASES: readonly { readonly name: string; readonly pkg: Packa
   { name: "gives none to a name outside the checkout", pkg: packageNaming([], ["/elsewhere/api/A.cs::A"]), folder: undefined },
 ];
 
+/** Packages, and whether the index names no file of each. */
+export const NAMES_NO_FILE_CASES: readonly { readonly name: string; readonly pkg: PackageSummary; readonly none: boolean }[] = [
+  { name: "says a package with neither entry module nor export names no file", pkg: packageNaming([], []), none: true },
+  { name: "says a package with an export names a file", pkg: packageNaming([], [`${WORKSPACE}/a.cs::A`]), none: false },
+  { name: "says a package with an entry module names a file", pkg: packageNaming([`${WORKSPACE}/main.py`], []), none: false },
+];
+
 /** Two services and a documentation folder: the API and its tests take the contracts of the platform. */
 export const ACROSS: PackageSummary[] = [
   packageIn("api", "Api", ["Api.Domain", "Platform.Sdk", "Platform.Models"]),

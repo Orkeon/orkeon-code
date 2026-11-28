@@ -25,28 +25,25 @@ export function packageFolder(p: PackageSummary): string | undefined {
   return folders.size === 1 ? only : undefined;
 }
 
-/** The top folders the packages read sit in, each once, in the order of their first package. */
-export function topFolders(scanned: PackageSummary[]): string[] {
-  const folders = new Set<string>();
-  for (const p of scanned) {
-    const folder = packageFolder(p);
-    if (folder !== undefined) folders.add(folder);
-  }
-  return [...folders];
+/** Whether the index names no file of a package — no entry module, no public export: its repository is
+ *  unknown, where another package outside every repository sits outside them or across several. */
+export function namesNoFile(p: PackageSummary): boolean {
+  return p.entryPoints.length === 0 && p.exports.length === 0;
 }
 
 /** The repository of each package read, by fqn, given the top folders that are repositories. Empty unless
- *  two repositories at least hold a package: one repository alone is an ordinary checkout. */
+ *  two folders at least are repositories: one repository alone is an ordinary checkout. */
 export function packageRepositories(
   scanned: PackageSummary[], repositories: readonly string[],
 ): Map<string, string> {
-  const known = new Set(repositories);
   const of = new Map<string, string>();
+  if (repositories.length < 2) return of;
+  const known = new Set(repositories);
   for (const p of scanned) {
     const folder = packageFolder(p);
     if (folder !== undefined && known.has(folder)) of.set(p.fqn, folder);
   }
-  return new Set(of.values()).size > 1 ? of : new Map();
+  return of;
 }
 
 /** What one repository takes from another: its packages that depend on a package of the other, each with

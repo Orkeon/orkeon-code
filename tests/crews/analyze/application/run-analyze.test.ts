@@ -31,15 +31,30 @@ describe("runAnalyze", () => {
     deepStrictEqual(progress.released, [PROGRESS_LABEL]);
   });
 
-  it("reads no file when the packages name no top folder to compare", async () => {
+  it("lists the root alone, and reads no file, when the checkout is a repository itself", async () => {
     // Arrange
     const { files, deps } = analyzeSetup(3);
+    files.listings.set(WORKSPACE, [".git", "src"]);
 
     // Act
     await runAnalyze({ raw: true }, deps);
 
     // Assert
-    deepStrictEqual(files.reads, []);
+    deepStrictEqual({ listed: files.listed, reads: files.reads }, { listed: [WORKSPACE], reads: [] });
+  });
+
+  it("names a repository none of whose packages was read, below the packages read", async () => {
+    // Arrange
+    const { index, files, deps } = analyzeSetup();
+    withTwoRepositories(index, files, MAX_SCANNED_PACKAGES);
+
+    // Act
+    const out = await runAnalyze({ raw: true }, deps);
+
+    // Assert
+    assertMentions(out, [
+      `- \`big\` — ${MAX_SCANNED_PACKAGES} package(s) read, `, "- `small` — none of its packages read",
+    ]);
   });
 
   it("says what crosses between the repositories when the checkout is a folder of several", async () => {

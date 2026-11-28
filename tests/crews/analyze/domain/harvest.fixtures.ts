@@ -163,13 +163,27 @@ export function rankedAcrossRepositories(): {
   return { ranked, scanned, repositories };
 }
 
+/** Three repositories `a`, `b`, `c`, each with five libraries, the largest, and two hosts. Returns the hosts'
+ *  fqns too. */
+export function rankedAcrossThreeRepositories(): {
+  ranked: MapEntry[]; scanned: PackageSummary[]; repositories: Map<string, string>; hosts: string[];
+} {
+  const names = ["a", "b", "c"];
+  const libraries = names.flatMap((r) => Array.from({ length: 5 }, (_, i) => readPackage(`${r}.lib${i}`)));
+  const hosts = names.flatMap((r) => [readPackage(`${r}.host0`, [], true), readPackage(`${r}.host1`, [], true)]);
+  const scanned = [...libraries, ...hosts];
+  const ranked = scanned.map((p, i) => ({ fqn: p.fqn, name: p.name, kind: "package", children: scanned.length - i }));
+  const repositories = new Map(scanned.map((p) => [p.fqn, p.name.split(".")[0]] as const));
+  return { ranked, scanned, repositories, hosts: hosts.map((p) => p.fqn) };
+}
+
 /** The API and its tests in the repository `api`, the SDK and the models they take in `platform`, a script in no
  *  repository: the API is summarized, the rest named. */
 export function harvestAcrossRepositories() {
   const api = readPackage("Api", ["Platform.Sdk", "Platform.Models"], true);
   const sdk = readPackage("Platform.Sdk", ["Platform.Models"]);
   const models = readPackage("Platform.Models");
-  const script = readPackage("convert");
+  const script = { ...readPackage("convert"), exports: [`${WORKSPACE}/tools/convert.py::main`] };
   const tests = readPackage("Api.Tests", ["Api", "Platform.Sdk"]);
   const scanned = [api, sdk, models, script, tests];
   return {

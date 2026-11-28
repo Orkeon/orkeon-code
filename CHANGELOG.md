@@ -10,13 +10,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added — `/analyze` over a folder of several repositories
 
 - When the checkout is no repository itself and two of its top folders at least are (each holds a `.git`), `/analyze`
-  gives every package the repository its code sits in. The harvest opens with the repositories (packages read and
-  summarized in each, the packages in no single one) and with the dependencies between repositories, package by
-  package: ``- `api` → `platform`: `Api` → `Platform.Sdk` ``. A summarized package, an entry package and a package
-  only listed carry their repository, and the synthesis is asked for the repository of each concept and a line per
-  dependency between repositories.
-- The summaries are shared between the repositories, each in turn, its entry packages first: the largest repository
-  no longer fills them alone. An ordinary checkout is read as before.
+  gives every package read the repository its code sits in. The repositories are found from the top folders, one
+  listing each (50 at most, the log says how many were left), apart from the packages read: a small repository none
+  of whose packages was read is still named, and said to be. The harvest opens with the repositories (packages read
+  and summarized in each, the packages outside them or across several, those whose repository is unknown apart) and
+  with the dependencies between repositories, package by package: ``- `api` → `platform`: `Api` → `Platform.Sdk` ``.
+  A summarized package and an entry package carry their repository, and so does a package only listed when it was
+  read for its dependencies; the synthesis is asked for the repository of each concept and a line per dependency
+  between repositories.
+- The summaries are shared between the repositories, each in turn, its entry packages first, the packages in no
+  repository taking a turn after them, and five entry packages in all: the largest repository no longer fills them
+  alone. An ordinary checkout is read as before.
 
 ### Changed — `/analyze` keeps a host under its hosts as an entry package
 

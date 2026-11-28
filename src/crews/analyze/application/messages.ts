@@ -23,5 +23,8 @@ export const indexed = (files: number, nodes: number, note: string): string =>
 export const packagesNotRead = (beyond: number, cap: number): string =>
   `analyze: ${beyond} package(s) beyond the cap of ${cap} not read`;
 
+export const repositoryFoldersNotChecked = (beyond: number, cap: number): string =>
+  `analyze: ${beyond} top folder(s) beyond the cap of ${cap} not checked for a repository`;
+
 export const packagesNotSummarized = (beyond: number, cap: number): string =>
   `analyze: ${beyond} package(s) beyond the cap of ${cap} not summarized`;

@@ -4,10 +4,10 @@ import { describe, it } from "node:test";
 import { strictEqual, deepStrictEqual } from "node:assert";
 
 import {
-  packageFolder, packageRepositories, repositoryDependencies, topFolders,
+  namesNoFile, packageFolder, packageRepositories, repositoryDependencies,
 } from "../../../../src/crews/analyze/domain/repositories.ts";
 import {
-  ACROSS, ACROSS_DEPENDENCIES, ACROSS_REPOSITORIES, FOLDER_CASES, packageIn,
+  ACROSS, ACROSS_DEPENDENCIES, ACROSS_REPOSITORIES, FOLDER_CASES, NAMES_NO_FILE_CASES, packageIn,
 } from "./repositories.fixtures.ts";
 
 describe("packageFolder", () => {
@@ -25,17 +25,19 @@ describe("packageFolder", () => {
   }
 });
 
-describe("topFolders", () => {
-  it("names each top folder once, in the order of its first package", () => {
-    // Arrange
-    const scanned = ACROSS;
+describe("namesNoFile", () => {
+  for (const c of NAMES_NO_FILE_CASES) {
+    it(c.name, () => {
+      // Arrange
+      const { pkg } = c;
 
-    // Act
-    const folders = topFolders(scanned);
+      // Act
+      const none = namesNoFile(pkg);
 
-    // Assert
-    deepStrictEqual(folders, ["api", "platform", "docs"]);
-  });
+      // Assert
+      strictEqual(none, c.none);
+    });
+  }
 });
 
 describe("packageRepositories", () => {
@@ -50,15 +52,26 @@ describe("packageRepositories", () => {
     deepStrictEqual([...repositories], ACROSS_REPOSITORIES);
   });
 
-  it("names no repository when one alone holds packages", () => {
+  it("names no repository when fewer than two folders are repositories", () => {
     // Arrange
     const scanned = [packageIn("api", "Api"), packageIn("api", "Api.Domain"), packageIn("docs", "convert")];
+
+    // Act
+    const repositories = packageRepositories(scanned, ["api"]);
+
+    // Assert
+    deepStrictEqual([...repositories], []);
+  });
+
+  it("gives the packages of a repository its name when the other repository holds no package read", () => {
+    // Arrange
+    const scanned = [packageIn("api", "Api"), packageIn("docs", "convert")];
 
     // Act
     const repositories = packageRepositories(scanned, ["api", "platform"]);
 
     // Assert
-    deepStrictEqual([...repositories], []);
+    deepStrictEqual([...repositories], [[scanned[0].fqn, "api"]]);
   });
 });
 

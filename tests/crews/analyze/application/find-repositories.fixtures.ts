@@ -1,14 +1,15 @@
-// The file systems the repository search reads: top folders of the checkout, some holding a `.git`.
+// The file systems the repository search lists: top folders of the checkout, some holding a `.git`.
 import { FakeFiles } from "../../../support/doubles/fake-files.ts";
 import { WORKSPACE } from "../../../../src/shared/domain/vfs.ts";
 
-/** The HEAD of a checkout that is a repository itself. */
-export const ROOT_HEAD = `${WORKSPACE}/.git/HEAD`;
-
-/** A checkout that is no repository, whose top folders `folders` each hold a `.git` directory. */
-export function filesWithRepositories(folders: readonly string[]): FakeFiles {
+/** A checkout that is no repository, whose top folders are `folders`, those of `repositories` holding a
+ *  `.git` directory among their entries. */
+export function filesWithRepositories(folders: readonly string[], repositories: readonly string[] = folders): FakeFiles {
   const files = new FakeFiles();
-  for (const folder of folders) files.files.set(`${WORKSPACE}/${folder}/.git/HEAD`, "ref: refs/heads/main");
+  files.folderListings.set(WORKSPACE, [...folders]);
+  for (const folder of folders) {
+    files.listings.set(`${WORKSPACE}/${folder}`, repositories.includes(folder) ? ["README.md", ".git", "src"] : ["README.md"]);
+  }
   return files;
 }
 

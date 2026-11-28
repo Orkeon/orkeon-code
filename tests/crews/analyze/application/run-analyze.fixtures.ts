@@ -46,7 +46,8 @@ export function withTwoRepositories(index: FakeCodeIndex, files: FakeFiles, bigC
     entries: all.map((p, i) => ({ fqn: p.fqn, name: p.name, kind: "package", children: all.length - i })), symbolCount: 0,
   };
   index.packages = Object.fromEntries(all.map((p) => [p.fqn, p]));
-  for (const folder of ["big", "small"]) files.files.set(`${WORKSPACE}/${folder}/.git/HEAD`, "ref: refs/heads/main");
+  files.folderListings.set(WORKSPACE, ["big", "small"]);
+  for (const folder of ["big", "small"]) files.listings.set(`${WORKSPACE}/${folder}`, [".git", "src"]);
   return small.map((p) => p.fqn);
 }
 

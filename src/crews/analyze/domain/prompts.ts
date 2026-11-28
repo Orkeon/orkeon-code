@@ -47,8 +47,12 @@ export const repositoriesSection = (count: number): string =>
   "its code sits in.\n";
 export const repositoryLine = (name: string, packages: number, summarized: number): string =>
   `- ${name} — ${packages} package(s) read, ${summarized} summarized`;
+export const repositoryNotRead = (name: string): string =>
+  `- ${name} — none of its packages read`;
 export const outsideRepositories = (names: string, more: string): string =>
-  `- In no single repository: ${names}${more}`;
+  `- Outside the repositories, or across several: ${names}${more}`;
+export const repositoryUnknown = (names: string, more: string): string =>
+  `- Repository unknown, the index names none of their files: ${names}${more}`;
 export const repositoryDependenciesSection = (scope: string): string =>
   "## Dependencies between repositories\n" +
   "A repository depends on another when one of its packages depends on a package of the other. " + scope + "\n";

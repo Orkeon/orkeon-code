@@ -15,6 +15,7 @@ import {
   L1_ENTRIES, L1_RANKED, MODULE_GRAPH, NAMED_CYCLES_GRAPH, PACKAGE, SAMPLED_GRAPH, TEST_PACKAGE_CASES, mapPackages, packageExporting,
   rankedWithSmallHost, readPackage,
   HOSTS, HOSTS_ENTRIES, PROCESS_CASES, harvestAcrossRepositories, rankedAcrossRepositories,
+  rankedAcrossThreeRepositories,
 } from "./harvest.fixtures.ts";
 import { assertBefore, assertMentions, assertOmits } from "../../../support/assertions/text.ts";
 import { WORKSPACE } from "../../../../src/shared/domain/vfs.ts";
@@ -150,18 +151,29 @@ describe("selectPackages over several repositories", () => {
     const selected = selectPackages(ranked, scanned, 6, repositories);
 
     // Assert
-    deepStrictEqual(selected, ["big0", "big1", "big2", "small0", "small1", "small2"].map((n) => `${WORKSPACE}::${n}`));
+    deepStrictEqual(selected, ["big0", "big1", "big2", "loose", "small0", "small2"].map((n) => `${WORKSPACE}::${n}`));
   });
 
-  it("takes a package in no repository only once the repositories are through", () => {
+  it("gives the packages in no repository a turn of their own, after the repositories'", () => {
     // Arrange
     const { ranked, scanned, repositories } = rankedAcrossRepositories();
 
     // Act
-    const selected = selectPackages(ranked, scanned, 13, repositories);
+    const selected = selectPackages(ranked, scanned, 3, repositories);
 
     // Assert
-    deepStrictEqual(selected, ranked.filter((p) => p.name !== "loose").map((p) => p.fqn));
+    deepStrictEqual(selected, ["big0", "loose", "small2"].map((n) => `${WORKSPACE}::${n}`));
+  });
+
+  it(`keeps ${MAX_ENTRY_PACKAGES} entry packages in all however many repositories share them`, () => {
+    // Arrange
+    const { ranked, scanned, repositories, hosts } = rankedAcrossThreeRepositories();
+
+    // Act
+    const selected = selectPackages(ranked, scanned, 6, repositories);
+
+    // Assert
+    strictEqual(selected.filter((fqn) => hosts.includes(fqn)).length, MAX_ENTRY_PACKAGES);
   });
 });
 
@@ -422,7 +434,36 @@ describe("renderHarvest over several repositories", () => {
     assertMentions(harvest, [
       "## Repositories\nThe checkout is no repository itself: 2 of its top folders are",
       "- `api` — 2 package(s) read, 1 summarized\n- `platform` — 2 package(s) read, 0 summarized\n" +
-      "- In no single repository: `convert`",
+      "- Outside the repositories, or across several: `convert`",
+    ]);
+  });
+
+  it("names a repository none of whose packages was read, and says so", () => {
+    // Arrange
+    const input = { ...harvestAcrossRepositories(), repositoryFolders: ["api", "platform", "web"] };
+
+    // Act
+    const harvest = renderHarvest(input);
+
+    // Assert
+    assertMentions(harvest, [
+      "3 of its top folders are",
+      "- `platform` — 2 package(s) read, 0 summarized\n- `web` — none of its packages read\n",
+    ]);
+  });
+
+  it("names apart the packages whose repository is unknown, the index naming none of their files", () => {
+    // Arrange
+    const base = harvestAcrossRepositories();
+    const input = { ...base, scanned: [...base.scanned, readPackage("Generated")] };
+
+    // Act
+    const harvest = renderHarvest(input);
+
+    // Assert
+    assertMentions(harvest, [
+      "- Outside the repositories, or across several: `convert`\n" +
+      "- Repository unknown, the index names none of their files: `Generated`",
     ]);
   });
 
