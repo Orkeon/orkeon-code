@@ -81,6 +81,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   a webhook. [Permissions](docs/permissions.md) lists what the ten tools declare.
 - Never run against a real Microsoft 365 tenant: no live check was made.
 
+### Changed — the pin moves to Orkeon `main` `f1fe709`, a tool loop caches its conversation
+
+- The pin moves to Orkeon `main` `f1fe709` (Orkeon #489 and #496, which answers #490 to #495, opened from this
+  project), nine commits past the release `1.4.0` ([ADR 0043](docs/adr/0043-orkeon-after-496.md)).
+- On Anthropic a turn of several tool calls reads its conversation from the prompt cache from its second call, where
+  each call paid it whole at the full rate: every agent marks its system prompt and its tools, and the runtime marks
+  the conversation with them.
+- The context budget of a turn (700k tokens for the main loop) charges the context once on a partly cached prompt
+  too. A long turn on Anthropic ended on its budget after about twenty calls.
+
 ### Changed — the pin moves to Orkeon `main` `9ca8530`, the thinking level reaches the subscription
 
 - The pin moves to Orkeon `main` `9ca8530` (Orkeon #488, which fixes #487), seven commits past the release `1.4.0`

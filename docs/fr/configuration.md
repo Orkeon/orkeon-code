@@ -100,7 +100,7 @@ Une option qu'un fournisseur ne peut pas honorer produit un avertissement, jamai
   ses définitions d'outils (`.cache({ systemPrompt: true, tools: true })`), un préfixe que ses prompts gardent
   identique d'un tour à l'autre, donc dès le deuxième appel d'une session `cacheRead` compte ce qu'Anthropic a servi
   depuis son cache. Dès que l'un des deux est marqué, le runtime marque aussi la conversation : dans une boucle
-  d'outils chaque appel lit ce que le précédent a écrit et ne paie au plein tarif que les nouveaux tours, et un
+  d'outils chaque appel lit ce que le précédent a écrit et n'écrit que les nouveaux tours, et un
   appel unique, que rien ne relirait, n'écrit pas de conversation. Un agent dont le profil, ou le modèle par défaut de l'hôte, tourne sur `agent-cli` ne marque
   rien (la CLI gère son cache selon ses propres règles).
 - La demande de l'agent l'emporte sur un réglage par défaut `Llm:Cache` du runtime.
