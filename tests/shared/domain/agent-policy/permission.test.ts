@@ -7,7 +7,7 @@ import {
   CHAT_READ_TOOLS, CHAT_TOOLS, CHAT_WRITE_TOOLS,
   MEMORY_TOOLS, scriptToolsFor,
   resolvePermissionMode, isReadOnly,
-  toolsetFor, permissionNote, buildActPrompt,
+  toolsetFor, permissionNote, buildActPrompt, shellReadsOnly,
   catalogueFor, coversEveryCall, readRule, checkRule, formatRule, gateLine, parseStoredRule, sameCalls,
   ruleableTool, TOOL_ARGUMENTS, globMatches, matchesRule, ruleDecision, shellCommandForms, shellWords,
 } from "../../../../src/shared/domain/agent-policy/permission.ts";
@@ -18,7 +18,7 @@ import {
   CHECK_RULE_CASES, CHECK_RULE_OK_CASES, DECISION_CASES, DENY_FILE_WRITE,
   EXTRA_RULES, FORMAT_CASES, GIT_PUSH, GIT_RULE_TEXTS, GLOB_CASES, HOST_OPT_IN_TOOLS, MATCHES_RULE_CASES, NETWORK_MATRIX,
   NOTE_NETWORK_CASES, NPM_TEST, ORKEON_180_EDITS, ORKEON_180_READS, ORKEON_280_READS, PARSE_STORED_CASES, PLAN_RULES,
-  QUOTED_PATTERNS, READ_ONLY_CASES, READ_ONLY_MODES, READ_ONLY_TOOLSET_CASES, READ_PATTERN_CASES, READ_RULE_CASES,
+  QUOTED_PATTERNS, READ_ONLY_CASES, READ_ONLY_MODES, READ_ONLY_TOOLSET_CASES, SHELL_READS_ONLY_CASES, READ_PATTERN_CASES, READ_RULE_CASES,
   READER, RESOLVE_MODE_CASES, ROUND_TRIP_RULES, RULEABLE_TOOL_CASES, SAME_CALLS_CASES, SCRIPT_TOOL_ACCESS_CASES,
   SCRIPT_TOOLS_DECLARED, SCRIPT_TOOLS_FOR_CASES, SHELL_FORMS_CASES, SHELL_WORDS_CASES, TOOL_ARGUMENT_CASES,
   WRITE_TOOLS_IN_ORDER, WRITER, WRITING_MODES, writingNote,
@@ -51,7 +51,7 @@ describe("toolsetFor", () => {
       const t = toolsetFor(mode);
 
       // Assert
-      assertReadOnlyToolset(t, mode);
+      assertReadOnlyToolset(t, c.shell, mode);
     });
   }
 
@@ -409,16 +409,38 @@ describe("permissionNote / buildActPrompt", () => {
     assertMentions(note, ["MUST NOT modify"]);
   });
 
-  for (const mode of READ_ONLY_MODES) {
-    it(`${mode}'s note lets the shell's read-only commands run and forbids any other command`, () => {
+  it("plan's note lets the shell's read-only commands run and forbids any other command", () => {
+    // Arrange
+    const expected = ["the shell's read-only commands included", "run any other command"];
+
+    // Act
+    const note = permissionNote("plan");
+
+    // Assert
+    assertMentions(note, expected);
+  });
+
+  it("dontAsk's note forbids running commands, the shell's reads included", () => {
+    // Arrange
+    const mode = "dontAsk";
+
+    // Act
+    const note = permissionNote(mode);
+
+    // Assert
+    assertMentions(note, ["MUST NOT modify files, run commands"]);
+  });
+
+  for (const c of SHELL_READS_ONLY_CASES) {
+    it(`${c.expected ? "offers" : "does not offer"} the shell for its reads alone in ${c.mode}`, () => {
       // Arrange
-      const expected = ["the shell's read-only commands included", "run any other command"];
+      const { mode } = c;
 
       // Act
-      const note = permissionNote(mode);
+      const only = shellReadsOnly(mode);
 
       // Assert
-      assertMentions(note, expected);
+      strictEqual(only, c.expected);
     });
   }
 
@@ -560,19 +582,8 @@ describe("catalogueFor", () => {
     const d = catalogueFor("dontAsk", rules);
 
     // Assert
-    deepStrictEqual(d.inert.map((r) => r.rule.tool), ["file_write"]);
+    deepStrictEqual(d.inert.map((r) => r.rule.tool), ["file_write", "shell_command"]);
     assertMentions(d.inert[0].reason, ["mode 'dontAsk' does not offer 'file_write'", "Switch mode"]);
-  });
-
-  it("takes an allow rule on shell_command as live in dontAsk, which offers the shell and whose gate reads the rule", () => {
-    // Arrange
-    const rules = [NPM_TEST];
-
-    // Act
-    const d = catalogueFor("dontAsk", rules);
-
-    // Assert
-    deepStrictEqual(d.inert, []);
   });
 
   it("removes shell_command from plan under a deny rule on the whole tool", () => {

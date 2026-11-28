@@ -40,13 +40,16 @@ export const MODE_POLICIES: Readonly<Record<PermissionMode, ModePolicy>> = {
   // these modes promise that the turn changes nothing observable, and an outbound
   // request is observable elsewhere — it can leak the repository's contents to a
   // third party and it can trigger a side effect on the far end. An extra tool
-  // the user did not mark `read` is withheld for the same reason. The shell joins
-  // them for its reads only (`shellReads`): the runtime declares a read for a `run`
-  // of its default read-only commands and the gate lets those through in both
-  // modes, refusing every other shell call without asking. The tools of the
-  // `shell` class (the chat writes, the script tools that execute) stay out.
+  // the user did not mark `read` is withheld for the same reason. In `plan` the
+  // shell joins them for its reads only (`shellReads`): the runtime declares a read
+  // for a `run` of its default read-only commands, and plan's gate lets those
+  // through, refuses every other shell call without asking and reads no allow
+  // rule. `dontAsk` goes without the shell: its gate honours the session's allow
+  // rules, so an `allow shell_command ...` would run a writing command there. The
+  // tools of the `shell` class (the chat writes, the script tools that execute)
+  // stay out of both.
   plan: { readOnly: true, toolClasses: ["read", "shellReads"] },
-  dontAsk: { readOnly: true, toolClasses: ["read", "shellReads"] },
+  dontAsk: { readOnly: true, toolClasses: ["read"] },
 };
 
 /**

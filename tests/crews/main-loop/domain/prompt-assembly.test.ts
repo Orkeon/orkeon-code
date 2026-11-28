@@ -24,7 +24,7 @@ import {
   MAX_STATIC_HEADER_CHARS,
   withoutCurrentRequest,
 } from "../../../../src/crews/main-loop/domain/prompt-assembly.ts";
-import { CHAT_TOOLS, MEMORY_TOOLS, scriptToolsFor, toolsetFor } from "../../../../src/shared/domain/agent-policy/permission.ts";
+import { CHAT_TOOLS, MEMORY_TOOLS, scriptToolsFor, shellReadsOnly, toolsetFor } from "../../../../src/shared/domain/agent-policy/permission.ts";
 import { PERMISSION_MODES } from "../../../../src/shared/domain/permission-modes.ts";
 import { explorerReachable } from "../../../../src/crews/main-loop/domain/explorer-charter.ts";
 import { MEMORY_CATEGORIES } from "../../../../src/shared/domain/agent-policy/memory-categories.ts";
@@ -36,7 +36,7 @@ import {
   LESSONS_TOOL_RULE, COMPACTED_IN_HISTORY_RULE, EXPLORER_RULE, LONGEST_HEADER_RULES, WEB_EXTRA_TOOLS,
   CHAT_FAMILY, CHAT_PARAGRAPH_MARKERS, CHAT_READ_RULES, CHAT_READS_ONLY, CHAT_REFUSAL_CODES, CHAT_WRITE_RULES,
   MARKED_WINDOW_CASES, UNCONFIGURED_PREFERENCES_CASES, LESSONS_TOOLS, builtParts, toolTurns, userMessages,
-  READ_ONLY_MODES, SHELL_READS_RULES, WRITING_MODES, WRITING_SHELL_MARKERS,
+  NOT_SHELL_READS_MODES, SHELL_READS_RULES, WITHOUT_FILE_WRITE, WRITING_SHELL_MARKERS,
 } from "./prompt-assembly.fixtures.ts";
 import {
   assertInOrder, assertLacks, assertMentions, assertSaysInsteadOf, assertSectionLacks, assertSystemReminder,
@@ -452,6 +452,7 @@ describe("buildStaticHeader", () => {
         toolNames: toolsetFor(mode, WEB_EXTRA_TOOLS),
         scriptTools: scriptToolsFor(mode, MEMORY_TOOLS),
         explorer: explorerReachable(mode, LONGEST_HEADER_RULES),
+        shellReadsOnly: shellReadsOnly(mode),
       };
 
       // Act
@@ -1087,6 +1088,7 @@ describe("buildStaticHeader, the chat family", () => {
         toolNames: toolsetFor(mode, WEB_EXTRA_TOOLS, CHAT_FAMILY),
         scriptTools: scriptToolsFor(mode, MEMORY_TOOLS),
         explorer: explorerReachable(mode, LONGEST_HEADER_RULES),
+        shellReadsOnly: shellReadsOnly(mode),
       };
 
       // Act
@@ -1098,39 +1100,35 @@ describe("buildStaticHeader, the chat family", () => {
   }
 });
 
-describe("buildStaticHeader, the shell of a read-only mode", () => {
-  for (const mode of READ_ONLY_MODES) {
-    for (const c of SHELL_READS_RULES) {
-      it(`tells ${mode} that ${c.rule}`, () => {
-        // Arrange
-        const opts = { toolNames: toolsetFor(mode) };
-
-        // Act
-        const header = buildStaticHeader(opts);
-
-        // Assert
-        assertMentions(header, [c.marker], `the ${mode} header`);
-      });
-    }
-  }
-
-  for (const mode of READ_ONLY_MODES) {
-    it(`gives ${mode} none of the writing modes' shell lines`, () => {
+describe("buildStaticHeader, the shell offered for its reads alone", () => {
+  for (const c of SHELL_READS_RULES) {
+    it(`tells plan that ${c.rule}`, () => {
       // Arrange
-      const opts = { toolNames: toolsetFor(mode) };
+      const opts = { toolNames: toolsetFor("plan"), shellReadsOnly: shellReadsOnly("plan") };
 
       // Act
       const header = buildStaticHeader(opts);
 
       // Assert
-      assertLacks(header, WRITING_SHELL_MARKERS, `the ${mode} header`);
+      assertMentions(header, [c.marker], "the plan header");
     });
   }
 
-  for (const mode of WRITING_MODES) {
-    it(`gives ${mode} none of the read-only shell's lines`, () => {
+  it("gives plan none of the writing modes' shell lines", () => {
+    // Arrange
+    const opts = { toolNames: toolsetFor("plan"), shellReadsOnly: shellReadsOnly("plan") };
+
+    // Act
+    const header = buildStaticHeader(opts);
+
+    // Assert
+    assertLacks(header, WRITING_SHELL_MARKERS, "the plan header");
+  });
+
+  for (const mode of NOT_SHELL_READS_MODES) {
+    it(`gives ${mode} none of plan's shell lines`, () => {
       // Arrange
-      const opts = { toolNames: toolsetFor(mode) };
+      const opts = { toolNames: toolsetFor(mode), shellReadsOnly: shellReadsOnly(mode) };
 
       // Act
       const header = buildStaticHeader(opts);
@@ -1139,4 +1137,15 @@ describe("buildStaticHeader, the shell of a read-only mode", () => {
       assertLacks(header, SHELL_READS_RULES.map((c) => c.marker), `the ${mode} header`);
     });
   }
+
+  it("keeps the writing modes' shell lines when a rule removed file_write from the default catalogue", () => {
+    // Arrange
+    const opts = { toolNames: WITHOUT_FILE_WRITE(toolsetFor("default")), shellReadsOnly: shellReadsOnly("default") };
+
+    // Act
+    const header = buildStaticHeader(opts);
+
+    // Assert
+    assertMentions(header, WRITING_SHELL_MARKERS, "the header of default without file_write");
+  });
 });

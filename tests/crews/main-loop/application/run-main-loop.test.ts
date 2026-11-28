@@ -369,7 +369,7 @@ describe("runMainLoop — the turn", () => {
     deepStrictEqual(llm.acts.map((a) => a.request), [{
       maxIterations: maxIterationsFor(DEFAULT_BEHAVIOR_FLAGS.effort),
       permissionMode: "plan",
-      system: buildStaticHeader({ toolNames: toolsetFor("plan") }),
+      system: buildStaticHeader({ toolNames: toolsetFor("plan"), shellReadsOnly: true }),
       context: BARE_TURN_CONTEXT,
       model: "",
     }]);
@@ -430,7 +430,7 @@ describe("runMainLoop — the turn", () => {
     await runMainLoop(input, loadCatalogue(input), deps);
 
     // Assert
-    strictEqual(llm.acts[0].request.system, buildStaticHeader({ toolNames: [...toolsetFor("plan"), "transcribe_audio"] }));
+    strictEqual(llm.acts[0].request.system, buildStaticHeader({ toolNames: [...toolsetFor("plan"), "transcribe_audio"], shellReadsOnly: true }));
   });
 
   it("announces what the rules changed in the catalogue, and the rules without effect", async () => {

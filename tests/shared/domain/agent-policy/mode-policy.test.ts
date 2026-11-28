@@ -4,7 +4,7 @@ import { describe, it } from "node:test";
 import { strictEqual, deepStrictEqual } from "node:assert";
 import { MODE_POLICIES, policyFor } from "../../../../src/shared/domain/agent-policy/mode-policy.ts";
 import { PERMISSION_MODES } from "../../../../src/shared/domain/permission-modes.ts";
-import { CLASS_ORDER, READ_ONLY_CLASSES, UNKNOWN_MODES, WRITING_CLASSES } from "./mode-policy.fixtures.ts";
+import { CLASS_ORDER, READ_ONLY_CLASSES, READ_ONLY_POLICY_CASES, UNKNOWN_MODES, WRITING_CLASSES } from "./mode-policy.fixtures.ts";
 
 describe("MODE_POLICIES", () => {
   it("has one row per permission mode, and no other", () => {
@@ -30,7 +30,7 @@ describe("MODE_POLICIES", () => {
   });
 
   for (const mode of PERMISSION_MODES) {
-    it(`gives ${mode} the local and shell read classes alone when it is read-only, and more when it is not`, () => {
+    it(`gives ${mode} read classes alone when it is read-only, and more when it is not`, () => {
       // Arrange
       const policy = MODE_POLICIES[mode];
 
@@ -38,7 +38,7 @@ describe("MODE_POLICIES", () => {
       const { readOnly, toolClasses } = policy;
 
       // Assert
-      strictEqual(readOnly, toolClasses.join(",") === READ_ONLY_CLASSES.join(","), mode);
+      strictEqual(readOnly, toolClasses.every((c) => READ_ONLY_CLASSES.includes(c)), mode);
     });
   }
 
@@ -69,21 +69,22 @@ describe("MODE_POLICIES", () => {
     });
   }
 
-  for (const mode of PERMISSION_MODES) {
-    it(`grants ${mode} at most one of the shell's two classes`, () => {
-      // Arrange
-      const classes = MODE_POLICIES[mode].toolClasses;
-
-      // Act
-      const both = classes.includes("shell") && classes.includes("shellReads");
-
-      // Assert
-      strictEqual(both, false, mode);
-    });
-  }
 });
 
 describe("policyFor", () => {
+  for (const c of READ_ONLY_POLICY_CASES) {
+    it(`gives ${c.mode} the classes ${c.classes.join(", ")}: ${c.why}`, () => {
+      // Arrange
+      const { mode } = c;
+
+      // Act
+      const policy = policyFor(mode);
+
+      // Assert
+      deepStrictEqual([...policy.toolClasses], [...c.classes], mode);
+    });
+  }
+
   for (const mode of PERMISSION_MODES) {
     it(`returns the row of the known mode ${mode}`, () => {
       // Arrange

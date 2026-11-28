@@ -322,21 +322,25 @@ export const CHAT_READS_ONLY: readonly string[] = ["file_read", "chat_accounts",
 /** What only the chat paragraph says: absent from a header without the family. */
 export const CHAT_PARAGRAPH_MARKERS: readonly string[] = ["`chat_*`", "`chat_members`", "`SignInRequired`"];
 
-/** The modes that change nothing, and those that may. */
-export const READ_ONLY_MODES: readonly string[] = ["plan", "dontAsk"];
-export const WRITING_MODES: readonly string[] = ["default", "acceptEdits", "bypassPermissions"];
+/** The modes that do not offer the shell for its reads alone. */
+export const NOT_SHELL_READS_MODES: readonly string[] = ["dontAsk", "default", "acceptEdits", "bypassPermissions"];
 
-/** The rules of the shell in a read-only mode, one marker each (docs/turn.md, "Its tools" and "Searching the code"). */
+/** The rules of the shell in plan, one marker each (docs/turn.md, "Its tools" and "Searching the code"). */
 export const SHELL_READS_RULES: ReadonlyArray<{ rule: string; marker: string }> = [
   { rule: "the shell runs reads only", marker: "`shell_command` runs reads only here" },
   {
     rule: "the commands that read are named",
-    marker: "a `run` of `ls`, `cat`, `pwd`, `which`, `grep`, `wc`, `echo`, `dir`, `type`, `where`",
+    marker: "a `run` of `ls`, `cat`, `pwd`, `which`, `grep`, `wc`, `echo`, `dir`, `type` or `where`",
   },
-  { rule: "git reads its state and history only", marker: "`git status`, `log`, `diff`, `show` with no option that writes or runs a program" },
-  { rule: "any other command and a job are refused", marker: "Any other command and `start_job` are refused: never retry a refusal" },
-  { rule: "the shell searches git, the tools read the files", marker: "The shell is for git's state and history here" },
+  { rule: "a call is one command, no pipe, redirection nor chaining", marker: "one command, no `|`, `>`, `;`" },
+  { rule: "git's reads run only where the host keeps git read-only", marker: "`git status`, `log`, `diff`, `show` run only where the host keeps git read-only" },
+  { rule: "any other command and a job are refused, never retried", marker: "Any other command and `start_job` are refused: never retry a refusal" },
+  { rule: "the file tools read, list and search better", marker: "The file tools read, list and search better: the shell adds little here beyond `which`" },
+  { rule: "the shell is never the search's last resort", marker: "The shell adds little in this mode: never use it for reading, listing or searching files" },
 ];
+
+/** A writing mode's catalogue whose rule removed `file_write`: still the shell for every call. */
+export const WITHOUT_FILE_WRITE = (tools: readonly string[]): string[] => tools.filter((t) => t !== "file_write");
 
 /** What only the writing modes' shell lines say: absent from a read-only mode's header. */
 export const WRITING_SHELL_MARKERS: readonly string[] = [

@@ -4,7 +4,7 @@
 // (extra-tools.ts), builds the catalogue, and parses and formats the rules that
 // /permissions keeps and the host's permission gate enforces. `plan` and
 // `dontAsk` offer no mutating tool, so no write can even be attempted in them;
-// they offer the shell for its reads, and the gate refuses its other calls there.
+// `plan` offers the shell for its reads, and its gate refuses the shell's other calls.
 
 import { policyFor } from "./mode-policy.ts";
 import type { ToolClass } from "./mode-policy.ts";
@@ -12,7 +12,7 @@ import {
   argumentsNotKnown, hasNoArgument, modeDoesNotOffer, noToolARuleMayName, offeredToEveryAct, PLAN_IGNORES_ALLOW_RULES,
   takesNoArgument,
 } from "./messages.ts";
-import { MAY_ACT_CLAUSE, READ_ONLY_CLAUSE } from "./prompts.ts";
+import { MAY_ACT_CLAUSE, READ_ONLY_CLAUSE, SHELL_READS_CLAUSE } from "./prompts.ts";
 
 /** Read-side tools (inspection + the read-only RaggableTree index queries). */
 export const READ_TOOLS = [
@@ -85,8 +85,8 @@ const TOOLS_BY_CLASS: Readonly<Record<ToolClass, readonly string[]>> = {
   ],
   shell: ["shell_command"],
   extra: [],
-  // One tool in two classes: a writing mode is granted it for every call (`shell`), a read-only mode for the calls it
-  // declares a read (Orkeon #494), the gate refusing the others there. No mode grants both.
+  // One tool in two classes: a writing mode is granted it for every call (`shell`), `plan` for the calls it declares
+  // a read (Orkeon #494), its gate refusing the others. No mode grants both.
   shellReads: ["shell_command"],
 };
 
@@ -123,7 +123,7 @@ const CHAT_TOOLS_BY_CLASS: Partial<Readonly<Record<ToolClass, readonly string[]>
   shell: CHAT_WRITE_TOOLS,
 };
 
-/** Mutating tools — added for every mode except the read-only ones, which offer `shell_command` for its reads alone. */
+/** Mutating tools — added for every mode except the read-only ones; `plan` offers `shell_command` for its reads alone. */
 export const WRITE_TOOLS: readonly string[] = [...TOOLS_BY_CLASS.edit, ...TOOLS_BY_CLASS.shell];
 
 /** What an extra tool may do, as the user declares it in `tools.extra`. */
@@ -166,9 +166,14 @@ export function toolsetFor(
   ]);
 }
 
+/** Whether the mode offers the shell for the calls it declares a read alone (the `shellReads` class): `plan`. */
+export function shellReadsOnly(mode: string): boolean {
+  return policyFor(mode).toolClasses.includes("shellReads");
+}
+
 /** The permission clause appended to the act() prompt. */
 export function permissionNote(mode: string): string {
-  const clause = isReadOnly(mode) ? READ_ONLY_CLAUSE : MAY_ACT_CLAUSE;
+  const clause = shellReadsOnly(mode) ? SHELL_READS_CLAUSE : isReadOnly(mode) ? READ_ONLY_CLAUSE : MAY_ACT_CLAUSE;
   return `(Permission mode: ${mode}. ${clause})`;
 }
 
@@ -192,7 +197,8 @@ export function buildActPrompt(prompt: string, mode: string): string {
 // tool removes the tool, so the model is not offered a tool whose every call the
 // gate would refuse. An argument-scoped deny leaves the tool offered (its other
 // calls run), and an allow spares a question, it never hands over a tool the mode
-// does not offer: the read-only promise of `plan` and `dontAsk` rests on that.
+// does not offer: the read-only promise of `dontAsk` rests on that, `plan`'s on its
+// gate reading no allow rule as well, since it offers the shell for its reads.
 
 export type RuleEffect = "deny" | "allow";
 

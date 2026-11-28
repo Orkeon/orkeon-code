@@ -7,15 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-### Changed — the shell reads in `plan` and `dontAsk`
+### Changed — the shell reads in `plan`
 
-- `plan` and `dontAsk` offer `shell_command` for the calls the runtime declares a read (Orkeon #494): a `run` of
-  `ls`, `cat`, `pwd`, `which`, `grep`, `wc`, `echo`, `dir`, `type`, `where`, or of `git status`, `log`, `diff`,
-  `show` with no option that writes or runs a program. The gate refuses every other shell call there without asking.
-  The header, the permission note, `/mode` and `/permissions` say so; the chat writes and the script tools that
-  execute stay out of these modes ([Permissions](docs/permissions.md#the-shells-reads)).
-- In `dontAsk`, an allow rule on `shell_command` takes effect: the gate reads it there, so the commands it matches
-  run, reads or not. `plan` reads no allow rule.
+- `plan` offers `shell_command` for the calls the runtime declares a read (Orkeon #494): a `run` of `ls`, `cat`,
+  `pwd`, `which`, `grep`, `wc`, `echo`, `dir`, `type` or `where`, and of `git status`, `log`, `diff`, `show` where
+  the host keeps git read-only (git 2.44 or later, `AllowInterpreters` off). The gate refuses every other shell call
+  there without asking. The header, the permission note and `/mode` say so; the chat writes and the script tools
+  that execute stay out ([Permissions](docs/permissions.md#the-shells-reads)). `dontAsk` keeps its catalogue.
+- The permissions guide says that a shell read is held to the workspace only by the runtime's confinement
+  ([Reach outside the workspace](docs/permissions.md#reach-outside-the-workspace)).
 
 ### Added — the routing picks the thinking level, and reaches the explorer
 

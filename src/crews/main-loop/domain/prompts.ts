@@ -180,9 +180,9 @@ export function toolRealities(f: ToolRealityFlags): string {
   if (f.shell && f.shellReadsOnly) {
     lines.push(
       "`shell_command` runs reads only here: a `run` of `ls`, `cat`, `pwd`, `which`, `grep`, `wc`, `echo`, `dir`, " +
-        "`type`, `where`, or `git status`, `log`, `diff`, `show` with no option that writes or runs a program; one " +
-        "command, no `|`, `>`, `;`. Any other command and `start_job` are refused: never retry a refusal. Read a " +
-        "file with `file_read`, not `cat`.",
+        "`type` or `where`; one command, no `|`, `>`, `;`. `git status`, `log`, `diff`, `show` run only where the " +
+        "host keeps git read-only. Any other command and `start_job` are refused: never retry a refusal. The file " +
+        "tools read, list and search better: the shell adds little here beyond `which`.",
     );
   } else if (f.shell) {
     lines.push(
@@ -234,8 +234,8 @@ export function searchPlaybook(p: {
   searchRouting: string; codeIntelRouting: string; shell: boolean; shellReadsOnly: boolean; ragIngest: boolean;
 }): string {
   const lastResort = p.shell && p.shellReadsOnly
-    ? "- The shell is for git's state and history here (`git status`, `log`, `diff`, `show`), never for reading, " +
-      "listing or searching files (`cat`, `ls`, `grep`), which the tools do.\n"
+    ? "- The shell adds little in this mode: never use it for reading, listing or searching files (`cat`, `ls`, " +
+      "`grep`), which the tools do.\n"
     : p.shell
     ? "- The shell is for builds, tests, git and the project's scripts, never for reading, listing, finding or " +
       "searching files (`cat`, `ls`, `find`, `sed`), which the tools do.\n"
