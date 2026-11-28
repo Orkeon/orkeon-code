@@ -442,6 +442,32 @@ describe("launchMainLoop", () => {
     deepStrictEqual(crews.launches[0].options, { onMain: true });
   });
 
+  it("attaches the state it is given to the launch", async () => {
+    // Arrange
+    const { crews, deps } = mainLoopDeps();
+
+    // Act
+    await launchMainLoop(deps, { prompt: "fix it", permissionMode: "plan", state: { planTurn: true } });
+
+    // Assert
+    deepStrictEqual(crews.launches[0].options, { onMain: true, state: { planTurn: true } });
+  });
+
+  it("uses the session's mode its caller resolved for a prompt without a prefix", async () => {
+    // Arrange
+    const { crews, deps } = mainLoopDeps();
+
+    // Act
+    await launchMainLoop(deps, {
+      prompt: "fix it", permissionMode: null, sessionMode: { mode: "plan", via: "the caller" },
+    });
+
+    // Assert
+    deepStrictEqual(
+      [crews.launches[0].input.permissionMode, crews.launches[0].input.permissionModeVia], ["plan", "the caller"],
+    );
+  });
+
   it("hands the main loop no llmProfile when the session names none", async () => {
     // Arrange
     const { crews, deps } = mainLoopDeps();

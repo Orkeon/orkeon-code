@@ -38,7 +38,8 @@ export function agentFactories(
   };
 }
 
-/** The prompt cache every agent requests: the system prompt and the tools, for the vendor's default lifetime. */
+/** The prompt cache every agent requests: the system prompt and the tools, for the vendor's default lifetime. With
+ *  either marked the runtime caches the conversation of a tool loop too (Orkeon #490), so it is not asked here. */
 export const PROMPT_CACHE: LlmCacheOptions = { systemPrompt: true, tools: true };
 /** The name `llm.profile` takes for the host's own provider. */
 const DEFAULT_PROFILE = "default";

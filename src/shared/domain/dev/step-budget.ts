@@ -11,8 +11,8 @@ export interface StepBudget {
   toolCalls: number;
   /** Seconds. */
   wallTime: number;
-  /** The context counted once (Orkeon #224): each call's completion plus what its prompt grew by, or the part the
-   *  provider's cache did not serve; a spent one is reported on the `tokens` dimension, as the running sum is. */
+  /** The context counted once (Orkeon #224, #495): each call's completion plus the lesser of what its prompt grew by
+   *  and the part the provider's cache did not serve; a spent one is reported on the `tokens` dimension, as the running sum is. */
   contextTokens: number;
   /** Left out: the runtime's default, depth 2. The runtime refuses a limit below 1 (Orkeon #436), so a run that
    *  starts no child leaves the key out: no budget can say "no child", the agent's tools hold it (it is given no

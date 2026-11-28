@@ -9,6 +9,18 @@ export interface ShellResult {
   exitCode: number;
   /** True when the runtime stopped the command at its timeout; absent otherwise. */
   timedOut?: boolean;
+  /** Set when the runtime cut stdout (its head and its tail kept around the runtime's marker); absent when whole. */
+  stdoutCut?: StreamCut;
+  /** Set when the runtime cut stderr, as `stdoutCut`. */
+  stderrCut?: StreamCut;
+}
+
+/** What the runtime says of a stream it cut. */
+export interface StreamCut {
+  /** The whole stream's length, as the runtime counts it (characters; bytes for a middle it could not keep). */
+  totalChars: number;
+  /** The virtual file the runtime wrote the output to; absent when it kept none. */
+  outputPath?: string;
 }
 
 /** How one command runs. */

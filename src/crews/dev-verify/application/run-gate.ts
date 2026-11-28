@@ -3,7 +3,6 @@
 // Fast and side-effect free: no build, no write (`--gate-only` relies on it).
 import type { Files, Shell } from "../../../shared/application/ports.ts";
 import { firstLine, stdoutLines } from "../domain/text.ts";
-import { runtimeCut } from "../domain/runtime-cut.ts";
 import type { RepoPack } from "../../../shared/domain/dev/repo-pack.ts";
 import type { TraitMarker } from "../../../shared/domain/dev/trait-pattern.ts";
 import { traitMarker } from "../../../shared/domain/dev/trait-pattern.ts";
@@ -64,7 +63,7 @@ function byCodeUnit(a: string, b: string): number {
 class GateCommandError extends Error {}
 
 /**
- * The stdout of a git call, without the runtime's cut notice; a throw or an exit outside `okExits`
+ * The stdout of a git call; a throw or an exit outside `okExits`
  * (-1: none reported) refuses the gate. `cut` is a FAIL line when the runtime cut the stdout.
  */
 async function runOrRefuse(
@@ -80,11 +79,10 @@ async function runOrRefuse(
     const why = firstLine(result.stderr);
     throw new GateCommandError(gateExit(command, result.exitCode, why));
   }
-  const { kept, omitted } = runtimeCut(result.stdout);
-  const cut = omitted > 0
-    ? { kind: "FAIL" as const, text: outputCutByRuntime(command, omitted) }
-    : null;
-  return { stdout: kept, cut };
+  const cut = result.stdoutCut === undefined
+    ? null
+    : { kind: "FAIL" as const, text: outputCutByRuntime(command, result.stdoutCut.totalChars, result.stdoutCut.outputPath) };
+  return { stdout: result.stdout, cut };
 }
 
 /** The report with the run's own lines added after the checks, green and the last line recomputed. */

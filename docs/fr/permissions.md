@@ -39,15 +39,57 @@ flowchart TD
 
 | Mode | Offert au modèle | Lectures locales | Lectures réseau (`http_api`, web) | Modifications de fichiers (`file_write`, `edit_file`, `node_*`, `edit_batch`, `structural_rewrite`), `rag_ingest` | Shell |
 |---|---|---|---|---|---|
-| `plan` | lectures locales, [outils supplémentaires](#outils-supplémentaires) `read` | ✅ | ❌ | ❌ | ❌ |
+| `plan` | lectures locales, le shell pour ses lectures, [outils supplémentaires](#outils-supplémentaires) `read` | ✅ | ❌ | ❌ | ses [lectures](#les-lectures-du-shell) ✅, le reste ❌ |
 | `dontAsk` | lectures locales, [outils supplémentaires](#outils-supplémentaires) `read` | ✅ | ❌ | ❌ | ❌ |
-| `default` | tous les outils | ✅ | GET simple de `http_api` ✅, ses autres méthodes vous sont demandées, web ✅ | vous est demandé | vous est demandé |
-| `acceptEdits` | tous les outils | ✅ | GET simple de `http_api` ✅, ses autres méthodes vous sont demandées, web ✅ | ✅ | vous est demandé |
+| `default` | tous les outils | ✅ | GET simple de `http_api` ✅, ses autres méthodes vous sont demandées, web ✅ | vous est demandé | ses lectures ✅, le reste vous est demandé |
+| `acceptEdits` | tous les outils | ✅ | GET simple de `http_api` ✅, ses autres méthodes vous sont demandées, web ✅ | ✅ | ses lectures ✅, le reste vous est demandé |
 | `bypassPermissions` | tous les outils | ✅ | ✅ | ✅ | ✅ |
 
 `plan` et `dontAsk` promettent que le tour ne change rien d'observable : aucune écriture, et aucune requête
-sortante, puisqu'une requête peut emporter ailleurs le contenu du dépôt. Leur catalogue ne contient que les outils
-de lecture locale, et la garde refuse tout le reste sans demander.
+sortante, puisqu'une requête peut emporter ailleurs le contenu du dépôt. Leur catalogue contient les outils de
+lecture locale, et la garde refuse tout le reste sans demander. `plan` offre aussi le shell : un appel du shell n'y
+passe que lorsque le shell le déclare lecture, et le modèle apprend quelles commandes le sont. `dontAsk` n'offre pas
+le shell, puisque sa garde suit les règles allow de la session et qu'une règle allow sur `shell_command` y lancerait
+une commande qui écrit. Les écritures du chat et les outils propres à Orkeon Code qui exécutent (`run_tests`,
+`run_build`) restent hors des deux modes.
+
+Une lecture du shell n'est pas tenue à l'espace de travail : voir
+[Portée hors de l'espace de travail](#portée-hors-de-lespace-de-travail).
+
+### Les lectures du shell
+
+`shell_command` déclare une lecture pour un `run` (son action par défaut) d'une de ses commandes en lecture seule par
+défaut que ses propres contrôles acceptent : `ls`, `cat`, `pwd`, `which`, `grep`, `wc`, `echo`, `dir`, `type`,
+`where`, et `git` avec `status`, `log`, `diff` ou `show` et aucune option qui écrit ou lance un programme. Un appel
+`git` ne lit que là où l'hôte tient git en lecture seule, ce qui demande les deux conditions :
+
+- le git installé est en version 2.44 ou plus récente, assez récent pour que l'outil neutralise tout programme
+  qu'un dépôt configure ;
+- `Orkeon:Tools:Shell:AllowInterpreters` vaut `false`. Tout fichier de réglages d'exemple qui configure le shell le
+  met à `true` : avec eux, tout appel `git` exécute, et `plan` le refuse.
+
+Le modèle ne se voit pas promettre git en `plan` : il apprend que ces quatre ne passent que là où l'hôte tient git
+en lecture seule, et qu'un appel refusé n'est pas retenté. Tout autre appel exécute :
+
+- une commande ajoutée à la liste autorisée (`Orkeon:Tools:Shell` l'étend) ou celle d'une liste personnalisée ;
+- un interpréteur, et `git` lui-même dès que `Orkeon:Tools:Shell:AllowInterpreters` lève sa restriction ;
+- une commande avec un opérateur du shell (`|`, `>`, `;`), ou une que l'outil refuserait ;
+- `start_job`, `job_status` et `job_tail`.
+
+En `plan`, le refus d'un appel du shell nomme ce que plan permet, pour que le modèle ne retente pas le même appel.
+Les outils de fichiers lisent, listent et cherchent mieux que ces commandes : le shell n'ajoute guère en `plan` que
+`which` et, là où l'hôte le permet, git.
+
+### Portée hors de l'espace de travail
+
+Le shell ne contrôle que les arguments qui nomment un montage de l'espace de travail, qu'il réécrit vers le chemin de
+l'hôte. Tout autre chemin va à la commande tel qu'il est écrit. Avec `Orkeon:Tools:Shell:Confinement:Mode` à `None`,
+la valeur des réglages d'exemple, une commande en lecture seule lit tout chemin que le compte de l'utilisateur peut
+lire (`cat /etc/hosts`, `ls ~`), alors que les outils de fichiers sont tenus aux montages. Une telle lecture est
+déclarée lecture : elle s'exécute sans question en `plan`, `default` et `acceptEdits`. Le confinement change cela :
+sous `Auto` (le défaut du runtime, qui revient à aucun confinement dans un conteneur), `Bubblewrap` ou `Seatbelt`, la
+commande voit les montages de l'espace de travail, avec leurs droits, et les répertoires système en lecture seule,
+rien d'autre de l'hôte. Rien dans les modes ni les règles d'Orkeon Code ne tient une lecture du shell à l'espace de travail.
 
 ### Questions
 
@@ -90,6 +132,7 @@ appel.
 | `github` | `list_issues`, `get_pr`, `search_repos`, `get_repo` | | `create_issue`, `create_pr`, une action qu'il ne connaît pas |
 | `web_scrape`, `scrape_element`, `rag_search` | tout appel | | |
 | `rag_ingest`, `rag_eval` | | tout appel | |
+| `shell_command` | un `run` d'une commande en lecture seule ([Les lectures du shell](#les-lectures-du-shell)) | | tout autre appel |
 | `browser` | `navigate`, `back`, `snapshot`, `read`, `find`, `search`, `tabs`, `new_tab`, `switch_tab` | `screenshot` | `click`, `type`, `press`, `evaluate`, `close_tab`, `close` |
 | `chat_accounts`, `chat_list`, `chat_read`, `chat_search`, `chat_members`, `chat_meetings` | tout appel | | |
 | `chat_send`, `chat_edit`, `chat_delete`, `chat_react` | | | tout appel |
@@ -169,6 +212,19 @@ du catalogue.
   et revient à sa valeur par défaut : `/effort`, `/fast`, `/passes`, `/proactive`, `/output-style`, les règles, les
   hooks et les réglages posés avec `--session` (`permissions.fallback` compris). Un `/effort` choisi pour le modèle
   gardé est à poser de nouveau après lui.
+- **Approuver un plan** : un tour de `/assistant` (texte libre) passé en `plan` se termine par une question,
+  `Carry out this plan?`, après chacune de ses réponses, celle à une simple question comprise. `Yes, and accept
+  edits` et `Yes, and ask before each edit` lancent un second tour qui exécute le plan, en `acceptEdits` ou en
+  `default`. Ce tour lancé, une session dont le mode est `plan` (par `/mode` ou par `permissions.fallback`) passe au
+  mode choisi, que le tour ait été préfixé `plan:` ou non ; une session dans un autre mode le garde (un tour préfixé
+  `plan:` dans une session qui écrit). Un lancement que le runtime refuse (la limite de profondeur de chaîne)
+  n'exécute rien et laisse le mode tel qu'il était, et une ligne le dit ; un mode qui ne peut être écrit est signalé
+  aussi, et le tour s'exécute quand même dans le mode choisi. `No, keep planning`, ou Échap, ne change
+  rien : le message suivant dit ce que le plan doit changer. Un tour échoué ou sans réponse ne pose pas la question.
+  Une console sans panneaux ne la pose pas non plus et affiche comment quitter le mode plan. Pendant que le plan est
+  exécuté, une nouvelle ligne de `/assistant` est refusée par la limite de concurrence de la commande, comme pendant
+  tout tour. Le plan est la réponse du
+  tour, gardée dans la conversation, pas un fichier.
 - **Repli** : sans l'un ni l'autre, le mode est `default`, ou celui que fixe
   `/config set permissions.fallback <mode>` (`--session` le garde pour la seule session). Chaque tour qui utilise le
   repli dit quel mode s'est appliqué et d'où il vient.

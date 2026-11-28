@@ -6,7 +6,7 @@
 // points), the test doubles in tests/support/doubles/.
 
 export type { Clock } from "./ports/clock.ts";
-export type { ShellResult, ShellOptions, Shell, ShellJobStatus, ShellJobs } from "./ports/shell.ts";
+export type { ShellResult, ShellOptions, StreamCut, Shell, ShellJobStatus, ShellJobs } from "./ports/shell.ts";
 export type { Mount, Files } from "./ports/files.ts";
 export type { ProgressSpec, Progress } from "./ports/progress.ts";
 export type {

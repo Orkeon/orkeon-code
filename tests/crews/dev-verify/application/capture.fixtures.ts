@@ -77,8 +77,11 @@ export const INDEX_HEAD: readonly string[] = [
 /** A diff of 40 000 characters: 2 000 lines of 18 characters, then 20 000 characters on one line. */
 export const DIFF_OF_40_000 = `${"+x".repeat(9)}\n`.repeat(2_000) + "y".repeat(20_000);
 
-/** The notice the runtime appends to an output it cut. */
-export const CUT_NOTICE = "\n\n[... truncated, 1234 chars omitted. Use more specific parameters to narrow results.]";
+/** A diff the runtime cut: its head and its tail around the runtime's marker. */
+export const CUT_DIFF = "+a\n\n[... truncated, 1234 chars omitted; output_path holds the whole output. " +
+  "Use more specific parameters to narrow results.]\n\n+b";
+/** What the runtime's fields say of that cut. */
+export const CUT = { totalChars: 1240, outputPath: "/output/jobs/d4.log" };
 
 /** Forty-one changed files: one more than the capture diffs. */
 export const FORTY_ONE_FILES: string[] = Array.from({ length: 41 }, (_, i) => `src/F${String(i).padStart(2, "0")}.cs`);

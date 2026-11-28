@@ -7,7 +7,7 @@ import {
   CHAT_READ_TOOLS, CHAT_TOOLS, CHAT_WRITE_TOOLS,
   MEMORY_TOOLS, scriptToolsFor,
   resolvePermissionMode, isReadOnly,
-  toolsetFor, permissionNote, buildActPrompt,
+  toolsetFor, permissionNote, buildActPrompt, shellReadsOnly,
   catalogueFor, coversEveryCall, readRule, checkRule, formatRule, gateLine, parseStoredRule, sameCalls,
   ruleableTool, TOOL_ARGUMENTS, globMatches, matchesRule, ruleDecision, shellCommandForms, shellWords,
 } from "../../../../src/shared/domain/agent-policy/permission.ts";
@@ -18,13 +18,14 @@ import {
   CHECK_RULE_CASES, CHECK_RULE_OK_CASES, DECISION_CASES, DENY_FILE_WRITE,
   EXTRA_RULES, FORMAT_CASES, GIT_PUSH, GIT_RULE_TEXTS, GLOB_CASES, HOST_OPT_IN_TOOLS, MATCHES_RULE_CASES, NETWORK_MATRIX,
   NOTE_NETWORK_CASES, NPM_TEST, ORKEON_180_EDITS, ORKEON_180_READS, ORKEON_280_READS, PARSE_STORED_CASES, PLAN_RULES,
-  QUOTED_PATTERNS, READ_ONLY_CASES, READ_ONLY_MODES, READ_ONLY_TOOLSET_CASES, READ_PATTERN_CASES, READ_RULE_CASES,
+  QUOTED_PATTERNS, READ_ONLY_CASES, READ_ONLY_MODES, READ_ONLY_TOOLSET_CASES, SHELL_READS_ONLY_CASES, READ_PATTERN_CASES, READ_RULE_CASES,
   READER, RESOLVE_MODE_CASES, ROUND_TRIP_RULES, RULEABLE_TOOL_CASES, SAME_CALLS_CASES, SCRIPT_TOOL_ACCESS_CASES,
   SCRIPT_TOOLS_DECLARED, SCRIPT_TOOLS_FOR_CASES, SHELL_FORMS_CASES, SHELL_WORDS_CASES, TOOL_ARGUMENT_CASES,
   WRITE_TOOLS_IN_ORDER, WRITER, WRITING_MODES, writingNote,
 } from "./permission.fixtures.ts";
 import { assertAcceptedWithWarning, assertArgumentsDeclared, assertInertReasons, assertOffered, assertReadOnlyToolset, assertWellFormedArguments } from "./permission.assertions.ts";
 import { assertMentions } from "../../../support/assertions/text.ts";
+import { PLAN_APPROVAL_CLAUSE, SHELL_READS_CLAUSE } from "../../../../src/shared/domain/agent-policy/prompts.ts";
 
 describe("resolvePermissionMode", () => {
   for (const c of RESOLVE_MODE_CASES) {
@@ -51,7 +52,7 @@ describe("toolsetFor", () => {
       const t = toolsetFor(mode);
 
       // Assert
-      assertReadOnlyToolset(t, mode);
+      assertReadOnlyToolset(t, c.shell, mode);
     });
   }
 
@@ -398,6 +399,50 @@ describe("permissionNote / buildActPrompt", () => {
     assertMentions(note, ["MUST NOT modify", "an assessment or a plan"]);
   });
 
+  it("plan note of a turn whose launcher asks for approval says the plan is approved, then carried out", () => {
+    // Arrange
+    const mode = "plan";
+
+    // Act
+    const note = permissionNote(mode, true);
+
+    // Assert
+    assertMentions(note, ["end with the plan", "asked to approve the plan", "Do not report the change as impossible"]);
+  });
+
+  it("plan note of a turn whose launcher asks nothing promises no approval", () => {
+    // Arrange
+    const mode = "plan";
+
+    // Act
+    const note = permissionNote(mode);
+
+    // Assert
+    strictEqual(note, `(Permission mode: plan. ${SHELL_READS_CLAUSE})`);
+  });
+
+  it("plan note of a turn whose launcher asks for approval keeps the shell's reads before the approval", () => {
+    // Arrange
+    const mode = "plan";
+
+    // Act
+    const note = permissionNote(mode, true);
+
+    // Assert
+    strictEqual(note, `(Permission mode: plan. ${SHELL_READS_CLAUSE} ${PLAN_APPROVAL_CLAUSE})`);
+  });
+
+  it("dontAsk note promises no approval", () => {
+    // Arrange
+    const mode = "dontAsk";
+
+    // Act
+    const note = permissionNote(mode);
+
+    // Assert
+    strictEqual(note.includes("approve the plan"), false);
+  });
+
   it("dontAsk note forbids mutation", () => {
     // Arrange
     const mode = "dontAsk";
@@ -408,6 +453,41 @@ describe("permissionNote / buildActPrompt", () => {
     // Assert
     assertMentions(note, ["MUST NOT modify"]);
   });
+
+  it("plan's note lets the shell's read-only commands run and forbids any other command", () => {
+    // Arrange
+    const expected = ["the shell's read-only commands included", "run any other command"];
+
+    // Act
+    const note = permissionNote("plan");
+
+    // Assert
+    assertMentions(note, expected);
+  });
+
+  it("dontAsk's note forbids running commands, the shell's reads included", () => {
+    // Arrange
+    const mode = "dontAsk";
+
+    // Act
+    const note = permissionNote(mode);
+
+    // Assert
+    assertMentions(note, ["MUST NOT modify files, run commands"]);
+  });
+
+  for (const c of SHELL_READS_ONLY_CASES) {
+    it(`${c.expected ? "offers" : "does not offer"} the shell for its reads alone in ${c.mode}`, () => {
+      // Arrange
+      const { mode } = c;
+
+      // Act
+      const only = shellReadsOnly(mode);
+
+      // Assert
+      strictEqual(only, c.expected);
+    });
+  }
 
   for (const mode of WRITING_MODES) {
     it(`${mode}'s note allows edits and shell, as every writing mode's, acceptEdits included`, () => {
@@ -502,7 +582,7 @@ describe("catalogueFor", () => {
 
   it("deny on a tool the mode already withholds is a no-op, not a phantom removal", () => {
     // Arrange
-    const rules = [{ effect: "deny" as const, tool: "shell_command" }];
+    const rules = [{ effect: "deny" as const, tool: "file_write" }];
 
     // Act
     const d = catalogueFor("plan", rules);
@@ -549,6 +629,17 @@ describe("catalogueFor", () => {
     // Assert
     deepStrictEqual(d.inert.map((r) => r.rule.tool), ["file_write", "shell_command"]);
     assertMentions(d.inert[0].reason, ["mode 'dontAsk' does not offer 'file_write'", "Switch mode"]);
+  });
+
+  it("removes shell_command from plan under a deny rule on the whole tool", () => {
+    // Arrange
+    const rules = [{ effect: "deny" as const, tool: "shell_command" }];
+
+    // Act
+    const d = catalogueFor("plan", rules);
+
+    // Assert
+    deepStrictEqual(d.deniedByRule, ["shell_command"]);
   });
 
   it("reports EVERY allow rule as inert in plan, whose gate reads none, offered tool or not", () => {

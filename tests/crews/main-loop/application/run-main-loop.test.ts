@@ -320,6 +320,17 @@ describe("runMainLoop — the turn", () => {
     assertPromptEndsWith(llm.acts[0].prompt, buildActPrompt("fix the parser", "plan"));
   });
 
+  it("tells a plan turn its plan is approved after it when the launching command asks for the approval", async () => {
+    // Arrange
+    const { llm, deps } = turnSetup();
+
+    // Act
+    await runMainLoop({ prompt: "fix the parser", permissionMode: "plan", planApproval: true }, EXPLICIT_PLAN, deps);
+
+    // Assert
+    assertPromptEndsWith(llm.acts[0].prompt, buildActPrompt("fix the parser", "plan", true));
+  });
+
   it("stores the act's tool calls as a [tools] message between the request and the answer", async () => {
     // Arrange
     const { store, llm, deps } = turnSetup();
@@ -369,7 +380,7 @@ describe("runMainLoop — the turn", () => {
     deepStrictEqual(llm.acts.map((a) => a.request), [{
       maxIterations: maxIterationsFor(DEFAULT_BEHAVIOR_FLAGS.effort),
       permissionMode: "plan",
-      system: buildStaticHeader({ toolNames: toolsetFor("plan") }),
+      system: buildStaticHeader({ toolNames: toolsetFor("plan"), shellReadsOnly: true }),
       context: BARE_TURN_CONTEXT,
       model: "",
     }]);
@@ -430,7 +441,7 @@ describe("runMainLoop — the turn", () => {
     await runMainLoop(input, loadCatalogue(input), deps);
 
     // Assert
-    strictEqual(llm.acts[0].request.system, buildStaticHeader({ toolNames: [...toolsetFor("plan"), "transcribe_audio"] }));
+    strictEqual(llm.acts[0].request.system, buildStaticHeader({ toolNames: [...toolsetFor("plan"), "transcribe_audio"], shellReadsOnly: true }));
   });
 
   it("announces what the rules changed in the catalogue, and the rules without effect", async () => {

@@ -27,12 +27,15 @@ export const SHEET = "# DEMO-PLAN-F2 — Command\n| Applied rules | DDD-01 |\n##
 export const PLAN = "# DEMO-PLAN\nNon-applicable rules: DDD-02 DDD-03 DDD-04 DDD-05 DDD-06 DDD-07 DDD-08 DDD-09 DDD-10 DDD-11 " +
   "APP-01 APP-02 APP-03 APP-04 APP-05 PERF-01\n";
 
-/** The notice the runtime appends to an output it cut. */
-export const CUT_NOTICE = "\n\n[... truncated, 1234 chars omitted. Use more specific parameters to narrow results.]";
+/** A file list the runtime cut: its head and its tail around the runtime's marker. */
+export const CUT_STDOUT = "src/a.ts\nsrc/b\n\n[... truncated, 1234 chars omitted; output_path holds the whole output. " +
+  "Use more specific parameters to narrow results.]\n\n.ts\nsrc/z.ts";
+/** What the runtime's fields say of that cut. */
+export const CUT = { totalChars: 1262, outputPath: "/output/jobs/c3.log" };
 
 /** The gate's line on a git output the runtime cut. */
-export const CUT_LINE = "  FAIL the output of 'git diff --name-only HEAD' was cut by the runtime (1234 characters omitted): " +
-  "the list is incomplete, run the gate again on a smaller change";
+export const CUT_LINE = "  FAIL the output of 'git diff --name-only HEAD' was cut by the runtime (its head and its tail kept of " +
+  "1262 characters, the output written to /output/jobs/c3.log): the list is incomplete, run the gate again on a smaller change";
 
 /** Batch F2 of the plan folder workbench/demo, `over` replacing its fields. */
 export function target(over: Partial<DevVerifyTarget> = {}): DevVerifyTarget {

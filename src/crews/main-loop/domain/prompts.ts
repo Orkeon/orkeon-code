@@ -139,6 +139,8 @@ export interface ToolRealityFlags {
   editFile: boolean;
   fileWrite: boolean;
   shell: boolean;
+  /** The shell is offered for its reads alone (a read-only mode): its line names the commands that pass. */
+  shellReadsOnly: boolean;
   web: boolean;
   /** `spawn_agent` can reach the explorer: the mode and the session's rules let a spawn of it through. */
   explorer: boolean;
@@ -175,7 +177,14 @@ export function toolRealities(f: ToolRealityFlags): string {
         "Never rewrite a file whose read came back cut: the part you did not see would be lost.",
     );
   }
-  if (f.shell) {
+  if (f.shell && f.shellReadsOnly) {
+    lines.push(
+      "`shell_command` runs reads only here: a `run` of `ls`, `cat`, `pwd`, `which`, `grep`, `wc`, `echo`, `dir`, " +
+        "`type` or `where`; one command, no `|`, `>`, `;`. `git status`, `log`, `diff`, `show` run only where the " +
+        "host keeps git read-only. Any other command and `start_job` are refused: never retry a refusal. The file " +
+        "tools read, list and search better: the shell adds little here beyond `which`.",
+    );
+  } else if (f.shell) {
     lines.push(
       "`shell_command` runs one allowed command, no `|`, `>`, `;`; git may be read-only. " +
         "Never retry a refusal. Read a file with `file_read`, not `cat`.",
@@ -221,8 +230,13 @@ export function toolsBlock(tools: readonly string[], realities: string): string 
 
 /** The search playbook: the routing by file type, the last resort (the shell where it is offered, a plain read where
  *  it is not), the question-to-tool routing, and the freshness of the code results. */
-export function searchPlaybook(p: { searchRouting: string; codeIntelRouting: string; shell: boolean; ragIngest: boolean }): string {
-  const lastResort = p.shell
+export function searchPlaybook(p: {
+  searchRouting: string; codeIntelRouting: string; shell: boolean; shellReadsOnly: boolean; ragIngest: boolean;
+}): string {
+  const lastResort = p.shell && p.shellReadsOnly
+    ? "- The shell adds little in this mode: never use it for reading, listing or searching files (`cat`, `ls`, " +
+      "`grep`), which the tools do.\n"
+    : p.shell
     ? "- The shell is for builds, tests, git and the project's scripts, never for reading, listing, finding or " +
       "searching files (`cat`, `ls`, `find`, `sed`), which the tools do.\n"
     : "- For content no index covers, find the file with `glob` and read it.\n";

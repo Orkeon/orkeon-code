@@ -75,9 +75,18 @@ export const RESOLVE_MODE_CASES: readonly { name: string; raw: unknown; mode: st
   { name: "keeps a stored mode", raw: "plan", mode: "plan" },
 ];
 
-export const READ_ONLY_TOOLSET_CASES: readonly { name: string; mode: string }[] = [
-  { name: "plan mode is read-only (no write/shell)", mode: "plan" },
-  { name: "dontAsk mode is read-only like plan (E-3)", mode: "dontAsk" },
+export const READ_ONLY_TOOLSET_CASES: readonly { name: string; mode: string; shell: number }[] = [
+  { name: "plan mode is read-only (no write, the shell for its reads)", mode: "plan", shell: 1 },
+  { name: "dontAsk mode is read-only like plan (E-3), without the shell", mode: "dontAsk", shell: 0 },
+];
+
+/** Whether each mode offers the shell for its reads alone: plan only. */
+export const SHELL_READS_ONLY_CASES: readonly { mode: string; expected: boolean }[] = [
+  { mode: "plan", expected: true },
+  { mode: "dontAsk", expected: false },
+  { mode: "default", expected: false },
+  { mode: "acceptEdits", expected: false },
+  { mode: "bypassPermissions", expected: false },
 ];
 
 export const READ_ONLY_CASES: readonly { mode: string; readOnly: boolean }[] = [

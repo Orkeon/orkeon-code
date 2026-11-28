@@ -99,7 +99,9 @@ Une option qu'un fournisseur ne peut pas honorer produit un avertissement, jamai
 - Anthropic ne met en cache que ce qu'une requête marque : chaque agent d'Orkeon Code marque son prompt système et
   ses définitions d'outils (`.cache({ systemPrompt: true, tools: true })`), un préfixe que ses prompts gardent
   identique d'un tour à l'autre, donc dès le deuxième appel d'une session `cacheRead` compte ce qu'Anthropic a servi
-  depuis son cache. Un agent dont le profil, ou le modèle par défaut de l'hôte, tourne sur `agent-cli` ne marque
+  depuis son cache. Dès que l'un des deux est marqué, le runtime marque aussi la conversation : dans une boucle
+  d'outils chaque appel lit ce que le précédent a écrit et n'écrit que les nouveaux tours, et un
+  appel unique, que rien ne relirait, n'écrit pas de conversation. Un agent dont le profil, ou le modèle par défaut de l'hôte, tourne sur `agent-cli` ne marque
   rien (la CLI gère son cache selon ses propres règles).
 - La demande de l'agent l'emporte sur un réglage par défaut `Llm:Cache` du runtime.
 
@@ -195,7 +197,7 @@ celui de la section).
 - Une CLI qui tourne malgré tout sur une clé plutôt que sur sa connexion est refusée avant de répondre, et l'appel
   ne bascule pas (`Llm:AgentCli:RequireLogin`, `true`).
 - Avant le premier lancement : `claude` sur le `PATH`, connecté une fois (`claude /login`).
-- Tout mode sauf docker : Orkeon `1.4.0` porte le fournisseur, et l'épingle aussi, sept commits plus loin, si bien
+- Tout mode sauf docker : Orkeon `1.4.0` porte le fournisseur, et l'épingle aussi, neuf commits plus loin, si bien
   que les modes tool et source l'exécutent. L'image n'a ni `claude` ni sa connexion.
 - Chaque verbe d'`orkeon` accepte ces settings, `orkeon runs list` compris (Orkeon #472).
 - [`config/appsettings.agent-cli.example.json`](../../config/appsettings.agent-cli.example.json) est l'exemple :
@@ -330,7 +332,11 @@ Ce que le tableau laisse de côté :
     avec un avertissement.
 - **`Orkeon:Tools:ResultLimits:Limits:<tool>`** :
   - Un résultat coupé finit par `[... truncated, N chars omitted. …]`.
-  - L'audit de `/dev-batches` lit cette mention.
+  - `shell_command` borne lui-même sa sortie : il garde le début et la fin de chaque flux autour de cette mention,
+    dit `stdout_truncated` ou `stderr_truncated`, donne la longueur entière dans `stdout_total_chars` et
+    `stderr_total_chars`, et écrit la sortie dans `output_path`.
+  - L'audit de `/dev-batches` lit ces champs, jamais la mention : une liste de fichiers coupée fait échouer sa
+    porte, un diff coupé est marqué douteux dans sa capture avec le fichier qui le contient.
 - **`Orkeon:Rag:Retrieval:MinScore`** :
   - Aucun par défaut, donc une question sans réponse reçoit quand même des passages.
   - Les exemples mettent 0,6, mesuré sur le jeu de référence de la mémoire partagée avec l'embedder local : 0,5
@@ -368,9 +374,10 @@ Ce que le tableau laisse de côté :
 - Le budget propre du crew de la boucle principale, écrit dans son code
   (`src/crews/main-loop/domain/turn-budget.ts`) : 200 appels d'outils, 700k tokens de contexte, 8 explorateurs lancés
   et 30 minutes de temps réel, qui s'arrête pendant qu'un appel d'outil attend votre réponse.
-  - Le contexte est compté une fois : chaque appel paie sa complétion plus ce dont son prompt a
-    grandi, ou la part que le cache du fournisseur n'a pas servie, donc un tour de n appels sur un contexte de c
-    tokens dépense environ c plus ses complétions, jamais tout son contexte à chaque appel.
+  - Le contexte est compté une fois : chaque appel paie sa complétion plus le plus petit de ce dont son prompt a
+    grandi et de la part que le cache du fournisseur n'a pas servie, donc un tour de n appels sur un contexte de c
+    tokens dépense environ c plus ses complétions, jamais tout son contexte à chaque appel, que le cache en ait
+    servi la totalité, une partie ou rien.
   - Cette horloge est celle d'Orkeon et, comme celle du moteur, elle s'arrête pendant que la garde attend votre
     réponse : seul le travail du modèle compte, et une question laissée sans réponse ne met pas fin au tour.
   - Quand les tokens de contexte atteignent la limite, le tour n'exécute plus d'outil : le modèle fait un dernier

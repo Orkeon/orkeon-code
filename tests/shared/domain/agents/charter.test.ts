@@ -34,13 +34,24 @@ describe("charterCatalogue", () => {
 
   it("drops a tool the mode does not offer", () => {
     // Arrange
-    const charter = reader({ tools: ["file_read", "shell_command"] });
+    const charter = reader({ tools: ["file_read", "file_write"] });
 
     // Act
     const catalogue = charterCatalogue(charter);
 
     // Assert
     deepStrictEqual(catalogue, ["file_read"]);
+  });
+
+  it("keeps shell_command in a plan charter that names it: plan offers the shell for its reads", () => {
+    // Arrange
+    const charter = reader({ tools: ["file_read", "shell_command"] });
+
+    // Act
+    const catalogue = charterCatalogue(charter);
+
+    // Assert
+    deepStrictEqual(catalogue, ["file_read", "shell_command"]);
   });
 });
 
@@ -71,9 +82,9 @@ describe("charterProblems", () => {
     ]);
   });
 
-  it("names a write tool the mode does not offer", () => {
+  it("names a write or network tool the mode does not offer", () => {
     // Arrange
-    const charter = reader({ tools: ["file_read", "file_write", "shell_command"] });
+    const charter = reader({ tools: ["file_read", "file_write", "http_api"] });
 
     // Act
     const problems = charterProblems(charter);
@@ -81,8 +92,19 @@ describe("charterProblems", () => {
     // Assert
     deepStrictEqual(problems, [
       "charter code-reader: file_write is not offered in mode plan",
-      "charter code-reader: shell_command is not offered in mode plan",
+      "charter code-reader: http_api is not offered in mode plan",
     ]);
+  });
+
+  it("finds no problem in a plan charter that names shell_command, offered there for its reads", () => {
+    // Arrange
+    const charter = reader({ tools: ["file_read", "shell_command"] });
+
+    // Act
+    const problems = charterProblems(charter);
+
+    // Assert
+    deepStrictEqual(problems, []);
   });
 
   it("refuses an empty catalogue", () => {
