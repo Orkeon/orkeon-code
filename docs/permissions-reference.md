@@ -93,7 +93,7 @@ What that gives, case by case:
 | `git remote -v`, `git stash list` | run |
 | `git remote add`, `git stash pop`, `git stash` alone or with options | refused |
 | `git replace` alone | lists, and runs |
-| `git status`, `git log`, `git diff`, `git show` | run: reading the history stays open |
+| `git status`, `git log`, `git diff`, `git show` | not refused by these rules: the mode decides ([the shell's reads](permissions.md#the-shells-reads)) |
 
 The rules match the word `git` anywhere on the line. A path (`/usr/bin/git push`), an `env`, a variable
 (`GIT_DIR=.git git push`) or a chain (`cd x && git push`) before it does not help.

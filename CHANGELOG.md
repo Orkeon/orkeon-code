@@ -26,8 +26,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   confinement, the value of the example settings, a call that names a path outside them (`cat /etc/hosts`, `ls ~`),
   follows links or walks a folder holding a denied path asks in `default` and `acceptEdits` and is refused in
   `plan`; it ran without a question at the previous pin. Every `git` call executes there, with interpreters allowed
-  or not; in a confined shell `git status`, `log`, `diff` and `show` are reads
+  or not; in a shell confined to the mounts `git status`, `log`, `diff` and `show` are reads
   ([Permissions](docs/permissions.md#reach-outside-the-workspace)).
+- In `plan` the model is told that every path of a shell call lies inside the project, that git runs only in a
+  confined shell and that a first refusal means it is not offered.
 
 ### Added — `/analyze` over a folder of several repositories
 
@@ -53,11 +55,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed — the shell reads in `plan`
 
 - `plan` offers `shell_command` for the calls the runtime declares a read (Orkeon #494): a `run` of `ls`, `cat`,
-  `pwd`, `which`, `grep`, `wc`, `echo`, `dir`, `type` or `where`, and of `git status`, `log`, `diff`, `show` where
-  the host keeps git read-only (git 2.44 or later, `AllowInterpreters` off). The gate refuses every other shell call
+  `pwd`, `which`, `grep`, `wc`, `echo`, `dir`, `type` or `where` on paths inside the project, and of `git status`,
+  `log`, `diff`, `show` in a shell confined to the mounts (git 2.44 or later). The gate refuses every other shell call
   there without asking. The header, the permission note and `/mode` say so; the chat writes and the script tools
   that execute stay out ([Permissions](docs/permissions.md#the-shells-reads)). `dontAsk` keeps its catalogue.
-- The permissions guide says that a shell read is held to the workspace only by the runtime's confinement
+- The permissions guide says what holds a shell read to the workspace
   ([Reach outside the workspace](docs/permissions.md#reach-outside-the-workspace)).
 
 ### Added — a plan is approved, then carried out
@@ -160,8 +162,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   knows a cut `git diff` or file list from the result's `stdout_truncated` field, and names the file that holds the
   whole output.
 - In `default` and `acceptEdits` a read-only shell command (`ls`, `cat`, `grep`, `wc`...) runs without a question, as
-  a file read does. Without shell confinement it reads any file your account can read
-  ([Permissions](docs/permissions.md)).
+  a file read does, when every path it names lies inside the workspace's mounts
+  ([Permissions](docs/permissions.md#reach-outside-the-workspace)).
 
 ### Changed — the pin moves to Orkeon `main` `9ca8530`, the thinking level reaches the subscription
 

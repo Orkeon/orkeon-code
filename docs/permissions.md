@@ -60,20 +60,27 @@ own checks accept, when the tool can state where the command reads: `ls`, `cat`,
 `echo`, `dir`, `type`, `where`, and `git` with `status`, `log`, `diff` or `show` and no option that writes or runs
 a program. Where it reads is settled in one of two ways:
 
-- **The shell is confined** (`Orkeon:Tools:Shell:Confinement:Mode` at `Bubblewrap` or `Seatbelt`, or `Auto` outside
-  a container) and its view grants what the mounts grant: the command sees nothing else of the host, so it is a
-  read.
+- **The shell is confined to the mounts**: `Orkeon:Tools:Shell:Confinement:Mode` at `Bubblewrap` or `Seatbelt`,
+  or `Auto` on Linux or macOS outside a container, and all of these hold:
+  - `Confinement:ReadOnlyPaths` is empty (a path listed there is a host folder outside the mounts);
+  - every mount, and every sub path a rule sets apart, grants reads (a denied `.env` breaks this);
+  - the agent runs under no root nor file-system scope narrower than its mount.
+
+  The command then sees the mounts and the system directories, nothing else of the host, so every call of these
+  commands but `git` is a read, whatever path it names (`cat /etc/hosts` reads a system file). When one condition
+  fails, and under `AppContainer` (Windows), the call is judged as in a shell without confinement.
 - **The shell is not confined** (`None`, the value of the example settings): the call is a read only when every
   word of the command resolves inside a mount that grants reads. See
   [Reach outside the workspace](#reach-outside-the-workspace) for what makes it an execution.
 
-A `git` call is a read only in a confined shell, with git 2.44 or later, recent enough for the tool to neutralise
-every program a repository configures. Without confinement every `git` call executes, whatever
+A `git` call is a read only in a shell confined to the mounts as above, with git 2.44 or later, recent enough for
+the tool to neutralise every program a repository configures, and with every path it names inside the mounts. Without confinement every `git` call executes, whatever
 `Orkeon:Tools:Shell:AllowInterpreters` says: a repository's own configuration can make git read outside the mounts.
 With the example settings, `plan` therefore refuses `git log` and `git diff`.
 
-The model is not promised git in `plan`: it is told that these four run only where the host keeps git read-only,
-and that a refused call is not tried again. Every other call executes:
+The model is not promised git in `plan`: it is told that these four run only in a confined shell, that a first
+refusal means git is not offered, that every path of a call lies inside the project, and that a refused call is
+not tried again. Every other call executes:
 
 - a command added to the allow-list (`Orkeon:Tools:Shell` extends it) or a custom allow-list's;
 - an interpreter;
@@ -98,7 +105,10 @@ The check reads every word, a `grep` pattern included: `grep -r /api/ src` asks,
 outside the mounts. Answer the question, or use the file tools, which search without it.
 
 Under confinement the command sees the workspace's mounts, with their rights, and the system directories read-only,
-nothing else of the host. `Auto`, the runtime's default, turns into no confinement inside a container.
+nothing else of the host: there `grep -R` or `cat /etc/hosts` is a read. `Auto`, the runtime's default, turns into
+no confinement inside a container. A confinement that does not hold the command to the mounts (a
+`Confinement:ReadOnlyPaths` entry, a mount or a sub path without reads, `AppContainer`) leaves the calls judged word
+by word, as above.
 
 ### Questions
 
