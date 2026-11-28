@@ -3,8 +3,8 @@
 // module names the tools of each class, adds the extra tools the user configured
 // (extra-tools.ts), builds the catalogue, and parses and formats the rules that
 // /permissions keeps and the host's permission gate enforces. `plan` and
-// `dontAsk` offer no mutating tool, so no write or shell call can even be
-// attempted in them.
+// `dontAsk` offer no mutating tool, so no write can even be attempted in them;
+// they offer the shell for its reads, and the gate refuses its other calls there.
 
 import { policyFor } from "./mode-policy.ts";
 import type { ToolClass } from "./mode-policy.ts";
@@ -85,6 +85,9 @@ const TOOLS_BY_CLASS: Readonly<Record<ToolClass, readonly string[]>> = {
   ],
   shell: ["shell_command"],
   extra: [],
+  // One tool in two classes: a writing mode is granted it for every call (`shell`), a read-only mode for the calls it
+  // declares a read (Orkeon #494), the gate refusing the others there. No mode grants both.
+  shellReads: ["shell_command"],
 };
 
 /**
@@ -120,7 +123,7 @@ const CHAT_TOOLS_BY_CLASS: Partial<Readonly<Record<ToolClass, readonly string[]>
   shell: CHAT_WRITE_TOOLS,
 };
 
-/** Mutating tools — added for every mode except the read-only ones. */
+/** Mutating tools — added for every mode except the read-only ones, which offer `shell_command` for its reads alone. */
 export const WRITE_TOOLS: readonly string[] = [...TOOLS_BY_CLASS.edit, ...TOOLS_BY_CLASS.shell];
 
 /** What an extra tool may do, as the user declares it in `tools.extra`. */
@@ -258,7 +261,7 @@ export function scriptToolAccess(name: string): ScriptToolAccess | undefined {
  * register would never match anything: naming it is refused instead.
  */
 export const RULEABLE_TOOLS: readonly string[] = [
-  ...Object.values(TOOLS_BY_CLASS).flat(), ...CHAT_TOOLS, ...ACT_TOOLS, ...SCRIPT_TOOLS.map((tool) => tool.name),
+  ...new Set(Object.values(TOOLS_BY_CLASS).flat()), ...CHAT_TOOLS, ...ACT_TOOLS, ...SCRIPT_TOOLS.map((tool) => tool.name),
 ];
 
 /**

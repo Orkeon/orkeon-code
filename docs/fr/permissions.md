@@ -39,15 +39,32 @@ flowchart TD
 
 | Mode | Offert au modèle | Lectures locales | Lectures réseau (`http_api`, web) | Modifications de fichiers (`file_write`, `edit_file`, `node_*`, `edit_batch`, `structural_rewrite`), `rag_ingest` | Shell |
 |---|---|---|---|---|---|
-| `plan` | lectures locales, [outils supplémentaires](#outils-supplémentaires) `read` | ✅ | ❌ | ❌ | ❌ |
-| `dontAsk` | lectures locales, [outils supplémentaires](#outils-supplémentaires) `read` | ✅ | ❌ | ❌ | ❌ |
-| `default` | tous les outils | ✅ | GET simple de `http_api` ✅, ses autres méthodes vous sont demandées, web ✅ | vous est demandé | vous est demandé |
-| `acceptEdits` | tous les outils | ✅ | GET simple de `http_api` ✅, ses autres méthodes vous sont demandées, web ✅ | ✅ | vous est demandé |
+| `plan` | lectures locales, le shell pour ses lectures, [outils supplémentaires](#outils-supplémentaires) `read` | ✅ | ❌ | ❌ | ses [lectures](#les-lectures-du-shell) ✅, le reste ❌ |
+| `dontAsk` | lectures locales, le shell pour ses lectures, [outils supplémentaires](#outils-supplémentaires) `read` | ✅ | ❌ | ❌ | ses [lectures](#les-lectures-du-shell) ✅, le reste ❌ |
+| `default` | tous les outils | ✅ | GET simple de `http_api` ✅, ses autres méthodes vous sont demandées, web ✅ | vous est demandé | ses lectures ✅, le reste vous est demandé |
+| `acceptEdits` | tous les outils | ✅ | GET simple de `http_api` ✅, ses autres méthodes vous sont demandées, web ✅ | ✅ | ses lectures ✅, le reste vous est demandé |
 | `bypassPermissions` | tous les outils | ✅ | ✅ | ✅ | ✅ |
 
 `plan` et `dontAsk` promettent que le tour ne change rien d'observable : aucune écriture, et aucune requête
-sortante, puisqu'une requête peut emporter ailleurs le contenu du dépôt. Leur catalogue ne contient que les outils
-de lecture locale, et la garde refuse tout le reste sans demander.
+sortante, puisqu'une requête peut emporter ailleurs le contenu du dépôt. Leur catalogue contient les outils de
+lecture locale et le shell, et la garde refuse sans demander tout appel qui n'est pas une lecture : un appel du shell
+n'y passe que lorsque le shell le déclare lecture. Le modèle apprend quelles commandes le sont. Les écritures du chat
+et les outils propres à Orkeon Code qui exécutent (`run_tests`, `run_build`) restent hors de ces modes.
+
+### Les lectures du shell
+
+`shell_command` déclare une lecture pour un `run` (son action par défaut) d'une de ses commandes en lecture seule par
+défaut que ses propres contrôles acceptent : `ls`, `cat`, `pwd`, `which`, `grep`, `wc`, `echo`, `dir`, `type`,
+`where`, et `git` avec `status`, `log`, `diff` ou `show` et aucune option qui écrit ou lance un programme. Un appel
+`git` ne lit que si le git installé est assez récent pour que l'outil neutralise tout programme qu'un dépôt
+configure. Tout autre appel exécute :
+
+- une commande ajoutée à la liste autorisée (`Orkeon:Tools:Shell` l'étend) ou celle d'une liste personnalisée ;
+- un interpréteur, et `git` lui-même dès que `Orkeon:Tools:Shell:AllowInterpreters` lève sa restriction ;
+- une commande avec un opérateur du shell (`|`, `>`, `;`), ou une que l'outil refuserait ;
+- `start_job`, `job_status` et `job_tail`.
+
+En `plan`, le refus d'un appel du shell nomme ce que plan permet, pour que le modèle ne retente pas le même appel.
 
 ### Questions
 
@@ -90,6 +107,7 @@ appel.
 | `github` | `list_issues`, `get_pr`, `search_repos`, `get_repo` | | `create_issue`, `create_pr`, une action qu'il ne connaît pas |
 | `web_scrape`, `scrape_element`, `rag_search` | tout appel | | |
 | `rag_ingest`, `rag_eval` | | tout appel | |
+| `shell_command` | un `run` d'une commande en lecture seule ([Les lectures du shell](#les-lectures-du-shell)) | | tout autre appel |
 | `browser` | `navigate`, `back`, `snapshot`, `read`, `find`, `search`, `tabs`, `new_tab`, `switch_tab` | `screenshot` | `click`, `type`, `press`, `evaluate`, `close_tab`, `close` |
 | `chat_accounts`, `chat_list`, `chat_read`, `chat_search`, `chat_members`, `chat_meetings` | tout appel | | |
 | `chat_send`, `chat_edit`, `chat_delete`, `chat_react` | | | tout appel |
@@ -235,7 +253,9 @@ du même outil restent.
 | une règle deny avec un motif | laisse l'outil offert, puisque ses autres appels s'exécutent |
 | une règle allow | n'ajoute jamais d'outil : elle épargne une question, elle ne donne pas un outil que le mode écarte |
 
-`plan` et `dontAsk` restent donc en lecture seule quoi que disent les règles. `/permissions` signale une règle allow
+`plan` reste en lecture seule quoi que disent les règles. `dontAsk` aussi, sauf pour une règle allow sur
+`shell_command` : la garde l'y lit, donc les commandes qu'elle couvre s'exécutent, lectures ou non
+(`allow shell_command command=npm test*` lance les tests en `dontAsk`). `/permissions` signale une règle allow
 sans effet dans le mode de la session : toute règle allow en `plan`, et une règle allow sur un outil que le mode
 n'offre pas. Un tour signale celle qui n'en a pas dans le mode que nomme sa requête, et chaque tour consigne les
 outils qu'une règle a retirés.

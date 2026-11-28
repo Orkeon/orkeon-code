@@ -191,6 +191,11 @@ un changement comme un diff.
   - `shell_command` applique une liste blanche, et git peut être en lecture seule.
   - Un appel au shell est une seule commande : ni tube, ni redirection, ni enchaînement, que le runtime refuse. Un
     fichier se lit avec `file_read` (une plage pour sa fin), jamais avec `cat`, `tail` ou `wc` par le shell.
+  - Dans un mode en lecture seule (`plan`, `dontAsk`), qui n'offre le shell que pour ses lectures, la ligne nomme ce
+    qui passe : un `run` de `ls`, `cat`, `pwd`, `which`, `grep`, `wc`, `echo`, `dir`, `type`, `where`, ou de
+    `git status`, `log`, `diff`, `show` sans option qui écrit ou lance un programme, une commande par appel. Toute
+    autre commande et `start_job` sont refusés, et un refus n'est pas retenté. La ligne de la liste blanche des modes
+    qui écrivent n'y figure pas.
   - Là où un outil web est offert (`web_search`, `http_api`, `web_scrape`, `scrape_element`, `browser`), le projet
     passe avant le web : un port, une commande ou une image que sa documentation et ses réglages d'exemple donnent
     l'emporte sur une valeur trouvée sur le web, et une valeur lue nulle part n'est pas donnée comme un fait.
@@ -244,7 +249,8 @@ est offerte :
   - Un mode en lecture seule apprend qu'une réponse vide n'y prouve pas l'absence.
   - Se fier à la fraîcheur de l'index de code (les fichiers modifiés sont réindexés avant qu'une recherche réponde).
   - Le shell, là où il est offert, sert à construire, tester, à git et aux scripts du projet, jamais à lire, lister,
-    trouver ou chercher des fichiers, ce que font les outils.
+    trouver ou chercher des fichiers, ce que font les outils. Dans un mode en lecture seule, il sert à l'état et à
+    l'historique de git (`git status`, `log`, `diff`, `show`), jamais à lire, lister ou chercher des fichiers.
   - Là où il ne l'est pas, un fichier qu'aucun index ne couvre se trouve avec `glob` et se lit.
 - **De la question à l'outil** (`shared/domain/code-intel-routing.ts`) :
   - Chaque sorte de question va à l'outil qui y répond, avec le paramètre qui le fait répondre (tableau ci-dessous).
@@ -310,8 +316,8 @@ est offerte :
   d'avertissement, finir l'étape en cours et cesser de lire de gros fichiers en entier ; au palier d'erreur, conclure
   et suggérer `/compact`.
 - **Requête** (le dernier message, à part des blocs ci-dessus) : la requête sous son propre titre, puis la note de
-  permission du mode (lecture seule : livrer une
-  évaluation ou un plan ; sinon le runtime peut demander avant un appel), puis la clause proactive quand `/proactive` est
+  permission du mode (lecture seule : lire et chercher, les commandes en lecture seule du shell comprises, ne lancer
+  aucune autre commande, livrer une évaluation ou un plan ; sinon le runtime peut demander avant un appel), puis la clause proactive quand `/proactive` est
   activé.
 
 ### L'explorateur

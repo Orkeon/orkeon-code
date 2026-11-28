@@ -76,8 +76,8 @@ export const RESOLVE_MODE_CASES: readonly { name: string; raw: unknown; mode: st
 ];
 
 export const READ_ONLY_TOOLSET_CASES: readonly { name: string; mode: string }[] = [
-  { name: "plan mode is read-only (no write/shell)", mode: "plan" },
-  { name: "dontAsk mode is read-only like plan (E-3)", mode: "dontAsk" },
+  { name: "plan mode is read-only (no write, the shell for its reads)", mode: "plan" },
+  { name: "dontAsk mode is read-only like plan (E-3), the shell for its reads", mode: "dontAsk" },
 ];
 
 export const READ_ONLY_CASES: readonly { mode: string; readOnly: boolean }[] = [
@@ -199,6 +199,10 @@ export const SCRIPT_TOOLS_FOR_CASES: readonly ScriptToolsForCase[] = [
   {
     name: "offer only the reading script tool in plan, and no built-in tool",
     mode: "plan", tools: ["run_tests", "run_validation", "file_read"], expected: ["run_validation"],
+  },
+  {
+    name: "offer no executing script tool in dontAsk, though it offers the shell for its reads",
+    mode: "dontAsk", tools: ["run_tests", "run_build", "run_validation"], expected: ["run_validation"],
   },
   { name: "offer the executing script tools in default", mode: "default", tools: ["run_tests", "run_build"], expected: ["run_tests", "run_build"] },
   {

@@ -53,7 +53,13 @@ export const MAX_STATIC_HEADER_CHARS = 12_200;
 
 /** What the session lets the turn deliver — chosen from the catalogue, so stable per mode. */
 function describeSession(tools: readonly string[]): string {
-  return sessionBlock(tools.includes("file_write"));
+  return sessionBlock(canChange(tools));
+}
+
+/** Whether the catalogue is a writing mode's: a read-only mode offers no `file_write`, and the shell for its reads
+ *  alone (mode-policy.ts `shellReads`). */
+function canChange(tools: readonly string[]): boolean {
+  return tools.includes("file_write");
 }
 
 /** Where instructions come from, and how a request to remember is kept. The shared lessons tool, when the session
@@ -68,7 +74,8 @@ const WEB_TOOLS: readonly string[] = ["web_search", ...NETWORK_READ_TOOLS];
 /**
  * What the offered tools can and cannot do. Conditional on the catalogue, like the
  * search playbook: a read-only mode is not told how to write, and the line about the
- * shell appears only where the shell is offered. Stable per mode, so the cache holds.
+ * shell appears only where the shell is offered, naming its reads in a read-only mode. Stable per mode, so the cache
+ * holds.
  */
 function describeToolRealities(tools: readonly string[], explorer: boolean): string {
   return toolRealities({
@@ -76,6 +83,7 @@ function describeToolRealities(tools: readonly string[], explorer: boolean): str
     editFile: tools.includes("edit_file"),
     fileWrite: tools.includes("file_write"),
     shell: tools.includes("shell_command"),
+    shellReadsOnly: !canChange(tools),
     web: WEB_TOOLS.some((tool) => tools.includes(tool)),
     // spawn_agent is never in the catalogue: whether a spawn can reach the explorer is the caller's (explorerReachable).
     explorer,
@@ -101,6 +109,7 @@ function describeSearchPlaybook(tools: readonly string[]): string {
     searchRouting: describeSearchRouting(tools),
     codeIntelRouting: describeCodeIntelRouting(tools),
     shell: tools.includes("shell_command"),
+    shellReadsOnly: !canChange(tools),
     ragIngest: tools.includes("rag_ingest"),
   });
 }

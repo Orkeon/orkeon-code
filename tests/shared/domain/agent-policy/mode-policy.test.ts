@@ -4,7 +4,7 @@ import { describe, it } from "node:test";
 import { strictEqual, deepStrictEqual } from "node:assert";
 import { MODE_POLICIES, policyFor } from "../../../../src/shared/domain/agent-policy/mode-policy.ts";
 import { PERMISSION_MODES } from "../../../../src/shared/domain/permission-modes.ts";
-import { CLASS_ORDER, UNKNOWN_MODES } from "./mode-policy.fixtures.ts";
+import { CLASS_ORDER, READ_ONLY_CLASSES, UNKNOWN_MODES, WRITING_CLASSES } from "./mode-policy.fixtures.ts";
 
 describe("MODE_POLICIES", () => {
   it("has one row per permission mode, and no other", () => {
@@ -30,7 +30,7 @@ describe("MODE_POLICIES", () => {
   });
 
   for (const mode of PERMISSION_MODES) {
-    it(`gives ${mode} the local read class alone when it is read-only, and more when it is not`, () => {
+    it(`gives ${mode} the local and shell read classes alone when it is read-only, and more when it is not`, () => {
       // Arrange
       const policy = MODE_POLICIES[mode];
 
@@ -38,7 +38,7 @@ describe("MODE_POLICIES", () => {
       const { readOnly, toolClasses } = policy;
 
       // Assert
-      strictEqual(readOnly, toolClasses.length === 1 && toolClasses[0] === "read", mode);
+      strictEqual(readOnly, toolClasses.join(",") === READ_ONLY_CLASSES.join(","), mode);
     });
   }
 
@@ -65,7 +65,20 @@ describe("MODE_POLICIES", () => {
       const classes = [...policy.toolClasses];
 
       // Assert
-      deepStrictEqual(classes, [...CLASS_ORDER], mode);
+      deepStrictEqual(classes, [...WRITING_CLASSES], mode);
+    });
+  }
+
+  for (const mode of PERMISSION_MODES) {
+    it(`grants ${mode} at most one of the shell's two classes`, () => {
+      // Arrange
+      const classes = MODE_POLICIES[mode].toolClasses;
+
+      // Act
+      const both = classes.includes("shell") && classes.includes("shellReads");
+
+      // Assert
+      strictEqual(both, false, mode);
     });
   }
 });

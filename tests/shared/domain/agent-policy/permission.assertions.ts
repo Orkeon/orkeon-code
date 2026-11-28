@@ -11,10 +11,11 @@ export function assertOffered(toolset: readonly string[], names: readonly string
   }
 }
 
-/** `toolset` is a read-only mode's: no file_write, no shell_command, every local read. */
+/** `toolset` is a read-only mode's: no file_write, every local read, and shell_command once (for its reads). */
 export function assertReadOnlyToolset(toolset: readonly string[], label: string): void {
-  assertOffered(toolset, ["file_write", "shell_command"], false, label);
+  assertOffered(toolset, ["file_write"], false, label);
   assertOffered(toolset, READ_TOOLS, true, label);
+  strictEqual(toolset.filter((t) => t === "shell_command").length, 1, `${label} / shell_command should be offered once`);
 }
 
 /** Every inert rule of `decision` is reported with a reason that starts with `prefix` and says to switch mode. */

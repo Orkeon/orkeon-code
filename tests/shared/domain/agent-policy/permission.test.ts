@@ -409,6 +409,19 @@ describe("permissionNote / buildActPrompt", () => {
     assertMentions(note, ["MUST NOT modify"]);
   });
 
+  for (const mode of READ_ONLY_MODES) {
+    it(`${mode}'s note lets the shell's read-only commands run and forbids any other command`, () => {
+      // Arrange
+      const expected = ["the shell's read-only commands included", "run any other command"];
+
+      // Act
+      const note = permissionNote(mode);
+
+      // Assert
+      assertMentions(note, expected);
+    });
+  }
+
   for (const mode of WRITING_MODES) {
     it(`${mode}'s note allows edits and shell, as every writing mode's, acceptEdits included`, () => {
       // Arrange
@@ -502,7 +515,7 @@ describe("catalogueFor", () => {
 
   it("deny on a tool the mode already withholds is a no-op, not a phantom removal", () => {
     // Arrange
-    const rules = [{ effect: "deny" as const, tool: "shell_command" }];
+    const rules = [{ effect: "deny" as const, tool: "file_write" }];
 
     // Act
     const d = catalogueFor("plan", rules);
@@ -547,8 +560,30 @@ describe("catalogueFor", () => {
     const d = catalogueFor("dontAsk", rules);
 
     // Assert
-    deepStrictEqual(d.inert.map((r) => r.rule.tool), ["file_write", "shell_command"]);
+    deepStrictEqual(d.inert.map((r) => r.rule.tool), ["file_write"]);
     assertMentions(d.inert[0].reason, ["mode 'dontAsk' does not offer 'file_write'", "Switch mode"]);
+  });
+
+  it("takes an allow rule on shell_command as live in dontAsk, which offers the shell and whose gate reads the rule", () => {
+    // Arrange
+    const rules = [NPM_TEST];
+
+    // Act
+    const d = catalogueFor("dontAsk", rules);
+
+    // Assert
+    deepStrictEqual(d.inert, []);
+  });
+
+  it("removes shell_command from plan under a deny rule on the whole tool", () => {
+    // Arrange
+    const rules = [{ effect: "deny" as const, tool: "shell_command" }];
+
+    // Act
+    const d = catalogueFor("plan", rules);
+
+    // Assert
+    deepStrictEqual(d.deniedByRule, ["shell_command"]);
   });
 
   it("reports EVERY allow rule as inert in plan, whose gate reads none, offered tool or not", () => {

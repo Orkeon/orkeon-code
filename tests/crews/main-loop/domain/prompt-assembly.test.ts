@@ -36,6 +36,7 @@ import {
   LESSONS_TOOL_RULE, COMPACTED_IN_HISTORY_RULE, EXPLORER_RULE, LONGEST_HEADER_RULES, WEB_EXTRA_TOOLS,
   CHAT_FAMILY, CHAT_PARAGRAPH_MARKERS, CHAT_READ_RULES, CHAT_READS_ONLY, CHAT_REFUSAL_CODES, CHAT_WRITE_RULES,
   MARKED_WINDOW_CASES, UNCONFIGURED_PREFERENCES_CASES, LESSONS_TOOLS, builtParts, toolTurns, userMessages,
+  READ_ONLY_MODES, SHELL_READS_RULES, WRITING_MODES, WRITING_SHELL_MARKERS,
 } from "./prompt-assembly.fixtures.ts";
 import {
   assertInOrder, assertLacks, assertMentions, assertSaysInsteadOf, assertSectionLacks, assertSystemReminder,
@@ -244,7 +245,7 @@ describe("buildStaticHeader", () => {
 
   it("tells the shell takes one command per call and a file is read with file_read", () => {
     // Arrange
-    const opts = { toolNames: ["file_read", "shell_command"] };
+    const opts = { toolNames: ["file_read", "file_write", "shell_command"] };
 
     // Act
     const header = buildStaticHeader(opts);
@@ -347,7 +348,7 @@ describe("buildStaticHeader", () => {
 
   it("keeps the shell for builds, tests, git and scripts, never for what the read tools do", () => {
     // Arrange
-    const opts = { toolNames: ["codebase_search", "file_read", "shell_command"] };
+    const opts = { toolNames: ["codebase_search", "file_read", "file_write", "shell_command"] };
 
     // Act
     const header = buildStaticHeader(opts);
@@ -1093,6 +1094,49 @@ describe("buildStaticHeader, the chat family", () => {
 
       // Assert
       ok(header.length <= MAX_STATIC_HEADER_CHARS, `${mode}: ${header.length} > ${MAX_STATIC_HEADER_CHARS}`);
+    });
+  }
+});
+
+describe("buildStaticHeader, the shell of a read-only mode", () => {
+  for (const mode of READ_ONLY_MODES) {
+    for (const c of SHELL_READS_RULES) {
+      it(`tells ${mode} that ${c.rule}`, () => {
+        // Arrange
+        const opts = { toolNames: toolsetFor(mode) };
+
+        // Act
+        const header = buildStaticHeader(opts);
+
+        // Assert
+        assertMentions(header, [c.marker], `the ${mode} header`);
+      });
+    }
+  }
+
+  for (const mode of READ_ONLY_MODES) {
+    it(`gives ${mode} none of the writing modes' shell lines`, () => {
+      // Arrange
+      const opts = { toolNames: toolsetFor(mode) };
+
+      // Act
+      const header = buildStaticHeader(opts);
+
+      // Assert
+      assertLacks(header, WRITING_SHELL_MARKERS, `the ${mode} header`);
+    });
+  }
+
+  for (const mode of WRITING_MODES) {
+    it(`gives ${mode} none of the read-only shell's lines`, () => {
+      // Arrange
+      const opts = { toolNames: toolsetFor(mode) };
+
+      // Act
+      const header = buildStaticHeader(opts);
+
+      // Assert
+      assertLacks(header, SHELL_READS_RULES.map((c) => c.marker), `the ${mode} header`);
     });
   }
 });

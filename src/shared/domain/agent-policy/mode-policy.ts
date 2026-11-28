@@ -8,14 +8,17 @@ import { isPermissionMode } from "../permission-modes.ts";
 import type { PermissionMode } from "../permission-modes.ts";
 
 /**
- * The classes of tools a mode can hand the model, in catalogue order. `extra` is
- * the extra tools of access class `write` (the `tools.extra` setting: an MCP
- * server's or a plugin's tools); an extra tool of class `read` joins `read`.
+ * The classes of tools a mode can hand the model, in catalogue order. `shellReads`
+ * is the shell for the calls it declares a read (Orkeon #494: a `run` of one of its
+ * default read-only commands), `shell` the shell for every call, with the tools
+ * that execute. `extra` is the extra tools of access class `write` (the
+ * `tools.extra` setting: an MCP server's or a plugin's tools); an extra tool of
+ * class `read` joins `read`.
  */
-export type ToolClass = "read" | "network" | "edit" | "shell" | "extra";
+export type ToolClass = "read" | "shellReads" | "network" | "edit" | "shell" | "extra";
 
 export interface ModePolicy {
-  /** The turn changes nothing observable: local reads only, no edit, no shell, no network. */
+  /** The turn changes nothing observable: local reads only, the shell's included; no edit, no execute, no network. */
   readOnly: boolean;
   /** The tool classes the model is given, in catalogue order. */
   toolClasses: readonly ToolClass[];
@@ -37,9 +40,13 @@ export const MODE_POLICIES: Readonly<Record<PermissionMode, ModePolicy>> = {
   // these modes promise that the turn changes nothing observable, and an outbound
   // request is observable elsewhere — it can leak the repository's contents to a
   // third party and it can trigger a side effect on the far end. An extra tool
-  // the user did not mark `read` is withheld for the same reason.
-  plan: { readOnly: true, toolClasses: ["read"] },
-  dontAsk: { readOnly: true, toolClasses: ["read"] },
+  // the user did not mark `read` is withheld for the same reason. The shell joins
+  // them for its reads only (`shellReads`): the runtime declares a read for a `run`
+  // of its default read-only commands and the gate lets those through in both
+  // modes, refusing every other shell call without asking. The tools of the
+  // `shell` class (the chat writes, the script tools that execute) stay out.
+  plan: { readOnly: true, toolClasses: ["read", "shellReads"] },
+  dontAsk: { readOnly: true, toolClasses: ["read", "shellReads"] },
 };
 
 /**

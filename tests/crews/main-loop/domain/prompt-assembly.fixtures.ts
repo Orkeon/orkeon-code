@@ -321,3 +321,24 @@ export const CHAT_READS_ONLY: readonly string[] = ["file_read", "chat_accounts",
 
 /** What only the chat paragraph says: absent from a header without the family. */
 export const CHAT_PARAGRAPH_MARKERS: readonly string[] = ["`chat_*`", "`chat_members`", "`SignInRequired`"];
+
+/** The modes that change nothing, and those that may. */
+export const READ_ONLY_MODES: readonly string[] = ["plan", "dontAsk"];
+export const WRITING_MODES: readonly string[] = ["default", "acceptEdits", "bypassPermissions"];
+
+/** The rules of the shell in a read-only mode, one marker each (docs/turn.md, "Its tools" and "Searching the code"). */
+export const SHELL_READS_RULES: ReadonlyArray<{ rule: string; marker: string }> = [
+  { rule: "the shell runs reads only", marker: "`shell_command` runs reads only here" },
+  {
+    rule: "the commands that read are named",
+    marker: "a `run` of `ls`, `cat`, `pwd`, `which`, `grep`, `wc`, `echo`, `dir`, `type`, `where`",
+  },
+  { rule: "git reads its state and history only", marker: "`git status`, `log`, `diff`, `show` with no option that writes or runs a program" },
+  { rule: "any other command and a job are refused", marker: "Any other command and `start_job` are refused: never retry a refusal" },
+  { rule: "the shell searches git, the tools read the files", marker: "The shell is for git's state and history here" },
+];
+
+/** What only the writing modes' shell lines say: absent from a read-only mode's header. */
+export const WRITING_SHELL_MARKERS: readonly string[] = [
+  "runs one allowed command", "The shell is for builds, tests, git and the project's scripts",
+];

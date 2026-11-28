@@ -169,6 +169,10 @@ prompt as the model reads it, to review a change as a diff.
   - `shell_command` runs an allow-list, and git may be read-only.
   - A shell call is one command: no pipe, redirection nor chaining, which the runtime refuses. A file is read with
     `file_read` (a range for its end), never with `cat`, `tail` or `wc` through the shell.
+  - In a read-only mode (`plan`, `dontAsk`), which offers the shell for its reads alone, the line names what runs: a
+    `run` of `ls`, `cat`, `pwd`, `which`, `grep`, `wc`, `echo`, `dir`, `type`, `where`, or of `git status`, `log`,
+    `diff`, `show` with no option that writes or runs a program, one command per call. Any other command and
+    `start_job` are refused, and a refusal is not retried. The allow-list line of the writing modes is left out.
   - Where a web tool is offered (`web_search`, `http_api`, `web_scrape`, `scrape_element`, `browser`), the project
     comes before the web: a port, a command or an image its documentation and example settings give wins over one
     found on the web, and a value read nowhere is not given as a fact.
@@ -217,7 +221,8 @@ crew. Where the family is offered, the tools section carries its rules, those of
   - A read-only mode is told that an empty answer there is no proof of absence.
   - Trust the freshness of the code index (edited files are reindexed before a search answers).
   - The shell, where it is offered, is for builds, tests, git and the project's scripts, never for reading, listing,
-    finding or searching files, which the tools do.
+    finding or searching files, which the tools do. In a read-only mode it is for git's state and history (`git
+    status`, `log`, `diff`, `show`), never for reading, listing or searching files.
   - Where it is not, a file no index covers is found with `glob` and read.
 - **Question to tool** (`shared/domain/code-intel-routing.ts`):
   - Each kind of question goes to the tool that answers it, with the parameter that makes it answer (table below).
@@ -279,8 +284,8 @@ crew. Where the family is offered, the tools section carries its rules, those of
 - **Gauge** (a `<system-reminder>`): the tokens used against the window and the session cost. At the warning tier,
   finish the current step and stop reading whole large files; at the error tier, wrap up and suggest `/compact`.
 - **Request** (the last message, apart from the blocks above): the request under its own heading, then the
-  permission note of the mode (read-only: deliver an
-  assessment or a plan; otherwise the host may ask before a call), then the proactive clause when `/proactive` is
+  permission note of the mode (read-only: read and search, the shell's read-only commands included, run no other
+  command, deliver an assessment or a plan; otherwise the host may ask before a call), then the proactive clause when `/proactive` is
   on.
 
 ### The explorer

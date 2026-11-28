@@ -37,15 +37,32 @@ flowchart TD
 
 | Mode | Offered to the model | Local reads | Network reads (`http_api`, web) | File edits (`file_write`, `edit_file`, `node_*`, `edit_batch`, `structural_rewrite`), `rag_ingest` | Shell |
 |---|---|---|---|---|---|
-| `plan` | local reads, `read` [extra tools](#extra-tools) | ✅ | ❌ | ❌ | ❌ |
-| `dontAsk` | local reads, `read` [extra tools](#extra-tools) | ✅ | ❌ | ❌ | ❌ |
-| `default` | every tool | ✅ | plain `http_api` GET ✅, its other methods ask you, web ✅ | asks you | asks you |
-| `acceptEdits` | every tool | ✅ | plain `http_api` GET ✅, its other methods ask you, web ✅ | ✅ | asks you |
+| `plan` | local reads, the shell for its reads, `read` [extra tools](#extra-tools) | ✅ | ❌ | ❌ | its [reads](#the-shells-reads) ✅, the rest ❌ |
+| `dontAsk` | local reads, the shell for its reads, `read` [extra tools](#extra-tools) | ✅ | ❌ | ❌ | its [reads](#the-shells-reads) ✅, the rest ❌ |
+| `default` | every tool | ✅ | plain `http_api` GET ✅, its other methods ask you, web ✅ | asks you | its reads ✅, the rest asks you |
+| `acceptEdits` | every tool | ✅ | plain `http_api` GET ✅, its other methods ask you, web ✅ | ✅ | its reads ✅, the rest asks you |
 | `bypassPermissions` | every tool | ✅ | ✅ | ✅ | ✅ |
 
 `plan` and `dontAsk` promise that the turn changes nothing observable: no write, and no outbound request, since a
-request can carry the repository's content elsewhere. Their catalogue holds the local read tools only, and the gate
-refuses anything else without asking.
+request can carry the repository's content elsewhere. Their catalogue holds the local read tools and the shell, and
+the gate refuses without asking every call that is not a read: a shell call runs there only when the shell declares
+it a read. The model is told which commands those are. The chat writes and Orkeon Code's own tools that execute
+(`run_tests`, `run_build`) stay out of these modes.
+
+### The shell's reads
+
+`shell_command` declares a read for a `run` (its default action) of one of its default read-only commands that its
+own checks accept: `ls`, `cat`, `pwd`, `which`, `grep`, `wc`, `echo`, `dir`, `type`, `where`, and `git` with
+`status`, `log`, `diff` or `show` and no option that writes or runs a program. A `git` call reads only when the git
+installed is recent enough for the tool to neutralise every program a repository configures. Every other call
+executes:
+
+- a command added to the allow-list (`Orkeon:Tools:Shell` extends it) or a custom allow-list's;
+- an interpreter, and `git` itself once `Orkeon:Tools:Shell:AllowInterpreters` lifts its restriction;
+- a command with a shell operator (`|`, `>`, `;`), or one the tool would refuse;
+- `start_job`, `job_status` and `job_tail`.
+
+In `plan`, the refusal of a shell call names what plan allows, so the model does not try the same call again.
 
 ### Questions
 
@@ -85,6 +102,7 @@ write. Where the access depends on the arguments, the gate reads it per call.
 | `github` | `list_issues`, `get_pr`, `search_repos`, `get_repo` | | `create_issue`, `create_pr`, an action it does not know |
 | `web_scrape`, `scrape_element`, `rag_search` | every call | | |
 | `rag_ingest`, `rag_eval` | | every call | |
+| `shell_command` | a `run` of a read-only command ([The shell's reads](#the-shells-reads)) | | every other call |
 | `browser` | `navigate`, `back`, `snapshot`, `read`, `find`, `search`, `tabs`, `new_tab`, `switch_tab` | `screenshot` | `click`, `type`, `press`, `evaluate`, `close_tab`, `close` |
 | `chat_accounts`, `chat_list`, `chat_read`, `chat_search`, `chat_members`, `chat_meetings` | every call | | |
 | `chat_send`, `chat_edit`, `chat_delete`, `chat_react` | | | every call |
@@ -223,7 +241,9 @@ Adding a rule replaces the rule of the opposite effect on the same calls; rules 
 | a deny rule with a pattern | leaves the tool offered, as its other calls run |
 | an allow rule | never adds a tool: it spares a question, it does not hand over a tool the mode withholds |
 
-`plan` and `dontAsk` therefore stay read-only whatever the rules say. `/permissions` reports an allow rule that has no
+`plan` stays read-only whatever the rules say. `dontAsk` does too, but for an allow rule on `shell_command`: the gate
+reads it there, so the commands it matches run, reads or not (`allow shell_command command=npm test*` runs the tests
+in `dontAsk`). `/permissions` reports an allow rule that has no
 effect in the session's mode: every allow rule in `plan`, and an allow rule on a tool the mode does not offer. A turn
 reports one that has none in the mode its request names, and every turn logs the tools a rule removed.
 

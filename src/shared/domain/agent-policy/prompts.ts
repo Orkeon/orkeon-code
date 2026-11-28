@@ -2,8 +2,8 @@
 
 /** The permission clause of a read-only mode, and of the others. */
 export const READ_ONLY_CLAUSE =
-  "Read-only: read and search the project, but MUST NOT modify files, run commands or fetch anything over the " +
-  "network; answer with an assessment or a plan.";
+  "Read-only: read and search the project, the shell's read-only commands included, but MUST NOT modify files, run " +
+  "any other command or fetch anything over the network; answer with an assessment or a plan.";
 export const MAY_ACT_CLAUSE =
   "You may edit files, run shell commands and fetch over the network; the host may ask the user before a call.";
 
